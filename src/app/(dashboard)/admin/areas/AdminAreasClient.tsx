@@ -99,7 +99,7 @@ export default function AdminAreasClient({ initialAreas }: Props) {
         try {
             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta-area?idQr=${encodeURIComponent(printingArea.qrCode)}&areaName=${encodeURIComponent(printingArea.description || printingArea.name)}&areaPrefix=${encodeURIComponent(printingArea.prefix)}`;
 
-            const defaultPrinter = typeof window !== 'undefined' ? localStorage.getItem('default_printer') || 'Niimbot' : 'Niimbot';
+            const defaultPrinter = typeof window !== 'undefined' ? localStorage.getItem('default_printer') || 'Vorttek' : 'Vorttek';
             const res = await fetch('/api/impresion/encolar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

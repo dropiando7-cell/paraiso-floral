@@ -26,16 +26,14 @@ export default function PreviewEtiquetaEquipoModal({
     onClose
 }: PreviewModalProps) {
     const [cantidad, setCantidad] = useState(1);
-    const [size, setSize] = useState('50x30');
-    const [impresora, setImpresora] = useState('TSC TE200');
+    const [size, setSize] = useState('50x25');
+    const [impresora, setImpresora] = useState('Vorttek');
     const [imprimiendo, setImprimiendo] = useState(false);
     const [resultado, setResultado] = useState<{ success: boolean; message: string } | null>(null);
 
     useEffect(() => {
-        const saved = localStorage.getItem('default_printer');
-        if (saved) {
-            setImpresora(saved);
-        }
+        setImpresora('Vorttek');
+        localStorage.setItem('default_printer', 'Vorttek');
     }, []);
 
     const handlePrinterChange = (newPrinter: string) => {
@@ -53,14 +51,16 @@ export default function PreviewEtiquetaEquipoModal({
         serie: equipo.serie || 'N/A',
         cliente: equipo.cliente?.nombre || 'Sin Cliente',
         fechaInstalacion: equipo.fechaInstalacion ? new Date(equipo.fechaInstalacion).toISOString() : '',
-        size
+        size,
+        impresora
     });
 
-    const urlImagen = `/api/impresion/generar-etiqueta-equipo?${params.toString()}`;
+    const urlImagen = `/api/mantenimientos/generar-etiqueta?${params.toString()}`;
 
     const handleImprimir = async () => {
         setImprimiendo(true);
         setResultado(null);
+
         try {
             const fullUrlImagen = `${window.location.origin}${urlImagen}`;
             const qtyToPrint = Number(cantidad) || 1;
@@ -75,7 +75,7 @@ export default function PreviewEtiquetaEquipoModal({
                             urlImagen: fullUrlImagen,
                             impresora,
                             tamano: size,
-                            activoId: '00000000-0000-0000-0000-000000000000' // ID dummy para indicar etiqueta que no es un activo fijo directo
+                            activoId: '00000000-0000-0000-0000-000000000000'
                         })
                     })
                 );
@@ -97,8 +97,8 @@ export default function PreviewEtiquetaEquipoModal({
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl shadow-2xl p-6 relative max-w-lg w-full border border-slate-100 flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 relative max-w-lg w-full font-sans text-slate-800">
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 text-slate-400 hover:bg-slate-100 p-2 rounded-full transition-colors"
@@ -106,19 +106,21 @@ export default function PreviewEtiquetaEquipoModal({
                     <X className="w-5 h-5" />
                 </button>
 
-                <div className="flex items-center gap-3">
-                    <div className="bg-indigo-100 p-2.5 rounded-xl">
-                        <Printer className="w-5 h-5 text-indigo-600" />
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-indigo-50 p-2.5 rounded-xl">
+                        <Printer className="w-6 h-6 text-indigo-600" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800 leading-tight">Imprimir Etiqueta de Equipo</h3>
+                        <h3 className="text-xl font-bold text-slate-900 leading-tight">
+                            Vista Previa de Etiqueta QR
+                        </h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                            Destinado para el control de mantenimientos y trazabilidad
+                            Asegúrate de que la impresora VORTTEK esté conectada y lista.
                         </p>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/60">
+                <div className="mb-4 flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-slate-700">Copias a Imprimir:</span>
                         <input
@@ -126,6 +128,7 @@ export default function PreviewEtiquetaEquipoModal({
                             min="1"
                             max="100"
                             value={cantidad}
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) => setCantidad(Number(e.target.value) || 1)}
                             className="w-20 text-center font-bold font-mono py-1.5 px-2 rounded-lg border border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                         />
@@ -138,9 +141,7 @@ export default function PreviewEtiquetaEquipoModal({
                             onChange={(e) => setSize(e.target.value)}
                             className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                         >
-                            <option value="50x30">50x30 mm (Normal)</option>
-                            <option value="50x25">50x25 mm (Corto)</option>
-                            <option value="70x40">70x40 mm (Grande)</option>
+                            <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
 
@@ -151,9 +152,7 @@ export default function PreviewEtiquetaEquipoModal({
                             onChange={(e) => handlePrinterChange(e.target.value)}
                             className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                         >
-                            <option value="TSC TE200">TSC TE200</option>
-                            <option value="Niimbot">NIIMBOT K3</option>
-                            <option value="Vorttek">Vorttek</option>
+                            <option value="Vorttek">VORTTEK</option>
                         </select>
                     </div>
                 </div>

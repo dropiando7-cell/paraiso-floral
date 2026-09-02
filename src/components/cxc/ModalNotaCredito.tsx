@@ -166,6 +166,7 @@ export default function ModalNotaCredito({ isOpen, onClose, onSuccess, cliente }
                   min="0.01"
                   required
                   value={monto}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setMonto(e.target.value)}
                   placeholder="0.00"
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-base font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none"

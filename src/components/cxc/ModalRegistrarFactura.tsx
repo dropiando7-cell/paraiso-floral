@@ -319,6 +319,7 @@ export default function ModalRegistrarFactura({
                   step="0.01"
                   min="0.01"
                   value={montoTotal}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setMontoTotal(e.target.value)}
                   placeholder="0.00"
                   className="w-full pl-9 pr-3.5 py-2.5 bg-emerald-50/60 border-2 border-emerald-200 rounded-xl text-sm font-black text-emerald-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
@@ -404,6 +405,7 @@ export default function ModalRegistrarFactura({
                       type="number"
                       min="1"
                       value={it.cantidad}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => handleItemChange(idx, 'cantidad', Number(e.target.value))}
                       placeholder="Cant"
                       className="w-14 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-center outline-none"
@@ -412,6 +414,7 @@ export default function ModalRegistrarFactura({
                       type="number"
                       step="0.01"
                       value={it.precioUnitario || ''}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => handleItemChange(idx, 'precioUnitario', Number(e.target.value))}
                       placeholder="Precio"
                       className="w-20 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-right outline-none"

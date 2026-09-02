@@ -582,71 +582,81 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
         })
     };
 
-    let activos = await prisma.activoFijo.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        select: {
-            id: true,
-            organizationId: true,
-            idQr: true,
-            descripcionCorta: true,
-            descripcionDetallada: true,
-            marca: true,
-            modelo: true,
-            serie: true,
-            referencia: true,
-            lote: true,
-            area: true,
-            codigoBarras: true,
-            stock: true,
-            cuentaAct: true,
-            estatusContable: true,
-            estadoDano: true,
-            costoAdq: true,
-            imagenUrl: true,
-            imagenPlacaUrl: true,
-            esConsumible: true,
-            fechaVencimiento: true,
-            origenActivo: true,
-            condicionActivo: true,
-            garantia: true,
-            esEquipoCliente: true,
-            cobertura: true,
-            vidaUtilOverride: true,
-            valResidual: true,
-            baseDeprec: true,
-            deprecMensual: true,
-            deprecAcum: true,
-            valorLibros: true,
-            integrado: true,
-            createdAt: true,
-            updatedAt: true,
-            categoria: { select: { id: true, nombre: true } },
-            createdBy: { select: { nombre: true, apellido: true, email: true } },
-            updatedBy: { select: { nombre: true, apellido: true, email: true } },
-            responsable: true,
-        },
-    });
-
     if (cleanSearch) {
-        const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        const searchNorm = removeAccents(cleanSearch);
-        activos = activos.filter(a => {
-            const desc = removeAccents(a.descripcionCorta || '');
-            const qr = removeAccents(a.idQr || '');
-            const code = removeAccents(a.codigoBarras || '');
-            const ser = removeAccents(a.serie || '');
-            const mod = removeAccents(a.modelo || '');
-            const brand = removeAccents(a.marca || '');
-            const resp = removeAccents(a.responsable || '');
-            return desc.includes(searchNorm) || qr.includes(searchNorm) || code.includes(searchNorm) || ser.includes(searchNorm) || mod.includes(searchNorm) || brand.includes(searchNorm) || resp.includes(searchNorm);
+        const words = cleanSearch.split(/\s+/).filter(Boolean);
+        where.AND = words.map(w => {
+            const variants = addAccentVariants(w);
+            return {
+                OR: [
+                    ...variants.flatMap(v => [
+                        { descripcionCorta: { contains: v, mode: 'insensitive' as const } },
+                        { marca: { contains: v, mode: 'insensitive' as const } },
+                        { modelo: { contains: v, mode: 'insensitive' as const } },
+                        { referencia: { contains: v, mode: 'insensitive' as const } },
+                        { lote: { contains: v, mode: 'insensitive' as const } },
+                        { area: { contains: v, mode: 'insensitive' as const } },
+                        { responsable: { contains: v, mode: 'insensitive' as const } }
+                    ]),
+                    { idQr: { contains: w, mode: 'insensitive' as const } },
+                    { codigoBarras: { contains: w, mode: 'insensitive' as const } },
+                    { serie: { contains: w, mode: 'insensitive' as const } }
+                ]
+            };
         });
     }
 
-    const total = activos.length;
-    const paginatedActivos = activos.slice(skip, skip + PER_PAGE);
+    const [activos, total] = await Promise.all([
+        prisma.activoFijo.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: PER_PAGE,
+            select: {
+                id: true,
+                organizationId: true,
+                idQr: true,
+                descripcionCorta: true,
+                descripcionDetallada: true,
+                marca: true,
+                modelo: true,
+                serie: true,
+                referencia: true,
+                lote: true,
+                area: true,
+                codigoBarras: true,
+                stock: true,
+                cuentaAct: true,
+                estatusContable: true,
+                estadoDano: true,
+                costoAdq: true,
+                imagenUrl: true,
+                imagenPlacaUrl: true,
+                esConsumible: true,
+                fechaVencimiento: true,
+                origenActivo: true,
+                condicionActivo: true,
+                garantia: true,
+                esEquipoCliente: true,
+                cobertura: true,
+                vidaUtilOverride: true,
+                valResidual: true,
+                baseDeprec: true,
+                deprecMensual: true,
+                deprecAcum: true,
+                valorLibros: true,
+                integrado: true,
+                createdAt: true,
+                updatedAt: true,
+                categoria: { select: { id: true, nombre: true } },
+                createdBy: { select: { nombre: true, apellido: true, email: true } },
+                updatedBy: { select: { nombre: true, apellido: true, email: true } },
+                responsable: true,
+            },
+        }),
+        prisma.activoFijo.count({ where })
+    ]);
 
-    const plainActivos = paginatedActivos.map(a => ({
+    const plainActivos = activos.map(a => ({
         ...a,
         costoAdq: a.costoAdq ? Number(a.costoAdq) : null,
         vidaUtilOverride: a.vidaUtilOverride ? Number(a.vidaUtilOverride) : null,
@@ -1534,7 +1544,7 @@ export async function getActiveUserArea() {
     }
 }
 
-export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number, size: string = '70x40', impresora: string = 'Niimbot') {
+export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number, size: string = '50x25', impresora: string = 'Vorttek') {
     const orgId = await getOrgId();
 
     // Buscar los ultimos N activos con ese codigo de grupo para la organizacion de forma global
@@ -1603,7 +1613,7 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
     return { success: true, count: countPayload.count };
 }
 
-export async function encolarCopiasNiimbot(activoId: string, cantidad: number, size: string = '70x40', impresora: string = 'Niimbot') {
+export async function encolarCopiasNiimbot(activoId: string, cantidad: number, size: string = '50x25', impresora: string = 'Vorttek') {
     const orgId = await getOrgId();
 
     const activo = await prisma.activoFijo.findUnique({
@@ -1997,7 +2007,7 @@ export async function encolarLoteImportado(ids: string[]) {
                 modelo: activo.modelo || '',
                 codigoBarras: activo.codigoBarras || '',
                 serie: activo.serie || '',
-                size: '70x40'
+                size: '50x25'
             });
             const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 
@@ -2006,8 +2016,8 @@ export async function encolarLoteImportado(ids: string[]) {
                 activoId: activo.id,
                 urlImagen,
                 estado: 'PENDIENTE',
-                impresora: 'Niimbot',
-                tamano: '70x40'
+                impresora: 'Vorttek',
+                tamano: '50x25'
             });
         }
 

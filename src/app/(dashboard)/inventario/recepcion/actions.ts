@@ -263,11 +263,17 @@ export async function toggleVerificacionItem(
             }
         });
 
-        // Actualizar estado del lote a EN_RECEPCION si estaba EN_TRANSITO
-        await prisma.recepcionLote.update({
+        // Actualizar estado del lote a EN_RECEPCION si estaba EN_TRANSITO (y no COMPLETADO)
+        const loteActual = await prisma.recepcionLote.findUnique({
             where: { id: item.caja.recepcionId },
-            data: { estado: 'EN_RECEPCION' }
+            select: { estado: true }
         });
+        if (loteActual && loteActual.estado !== 'COMPLETADO' && loteActual.estado !== 'INGRESADO_CEDI') {
+            await prisma.recepcionLote.update({
+                where: { id: item.caja.recepcionId },
+                data: { estado: 'EN_RECEPCION' }
+            });
+        }
 
         revalidatePath(`/inventario/recepcion/${item.caja.recepcionId}`);
         revalidatePath('/inventario/recepcion');
@@ -286,7 +292,7 @@ export async function verificarCajaCompleta(cajaId: string, verificado: boolean)
 
         const caja = await prisma.recepcionCaja.findUnique({
             where: { id: cajaId },
-            include: { items: true }
+            include: { items: true, recepcion: { select: { estado: true } } }
         });
 
         if (!caja) throw new Error('Caja no encontrada.');
@@ -312,10 +318,12 @@ export async function verificarCajaCompleta(cajaId: string, verificado: boolean)
                 }
             });
 
-            await tx.recepcionLote.update({
-                where: { id: caja.recepcionId },
-                data: { estado: 'EN_RECEPCION' }
-            });
+            if (caja.recepcion?.estado !== 'COMPLETADO' && caja.recepcion?.estado !== 'INGRESADO_CEDI') {
+                await tx.recepcionLote.update({
+                    where: { id: caja.recepcionId },
+                    data: { estado: 'EN_RECEPCION' }
+                });
+            }
         });
 
         revalidatePath(`/inventario/recepcion/${caja.recepcionId}`);
@@ -350,6 +358,10 @@ export async function finalizarRecepcionLote(loteId: string) {
 
         if (!lote || lote.organizationId !== user.organizationId) {
             throw new Error('Lote no encontrado.');
+        }
+
+        if (lote.estado === 'COMPLETADO' || lote.estado === 'INGRESADO_CEDI') {
+            throw new Error('Este lote ya fue ingresado al CEDI previamente. No se puede duplicar la carga de stock.');
         }
 
         await prisma.$transaction(async (tx) => {
@@ -433,8 +445,8 @@ export async function finalizarRecepcionLote(loteId: string) {
 // 6. Imprimir etiquetas de una caja específica con pre-visualización y soporte de código 1D
 export async function encolarImpresionCaja(
     cajaId: string, 
-    impresora: string = 'Niimbot', 
-    tamano: string = '70x40',
+    impresora: string = 'Vorttek', 
+    tamano: string = '50x25',
     itemsCustom?: Array<{ idQr: string; descripcion: string; codigoBarras: string; cantidad: number; activoFijoId?: string }>
 ) {
     try {
@@ -531,8 +543,8 @@ export async function encolarImpresionCaja(
 // 7. Imprimir etiquetas de todo el packing list completo con pre-visualización y soporte 1D
 export async function encolarImpresionLoteCompleto(
     loteId: string, 
-    impresora: string = 'Niimbot', 
-    tamano: string = '70x40',
+    impresora: string = 'Vorttek', 
+    tamano: string = '50x25',
     itemsCustom?: Array<{ idQr: string; descripcion: string; codigoBarras: string; cantidad: number; activoFijoId?: string }>
 ) {
     try {

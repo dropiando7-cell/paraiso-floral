@@ -2403,6 +2403,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                     required
                     placeholder="0.00"
                     value={newProductData.precioVenta}
+                    onFocus={e => e.target.select()}
                     onChange={e => setNewProductData({ ...newProductData, precioVenta: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
                   />
@@ -2414,6 +2415,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                     step="0.01"
                     placeholder="0.00"
                     value={newProductData.costoBase}
+                    onFocus={e => e.target.select()}
                     onChange={e => setNewProductData({ ...newProductData, costoBase: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
                   />
@@ -2426,6 +2428,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                   type="number"
                   placeholder="100"
                   value={newProductData.stockActual}
+                  onFocus={e => e.target.select()}
                   onChange={e => setNewProductData({ ...newProductData, stockActual: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
                 />

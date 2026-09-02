@@ -36,7 +36,7 @@ export default function ModalPrevisualizarImpresion({
     itemsIniciales,
     onConfirmarImpresion
 }: ModalPrevisualizarImpresionProps) {
-    const [impresora, setImpresora] = useState<string>('Niimbot');
+    const [impresora, setImpresora] = useState<string>('Vorttek');
     const [tamano, setTamano] = useState<string>('50x25');
     const [items, setItems] = useState<ItemPrevisualizacion[]>([]);
     const [isPrinting, setIsPrinting] = useState<boolean>(false);
@@ -44,10 +44,8 @@ export default function ModalPrevisualizarImpresion({
     const [cantidadStr, setCantidadStr] = useState<string>('1');
 
     useEffect(() => {
-        const savedPrinter = localStorage.getItem('default_printer');
-        if (savedPrinter) {
-            setImpresora(savedPrinter);
-        }
+        setImpresora('Vorttek');
+        localStorage.setItem('default_printer', 'Vorttek');
     }, []);
 
     useEffect(() => {
@@ -103,23 +101,28 @@ export default function ModalPrevisualizarImpresion({
 
     // Generar la URL idéntica al modal de Inventario
     const searchParams = new URLSearchParams({
-        idQr: selectedItem?.idQr || '000000',
-        descripcion: selectedItem?.descripcion || 'Sin descripción',
-        codigoBarras: selectedItem?.codigoBarras || selectedItem?.idQr || '',
-        size: tamano
+        idQr: selectedItem?.idQr || '',
+        descripcion: selectedItem?.descripcion || '',
+        codigoBarras: selectedItem?.codigoBarras || '',
+        area: 'BODEGA RECEPCIÓN',
+        size: tamano,
+        impresora: impresora
     });
     const previewUrl = `/api/impresion/generar-etiqueta?${searchParams.toString()}`;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 relative max-w-lg w-full font-sans text-slate-800">
-                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:bg-slate-100 p-2 rounded-full transition-colors">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 relative max-w-lg w-full">
+                <button 
+                    onClick={onClose} 
+                    className="absolute top-4 right-4 text-slate-400 hover:bg-slate-100 p-2 rounded-full transition-colors"
+                >
                     <X className="w-5 h-5"/>
                 </button>
                 
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-blue-100 p-2.5 rounded-xl shrink-0">
+                    <div className="bg-blue-100 p-2.5 rounded-xl">
                         <Printer className="w-5 h-5 text-[#0500A3]" />
                     </div>
                     <div>
@@ -127,7 +130,7 @@ export default function ModalPrevisualizarImpresion({
                             {titulo || 'Vista Previa de Etiqueta QR'}
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                            Asegúrate de que la impresora {impresora === 'Niimbot' ? 'NIIMBOT K3' : impresora} esté conectada y lista.
+                            Asegúrate de que la impresora VORTTEK esté conectada y lista.
                         </p>
                     </div>
                 </div>
@@ -163,6 +166,7 @@ export default function ModalPrevisualizarImpresion({
                             min="1" 
                             max="500" 
                             value={cantidadStr} 
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) => handleCantidadStrChange(e.target.value)}
                             onBlur={() => {
                                 if (!cantidadStr || parseInt(cantidadStr, 10) < 1) {
@@ -181,8 +185,6 @@ export default function ModalPrevisualizarImpresion({
                             onChange={(e) => setTamano(e.target.value)}
                             className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500 bg-white"
                         >
-                            <option value="70x40">70x40 mm</option>
-                            <option value="50x33">50x33 mm</option>
                             <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
@@ -194,9 +196,7 @@ export default function ModalPrevisualizarImpresion({
                             onChange={(e) => handlePrinterChange(e.target.value)}
                             className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500 bg-white"
                         >
-                            <option value="Niimbot">NIIMBOT K3</option>
-                            <option value="TSC TE200">TSC TE200</option>
-                            <option value="Vorttek">Vorttek</option>
+                            <option value="Vorttek">VORTTEK</option>
                         </select>
                     </div>
                 </div>

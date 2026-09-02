@@ -366,6 +366,7 @@ export default function ContactoModal({
                     step="500"
                     min="0"
                     placeholder="Ej: 25000"
+                    onFocus={(e) => e.target.select()}
                     className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
                     value={formData.limiteCredito !== undefined && formData.limiteCredito !== null ? formData.limiteCredito : ''}
                     onChange={e => setFormData({ ...formData, limiteCredito: e.target.value ? parseFloat(e.target.value) : 0 })}
@@ -384,6 +385,7 @@ export default function ContactoModal({
                     step="100"
                     min="0"
                     placeholder="Ej: 15000"
+                    onFocus={(e) => e.target.select()}
                     className="w-full pl-8 pr-3 py-2 bg-amber-50/70 border border-amber-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
                     value={formData.saldoInicial !== undefined && formData.saldoInicial !== null ? formData.saldoInicial : ''}
                     onChange={e => setFormData({ ...formData, saldoInicial: e.target.value ? parseFloat(e.target.value) : 0 })}

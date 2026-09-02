@@ -416,8 +416,8 @@ export default function ChecklistBodegaClient({
     };
 
     // Handler: Cambiar cantidad de bonches recibidos
-    const handleCambiarBonches = (item: ItemRecepcion, cantidad: number) => {
-        const cantValida = Math.max(0, cantidad);
+    const handleCambiarBonches = (item: ItemRecepcion, cantidad: number | '') => {
+        const cantValida = cantidad === '' ? ('' as any) : Math.max(0, cantidad);
         setLote(prev => ({
             ...prev,
             cajas: prev.cajas.map(c => {
@@ -429,9 +429,11 @@ export default function ChecklistBodegaClient({
             })
         }));
 
-        startTransition(async () => {
-            await toggleVerificacionItem(item.id, item.verificado, item.tipoEmpaque, cantValida, item.bonchesDanados, item.motivoDano || undefined);
-        });
+        if (typeof cantidad === 'number') {
+            startTransition(async () => {
+                await toggleVerificacionItem(item.id, item.verificado, item.tipoEmpaque, cantValida, item.bonchesDanados, item.motivoDano || undefined);
+            });
+        }
     };
 
     const barcodeSaveTimerRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
@@ -713,10 +715,18 @@ export default function ChecklistBodegaClient({
 
     // Handler: Finalizar Recepción Completa
     const handleFinalizarRecepcion = () => {
+        if (lote.estado === 'COMPLETADO' || lote.estado === 'INGRESADO_CEDI') {
+            setMensajeFeedback({ tipo: 'error', texto: 'Este packing list ya fue ingresado al CEDI previamente. El stock ya se encuentra cargado en el inventario.' });
+            return;
+        }
         setMostrarModalResumen(true);
     };
 
     const handleConfirmarFinalizacionModal = () => {
+        if (lote.estado === 'COMPLETADO' || lote.estado === 'INGRESADO_CEDI') {
+            setMostrarModalResumen(false);
+            return;
+        }
         setMostrarModalResumen(false);
         startTransition(async () => {
             const res = await finalizarRecepcionLote(lote.id);
@@ -790,11 +800,27 @@ export default function ChecklistBodegaClient({
 
                     <span className={`px-3 py-1.5 md:py-2 rounded-xl text-xs md:text-sm font-bold border flex items-center gap-1.5 ${
                         lote.estado === 'COMPLETADO' 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-extrabold'
+                            : porcentajeGlobal === 100
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-extrabold animate-pulse'
+                            : 'bg-amber-50 text-amber-700 border-amber-200 font-bold'
                     }`}>
-                        <Clock className="w-4 h-4" />
-                        {lote.estado === 'COMPLETADO' ? 'COMPLETADO' : 'EN RECEPCIÓN'}
+                        {lote.estado === 'COMPLETADO' ? (
+                            <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                <span>INGRESADO AL CEDI</span>
+                            </>
+                        ) : porcentajeGlobal === 100 ? (
+                            <>
+                                <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                                <span>REVISADO 100% • LISTO PARA CARGAR</span>
+                            </>
+                        ) : (
+                            <>
+                                <Clock className="w-4 h-4 text-amber-600" />
+                                <span>EN RECEPCIÓN ({porcentajeGlobal}%)</span>
+                            </>
+                        )}
                     </span>
                 </div>
             </div>
@@ -1241,11 +1267,27 @@ export default function ChecklistBodegaClient({
                                                             <input
                                                                 type="number"
                                                                 min={0}
-                                                                value={item.bonchesRecibidos !== undefined && item.bonchesRecibidos !== null ? item.bonchesRecibidos : item.bonchesEsperados}
+                                                                value={
+                                                                    (item as any).bonchesRecibidos === '' 
+                                                                        ? '' 
+                                                                        : (item.bonchesRecibidos !== undefined && item.bonchesRecibidos !== null 
+                                                                            ? item.bonchesRecibidos 
+                                                                            : item.bonchesEsperados)
+                                                                }
+                                                                onFocus={(e) => e.target.select()}
                                                                 onChange={(e) => {
                                                                     const valStr = e.target.value;
-                                                                    const valNum = valStr === '' ? 0 : (parseInt(valStr, 10) || 0);
-                                                                    handleCambiarBonches(item, valNum);
+                                                                    if (valStr === '') {
+                                                                        handleCambiarBonches(item, '' as any);
+                                                                    } else {
+                                                                        const valNum = parseInt(valStr, 10);
+                                                                        handleCambiarBonches(item, isNaN(valNum) ? 0 : Math.max(0, valNum));
+                                                                    }
+                                                                }}
+                                                                onBlur={() => {
+                                                                    if ((item as any).bonchesRecibidos === '' || item.bonchesRecibidos === undefined || isNaN(Number(item.bonchesRecibidos))) {
+                                                                        handleCambiarBonches(item, 0);
+                                                                    }
                                                                 }}
                                                                 className="w-10 sm:w-12 md:w-14 bg-white text-center font-extrabold text-slate-900 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 py-0.5"
                                                             />
@@ -1311,18 +1353,25 @@ export default function ChecklistBodegaClient({
                         <span>Resumen Lote #{lote.numeroEnvio}</span>
                     </button>
 
-                    <button
-                        onClick={handleFinalizarRecepcion}
-                        disabled={isPending || lote.estado === 'COMPLETADO'}
-                        className={`px-5 sm:px-6 md:px-8 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl font-black text-xs sm:text-sm md:text-base flex items-center gap-2 transition-all shadow-md active:scale-95 ${
-                            lote.estado === 'COMPLETADO'
-                                ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-600/30'
-                        }`}
-                    >
-                        <Save className="w-4 h-4 md:w-5 md:h-5" />
-                        <span>{lote.estado === 'COMPLETADO' ? 'COMPLETADO' : 'PROCESAR Y CARGAR STOCK'}</span>
-                    </button>
+                    {lote.estado === 'COMPLETADO' || lote.estado === 'INGRESADO_CEDI' ? (
+                        <div className="px-4 sm:px-6 md:px-8 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl font-black text-xs sm:text-sm md:text-base flex items-center gap-2 bg-emerald-50 text-emerald-800 border-2 border-emerald-300 shadow-xs select-none">
+                            <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-emerald-600 shrink-0" />
+                            <span>STOCK YA INGRESADO AL CEDI (FINALIZADO)</span>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleFinalizarRecepcion}
+                            disabled={isPending}
+                            className={`px-5 sm:px-6 md:px-8 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl font-black text-xs sm:text-sm md:text-base flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer ${
+                                porcentajeGlobal === 100
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-4 ring-emerald-600/30'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-600/30'
+                            }`}
+                        >
+                            <Save className="w-4 h-4 md:w-5 md:h-5" />
+                            <span>{isPending ? 'PROCESANDO...' : 'PROCESAR Y CARGAR STOCK'}</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1545,8 +1594,15 @@ export default function ChecklistBodegaClient({
                                     <input
                                         type="number"
                                         min={1}
-                                        value={extraBonches}
-                                        onChange={(e) => setExtraBonches(parseInt(e.target.value, 10) || 1)}
+                                        value={extraBonches === 0 ? '' : extraBonches}
+                                        onFocus={(e) => e.target.select()}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setExtraBonches(val === '' ? ('' as any) : Math.max(0, parseInt(val, 10) || 0));
+                                        }}
+                                        onBlur={() => {
+                                            if (!extraBonches || isNaN(Number(extraBonches))) setExtraBonches(1);
+                                        }}
                                         className="w-full bg-white border border-slate-300 rounded-lg p-2 font-bold text-slate-900 text-xs focus:outline-none focus:border-emerald-600"
                                     />
                                 </div>
@@ -1695,8 +1751,13 @@ function FormularioDanoMerma({
                         type="number"
                         min={0}
                         max={item.bonchesEsperados}
-                        value={danadosCount}
-                        onChange={(e) => setDanadosCount(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                        value={danadosCount === 0 ? '' : danadosCount}
+                        placeholder="0"
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                            const valStr = e.target.value;
+                            setDanadosCount(valStr === '' ? 0 : Math.max(0, parseInt(valStr, 10) || 0));
+                        }}
                         className="w-full bg-white border border-slate-300 rounded p-1.5 font-bold text-slate-900 text-xs focus:outline-none focus:border-rose-500"
                     />
                 </div>

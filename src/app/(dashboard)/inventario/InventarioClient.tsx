@@ -44,7 +44,7 @@ interface DebouncedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEl
 function DebouncedInput({
     value: initialValue,
     onChange,
-    debounce = 300,
+    debounce = 120,
     ...props
 }: DebouncedInputProps) {
     const [value, setValue] = useState(initialValue);
@@ -70,13 +70,11 @@ function DebouncedInput({
 function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string, impresora: string) => void; isPrinting: boolean }) {
     const [cantidadStr, setCantidadStr] = useState('1');
     const [size, setSize] = useState('50x25');
-    const [impresora, setImpresora] = useState('Niimbot');
+    const [impresora, setImpresora] = useState('Vorttek');
 
     useEffect(() => {
-        const saved = localStorage.getItem('default_printer');
-        if (saved) {
-            setImpresora(saved);
-        }
+        setImpresora('Vorttek');
+        localStorage.setItem('default_printer', 'Vorttek');
         setCantidadStr('1');
     }, []);
 
@@ -111,7 +109,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                     <div className="bg-blue-100 p-2.5 rounded-xl"><Printer className="w-5 h-5 text-[#0500A3]" /></div>
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 leading-tight">Vista Previa de Etiqueta QR</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora {impresora === 'Niimbot' ? 'NIIMBOT K3' : impresora} esté conectada y lista.</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora VORTTEK esté conectada y lista.</p>
                     </div>
                 </div>
                 <div className="mb-4 flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -122,6 +120,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                             min="1" 
                             max="500" 
                             value={cantidadStr} 
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) => setCantidadStr(e.target.value)}
                             onBlur={() => {
                                 if (!cantidadStr || parseInt(cantidadStr, 10) < 1) {
@@ -139,8 +138,6 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                             onChange={(e) => setSize(e.target.value)}
                             className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500 bg-white"
                         >
-                            <option value="70x40">70x40 mm</option>
-                            <option value="50x33">50x33 mm</option>
                             <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
@@ -151,9 +148,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                             onChange={(e) => handlePrinterChange(e.target.value)}
                             className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500 bg-white"
                         >
-                            <option value="Niimbot">NIIMBOT K3</option>
-                            <option value="TSC TE200">TSC TE200</option>
-                            <option value="Vorttek">Vorttek</option>
+                            <option value="Vorttek">VORTTEK</option>
                         </select>
                     </div>
                 </div>
@@ -3163,14 +3158,12 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
     const [grupo, setGrupo] = useState('');
     const [cantidad, setCantidad] = useState('');
     const [size, setSize] = useState('50x25');
-    const [impresora, setImpresora] = useState('Niimbot');
+    const [impresora, setImpresora] = useState('Vorttek');
     const [isPending, startTransition] = useTransition();
 
     useEffect(() => {
-        const saved = localStorage.getItem('default_printer');
-        if (saved) {
-            setImpresora(saved);
-        }
+        setImpresora('Vorttek');
+        localStorage.setItem('default_printer', 'Vorttek');
     }, []);
 
     const handlePrinterChange = (newPrinter: string) => {
@@ -3218,8 +3211,6 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                             onChange={(e) => setSize(e.target.value)}
                             className={selectCls}
                         >
-                            <option value="70x40">70x40 mm</option>
-                            <option value="50x33">50x33 mm</option>
                             <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
@@ -3230,9 +3221,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                             onChange={(e) => handlePrinterChange(e.target.value)}
                             className={selectCls}
                         >
-                            <option value="Niimbot">NIIMBOT K3</option>
-                            <option value="TSC TE200">TSC TE200</option>
-                            <option value="Vorttek">Vorttek</option>
+                            <option value="Vorttek">VORTTEK</option>
                         </select>
                     </div>
                 </div>
@@ -3861,7 +3850,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
     // The initial fetch is now handled Serverside on `page.tsx` directly!
 
-    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '50x25', impresora: string = 'Niimbot') {
+    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '50x25', impresora: string = 'Vorttek') {
         setPrintingId(activo.id);
         setPrintStatus('sending');
         try {
@@ -3901,7 +3890,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         try {
             // Etiqueta de prueba: texto simple "IMPRESION EXITOSA ELIM"
             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?debug=1&idQr=TEST-DEBUG`;
-            const defaultPrinter = localStorage.getItem('default_printer') || 'Niimbot';
+            const defaultPrinter = localStorage.getItem('default_printer') || 'Vorttek';
             const res = await fetch('/api/impresion/encolar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -4192,7 +4181,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         }
     }
 
-    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion, refreshStats = true, tipoInv = tipoInventario) {
+    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion, refreshStats = false, tipoInv = tipoInventario, forceRouterRefresh = false) {
         setIsRefetching(true);
         setLoading(false); // Make sure blocking loader is off
         try {
@@ -4215,7 +4204,9 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 setActivos(data.activos as Activo[]);
                 setTotal(data.total); setTotalPages(data.totalPages);
             }
-            router.refresh(); // Forces Next.js to re-fetch Server Components (like gruposDisponibles)
+            if (forceRouterRefresh) {
+                router.refresh();
+            }
         } catch (error) {
             console.error('Error fetching inventory data on client: ', error);
         } finally {
@@ -4228,8 +4219,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
              hasMounted.current = true;
              return; // Skip initial render since it's SSR hydrated
         }
-        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, true, tipoInventario); }, 300);
-        return () => clearTimeout(t);
+        setPage(1);
+        refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, false, tipoInventario);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search, filtroArea, filtroEstatus, filtroOrigen, filtroCondicion, tipoInventario]);
 
@@ -4240,7 +4231,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     }
     const PER_PAGE = 10;
 
-    const handleSuccess = () => { refresh(1); };
+    const handleSuccess = () => { refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, true, tipoInventario, true); };
 
     return (
         <div className="min-h-screen bg-slate-50 px-0 py-4 sm:p-4 md:p-6 font-sans">
@@ -4751,10 +4742,29 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             {/* Search + filter toggle */}
             <div className="flex gap-2 mb-3 hide-on-print">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <DebouncedInput type="text" placeholder="Buscar por ID, SKU, descripción, marca, modelo..."
-                        value={search} onChange={setSearch}
-                        className="w-full pl-10 pr-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-white" />
+                    {isRefetching ? (
+                        <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0500A3] animate-spin" />
+                    ) : (
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    )}
+                    <DebouncedInput 
+                        type="text" 
+                        placeholder="Buscar por descripción, flor, variedad, ID QR, código de barra, lote, marca..."
+                        value={search} 
+                        onChange={setSearch}
+                        debounce={120}
+                        className="w-full pl-10 pr-10 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-white font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs transition-all" 
+                    />
+                    {search && (
+                        <button 
+                            type="button"
+                            onClick={() => setSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Limpiar búsqueda"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
                 <button onClick={() => setShowFilters(f => !f)}
                     className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${showFilters ? 'border-[#0500A3] text-[#0500A3] bg-blue-50' : 'border-slate-200 text-slate-600 bg-white'}`}>

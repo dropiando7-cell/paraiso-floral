@@ -439,9 +439,9 @@ export default function NuevoPedidoParserClient({
     }
   };
 
-  const handleItemQtyChange = (index: number, val: number) => {
+  const handleItemQtyChange = (index: number, val: number | string) => {
     setParsedItems(prev => prev.map((item, idx) => 
-      idx === index ? { ...item, cantidadSolicitada: Math.max(1, val) } : item
+      idx === index ? { ...item, cantidadSolicitada: val === '' ? ('' as any) : Math.max(0, Number(val)) } : item
     ));
   };
 
@@ -887,8 +887,14 @@ export default function NuevoPedidoParserClient({
                             <input
                               ref={el => { qtyInputRefs.current[index] = el; }}
                               type="number"
-                              value={item.cantidadSolicitada}
-                              onChange={(e) => handleItemQtyChange(index, Number(e.target.value))}
+                              value={item.cantidadSolicitada === 0 ? '' : item.cantidadSolicitada}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => handleItemQtyChange(index, e.target.value)}
+                              onBlur={() => {
+                                if (!item.cantidadSolicitada || item.cantidadSolicitada < 1 || isNaN(Number(item.cantidadSolicitada))) {
+                                  handleItemQtyChange(index, 1);
+                                }
+                              }}
                               onKeyDown={(e) => {
                                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                                   e.preventDefault();

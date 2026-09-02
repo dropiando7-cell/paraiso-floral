@@ -140,16 +140,14 @@ function PreviewEtiquetaReparacionModal({
   onClose 
 }: PreviewModalProps) {
   const [cantidad, setCantidad] = useState(1);
-  const [size, setSize] = useState('50x30');
-  const [impresora, setImpresora] = useState('TSC TE200');
+  const [size, setSize] = useState('50x25');
+  const [impresora, setImpresora] = useState('Vorttek');
   const [imprimiendo, setImprimiendo] = useState(false);
   const [resultado, setResultado] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('default_printer');
-    if (saved) {
-      setImpresora(saved);
-    }
+    setImpresora('Vorttek');
+    localStorage.setItem('default_printer', 'Vorttek');
   }, []);
 
   const handlePrinterChange = (newPrinter: string) => {
@@ -224,7 +222,7 @@ function PreviewEtiquetaReparacionModal({
           <div>
             <h3 className="text-xl font-bold text-slate-800 leading-tight">Vista Previa de Etiqueta de Soporte</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Impresora seleccionada: <span className="font-semibold">{impresora}</span>
+              Impresora: <span className="font-semibold">VORTTEK</span>
             </p>
           </div>
         </div>
@@ -237,6 +235,7 @@ function PreviewEtiquetaReparacionModal({
               min="1" 
               max="100" 
               value={cantidad} 
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setCantidad(Number(e.target.value) || 1)}
               className="w-20 text-center font-bold font-mono py-1.5 px-2 rounded-lg border border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             />
@@ -249,9 +248,7 @@ function PreviewEtiquetaReparacionModal({
               onChange={(e) => setSize(e.target.value)}
               className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             >
-              <option value="50x30">50x30 mm (Normal)</option>
-              <option value="50x25">50x25 mm (Corto)</option>
-              <option value="70x40">70x40 mm (Grande)</option>
+              <option value="50x25">50x25 mm</option>
             </select>
           </div>
 
@@ -262,8 +259,7 @@ function PreviewEtiquetaReparacionModal({
               onChange={(e) => handlePrinterChange(e.target.value)}
               className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             >
-              <option value="TSC TE200">TSC TE200</option>
-              <option value="Niimbot">NIIMBOT K3</option>
+              <option value="Vorttek">VORTTEK</option>
             </select>
           </div>
         </div>

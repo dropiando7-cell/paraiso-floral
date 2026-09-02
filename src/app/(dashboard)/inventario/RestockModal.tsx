@@ -295,7 +295,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
             if (!result || !result.success) throw new Error('Falló la creación o reabastecimiento.');
             
             if (print && result.id) {
-                const defaultPrinter = typeof window !== 'undefined' ? localStorage.getItem('default_printer') || 'Niimbot' : 'Niimbot';
+                const defaultPrinter = typeof window !== 'undefined' ? localStorage.getItem('default_printer') || 'Vorttek' : 'Vorttek';
                 await encolarCopiasNiimbot(result.id, Number(cantidad), '50x25', defaultPrinter);
             }
 

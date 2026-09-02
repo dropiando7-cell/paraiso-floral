@@ -42,8 +42,8 @@ export async function POST(req: Request) {
                 activoId: isDebug ? undefined : (activoId || undefined),
                 urlImagen,
                 estado: "PENDIENTE",
-                impresora: impresora || "Niimbot",
-                tamano: tamano || "50x30",
+                impresora: impresora || "Vorttek",
+                tamano: tamano || "50x25",
             },
         });
 

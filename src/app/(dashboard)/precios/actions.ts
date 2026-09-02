@@ -470,8 +470,8 @@ export async function registrarDesdeOdoo(input: {
                     activoId: activo.id,
                     urlImagen: labelUrl,
                     estado: 'PENDIENTE',
-                    impresora: 'Niimbot',
-                    tamano: '50x30'
+                    impresora: 'Vorttek',
+                    tamano: '50x25'
                 }
             });
         }
