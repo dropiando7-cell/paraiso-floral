@@ -442,6 +442,132 @@ export async function finalizarRecepcionLote(loteId: string) {
     }
 }
 
+// 5.1 Finalizar recepción masiva de múltiples lotes seleccionados
+export async function finalizarRecepcionLotesMasivo(loteIds: string[]) {
+    try {
+        const user = await getAuthContext();
+
+        if (!loteIds || loteIds.length === 0) {
+            throw new Error('No se seleccionaron lotes para procesar.');
+        }
+
+        const lotes = await prisma.recepcionLote.findMany({
+            where: { 
+                id: { in: loteIds },
+                organizationId: user.organizationId 
+            },
+            include: {
+                cajas: {
+                    include: {
+                        items: {
+                            include: {
+                                activoFijo: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let lotesProcesados = 0;
+        let totalBonchesIngresados = 0;
+
+        for (const lote of lotes) {
+            // Si ya está completado o ingresado al CEDI, lo saltamos para evitar duplicados
+            if (lote.estado === 'COMPLETADO' || lote.estado === 'INGRESADO_CEDI') {
+                continue;
+            }
+
+            await prisma.$transaction(async (tx) => {
+                for (const caja of lote.cajas) {
+                    for (const item of caja.items) {
+                        const cantidadRecibida = item.bonchesRecibidos > 0 
+                            ? item.bonchesRecibidos 
+                            : (item.verificado ? item.bonchesEsperados : item.bonchesEsperados);
+
+                        if (item.activoFijoId) {
+                            const activo = item.activoFijo;
+                            if (!activo) continue;
+
+                            const netoRecibido = Math.max(0, cantidadRecibida - (item.bonchesDanados || 0));
+
+                            // 1. Incrementar stock neto disponible en ActivoFijo
+                            if (netoRecibido > 0) {
+                                await tx.activoFijo.update({
+                                    where: { id: item.activoFijoId },
+                                    data: {
+                                        stock: { increment: netoRecibido },
+                                        lote: lote.numeroEnvio,
+                                        tipoEmpaque: item.tipoEmpaque || 'Cartón',
+                                        estatusContable: 'VIGENTE',
+                                        ...(item.codigoBarras ? { codigoBarras: item.codigoBarras } : {})
+                                    }
+                                });
+
+                                if (activo.productoId) {
+                                    await tx.producto.update({
+                                        where: { id: activo.productoId },
+                                        data: { stockActual: { increment: netoRecibido } }
+                                    });
+
+                                    await tx.movimientoInventario.create({
+                                        data: {
+                                            organizationId: user.organizationId,
+                                            productoId: activo.productoId,
+                                            tipoMovimiento: 'ENTRADA',
+                                            cantidad: netoRecibido,
+                                            motivo: `Recepción Packing List ${lote.proveedor} (Caja ${caja.numeroCaja})`,
+                                            referencia: `ENVIO ${lote.numeroEnvio}`,
+                                            usuarioId: user.id
+                                        }
+                                    });
+                                }
+
+                                totalBonchesIngresados += netoRecibido;
+                            }
+
+                            // 2. Si hubo producto dañado / merma en recepción, registrar el reporte de merma
+                            if ((item.bonchesDanados || 0) > 0 && activo.productoId) {
+                                await tx.movimientoInventario.create({
+                                    data: {
+                                        organizationId: user.organizationId,
+                                        productoId: activo.productoId,
+                                        tipoMovimiento: 'MERMA',
+                                        cantidad: item.bonchesDanados,
+                                        motivo: `Merma en Recepción de Lote ${lote.numeroEnvio}: ${item.motivoDano || 'Producto dañado/mal estado al recibir'}`,
+                                        referencia: `ENVIO ${lote.numeroEnvio}`,
+                                        usuarioId: user.id
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Cambiar estado del lote a COMPLETADO
+                await tx.recepcionLote.update({
+                    where: { id: lote.id },
+                    data: { estado: 'COMPLETADO' }
+                });
+
+                lotesProcesados++;
+            });
+        }
+
+        revalidatePath('/inventario');
+        revalidatePath('/inventario/recepcion');
+
+        return { 
+            success: true, 
+            count: lotesProcesados, 
+            totalBonches: totalBonchesIngresados 
+        };
+    } catch (error: any) {
+        console.error('Error al procesar recepción masiva de lotes:', error);
+        return { success: false, error: error.message || 'Error al procesar la carga masiva.' };
+    }
+}
+
 // 6. Imprimir etiquetas de una caja específica con pre-visualización y soporte de código 1D
 export async function encolarImpresionCaja(
     cajaId: string, 

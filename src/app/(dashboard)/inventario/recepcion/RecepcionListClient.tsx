@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
     Package, 
     Truck, 
@@ -10,14 +11,23 @@ import {
     Layers, 
     CheckCircle2, 
     Clock, 
-    Search,
-    X,
-    Building2,
-    Calendar
+    Search, 
+    X, 
+    Building2, 
+    Calendar,
+    CheckSquare,
+    Square,
+    Sparkles,
+    Loader2,
+    AlertCircle,
+    FileSpreadsheet,
+    Layers2
 } from 'lucide-react';
 import SubirPackingModal from './SubirPackingModal';
 import { ProveedorLogo } from '@/components/inventario/ProveedorLogo';
 import { formatNombreProductoRecepcion, matchProductoRecepcion } from '@/utils/recepcionHelpers';
+import { finalizarRecepcionLotesMasivo } from './actions';
+import { playSuccessChime } from '@/utils/audioAlerts';
 
 interface LoteItem {
     id: string;
@@ -33,8 +43,15 @@ interface LoteItem {
 }
 
 export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
+    const router = useRouter();
     const [tabActiva, setTabActiva] = useState<'pendientes' | 'revisados' | 'ingresados'>('pendientes');
     const [busqueda, setBusqueda] = useState<string>('');
+    
+    // Estado de selección masiva para pestaña Revisados
+    const [seleccionados, setSeleccionados] = useState<string[]>([]);
+    const [mostrarModalConfirmarMasivo, setMostrarModalConfirmarMasivo] = useState(false);
+    const [mensajeFeedback, setMensajeFeedback] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
+    const [isPendingMasivo, startTransitionMasivo] = useTransition();
 
     // 1. En Tránsito / Pendientes: Lotes no completados y con checklist incompleto (< 100%)
     const lotesPendientes = lotes.filter(l => 
@@ -71,6 +88,57 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
             ? lotesPendientes 
             : (tabActiva === 'revisados' ? lotesRevisados : lotesIngresados));
 
+    // Cálculos de selección en pestaña revisados
+    const todosRevisadosSeleccionados = lotesRevisados.length > 0 && seleccionados.length === lotesRevisados.length;
+    const lotesSeleccionadosObj = lotesRevisados.filter(l => seleccionados.includes(l.id));
+    const totalCajasSeleccionadas = lotesSeleccionadosObj.reduce((sum, l) => sum + (l.totalCajas || 0), 0);
+    const totalBonchesSeleccionados = lotesSeleccionadosObj.reduce((sum, l) => sum + (l.totalBonches || 0), 0);
+
+    // Toggle individual de selección
+    const toggleSelect = (id: string, e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        setSeleccionados(prev => 
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    // Toggle seleccionar todos en Revisados
+    const handleToggleSelectAll = () => {
+        if (todosRevisadosSeleccionados) {
+            setSeleccionados([]);
+        } else {
+            setSeleccionados(lotesRevisados.map(l => l.id));
+        }
+    };
+
+    // Ejecutar la carga masiva confirmada
+    const handleConfirmarCargaMasiva = () => {
+        const idsAProcesar = seleccionados.length > 0 ? seleccionados : lotesRevisados.map(l => l.id);
+        if (idsAProcesar.length === 0) return;
+
+        startTransitionMasivo(async () => {
+            const res = await finalizarRecepcionLotesMasivo(idsAProcesar);
+            if (res.success) {
+                playSuccessChime();
+                setMensajeFeedback({
+                    tipo: 'exito',
+                    texto: `¡Éxito! Se cargaron ${res.count} packing list(s) con ${res.totalBonches?.toLocaleString()} bonches directamente al stock del CEDI.`
+                });
+                setSeleccionados([]);
+                setMostrarModalConfirmarMasivo(false);
+                router.refresh();
+            } else {
+                setMensajeFeedback({
+                    tipo: 'error',
+                    texto: res.error || 'Error al procesar la carga masiva.'
+                });
+            }
+        });
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans">
             {/* Top Bar Header */}
@@ -95,6 +163,30 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                     <SubirPackingModal />
                 </div>
             </div>
+
+            {/* Mensajes de Alerta/Feedback */}
+            {mensajeFeedback && (
+                <div className={`max-w-7xl mx-auto mb-4 p-3.5 md:p-4 rounded-xl md:rounded-2xl border flex items-center justify-between gap-3 shadow-xs ${
+                    mensajeFeedback.tipo === 'exito' 
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                        : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}>
+                    <div className="flex items-center gap-2.5">
+                        {mensajeFeedback.tipo === 'exito' ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        ) : (
+                            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                        )}
+                        <span className="text-xs md:text-sm font-bold">{mensajeFeedback.texto}</span>
+                    </div>
+                    <button 
+                        onClick={() => setMensajeFeedback(null)} 
+                        className="text-xs opacity-60 hover:opacity-100 p-1 font-bold cursor-pointer"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            )}
 
             {/* Pestañas de Filtrado + Buscador */}
             <div className="max-w-7xl mx-auto space-y-4">
@@ -174,6 +266,69 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                     </div>
                 </div>
 
+                {/* Banner de Acción Masiva / Seleccionar Todo en pestaña 'revisados' */}
+                {tabActiva === 'revisados' && lotesRevisados.length > 0 && !estaBuscando && (
+                    <div className="bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-indigo-500/30 shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={handleToggleSelectAll}
+                                className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl border border-white/20 transition-all font-bold text-xs sm:text-sm cursor-pointer select-none"
+                            >
+                                {todosRevisadosSeleccionados ? (
+                                    <CheckSquare className="w-5 h-5 text-emerald-400 shrink-0" />
+                                ) : (
+                                    <Square className="w-5 h-5 text-slate-300 shrink-0" />
+                                )}
+                                <span>
+                                    {todosRevisadosSeleccionados
+                                        ? 'Deseleccionar Todos'
+                                        : `Seleccionar Todos (${lotesRevisados.length})`}
+                                </span>
+                            </button>
+
+                            <div>
+                                <div className="font-extrabold text-white text-xs sm:text-sm flex items-center gap-2">
+                                    <span className="bg-emerald-500 text-slate-950 px-2.5 py-0.5 rounded-full text-xs font-black shadow-xs">
+                                        {seleccionados.length > 0 ? seleccionados.length : '0'}
+                                    </span>
+                                    <span>de {lotesRevisados.length} packing lists seleccionados</span>
+                                </div>
+                                {seleccionados.length > 0 && (
+                                    <div className="text-indigo-200 text-[11px] sm:text-xs font-semibold mt-0.5">
+                                        Total a ingresar: <strong>{totalCajasSeleccionadas} Cajas</strong> • <strong>{totalBonchesSeleccionados.toLocaleString()} Bonches</strong>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (seleccionados.length === 0) {
+                                        setSeleccionados(lotesRevisados.map(l => l.id));
+                                    }
+                                    setMostrarModalConfirmarMasivo(true);
+                                }}
+                                disabled={isPendingMasivo || lotesRevisados.length === 0}
+                                className={`w-full md:w-auto px-6 py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-lg transition-all active:scale-95 cursor-pointer ${
+                                    seleccionados.length > 0
+                                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white ring-4 ring-emerald-400/30'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-500/20'
+                                }`}
+                            >
+                                <Sparkles className="w-4 h-4 text-emerald-100" />
+                                <span>
+                                    {seleccionados.length > 0
+                                        ? `⚡ CARGAR ${seleccionados.length} SELECCIONADO(S) AL CEDI`
+                                        : `⚡ CARGAR TODOS (${lotesRevisados.length}) AL CEDI`}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Subtítulo informativo */}
                 <div className="flex items-center justify-between px-1">
                     <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
@@ -181,7 +336,7 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                         {tabActiva === 'pendientes' 
                             ? `Mercadería en Tránsito / Pendiente de Check (${listadoActual.length})` 
                             : tabActiva === 'revisados'
-                            ? `Packing Lists Revisados al 100% • Pendientes de Cargar Stock (${listadoActual.length})`
+                            ? `Packing Lists Revisados al 100% • Listos para Cargar Stock (${listadoActual.length})`
                             : `Lotes Históricos Ingresados al CEDI (${listadoActual.length})`}
                     </h2>
                 </div>
@@ -205,6 +360,8 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                         {listadoActual.map((lote) => {
                             const esIngresado = lote.estado === 'COMPLETADO' || lote.estado === 'INGRESADO_CEDI';
                             const esRevisadoListo = !esIngresado && lote.porcentaje === 100;
+                            const estaSeleccionado = seleccionados.includes(lote.id);
+
                             const fechaObj = new Date(lote.createdAt);
                             const fechaLegible = fechaObj.toLocaleDateString('es-HN', {
                                 day: 'numeric',
@@ -213,14 +370,15 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                             });
 
                             return (
-                                <Link
+                                <div
                                     key={lote.id}
-                                    href={`/inventario/recepcion/${lote.id}`}
-                                    className={`bg-white border rounded-2xl p-5 transition-all shadow-xs hover:shadow-md group flex flex-col justify-between ${
+                                    className={`relative bg-white border rounded-2xl p-5 transition-all shadow-xs hover:shadow-md group flex flex-col justify-between ${
                                         esIngresado 
                                             ? 'border-slate-200 hover:border-emerald-500/50' 
+                                            : estaSeleccionado
+                                            ? 'border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-50/20'
                                             : esRevisadoListo
-                                            ? 'border-indigo-300 hover:border-indigo-500 ring-2 ring-indigo-500/10'
+                                            ? 'border-indigo-300 hover:border-indigo-500 ring-1 ring-indigo-500/10'
                                             : 'border-amber-200 hover:border-amber-400 ring-1 ring-amber-500/10'
                                     }`}
                                 >
@@ -228,6 +386,22 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                         <div className="flex items-start justify-between gap-4 mb-3">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 flex-wrap mb-2">
+                                                    {/* Checkbox de Selección en pestaña Revisados */}
+                                                    {tabActiva === 'revisados' && esRevisadoListo && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => toggleSelect(lote.id, e)}
+                                                            className="p-1 rounded-lg hover:bg-slate-100 transition-all cursor-pointer text-indigo-600"
+                                                            title={estaSeleccionado ? "Deseleccionar" : "Seleccionar para cargar"}
+                                                        >
+                                                            {estaSeleccionado ? (
+                                                                <CheckSquare className="w-5 h-5 text-indigo-600 shrink-0" />
+                                                            ) : (
+                                                                <Square className="w-5 h-5 text-slate-400 hover:text-slate-600 shrink-0" />
+                                                            )}
+                                                        </button>
+                                                    )}
+
                                                     <span className="text-xs font-black font-mono bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-200">
                                                         ENVÍO #{lote.numeroEnvio}
                                                     </span>
@@ -239,7 +413,7 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                                             INGRESADO AL CEDI
                                                         </span>
                                                     ) : esRevisadoListo ? (
-                                                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full border bg-indigo-50 text-indigo-800 border-indigo-200 flex items-center gap-1.5 animate-pulse">
+                                                        <span className="text-xs font-black px-2.5 py-0.5 rounded-full border bg-indigo-50 text-indigo-800 border-indigo-200 flex items-center gap-1.5">
                                                             <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
                                                             REVISADO 100% • LISTO PARA CARGAR
                                                         </span>
@@ -282,15 +456,19 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                                 )}
                                             </div>
 
-                                            <div className={`p-2.5 rounded-xl transition-colors shrink-0 ${
-                                                esIngresado 
-                                                    ? 'bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-500' 
-                                                    : esRevisadoListo
-                                                    ? 'bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white text-indigo-700'
-                                                    : 'bg-amber-100 group-hover:bg-amber-600 group-hover:text-white text-amber-700'
-                                            }`}>
+                                            <Link
+                                                href={`/inventario/recepcion/${lote.id}`}
+                                                className={`p-2.5 rounded-xl transition-colors shrink-0 cursor-pointer ${
+                                                    esIngresado 
+                                                        ? 'bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-500' 
+                                                        : esRevisadoListo
+                                                        ? 'bg-indigo-100 group-hover:bg-indigo-600 group-hover:text-white text-indigo-700'
+                                                        : 'bg-amber-100 group-hover:bg-amber-600 group-hover:text-white text-amber-700'
+                                                }`}
+                                                title="Entrar a ver checklist"
+                                            >
                                                 <ChevronRight className="w-5 h-5" />
-                                            </div>
+                                            </Link>
                                         </div>
 
                                         {/* Stats */}
@@ -318,15 +496,18 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                             <span className="font-bold text-slate-700">
                                                 Progreso Checklist: <strong className={`font-black text-sm ${esIngresado || esRevisadoListo ? 'text-emerald-700' : 'text-amber-700'}`}>{lote.porcentaje}%</strong>
                                             </span>
-                                            <span className={`text-[11px] font-black px-2 py-0.5 rounded ${
-                                                esIngresado 
-                                                    ? 'bg-emerald-100 text-emerald-800' 
-                                                    : esRevisadoListo 
-                                                    ? 'bg-indigo-100 text-indigo-800' 
-                                                    : 'bg-amber-100 text-amber-800'
-                                            }`}>
-                                                {esIngresado ? 'Cargado en CEDI' : esRevisadoListo ? 'Listo para Cargar' : 'En Verificación'}
-                                            </span>
+                                            <Link
+                                                href={`/inventario/recepcion/${lote.id}`}
+                                                className={`text-[11px] font-black px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                                                    esIngresado 
+                                                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                                                        : esRevisadoListo 
+                                                        ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200' 
+                                                        : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                                }`}
+                                            >
+                                                {esIngresado ? 'Cargado en CEDI' : esRevisadoListo ? 'Listo para Cargar →' : 'En Verificación →'}
+                                            </Link>
                                         </div>
                                         <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-200">
                                             <div 
@@ -341,12 +522,121 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                             />
                                         </div>
                                     </div>
-                                </Link>
+                                </div>
                             );
                         })}
                     </div>
                 )}
             </div>
+
+            {/* Modal de Confirmación de Carga Masiva al CEDI */}
+            {mostrarModalConfirmarMasivo && (() => {
+                const idsAProcesar = seleccionados.length > 0 ? seleccionados : lotesRevisados.map(l => l.id);
+                const lotesAProcesar = lotesRevisados.filter(l => idsAProcesar.includes(l.id));
+                const totalCajas = lotesAProcesar.reduce((sum, l) => sum + (l.totalCajas || 0), 0);
+                const totalBonches = lotesAProcesar.reduce((sum, l) => sum + (l.totalBonches || 0), 0);
+
+                return (
+                    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+                        <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-5 sm:p-7 text-slate-800 space-y-5 max-h-[92vh] overflow-y-auto shadow-2xl">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-emerald-100 text-emerald-800 rounded-2xl">
+                                        <Sparkles className="w-6 h-6 text-emerald-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg sm:text-xl font-black text-slate-900">
+                                            Confirmar Carga de Stock al CEDI
+                                        </h3>
+                                        <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                                            Se ingresarán al inventario general los {lotesAProcesar.length} packing lists seleccionados.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setMostrarModalConfirmarMasivo(false)}
+                                    className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Resumen Totales Card */}
+                            <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                                <div>
+                                    <div className="text-slate-400 text-xs font-bold uppercase">Packing Lists</div>
+                                    <div className="text-xl sm:text-2xl font-black text-slate-900">{lotesAProcesar.length}</div>
+                                </div>
+                                <div>
+                                    <div className="text-slate-400 text-xs font-bold uppercase">Total Cajas</div>
+                                    <div className="text-xl sm:text-2xl font-black text-indigo-700">{totalCajas}</div>
+                                </div>
+                                <div>
+                                    <div className="text-slate-400 text-xs font-bold uppercase">Total Bonches</div>
+                                    <div className="text-xl sm:text-2xl font-black text-emerald-700">{totalBonches.toLocaleString()}</div>
+                                </div>
+                            </div>
+
+                            {/* Lista de Envíos a Procesar */}
+                            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                <div className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                                    Envíos que se abonarán al inventario:
+                                </div>
+                                {lotesAProcesar.map((lote) => (
+                                    <div key={lote.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="font-mono font-black bg-slate-100 text-slate-800 px-2 py-0.5 rounded border">
+                                                #{lote.numeroEnvio}
+                                            </span>
+                                            <span className="font-bold text-slate-700">{lote.proveedor}</span>
+                                        </div>
+                                        <div className="text-slate-500 font-semibold text-xs">
+                                            {lote.totalCajas} cajas • <strong className="text-emerald-700">{lote.totalBonches} bonches</strong>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Warning Note */}
+                            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3.5 rounded-2xl text-xs font-medium flex items-start gap-2.5">
+                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                <span>
+                                    Al confirmar, se incrementará el stock disponible en bodega y cada lote pasará a la pestaña <strong>Ingresados al CEDI</strong> con bloqueo anti-duplicados.
+                                </span>
+                            </div>
+
+                            {/* Modal Actions */}
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    onClick={() => setMostrarModalConfirmarMasivo(false)}
+                                    disabled={isPendingMasivo}
+                                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleConfirmarCargaMasiva}
+                                    disabled={isPendingMasivo}
+                                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer"
+                                >
+                                    {isPendingMasivo ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>PROCESANDO CARGA...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="w-4 h-4" />
+                                            <span>CONFIRMAR E INGRESAR AL CEDI</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
