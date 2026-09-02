@@ -966,5 +966,152 @@ export async function crearLoteDesdeSubidaAI(data: {
     }
 }
 
+// 12. Crear múltiples lotes de recepción de una sola vez desde IA (Carga Masiva de PDFs)
+export async function crearLotesDesdeSubidaAIMasivo(lotesData: Array<{
+    numeroEnvio: string;
+    proveedor: string;
+    fechaLlegada?: string;
+    cajas: Array<{
+        numeroCaja: number;
+        codigoProveedor?: string | null;
+        items: Array<{
+            descripcion: string;
+            cultivo: string;
+            bonches: number;
+            activoFijoId?: string | null;
+        }>;
+    }>;
+}>) {
+    try {
+        const user = await getAuthContext();
+
+        if (!lotesData || !Array.isArray(lotesData) || lotesData.length === 0) {
+            throw new Error('No se proporcionaron lotes para registrar.');
+        }
+
+        const lotesCreados: Array<{ id: string; numeroEnvio: string; proveedor: string; totalBonches: number; totalCajas: number }> = [];
+        const errores: string[] = [];
+
+        // Catálogo de activos para enlace automático
+        const activos = await prisma.activoFijo.findMany({
+            where: { organizationId: user.organizationId },
+            select: { id: true, idQr: true, descripcionCorta: true, marca: true, codigoBarras: true }
+        });
+
+        for (const data of lotesData) {
+            try {
+                if (!data.numeroEnvio || !data.proveedor || !data.cajas || data.cajas.length === 0) {
+                    errores.push(`Lote ${data.numeroEnvio || 'sin número'}: Datos incompletos.`);
+                    continue;
+                }
+
+                // Si ya existe, omitir o actualizar
+                const existente = await prisma.recepcionLote.findFirst({
+                    where: { organizationId: user.organizationId, numeroEnvio: data.numeroEnvio }
+                });
+                if (existente) {
+                    errores.push(`El envío #${data.numeroEnvio} (${data.proveedor}) ya estaba registrado.`);
+                    continue;
+                }
+
+                let totalBonchesCalculado = 0;
+                let totalCajasCalculado = data.cajas.length;
+
+                data.cajas.forEach(c => {
+                    c.items.forEach(i => {
+                        totalBonchesCalculado += i.bonches || 0;
+                    });
+                });
+
+                const nuevoLote = await prisma.recepcionLote.create({
+                    data: {
+                        organizationId: user.organizationId,
+                        numeroEnvio: data.numeroEnvio,
+                        proveedor: data.proveedor,
+                        totalCajas: totalCajasCalculado,
+                        totalBonches: totalBonchesCalculado,
+                        estado: 'EN_RECEPCION',
+                        fechaLlegada: data.fechaLlegada ? new Date(data.fechaLlegada) : new Date()
+                    }
+                });
+
+                for (const c of data.cajas) {
+                    const nuevaCaja = await prisma.recepcionCaja.create({
+                        data: {
+                            recepcionId: nuevoLote.id,
+                            numeroCaja: c.numeroCaja,
+                            codigoProveedor: c.codigoProveedor || null,
+                            estado: 'PENDIENTE'
+                        }
+                    });
+
+                    for (const item of c.items) {
+                        let activoIdToLink = item.activoFijoId;
+                        if (!activoIdToLink) {
+                            const itemDesc = (item.descripcion || '').toLowerCase();
+                            const itemClean = itemDesc.replace(/rosa\s*-\s*/i, '').replace(/\s*40\s*cms/i, '').trim();
+
+                            const match = activos.find(a => {
+                                const desc = a.descripcionCorta.toLowerCase();
+                                const marca = (a.marca || '').toLowerCase();
+
+                                if (desc.includes(itemClean) || itemClean.includes(desc)) return true;
+                                if (marca && (itemDesc.includes(marca) || marca.includes(itemDesc))) return true;
+
+                                if ((itemDesc.includes('gyp') || itemDesc.includes('baby')) && (desc.includes('baby') || desc.includes('gyp'))) return true;
+                                if ((itemDesc.includes('horten') || itemDesc.includes('hyd')) && (desc.includes('horten') || desc.includes('hyd'))) return true;
+                                if (itemDesc.includes('dusty') && desc.includes('dusty')) return true;
+                                if (itemDesc.includes('leather') && (desc.includes('leather') || desc.includes('cuero'))) return true;
+
+                                return false;
+                            });
+
+                            if (match) {
+                                activoIdToLink = match.id;
+                            }
+                        }
+
+                        await prisma.recepcionItem.create({
+                            data: {
+                                cajaId: nuevaCaja.id,
+                                activoFijoId: activoIdToLink || null,
+                                cultivoOriginal: item.cultivo || item.descripcion,
+                                descripcion: item.descripcion,
+                                bonchesEsperados: item.bonches || 1,
+                                bonchesRecibidos: 0,
+                                verificado: false,
+                                tipoEmpaque: 'Cartón'
+                            }
+                        });
+                    }
+                }
+
+                lotesCreados.push({
+                    id: nuevoLote.id,
+                    numeroEnvio: nuevoLote.numeroEnvio,
+                    proveedor: nuevoLote.proveedor,
+                    totalBonches: totalBonchesCalculado,
+                    totalCajas: totalCajasCalculado
+                });
+            } catch (errLote: any) {
+                errores.push(`Error en lote ${data.numeroEnvio}: ${errLote.message}`);
+            }
+        }
+
+        revalidatePath('/inventario/recepcion');
+
+        return {
+            success: lotesCreados.length > 0,
+            count: lotesCreados.length,
+            lotes: lotesCreados,
+            errores
+        };
+    } catch (error: any) {
+        console.error('Error al crear lotes masivos desde IA:', error);
+        return { success: false, error: error.message || 'Error al procesar la carga masiva de lotes.' };
+    }
+}
+
+
 
 
