@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -13,7 +13,15 @@ export async function GET() {
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
-      select: { organizationId: true }
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+        role: true,
+        puedeVerTodasCxC: true,
+        rutasAsignadas: true,
+        customRoleName: true
+      }
     });
 
     if (!dbUser?.organizationId) {
@@ -21,15 +29,54 @@ export async function GET() {
     }
 
     const orgId = dbUser.organizationId;
+    const { searchParams } = new URL(request.url);
+    const vendedorParam = searchParams.get('vendedorId') || '';
+    const rutaParam = searchParams.get('ruta') || '';
+
+    const esAdminOGerente =
+      dbUser.role === 'SUPER_ADMIN' ||
+      dbUser.role === 'GERENTE' ||
+      dbUser.role === 'ORG_ADMIN' ||
+      dbUser.puedeVerTodasCxC === true ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('ADMIN')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('GERENTE')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('DUEÑ')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('PROPIETARIO')) ||
+      dbUser.email === 'dropiando7@gmail.com' ||
+      dbUser.email === 'admin@paraisofloral.com';
+
+    let whereCliente: any = { 
+      organizationId: orgId,
+      nombre: { not: 'CONSUMIDOR FINAL' }
+    };
+
+    if (!esAdminOGerente) {
+      const allowedRutas = dbUser.rutasAsignadas || [];
+      const userConditions: any[] = [
+        { vendedorId: dbUser.id }
+      ];
+      if (allowedRutas.length > 0) {
+        userConditions.push({ ruta: { in: allowedRutas, mode: 'insensitive' } });
+        userConditions.push({ departamento: { in: allowedRutas, mode: 'insensitive' } });
+      }
+      whereCliente.AND = [
+        { OR: userConditions }
+      ];
+    } else {
+      if (vendedorParam && vendedorParam !== 'TODOS') {
+        whereCliente.vendedorId = vendedorParam;
+      }
+      if (rutaParam && rutaParam !== 'TODOS') {
+        whereCliente.ruta = { equals: rutaParam, mode: 'insensitive' };
+      }
+    }
+
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Fetch all clients with their invoices, payments, and credit notes (excluyendo CONSUMIDOR FINAL)
+    // Fetch all clients within user's permitted scope
     const clientes = await prisma.cliente.findMany({
-      where: { 
-        organizationId: orgId,
-        nombre: { not: 'CONSUMIDOR FINAL' }
-      },
+      where: whereCliente,
       select: {
         id: true,
         saldoInicial: true,
@@ -48,15 +95,13 @@ export async function GET() {
       }
     });
 
-    // Abonos del mes actual (para cobradoEsteMes)
+    // Abonos del mes actual dentro del alcance
     const abonosMes = await prisma.pagoCliente.aggregate({
       where: {
         organizationId: orgId,
         anulado: false,
         fecha: { gte: firstDayOfMonth },
-        cliente: {
-          nombre: { not: 'CONSUMIDOR FINAL' }
-        }
+        cliente: whereCliente
       },
       _sum: { monto: true }
     });
@@ -145,6 +190,10 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error('Error en /api/cxc/resumen:', error);
-    return NextResponse.json({ error: 'Error calculando resumen de CxC' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Error calculando resumen de CxC',
+      details: error?.message || String(error),
+      stack: error?.stack
+    }, { status: 500 });
   }
 }

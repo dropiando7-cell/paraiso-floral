@@ -16,12 +16,18 @@ import {
   Clock,
   BookOpen,
   Edit3,
-  Trash2
+  Trash2,
+  Plus,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import ModalAbono from '@/components/cxc/ModalAbono';
 import ModalNotaCredito from '@/components/cxc/ModalNotaCredito';
 import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
 import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
+import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
+import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 
 interface ClienteDetalle {
   cliente: {
@@ -30,6 +36,7 @@ interface ClienteDetalle {
     telefono: string | null;
     email: string | null;
     direccion: string | null;
+    departamento?: string | null;
     rtn: string | null;
     limiteCredito: number;
     saldoInicial?: number;
@@ -91,6 +98,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   const [sharing, setSharing] = useState<boolean>(false);
 
   // Modales
+  const [modalFacturaOpen, setModalFacturaOpen] = useState<boolean>(false);
   const [modalAbonoOpen, setModalAbonoOpen] = useState<boolean>(false);
   const [modalNCOpen, setModalNCOpen] = useState<boolean>(false);
   const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
@@ -119,9 +127,10 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       const res = await fetch(`/api/cxc/abonos/${pagoId}`, { method: 'DELETE' });
       const resJson = await res.json();
       if (!res.ok) throw new Error(resJson.error || 'Error al anular abono');
+      toast.success('Abono anulado exitosamente');
       cargarEstadoCuenta();
     } catch (err: any) {
-      alert(err.message || 'Error al anular abono');
+      toast.error(err.message || 'Error al anular abono');
       setLoading(false);
     }
   };
@@ -133,9 +142,10 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       const res = await fetch(`/api/cxc/notas-credito/${ncId}`, { method: 'DELETE' });
       const resJson = await res.json();
       if (!res.ok) throw new Error(resJson.error || 'Error al anular nota de crédito');
+      toast.success('Nota de crédito anulada exitosamente');
       cargarEstadoCuenta();
     } catch (err: any) {
-      alert(err.message || 'Error al anular nota de crédito');
+      toast.error(err.message || 'Error al anular nota de crédito');
       setLoading(false);
     }
   };
@@ -175,7 +185,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     (data.facturas || []).forEach(f => {
       if (f.correlativo !== 'SALDO INICIAL EXCEL') {
         const desc = f.detalles && f.detalles.length > 0
-          ? f.detalles.map(d => `${d.cantidad}x ${d.descripcion}`).join(', ')
+          ? f.detalles.map(d => `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${d.descripcion}`).join(', ')
           : 'Venta a Crédito Comercial';
 
         list.push({
@@ -235,6 +245,31 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     window.print();
   };
 
+  const handleExportarExcel = () => {
+    if (!data) return;
+    const exportMovs = movimientosContables.map(m => ({
+      fecha: m.fecha,
+      tipo: m.tipo,
+      documento: m.documento,
+      detalles: m.detalles,
+      debito: m.debito,
+      credito: m.credito,
+      saldoAcumulado: m.saldoAcumulado
+    }));
+
+    exportarEstadoCuentaClienteExcel(
+      {
+        nombre: data.cliente.nombre,
+        telefono: data.cliente.telefono,
+        rtn: data.cliente.rtn,
+        departamento: data.cliente.departamento,
+        saldoTotal: data.resumen.saldoTotal
+      },
+      exportMovs
+    );
+    toast.success('Descargando archivo Excel del estado de cuenta...');
+  };
+
   // Función para compartir directamente el archivo PDF o enlace desde celulares
   const handleSharePdfWhatsApp = async () => {
     if (!data) return;
@@ -245,7 +280,6 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       const shareTitle = `Estado de Cuenta - ${data.cliente.nombre}`;
       const shareText = `🌸 DISTRIBUIDORA PARAÍSO FLORAL 🌸\nEstado de Cuenta de ${data.cliente.nombre}\nSaldo Pendiente: L. ${data.resumen.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}`;
 
-      // Si el navegador en teléfono soporta Web Share API con archivos/links
       if (navigator.share) {
         await navigator.share({
           title: shareTitle,
@@ -253,12 +287,11 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
           url: currentUrl
         });
       } else {
-        // Fallback abrir WhatsApp directo
         const waUrl = generarWhatsAppLink();
         if (waUrl) window.open(waUrl, '_blank');
       }
     } catch (err) {
-      console.log('Compartir cancelado o no soportado:', err);
+      console.log('Compartir cancelado:', err);
     } finally {
       setSharing(false);
     }
@@ -283,7 +316,7 @@ Cliente: *${data.cliente.nombre}*
 • *Ver o Descargar Estado de Cuenta en PDF:*
 ${publicUrl}
 
-¡Agradecemos su preferencia!`;
+¡Agradecemos su preferencia y puntualidad!`;
 
     return `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(texto)}`;
   };
@@ -395,12 +428,12 @@ ${publicUrl}
           <div className="p-3 border border-emerald-300 rounded-lg bg-emerald-50/30 space-y-1 text-right">
             {cliente.saldoInicial !== undefined && cliente.saldoInicial > 0 && (
               <div className="flex justify-between text-xs py-0.5 text-amber-900 font-bold">
-                <span>Saldo Inicial Deuda (Excel):</span>
+                <span>Saldo Inicial Deuda:</span>
                 <span>L. {cliente.saldoInicial.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
               </div>
             )}
             <div className="flex justify-between text-xs py-0.5">
-              <span className="text-slate-600">Total Facturado Nuevos:</span>
+              <span className="text-slate-600">Total Facturado:</span>
               <span className="font-bold">L. {resumen.totalFacturado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between text-xs py-0.5">
@@ -411,7 +444,7 @@ ${publicUrl}
               <span className="text-slate-600">Notas de Crédito / Mermas:</span>
               <span className="font-bold text-amber-700">(-) L. {resumen.totalNotasCredito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex justify-between text-sm pt-2 border-t border-emerald-300 font-black text-emerald-900">
+            <div className="flex justify-between text-sm pt-2 border-t border-emerald-300 font-black text-emerald-900 font-mono">
               <span>SALDO A PAGAR:</span>
               <span className="text-base">L. {resumen.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
             </div>
@@ -548,14 +581,24 @@ ${publicUrl}
           </Link>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Botón Exportar a Excel */}
+            <button
+              onClick={handleExportarExcel}
+              className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              title="Descargar libro mayor en Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Exportar Excel</span>
+            </button>
+
             <button
               onClick={handleSharePdfWhatsApp}
               disabled={sharing}
-              className="py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
+              className="py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               title="Compartir enlace oficial directo"
             >
               <Share2 className="w-4 h-4" />
-              <span>Compartir por Celular</span>
+              <span>Compartir</span>
             </button>
 
             {waLink && (
@@ -563,24 +606,24 @@ ${publicUrl}
                 href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
+                className="py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Enviar por WhatsApp</span>
+                <span>Enviar WhatsApp</span>
               </a>
             )}
 
             <button
               onClick={handlePrint}
-              className="py-2 px-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2"
+              className="py-2 px-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Imprimir / Descargar PDF</span>
+              <span>Imprimir / PDF</span>
             </button>
           </div>
         </div>
 
-        {/* Tarjeta del Cliente & Resumen - Modo Día */}
+        {/* Tarjeta del Cliente & Resumen */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
             <div className="space-y-1">
@@ -588,34 +631,46 @@ ${publicUrl}
                 Estado de Cuenta Oficial
               </span>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900">{cliente.nombre}</h1>
-              <p className="text-xs text-slate-500 flex items-center gap-3 pt-1">
+              <p className="text-xs text-slate-500 flex items-center gap-3 pt-1 flex-wrap">
                 <span>📱 Tel: {cliente.telefono || 'Sin teléfono'}</span>
                 <span>📄 RTN: {cliente.rtn || 'Consumidor Final'}</span>
-                <span>📍 {cliente.direccion || 'Tegucigalpa'}</span>
+                <span>📍 {cliente.departamento || cliente.direccion || 'Occidente'}</span>
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Acciones Rápidas del Cliente */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Botón Nueva Factura */}
+              <button
+                onClick={() => setModalFacturaOpen(true)}
+                className="py-2.5 px-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-emerald-400" />
+                <span>+ Factura</span>
+              </button>
+
               <button
                 onClick={() => setModalAbonoOpen(true)}
-                className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                className="py-2.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <DollarSign className="w-4 h-4" />
                 <span>Abonar</span>
               </button>
+
               <button
                 onClick={() => setModalNCOpen(true)}
-                className="py-2.5 px-4 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                className="py-2.5 px-3.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Flower2 className="w-4 h-4" />
-                <span>Ajuste por Flor</span>
+                <span>Ajuste Flor</span>
               </button>
+
               <button
                 onClick={() => setModalSaldoInicialOpen(true)}
-                className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                className="py-2.5 px-3.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Clock className="w-4 h-4" />
-                <span>Saldo Excel</span>
+                <span>Saldo Inicial</span>
               </button>
             </div>
           </div>
@@ -632,7 +687,7 @@ ${publicUrl}
               }`}>
                 {resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Pendiente'}
               </span>
-              <p className={`text-xl sm:text-2xl font-black mt-1 ${
+              <p className={`text-xl sm:text-2xl font-black mt-1 font-mono ${
                 resumen.saldoTotal < 0 ? 'text-blue-600' : 'text-emerald-600'
               }`}>
                 L. {Math.abs(resumen.saldoTotal).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
@@ -641,21 +696,21 @@ ${publicUrl}
 
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <span className="text-[11px] font-bold text-slate-500 uppercase">Total Facturado</span>
-              <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+              <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1 font-mono">
                 L. {resumen.totalFacturado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
               </p>
             </div>
 
             <div className="p-4 bg-teal-50/60 rounded-2xl border border-teal-100">
               <span className="text-[11px] font-bold text-teal-800 uppercase">Total Abonado</span>
-              <p className="text-xl sm:text-2xl font-black text-teal-600 mt-1">
+              <p className="text-xl sm:text-2xl font-black text-teal-600 mt-1 font-mono">
                 L. {resumen.totalAbonado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
               </p>
             </div>
 
             <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-100">
               <span className="text-[11px] font-bold text-amber-800 uppercase">Notas de Crédito / Mermas</span>
-              <p className="text-xl sm:text-2xl font-black text-amber-600 mt-1">
+              <p className="text-xl sm:text-2xl font-black text-amber-600 mt-1 font-mono">
                 L. {resumen.totalNotasCredito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -667,9 +722,9 @@ ${publicUrl}
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3 overflow-x-auto">
             <button
               onClick={() => setActiveTab('MAYOR')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'MAYOR'
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm font-black'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -678,9 +733,9 @@ ${publicUrl}
             </button>
             <button
               onClick={() => setActiveTab('FACTURAS')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'FACTURAS'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-sm font-black'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -688,9 +743,9 @@ ${publicUrl}
             </button>
             <button
               onClick={() => setActiveTab('PAGOS')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'PAGOS'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-sm font-black'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -698,9 +753,9 @@ ${publicUrl}
             </button>
             <button
               onClick={() => setActiveTab('NOTAS')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                 activeTab === 'NOTAS'
-                  ? 'bg-amber-600 text-white shadow-sm'
+                  ? 'bg-amber-600 text-white shadow-sm font-black'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -730,7 +785,7 @@ ${publicUrl}
                         <th className="py-3 px-3">Concepto / Detalles</th>
                         <th className="py-3 px-3 text-right text-slate-900">Débito (+) [Cargo]</th>
                         <th className="py-3 px-3 text-right text-emerald-700">Crédito (-) [Abono]</th>
-                        <th className="py-3 px-3 text-right text-indigo-900">Saldo Acumulado</th>
+                        <th className="py-3 px-3 text-right text-indigo-900 bg-indigo-50/50">Saldo Acumulado</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -745,13 +800,13 @@ ${publicUrl}
                           <td className="py-3 px-3 text-slate-700 font-medium max-w-xs truncate">
                             {m.detalles}
                           </td>
-                          <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                          <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap font-mono">
                             {m.debito > 0 ? `+ L. ${m.debito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-'}
                           </td>
-                          <td className="py-3 px-3 text-right font-bold text-emerald-600 whitespace-nowrap">
+                          <td className="py-3 px-3 text-right font-bold text-emerald-600 whitespace-nowrap font-mono">
                             {m.credito > 0 ? `- L. ${m.credito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-'}
                           </td>
-                          <td className="py-3 px-3 text-right font-mono font-black text-indigo-950 whitespace-nowrap bg-indigo-50/40">
+                          <td className="py-3 px-3 text-right font-mono font-black text-indigo-950 whitespace-nowrap bg-indigo-50/40 text-sm">
                             L. {m.saldoAcumulado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
@@ -766,39 +821,47 @@ ${publicUrl}
           {/* TAB 1: FACTURAS */}
           {activeTab === 'FACTURAS' && (
             <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-600" /> Facturas emitidas al cliente
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-600" /> Facturas emitidas al cliente
+                </h3>
+                <button
+                  onClick={() => setModalFacturaOpen(true)}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> + Registrar Factura
+                </button>
+              </div>
 
               {facturas.length === 0 ? (
                 <p className="text-xs text-slate-500 p-4 text-center">No hay facturas registradas para este cliente.</p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 px-2">Correlativo</th>
-                        <th className="pb-3 px-2">Fecha</th>
-                        <th className="pb-3 px-2 text-right">Total Factura</th>
-                        <th className="pb-3 px-2 text-right">Saldo Pendiente</th>
-                        <th className="pb-3 px-2 text-center">Estado Pago</th>
-                        <th className="pb-3 px-2">Usuario</th>
+                      <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="py-3 px-3">Correlativo</th>
+                        <th className="py-3 px-3">Fecha</th>
+                        <th className="py-3 px-3 text-right">Total Factura</th>
+                        <th className="py-3 px-3 text-right">Saldo Pendiente</th>
+                        <th className="py-3 px-3 text-center">Estado Pago</th>
+                        <th className="py-3 px-3">Usuario</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
                       {facturas.map(f => (
                         <tr key={f.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-2 font-bold text-slate-900">#{f.correlativo}</td>
-                          <td className="py-3 px-2 text-slate-500">
+                          <td className="py-3 px-3 font-bold text-slate-900">#{f.correlativo}</td>
+                          <td className="py-3 px-3 text-slate-500">
                             {new Date(f.fechaEmision).toLocaleDateString('es-HN')}
                           </td>
-                          <td className="py-3 px-2 text-right font-semibold text-slate-800">
+                          <td className="py-3 px-3 text-right font-semibold text-slate-800 font-mono">
                             L. {f.total.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="py-3 px-2 text-right font-black text-emerald-600">
+                          <td className="py-3 px-3 text-right font-black text-emerald-600 font-mono">
                             L. {f.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-3 px-3 text-center">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                 f.estadoPago === 'PAGADA'
@@ -811,7 +874,7 @@ ${publicUrl}
                               {f.estadoPago || 'PENDIENTE'}
                             </span>
                           </td>
-                          <td className="py-3 px-2 text-slate-500 whitespace-nowrap">
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
                             {f.creadoPor ? `${f.creadoPor.nombre || ''} ${f.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </td>
                         </tr>
@@ -826,67 +889,63 @@ ${publicUrl}
           {/* TAB 2: HISTORIAL DE ABONOS */}
           {activeTab === 'PAGOS' && (
             <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-600" /> Registros de Abonos y Pagos
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-600" /> Registros de Abonos y Pagos
+                </h3>
+                <button
+                  onClick={() => setModalAbonoOpen(true)}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> + Registrar Abono
+                </button>
+              </div>
 
               {pagos.length === 0 ? (
-                <p className="text-xs text-slate-500 p-4 text-center">No hay abonos registrados aun.</p>
+                <p className="text-xs text-slate-500 p-4 text-center">No hay abonos registrados aún.</p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="pb-3 px-2">Recibo #</th>
-                        <th className="pb-3 px-2">Fecha</th>
-                        <th className="pb-3 px-2">Método</th>
-                        <th className="pb-3 px-2">Banco / Ref</th>
-                        <th className="pb-3 px-2 text-right">Monto Abonado</th>
-                        <th className="pb-3 px-2">Usuario</th>
-                        <th className="pb-3 px-2 text-center">Acciones</th>
+                      <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="py-3 px-3">Recibo #</th>
+                        <th className="py-3 px-3">Fecha</th>
+                        <th className="py-3 px-3">Método</th>
+                        <th className="py-3 px-3">Banco / Ref</th>
+                        <th className="py-3 px-3 text-right">Monto Abonado</th>
+                        <th className="py-3 px-3">Usuario</th>
+                        <th className="py-3 px-3 text-center">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
                       {pagos.map(p => (
                         <tr key={p.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-2 font-bold text-slate-900">
-                            {p.correlativo || 'REC-ABONO'}
-                          </td>
-                          <td className="py-3 px-2 text-slate-500">
+                          <td className="py-3 px-3 font-bold text-slate-900">{p.correlativo || 'REC-ABONO'}</td>
+                          <td className="py-3 px-3 text-slate-500">
                             {new Date(p.fecha).toLocaleDateString('es-HN')}
                           </td>
-                          <td className="py-3 px-2 font-medium text-emerald-700">
-                            {p.metodoPago}
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 bg-teal-50 text-teal-800 rounded-md font-bold text-[10px] border border-teal-200">
+                              {p.metodoPago}
+                            </span>
                           </td>
-                          <td className="py-3 px-2 text-slate-500">
+                          <td className="py-3 px-3 text-slate-600">
                             {p.banco ? `${p.banco} - ` : ''}{p.referencia || 'N/A'}
                           </td>
-                          <td className="py-3 px-2 text-right font-black text-emerald-600">
+                          <td className="py-3 px-3 text-right font-black text-teal-700 font-mono">
                             L. {p.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="py-3 px-2 text-slate-500 whitespace-nowrap">
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
                             {p.creadoPor ? `${p.creadoPor.nombre || ''} ${p.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </td>
-                          <td className="py-3 px-2 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => {
-                                  setPagoAEditar(p);
-                                  setModalEditarAbonoOpen(true);
-                                }}
-                                className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                                title="Editar valor de abono"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleAnularAbono(p.id, p.correlativo)}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                title="Anular abono"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                          <td className="py-3 px-3 text-center">
+                            <button
+                              onClick={() => handleAnularAbono(p.id, p.correlativo)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Anular Abono"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -897,97 +956,108 @@ ${publicUrl}
             </div>
           )}
 
-          {/* TAB 3: NOTAS DE CREDITO POR FLOR DAÑADA */}
+          {/* TAB 3: NOTAS DE CRÉDITO / MERMAS */}
           {activeTab === 'NOTAS' && (
             <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <Flower2 className="w-4 h-4 text-amber-600" /> Historial de Devoluciones y Notas de Crédito
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Flower2 className="w-4 h-4 text-amber-600" /> Ajustes por Flor Dañada y Devoluciones
+                </h3>
+                <button
+                  onClick={() => setModalNCOpen(true)}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> + Registrar Ajuste
+                </button>
+              </div>
 
               {notasCredito.length === 0 ? (
                 <p className="text-xs text-slate-500 p-4 text-center">No hay notas de crédito registradas.</p>
               ) : (
-                <div className="space-y-3">
-                  {notasCredito.map(nc => (
-                    <div
-                      key={nc.id}
-                      className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">#{nc.correlativo || 'NC-001'}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900">
-                            {nc.motivo.replace('_', ' ')}
-                          </span>
-                          <span className="text-slate-400">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="py-3 px-3">Nota #</th>
+                        <th className="py-3 px-3">Fecha</th>
+                        <th className="py-3 px-3">Motivo</th>
+                        <th className="py-3 px-3">Descripción / Detalle</th>
+                        <th className="py-3 px-3 text-right">Monto</th>
+                        <th className="py-3 px-3">Usuario</th>
+                        <th className="py-3 px-3 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs">
+                      {notasCredito.map(nc => (
+                        <tr key={nc.id} className="hover:bg-slate-50">
+                          <td className="py-3 px-3 font-bold text-slate-900">{nc.correlativo || 'NC-001'}</td>
+                          <td className="py-3 px-3 text-slate-500">
                             {new Date(nc.fecha).toLocaleDateString('es-HN')}
-                          </span>
-                          <span className="text-[10px] bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md font-semibold text-slate-500">
-                            👤 {nc.creadoPor ? `${nc.creadoPor.nombre || ''} ${nc.creadoPor.apellido || ''}`.trim() : 'Sistema'}
-                          </span>
-                        </div>
-                        <p className="text-slate-700 font-medium">{nc.descripcion}</p>
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="text-right">
-                          <span className="text-slate-400 block text-[10px]">Monto Descontado</span>
-                          <span className="text-lg font-black text-amber-700">
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded-md font-bold text-[10px] border border-amber-200">
+                              {nc.motivo.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-700 font-medium">
+                            {nc.descripcion}
+                          </td>
+                          <td className="py-3 px-3 text-right font-black text-amber-700 font-mono">
                             L. {nc.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => handleAnularNotaCredito(nc.id, nc.correlativo)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
-                          title="Anular Nota de Crédito"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="py-3 px-3 text-slate-500 whitespace-nowrap">
+                            {nc.creadoPor ? `${nc.creadoPor.nombre || ''} ${nc.creadoPor.apellido || ''}`.trim() : 'Sistema'}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <button
+                              onClick={() => handleAnularNotaCredito(nc.id, nc.correlativo)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Anular Nota de Crédito"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Modales */}
-        <ModalAbono
-          isOpen={modalAbonoOpen}
-          onClose={() => setModalAbonoOpen(false)}
-          onSuccess={cargarEstadoCuenta}
-          cliente={{
-            id: cliente.id,
-            nombre: cliente.nombre,
-            saldoTotal: resumen.saldoTotal,
-            facturas
-          }}
-        />
+      {/* Modales */}
+      <ModalRegistrarFactura
+        isOpen={modalFacturaOpen}
+        onClose={() => setModalFacturaOpen(false)}
+        onSuccess={cargarEstadoCuenta}
+        clientePreseleccionado={data?.cliente}
+      />
 
-        <ModalNotaCredito
-          isOpen={modalNCOpen}
-          onClose={() => setModalNCOpen(false)}
-          onSuccess={cargarEstadoCuenta}
-          cliente={{
-            id: cliente.id,
-            nombre: cliente.nombre,
-            saldoTotal: resumen.saldoTotal,
-            facturas
-          }}
-        />
+      <ModalAbono
+        isOpen={modalAbonoOpen}
+        onClose={() => setModalAbonoOpen(false)}
+        onSuccess={cargarEstadoCuenta}
+        cliente={data?.cliente as any}
+      />
 
-        <ModalSaldoInicial
-          isOpen={modalSaldoInicialOpen}
-          onClose={() => setModalSaldoInicialOpen(false)}
-          onSuccess={cargarEstadoCuenta}
-          cliente={{
-            id: cliente.id,
-            nombre: cliente.nombre,
-            saldoInicial: cliente.saldoInicial
-          }}
-        />
+      <ModalNotaCredito
+        isOpen={modalNCOpen}
+        onClose={() => setModalNCOpen(false)}
+        onSuccess={cargarEstadoCuenta}
+        cliente={data?.cliente as any}
+      />
 
+      <ModalSaldoInicial
+        isOpen={modalSaldoInicialOpen}
+        onClose={() => setModalSaldoInicialOpen(false)}
+        onSuccess={cargarEstadoCuenta}
+        cliente={data?.cliente as any}
+      />
+
+      {pagoAEditar && (
         <ModalEditarAbono
           isOpen={modalEditarAbonoOpen}
           onClose={() => {
@@ -995,10 +1065,10 @@ ${publicUrl}
             setPagoAEditar(null);
           }}
           onSuccess={cargarEstadoCuenta}
-          clienteNombre={cliente.nombre}
           pago={pagoAEditar}
+          clienteNombre={cliente.nombre}
         />
-      </div>
+      )}
     </>
   );
 }

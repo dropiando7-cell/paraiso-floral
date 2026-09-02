@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Building2, MapPin, Phone, Mail, FileBadge, CreditCard, Clock, FileText, User } from 'lucide-react';
-import { createContacto, updateContacto } from '@/app/(dashboard)/contactos/actions';
+import { createContacto, updateContacto, fetchVendedores } from '@/app/(dashboard)/contactos/actions';
 
 export const DEPARTAMENTOS_HONDURAS = [
   'Atlántida',
@@ -25,6 +25,14 @@ export const DEPARTAMENTOS_HONDURAS = [
   'Yoro'
 ];
 
+export const RUTAS_COMERCIALES = [
+  'Ruta Occidente',
+  'Ruta La Esperanza',
+  'Ruta Guamilito / Progreso',
+  'Cartera Francis Carías',
+  'Nacional / Todas las Rutas'
+];
+
 export interface ClienteFormData {
   id?: string;
   nombre: string;
@@ -40,6 +48,8 @@ export interface ClienteFormData {
   saldoInicial?: number | null;
   diasCredito?: number | null;
   notas?: string | null;
+  vendedorId?: string | null;
+  ruta?: string | null;
 }
 
 interface ContactoModalProps {
@@ -56,6 +66,7 @@ export default function ContactoModal({
   initialContacto
 }: ContactoModalProps) {
   const [formData, setFormData] = useState<Partial<ClienteFormData>>(initialContacto || {});
+  const [vendedores, setVendedores] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +74,9 @@ export default function ContactoModal({
     if (open) {
       setFormData(initialContacto || {});
       setError(null);
+      fetchVendedores()
+        .then(data => setVendedores(data || []))
+        .catch(err => console.error('Error cargando vendedores:', err));
     }
   }, [open, initialContacto]);
 
@@ -94,7 +108,9 @@ export default function ContactoModal({
         emailsCC: formData.emailsCC?.trim() || undefined,
         limiteCredito: formData.limiteCredito !== undefined && formData.limiteCredito !== null ? Number(formData.limiteCredito) : 0,
         diasCredito: formData.diasCredito !== undefined && formData.diasCredito !== null ? Number(formData.diasCredito) : 15,
-        notas: formData.notas?.trim() || undefined
+        notas: formData.notas?.trim() || undefined,
+        vendedorId: formData.vendedorId || undefined,
+        ruta: formData.ruta || undefined
       };
 
       if (isEdit && formData.id) {
@@ -254,11 +270,54 @@ export default function ContactoModal({
             </div>
           </div>
 
-          {/* Bloque 4: Ubicación Honduras */}
+          {/* Bloque 4: Ubicación y Asignación Comercial */}
           <div className="pt-3 border-t border-slate-100 space-y-3">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-              Ubicación y Departamento (Honduras)
+              Ubicación y Asignación de Vendedor / Ruta (CxC)
             </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">Vendedor Asignado</label>
+                <select
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                  value={formData.vendedorId || ''}
+                  onChange={e => {
+                    const vId = e.target.value;
+                    const vend = vendedores.find(v => v.id === vId);
+                    setFormData({
+                      ...formData,
+                      vendedorId: vId || null,
+                      ruta: vend?.rutasAsignadas?.[0] || formData.ruta
+                    });
+                  }}
+                >
+                  <option value="">-- Sin Asignar / Vendedor Directo --</option>
+                  {vendedores.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.nombre ? `${v.nombre} ${v.apellido || ''}` : v.email} {v.puesto ? `(${v.puesto})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">Ruta Comercial</label>
+                <select
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                  value={formData.ruta || ''}
+                  onChange={e => setFormData({ ...formData, ruta: e.target.value })}
+                >
+                  <option value="">-- Seleccionar Ruta Comercial --</option>
+                  {RUTAS_COMERCIALES.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                  {formData.ruta && !RUTAS_COMERCIALES.includes(formData.ruta) && (
+                    <option value={formData.ruta}>{formData.ruta} (Personalizada)</option>
+                  )}
+                </select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">Departamento *</label>

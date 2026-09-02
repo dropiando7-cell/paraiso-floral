@@ -13,7 +13,15 @@ export async function GET(request: Request) {
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
-      select: { organizationId: true }
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+        role: true,
+        puedeVerTodasCxC: true,
+        rutasAsignadas: true,
+        customRoleName: true
+      }
     });
 
     if (!dbUser?.organizationId) {
@@ -23,18 +31,64 @@ export async function GET(request: Request) {
     const orgId = dbUser.organizationId;
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || '';
-    const filtro = searchParams.get('filtro') || 'TODOS'; // TODOS, CON_SALDO, AL_DIA, POR_VENCER, VENCIDO, RIESGO
+    const filtro = searchParams.get('filtro') || 'CON_SALDO'; // CON_SALDO, TODOS, TOP_DEUDORES, MOROSOS, AL_DIA, POR_VENCER, VENCIDO, RIESGO
+    const departamento = searchParams.get('departamento') || '';
+    const vendedorParam = searchParams.get('vendedorId') || '';
+    const rutaParam = searchParams.get('ruta') || '';
+
+    // Permisos: Admin/Gerente/Dueño ve todas las cuentas. Vendedor solo ve las suyas/sus rutas.
+    const esAdminOGerente =
+      dbUser.role === 'SUPER_ADMIN' ||
+      dbUser.role === 'GERENTE' ||
+      dbUser.role === 'ORG_ADMIN' ||
+      dbUser.puedeVerTodasCxC === true ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('ADMIN')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('GERENTE')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('DUEÑ')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('PROPIETARIO')) ||
+      dbUser.email === 'dropiando7@gmail.com' ||
+      dbUser.email === 'admin@paraisofloral.com';
 
     // Obtener clientes de la organización (excluyendo CONSUMIDOR FINAL)
     let whereCliente: any = { 
       organizationId: orgId,
       nombre: { not: 'CONSUMIDOR FINAL' }
     };
+
+    if (!esAdminOGerente) {
+      // Filtrar estrictamente a los clientes del vendedor o de sus rutas asignadas
+      const allowedRutas = dbUser.rutasAsignadas || [];
+      const userConditions: any[] = [
+        { vendedorId: dbUser.id }
+      ];
+      if (allowedRutas.length > 0) {
+        userConditions.push({ ruta: { in: allowedRutas, mode: 'insensitive' } });
+        userConditions.push({ departamento: { in: allowedRutas, mode: 'insensitive' } });
+      }
+      whereCliente.AND = [
+        { OR: userConditions }
+      ];
+    } else {
+      // Para admin / gerencia, aplicar filtros opcionales de vendedor o ruta
+      if (vendedorParam && vendedorParam !== 'TODOS') {
+        whereCliente.vendedorId = vendedorParam;
+      }
+      if (rutaParam && rutaParam !== 'TODOS') {
+        whereCliente.ruta = { equals: rutaParam, mode: 'insensitive' };
+      }
+    }
+
+    if (departamento.trim()) {
+      whereCliente.departamento = { equals: departamento.trim(), mode: 'insensitive' };
+    }
+
     if (query.trim()) {
       whereCliente.OR = [
         { nombre: { contains: query.trim(), mode: 'insensitive' } },
         { telefono: { contains: query.trim(), mode: 'insensitive' } },
-        { rtn: { contains: query.trim(), mode: 'insensitive' } }
+        { rtn: { contains: query.trim(), mode: 'insensitive' } },
+        { departamento: { contains: query.trim(), mode: 'insensitive' } },
+        { ruta: { contains: query.trim(), mode: 'insensitive' } }
       ];
     }
 
@@ -46,6 +100,20 @@ export async function GET(request: Request) {
         telefono: true,
         email: true,
         direccion: true,
+        departamento: true,
+        ruta: true,
+        vendedorId: true,
+        vendedor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true,
+            puesto: true
+          }
+        },
+        rtn: true,
+        notas: true,
         limiteCredito: true,
         saldoInicial: true,
         fechaSaldoInicial: true,
@@ -114,8 +182,8 @@ export async function GET(request: Request) {
         return f.estadoPago !== 'PAGADA' && saldo > 0;
       }).length;
 
-      if (sInicial > 0 && saldoTotal > 0) {
-        facturasPendientesCount++;
+      if (sInicial > 0 && saldoTotal > 0 && c.facturas.length === 0) {
+        facturasPendientesCount = 1;
       }
 
       const sortedPagos = [...c.pagos].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
@@ -127,6 +195,12 @@ export async function GET(request: Request) {
         telefono: c.telefono,
         email: c.email,
         direccion: c.direccion,
+        departamento: c.departamento,
+        ruta: c.ruta || 'Ruta Occidente',
+        vendedorId: c.vendedorId,
+        vendedorNombre: c.vendedor?.nombre ? `${c.vendedor.nombre} ${c.vendedor.apellido || ''}`.trim() : null,
+        rtn: c.rtn,
+        notas: c.notas,
         limiteCredito: Number(c.limiteCredito || 0),
         saldoInicial: sInicial,
         fechaSaldoInicial: c.fechaSaldoInicial,
@@ -142,26 +216,53 @@ export async function GET(request: Request) {
       };
     });
 
-    // Aplicar filtro de saldo / antigüedad
+    // Aplicar filtro de saldo / antigüedad / morosidad
     let resultadoFiltrado = resultado;
-    if (filtro === 'CON_SALDO') {
-      resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0);
-    } else if (filtro === 'AL_DIA') {
-      resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora <= 7);
-    } else if (filtro === 'POR_VENCER') {
-      resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 7 && c.maxDiasMora <= 15);
-    } else if (filtro === 'VENCIDO') {
-      resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 15 && c.maxDiasMora <= 30);
-    } else if (filtro === 'RIESGO') {
-      resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 30);
+    
+    if (query.trim()) {
+      // Si el usuario está buscando un cliente específico por nombre, mostrarlo sin importar si su saldo es 0
+      if (filtro === 'MOROSOS') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && (c.saldoVencido > 0 || c.maxDiasMora > 15));
+      } else if (filtro === 'RIESGO') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 30);
+      }
+    } else {
+      // Sin búsqueda de texto, aplicar los filtros de pestaña normales
+      if (filtro === 'CON_SALDO') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0);
+      } else if (filtro === 'TOP_DEUDORES') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0);
+        resultadoFiltrado.sort((a, b) => b.saldoTotal - a.saldoTotal);
+      } else if (filtro === 'MOROSOS') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && (c.saldoVencido > 0 || c.maxDiasMora > 15));
+      } else if (filtro === 'AL_DIA') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal <= 0 || c.maxDiasMora <= 7);
+      } else if (filtro === 'POR_VENCER') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 7 && c.maxDiasMora <= 15);
+      } else if (filtro === 'VENCIDO') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 15 && c.maxDiasMora <= 30);
+      } else if (filtro === 'RIESGO') {
+        resultadoFiltrado = resultado.filter(c => c.saldoTotal > 0 && c.maxDiasMora > 30);
+      }
     }
 
-    // Ordenar de mayor saldo pendiente a menor
-    resultadoFiltrado.sort((a, b) => b.saldoTotal - a.saldoTotal);
+    // Por defecto ordenar de mayor saldo pendiente a menor, y luego alfabéticamente
+    if (filtro !== 'TOP_DEUDORES') {
+      resultadoFiltrado.sort((a, b) => {
+        if (b.saldoTotal !== a.saldoTotal) {
+          return b.saldoTotal - a.saldoTotal;
+        }
+        return a.nombre.localeCompare(b.nombre);
+      });
+    }
 
     return NextResponse.json(resultadoFiltrado);
   } catch (error: any) {
     console.error('Error en /api/cxc/clientes:', error);
-    return NextResponse.json({ error: 'Error cargando lista de cuentas por cobrar' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Error cargando lista de cuentas por cobrar',
+      details: error?.message || String(error),
+      stack: error?.stack
+    }, { status: 500 });
   }
 }

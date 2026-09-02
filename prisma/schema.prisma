@@ -161,6 +161,11 @@ model User {
   notificationsAnuladas  Notification[]        @relation("AnuladaNotifications")
   voiceLogs              AsistenteVozLog[]     @relation("CreatedVoiceLogs")
 
+  // CxC & Rutas Comerciales
+  rutasAsignadas        String[]               @default([])
+  puedeVerTodasCxC      Boolean                @default(false)
+  clientesAsignados     Cliente[]              @relation("ClientesVendedor")
+
   // Presence & activity fields
   lastActiveAt          DateTime?
   currentModule         String?
@@ -713,9 +718,12 @@ model Cliente {
   saldoInicial       Decimal        @default(0) @db.Decimal(12, 2)
   fechaSaldoInicial  DateTime?
   diasCredito        Int            @default(15)
+  vendedorId         String?        @db.Uuid
+  ruta               String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendedor           User?          @relation("ClientesVendedor", fields: [vendedorId], references: [id])
   facturas           Factura[]
   ordenesTrabajo     OrdenTrabajo[]
   rentasEquipo       RentaEquipo[]
@@ -727,6 +735,8 @@ model Cliente {
 
   @@index([organizationId])
   @@index([nombre])
+  @@index([vendedorId])
+  @@index([ruta])
   @@map("clientes")
 }
 
@@ -994,6 +1004,7 @@ enum Role {
   TECNICO
   GERENTE
   AUXILIAR_BODEGA
+  VENDEDOR
 }
 
 enum OrganizationStatus {

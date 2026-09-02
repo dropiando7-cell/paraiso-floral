@@ -75,6 +75,27 @@ export async function fetchContactos(query: string, page: number = 1) {
     };
 }
 
+export async function fetchVendedores() {
+    const orgId = await getOrgId();
+    return prisma.user.findMany({
+        where: {
+            organizationId: orgId,
+            isAssignable: true
+        },
+        select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true,
+            role: true,
+            puesto: true,
+            rutasAsignadas: true,
+            puedeVerTodasCxC: true
+        },
+        orderBy: { nombre: 'asc' }
+    });
+}
+
 export async function createContacto(data: { 
     nombre: string; 
     email?: string; 
@@ -89,6 +110,8 @@ export async function createContacto(data: {
     saldoInicial?: number;
     diasCredito?: number;
     notas?: string;
+    vendedorId?: string | null;
+    ruta?: string | null;
 }) {
     const orgId = await getOrgId();
 
@@ -140,6 +163,8 @@ export async function updateContacto(id: string, data: {
     saldoInicial?: number;
     diasCredito?: number;
     notas?: string;
+    vendedorId?: string | null;
+    ruta?: string | null;
 }) {
     const cleanNombre = data.nombre.trim().toUpperCase();
     const cleanNombreContacto = data.nombreContacto?.trim() ? data.nombreContacto.trim().toUpperCase() : null;

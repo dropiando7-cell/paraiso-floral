@@ -23,6 +23,8 @@ export async function createUser(data: {
     accessibleModules: string[];
     puedeAsignarEspacios?: boolean;
     puesto?: string;
+    rutasAsignadas?: string[];
+    puedeVerTodasCxC?: boolean;
 }) {
     try {
         const supabase = await createClient();
@@ -91,6 +93,8 @@ export async function createUser(data: {
                 accessibleModules: data.accessibleModules,
                 puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
                 puesto: data.puesto,
+                rutasAsignadas: data.rutasAsignadas ?? [],
+                puedeVerTodasCxC: data.puedeVerTodasCxC ?? false,
             },
         });
 
@@ -292,6 +296,8 @@ export async function editUser(
         apellido?: string;
         password?: string;
         isAssignable?: boolean;
+        rutasAsignadas?: string[];
+        puedeVerTodasCxC?: boolean;
     }
 ) {
     try {
@@ -338,6 +344,8 @@ export async function editUser(
                 nombre: data.nombre,
                 apellido: data.apellido,
                 isAssignable: data.isAssignable,
+                rutasAsignadas: data.rutasAsignadas ?? [],
+                puedeVerTodasCxC: data.puedeVerTodasCxC ?? false,
             },
         });
 

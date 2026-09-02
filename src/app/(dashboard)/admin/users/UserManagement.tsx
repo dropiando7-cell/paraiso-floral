@@ -3,9 +3,17 @@
 import React, { useState } from 'react';
 import { User, Organization, Role, RoleTemplate } from '@prisma/client';
 import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate, sendManualWelcomeEmail, createOrganization } from './actions';
-import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Mail, Loader2, Key } from 'lucide-react';
+import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Mail, Loader2, Key, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+
+export const RUTAS_COMERCIALES_DISPONIBLES = [
+    'Ruta Occidente',
+    'Ruta La Esperanza',
+    'Ruta Guamilito / Progreso',
+    'Cartera Francis Carías',
+    'Nacional / Todas las Rutas'
+];
 
 type UserWithOrg = User & { organization: Organization };
 
@@ -47,6 +55,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [puedeAsignarEspacios, setPuedeAsignarEspacios] = useState(false);
     const [puesto, setPuesto] = useState('');
     const [isAssignable, setIsAssignable] = useState(true);
+    const [rutasAsignadas, setRutasAsignadas] = useState<string[]>([]);
+    const [puedeVerTodasCxC, setPuedeVerTodasCxC] = useState<boolean>(false);
+    const [customRutaInput, setCustomRutaInput] = useState<string>('');
     const [deletingUser, setDeletingUser] = useState<{ id: string; email: string } | null>(null);
     const [searchModulesQuery, setSearchModulesQuery] = useState('');
     const [searchRoleModulesQuery, setSearchRoleModulesQuery] = useState('');
@@ -235,6 +246,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setPuedeAsignarEspacios(false);
         setPuesto('');
         setIsAssignable(true);
+        setRutasAsignadas([]);
+        setPuedeVerTodasCxC(false);
+        setCustomRutaInput('');
         setIsModalOpen(true);
     };
 
@@ -253,6 +267,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setPuedeAsignarEspacios(user.puedeAsignarEspacios || false);
         setPuesto(user.puesto || '');
         setIsAssignable(user.isAssignable ?? true);
+        setRutasAsignadas(user.rutasAsignadas || []);
+        setPuedeVerTodasCxC(user.puedeVerTodasCxC || false);
+        setCustomRutaInput('');
         setError(null);
         setIsModalOpen(true);
     };
@@ -280,7 +297,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                     nombre: firstName,
                     apellido: lastName,
                     password: password || undefined,
-                    isAssignable
+                    isAssignable,
+                    rutasAsignadas,
+                    puedeVerTodasCxC
                 });
                 if (!res.success) {
                     const errMsg = res.error || 'Ocurrió un error al editar';
@@ -301,7 +320,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                     organizationId,
                     accessibleModules,
                     puedeAsignarEspacios,
-                    puesto
+                    puesto,
+                    rutasAsignadas,
+                    puedeVerTodasCxC
                 });
                 if (!res.success) {
                     const errMsg = res.error || 'Ocurrió un error al crear';
@@ -651,7 +672,27 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 font-semibold text-xs tracking-wider">
-                                        {u.puesto ? u.puesto.toUpperCase() : <span className="text-slate-400 font-normal italic">NO ESPECIFICADO</span>}
+                                        <div>{u.puesto ? u.puesto.toUpperCase() : <span className="text-slate-400 font-normal italic">NO ESPECIFICADO</span>}</div>
+                                        {u.puedeVerTodasCxC && (
+                                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title="Acceso total a todas las cuentas por cobrar">
+                                                ★ CxC Global
+                                            </span>
+                                        )}
+                                        {u.rutasAsignadas && u.rutasAsignadas.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                {u.rutasAsignadas.slice(0, 2).map(r => (
+                                                    <span key={r} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        <MapPin className="w-2.5 h-2.5" />
+                                                        {r}
+                                                    </span>
+                                                ))}
+                                                {u.rutasAsignadas.length > 2 && (
+                                                    <span className="text-[10px] text-slate-400 font-bold self-center">
+                                                        +{u.rutasAsignadas.length - 2}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 flex items-center gap-2">
                                         <Building2 className="w-4 h-4 text-slate-400" />
@@ -1045,6 +1086,115 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             <p className="text-xs text-slate-500 mt-0.5">El usuario aparecerá en listas de asignación de órdenes de trabajo, Kanban y otras tareas del sistema.</p>
                                         </div>
                                     </label>
+                                </div>
+
+                                {/* Sección Rutas Comerciales y CxC */}
+                                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <MapPin className="w-4 h-4 text-emerald-600" />
+                                            <span className="text-sm font-bold text-slate-800">Rutas Comerciales & Permisos CxC</span>
+                                        </div>
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                                            Módulo CxC
+                                        </span>
+                                    </div>
+
+                                    <label className="flex items-start gap-3 cursor-pointer p-2.5 hover:bg-white/80 rounded-lg transition-colors border border-emerald-200/60 bg-white">
+                                        <input
+                                            type="checkbox"
+                                            checked={puedeVerTodasCxC || role === 'SUPER_ADMIN'}
+                                            disabled={role === 'SUPER_ADMIN'}
+                                            onChange={(e) => setPuedeVerTodasCxC(e.target.checked)}
+                                            className="w-4 h-4 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                                        />
+                                        <div>
+                                            <span className="text-xs font-bold text-slate-800">Acceso Global a todas las Cuentas por Cobrar (Gerencia / Dueños)</span>
+                                            <p className="text-[11px] text-slate-500">Permite ver y auditar todas las rutas y clientes del país sin restricciones.</p>
+                                        </div>
+                                    </label>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                            Rutas Asignadas a este Usuario / Vendedor:
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5 mb-2">
+                                            {RUTAS_COMERCIALES_DISPONIBLES.map((r) => {
+                                                const isSelected = rutasAsignadas.includes(r);
+                                                return (
+                                                    <button
+                                                        key={r}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setRutasAsignadas(prev =>
+                                                                prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+                                                            );
+                                                        }}
+                                                        className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all border ${
+                                                            isSelected
+                                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                                                        }`}
+                                                    >
+                                                        {isSelected ? '✓ ' : '+ '}
+                                                        {r}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Custom routes tag input */}
+                                        <div className="flex gap-1.5">
+                                            <input
+                                                type="text"
+                                                placeholder="Escribir otra ruta o municipio y presionar Añadir..."
+                                                value={customRutaInput}
+                                                onChange={(e) => setCustomRutaInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (customRutaInput.trim() && !rutasAsignadas.includes(customRutaInput.trim())) {
+                                                            setRutasAsignadas(prev => [...prev, customRutaInput.trim()]);
+                                                            setCustomRutaInput('');
+                                                        }
+                                                    }
+                                                }}
+                                                className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (customRutaInput.trim() && !rutasAsignadas.includes(customRutaInput.trim())) {
+                                                        setRutasAsignadas(prev => [...prev, customRutaInput.trim()]);
+                                                        setCustomRutaInput('');
+                                                    }
+                                                }}
+                                                className="px-3 py-1.5 text-xs bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-medium"
+                                            >
+                                                Añadir
+                                            </button>
+                                        </div>
+
+                                        {rutasAsignadas.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                {rutasAsignadas.map((r) => (
+                                                    <span
+                                                        key={r}
+                                                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800"
+                                                    >
+                                                        {r}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setRutasAsignadas(prev => prev.filter(x => x !== r))}
+                                                            className="text-emerald-700 hover:text-red-600 font-bold ml-0.5"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
