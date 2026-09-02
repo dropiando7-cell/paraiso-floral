@@ -1232,7 +1232,7 @@ export default function ChecklistBodegaClient({
                                                     {/* Derecha: Campo Código de Barra con Botón Cámara + Cantidad y Daño */}
                                                     <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap pt-1 lg:pt-0 border-t border-slate-100 lg:border-t-0">
                                                         {/* Campo Código de Barra + Botón Cámara */}
-                                                        <div className="flex items-center gap-1 bg-white border border-slate-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 px-2 py-1 rounded-xl shadow-2xs transition-all">
+                                                        <div className="flex items-center gap-1.5 bg-white border border-slate-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 px-2.5 rounded-xl shadow-2xs transition-all h-10">
                                                             <span className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase shrink-0">Cód:</span>
                                                             <input
                                                                 type="text"
@@ -1248,22 +1248,22 @@ export default function ChecklistBodegaClient({
                                                                 onBlur={() => {
                                                                     handleCambiarCodigoBarras(item, item.codigoBarras || '', true);
                                                                 }}
-                                                                className="w-20 sm:w-28 md:w-36 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
+                                                                className="w-20 sm:w-28 md:w-36 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300 h-full"
                                                             />
                                                             
                                                             {/* Botón Escanear con Cámara */}
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setItemEscaneandoCamaraId(item.id)}
-                                                                className="p-1.5 md:p-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-2xs shrink-0 flex items-center justify-center transition-all"
+                                                                className="p-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-2xs shrink-0 flex items-center justify-center transition-all cursor-pointer"
                                                                 title="Escanear con Cámara de la Tablet"
                                                             >
                                                                 <Camera className="w-4 h-4" />
                                                             </button>
                                                         </div>
 
-                                                        {/* Cantidad Input */}
-                                                        <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
+                                                        {/* Cantidad Input - Misma altura h-10 que el código y más espacioso */}
+                                                        <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 rounded-xl border border-slate-200 h-10 shadow-2xs">
                                                             <input
                                                                 type="number"
                                                                 min={0}
@@ -1289,16 +1289,16 @@ export default function ChecklistBodegaClient({
                                                                         handleCambiarBonches(item, 0);
                                                                     }
                                                                 }}
-                                                                className="w-10 sm:w-12 md:w-14 bg-white text-center font-extrabold text-slate-900 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 py-0.5"
+                                                                className="w-12 sm:w-16 md:w-20 h-7.5 bg-white text-center font-extrabold text-slate-900 text-sm sm:text-base rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 shadow-2xs transition-all"
                                                             />
-                                                            <span className="text-[10px] sm:text-xs text-slate-600 font-bold">/{item.bonchesEsperados} pqt</span>
+                                                            <span className="text-xs sm:text-sm text-slate-600 font-bold whitespace-nowrap">/{item.bonchesEsperados} pqt</span>
                                                         </div>
 
                                                         {/* Botón Daño / Merma */}
                                                         <button
                                                             onClick={() => setItemEditandoDanoId(estaEditandoDano ? null : item.id)}
                                                             title={tieneDano ? `${item.bonchesDanados} dañados (Neto a stock: ${Math.max(0, item.bonchesRecibidos - item.bonchesDanados)})` : "Reportar daño o merma"}
-                                                            className={`p-1.5 sm:px-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all border ${
+                                                            className={`h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
                                                                 tieneDano
                                                                     ? 'bg-rose-100 text-rose-800 border-rose-300 shadow-2xs'
                                                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
@@ -1312,7 +1312,7 @@ export default function ChecklistBodegaClient({
                                                         <button
                                                             type="button"
                                                             onClick={() => handleImprimirItemIndividual(item)}
-                                                            className="p-1.5 md:p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded-xl font-bold flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-2xs cursor-pointer"
+                                                            className="h-10 w-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded-xl font-bold flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-2xs cursor-pointer"
                                                             title="Imprimir etiqueta de este producto individual"
                                                         >
                                                             <Printer className="w-4 h-4 text-indigo-600" />
