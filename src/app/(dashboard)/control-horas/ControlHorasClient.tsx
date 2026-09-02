@@ -350,9 +350,19 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {selectedReporte && (
+                            <button
+                                onClick={() => setSelectedReporte(null)}
+                                className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-extrabold text-xs rounded-xl flex items-center gap-1.5 border border-emerald-500/40 transition-all cursor-pointer active:scale-95"
+                                title="Volver a la pantalla principal para subir otro archivo Excel"
+                            >
+                                <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="hidden sm:inline">Subir Otro Excel</span>
+                            </button>
+                        )}
                         <label className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
                             <Upload className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Subir Excel ZKteco</span>
+                            <span className="hidden sm:inline">Seleccionar Excel</span>
                             <input
                                 type="file"
                                 accept=".xls,.xlsx,.csv"
@@ -566,6 +576,14 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                         }`}
                                     >
                                         📜 2. Historial de Reportes ({historial.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedReporte(null)}
+                                        className="py-2 px-3.5 rounded-xl text-xs font-extrabold whitespace-nowrap bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-xs"
+                                        title="Volver al panel principal para arrastrar o subir otro archivo Excel ZKteco"
+                                    >
+                                        <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>3. Subir Otro Excel</span>
                                     </button>
                                 </div>
 
