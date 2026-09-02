@@ -32,6 +32,7 @@ import XLSX from 'xlsx';
 import {
     procesarArchivoHoras,
     cargarReporteReferenciaAgosto,
+    cargarReporteReferenciaTegucigalpa,
     anularReporteHoras,
     renombrarEmpleadoEnReporte,
     EmpleadoResumen,
@@ -190,6 +191,10 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
 
     const handleCargarReferenciaAgosto = () => {
         startProgressAnimation("Reporte Horas Agosto Paraiso Floral 2026.xls", () => cargarReporteReferenciaAgosto());
+    };
+
+    const handleCargarReferenciaTegucigalpa = () => {
+        startProgressAnimation("Informe Completo_001_08 TGU.XLS (Sede Tegucigalpa)", () => cargarReporteReferenciaTegucigalpa());
     };
 
     const promptDeleteModal = (id: string, titulo: string) => {
@@ -466,14 +471,24 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
 
                                     <span className="text-xs font-bold text-slate-400 uppercase">o</span>
 
-                                    <button
-                                        onClick={handleCargarReferenciaAgosto}
-                                        disabled={isPending}
-                                        className="px-5 py-2.5 bg-white text-emerald-800 hover:bg-emerald-100 border-2 border-emerald-300 font-extrabold text-xs rounded-xl shadow-xs inline-flex items-center gap-2 transition cursor-pointer active:scale-95"
-                                    >
-                                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                                        <span>Cargar Reporte Agosto 2026 (Paraíso Floral)</span>
-                                    </button>
+                                    <div className="flex flex-wrap items-center justify-center gap-2">
+                                        <button
+                                            onClick={handleCargarReferenciaAgosto}
+                                            disabled={isPending}
+                                            className="px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-100 border-2 border-emerald-300 font-extrabold text-xs rounded-xl shadow-xs inline-flex items-center gap-2 transition cursor-pointer active:scale-95"
+                                        >
+                                            <Sparkles className="w-4 h-4 text-emerald-600" />
+                                            <span>SPS: Agosto 2026</span>
+                                        </button>
+                                        <button
+                                            onClick={handleCargarReferenciaTegucigalpa}
+                                            disabled={isPending}
+                                            className="px-4 py-2.5 bg-emerald-900 text-white hover:bg-emerald-800 font-extrabold text-xs rounded-xl shadow-xs inline-flex items-center gap-2 transition cursor-pointer active:scale-95"
+                                        >
+                                            <Sparkles className="w-4 h-4 text-emerald-300" />
+                                            <span>Tegucigalpa: Agosto 2026</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

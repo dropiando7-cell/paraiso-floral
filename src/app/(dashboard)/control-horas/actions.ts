@@ -82,7 +82,7 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
     const wb = XLSX.read(buffer, { type: 'buffer' });
     const firstSheetName = wb.SheetNames[0];
     const sheet = wb.Sheets[firstSheetName];
-    const rawRows = XLSX.utils.sheet_to_json(sheet) as any[];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[];
 
     // Map: nombreEmpleado -> Map<fechaKey, Date[]>
     const empMap = new Map<string, Map<string, { dateObj: Date; punches: Date[]; empId: string }>>();
@@ -90,49 +90,121 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
     let mesDetectado = new Date().getMonth() + 1;
     let anioDetectado = new Date().getFullYear();
 
-    rawRows.forEach(row => {
-        const name = String(row['Name'] || row['Nombre'] || row['Empleado'] || '').trim();
-        const acNo = String(row['AC-No.'] || row['No.'] || row['ID'] || '').trim();
-        const timeStr = String(row['Time'] || row['Fecha/Hora'] || row['Hora'] || '').trim();
-
-        if (!name || !timeStr) return;
-
-        // Parse date '25/8/2026 19:21' or ISO format
-        let dateObj: Date | null = null;
-        if (timeStr.includes('/')) {
-            const parts = timeStr.split(' ');
-            if (parts.length >= 2) {
-                const [d, m, y] = parts[0].split('/').map(Number);
-                const [hh, mm] = parts[1].split(':').map(Number);
-                if (d && m && y && !isNaN(hh) && !isNaN(mm)) {
-                    dateObj = new Date(y, m - 1, d, hh, mm);
-                    mesDetectado = m;
-                    anioDetectado = y;
-                }
-            }
-        } else if (!isNaN(Date.parse(timeStr))) {
-            dateObj = new Date(timeStr);
-            mesDetectado = dateObj.getMonth() + 1;
-            anioDetectado = dateObj.getFullYear();
-        }
-
-        if (!dateObj) return;
-
-        const dateKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-
-        if (!empMap.has(name)) {
-            empMap.set(name, new Map());
-        }
-        const userDateMap = empMap.get(name)!;
-        if (!userDateMap.has(dateKey)) {
-            userDateMap.set(dateKey, {
-                dateObj: new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()),
-                punches: [],
-                empId: acNo || 'N/A'
-            });
-        }
-        userDateMap.get(dateKey)!.punches.push(dateObj);
+    // Detección automática del formato (SPS vs Tegucigalpa)
+    const isTegucigalpaFormat = rawRows.some(row => {
+        const rowStr = Array.isArray(row) ? row.map(c => String(c || '').trim()).join(' ') : JSON.stringify(row);
+        return rowStr.includes('Nombre:') || rowStr.includes('La fecha') || rowStr.includes('Entra(IN)');
     });
+
+    if (isTegucigalpaFormat) {
+        let currentEmpName = '';
+        let currentEmpId = '';
+
+        rawRows.forEach((row) => {
+            if (!Array.isArray(row)) return;
+            const rowStr = row.map((c: any) => String(c || '').trim()).join(' ');
+
+            if (rowStr.includes('Nombre:')) {
+                const nameMatch = rowStr.match(/Nombre:\s*([^\s]+)/i);
+                const numMatch = rowStr.match(/Numeros:\s*([0-9]+)/i);
+                const fechaMatch = rowStr.match(/fecha:\s*([0-9]{2})\.([0-9]{2})/i);
+
+                currentEmpName = nameMatch ? nameMatch[1].toUpperCase() : 'S/N';
+                currentEmpId = numMatch ? numMatch[1] : 'N/A';
+                if (fechaMatch) {
+                    anioDetectado = 2000 + Number(fechaMatch[1]);
+                    mesDetectado = Number(fechaMatch[2]);
+                }
+                return;
+            }
+
+            if (!currentEmpName) return;
+
+            const processBlock = (dateCol: number, punchesCols: number[]) => {
+                const dateStr = String(row[dateCol] || '').trim();
+                if (!dateStr.match(/^[0-9]{2}\.[0-9]{2}$/)) return;
+
+                const [m, d] = dateStr.split('.').map(Number);
+                const dateKey = `${anioDetectado}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+                const validPunches: Date[] = [];
+                punchesCols.forEach(colIdx => {
+                    const val = String(row[colIdx] || '').trim();
+                    if (val.match(/^[0-9]{1,2}:[0-9]{2}$/)) {
+                        const [hh, mm] = val.split(':').map(Number);
+                        const dObj = new Date(anioDetectado, m - 1, d, hh, mm);
+                        validPunches.push(dObj);
+                    }
+                });
+
+                if (validPunches.length === 0) return;
+
+                if (!empMap.has(currentEmpName)) {
+                    empMap.set(currentEmpName, new Map());
+                }
+                const userDateMap = empMap.get(currentEmpName)!;
+                if (!userDateMap.has(dateKey)) {
+                    userDateMap.set(dateKey, {
+                        dateObj: new Date(anioDetectado, m - 1, d),
+                        punches: [],
+                        empId: currentEmpId
+                    });
+                }
+                userDateMap.get(dateKey)!.punches.push(...validPunches);
+            };
+
+            // Bloque Izquierdo (días 1..16): fecha en col 0, marcajes en cols 2, 3, 4, 5
+            processBlock(0, [2, 3, 4, 5]);
+
+            // Bloque Derecho (días 17..31): fecha en col 8, marcajes en cols 10, 11, 12, 13
+            processBlock(8, [10, 11, 12, 13]);
+        });
+    } else {
+        // Formato San Pedro Sula (lista de marcajes crudos ZKteco)
+        const objectRows = XLSX.utils.sheet_to_json(sheet) as any[];
+        objectRows.forEach(row => {
+            const name = String(row['Name'] || row['Nombre'] || row['Empleado'] || '').trim();
+            const acNo = String(row['AC-No.'] || row['No.'] || row['ID'] || '').trim();
+            const timeStr = String(row['Time'] || row['Fecha/Hora'] || row['Hora'] || '').trim();
+
+            if (!name || !timeStr) return;
+
+            let dateObj: Date | null = null;
+            if (timeStr.includes('/')) {
+                const parts = timeStr.split(' ');
+                if (parts.length >= 2) {
+                    const [d, m, y] = parts[0].split('/').map(Number);
+                    const [hh, mm] = parts[1].split(':').map(Number);
+                    if (d && m && y && !isNaN(hh) && !isNaN(mm)) {
+                        dateObj = new Date(y, m - 1, d, hh, mm);
+                        mesDetectado = m;
+                        anioDetectado = y;
+                    }
+                }
+            } else if (!isNaN(Date.parse(timeStr))) {
+                dateObj = new Date(timeStr);
+                mesDetectado = dateObj.getMonth() + 1;
+                anioDetectado = dateObj.getFullYear();
+            }
+
+            if (!dateObj) return;
+
+            const dateKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+            if (!empMap.has(name)) {
+                empMap.set(name, new Map());
+            }
+            const userDateMap = empMap.get(name)!;
+            if (!userDateMap.has(dateKey)) {
+                userDateMap.set(dateKey, {
+                    dateObj: new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()),
+                    punches: [],
+                    empId: acNo || 'N/A'
+                });
+            }
+            userDateMap.get(dateKey)!.punches.push(dateObj);
+        });
+    }
 
     const empleadosResumen: EmpleadoResumen[] = [];
     let globalTotalMinutos = 0;
@@ -339,6 +411,48 @@ export async function cargarReporteReferenciaAgosto() {
     } catch (e: any) {
         console.error('Error al cargar reporte de referencia:', e);
         return { error: e.message || 'Error al cargar el reporte de Agosto 2026.' };
+    }
+}
+
+// 3. Cargar reporte de referencia Tegucigalpa (Agosto 2026)
+export async function cargarReporteReferenciaTegucigalpa() {
+    try {
+        const { orgId, userId } = await getContextUser();
+
+        const refPath = path.join(process.cwd(), 'referencias/Informe Completo_001_08 TGU.XLS');
+        if (!fs.existsSync(refPath)) {
+            return { error: 'El archivo de referencia de Tegucigalpa no se encuentra en el servidor.' };
+        }
+
+        const buffer = fs.readFileSync(refPath);
+        const parsed = parsearExcelZKtecoBuffer(buffer);
+
+        const titulo = `Control de Horas Extras - Agosto 2026 (Sede Tegucigalpa)`;
+
+        const reporte = await prisma.reporteHorasExtras.create({
+            data: {
+                organizationId: orgId,
+                titulo,
+                mes: parsed.mesDetectado,
+                anio: parsed.anioDetectado,
+                nombreArchivoOriginal: 'Informe Completo_001_08 TGU.XLS',
+                horaEntradaNormal: '07:00',
+                horaSalidaNormal: '16:00',
+                totalEmpleados: parsed.totalEmpleados,
+                totalHorasExtras: parsed.totalHorasExtras,
+                totalExtrasTemprano: parsed.totalExtrasTemprano,
+                totalExtrasTarde: parsed.totalExtrasTarde,
+                resumenJSON: parsed.resumenJSON as any,
+                creadoPorId: userId,
+                status: 'ACTIVO'
+            }
+        });
+
+        revalidatePath('/control-horas');
+        return { success: true, id: reporte.id, titulo };
+    } catch (e: any) {
+        console.error('Error al cargar reporte de referencia Tegucigalpa:', e);
+        return { error: e.message || 'Error al cargar el reporte de Tegucigalpa.' };
     }
 }
 
