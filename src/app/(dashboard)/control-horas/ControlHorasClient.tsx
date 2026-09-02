@@ -24,7 +24,8 @@ import {
     X,
     AlertTriangle,
     Loader2,
-    Cpu
+    Cpu,
+    Pencil
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import XLSX from 'xlsx';
@@ -32,6 +33,8 @@ import {
     procesarArchivoHoras,
     cargarReporteReferenciaAgosto,
     anularReporteHoras,
+    renombrarEmpleadoEnReporte,
+    formatMinutos,
     EmpleadoResumen,
     DiaDetalle
 } from './actions';
@@ -59,9 +62,15 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedEmpModal, setSelectedEmpModal] = useState<EmpleadoResumen | null>(null);
 
-    // Estados para Drag & Drop, Modal de Eliminación y Modal de Procesamiento Animado
+    // Búsqueda por día dentro del modal de detalle
+    const [modalDaySearchQuery, setModalDaySearchQuery] = useState('');
+
+    // Estados para Drag & Drop, Modal de Eliminación, Edición de Nombre y Modal de Procesamiento Animado
     const [isDragging, setIsDragging] = useState(false);
     const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; titulo: string } | null>(null);
+    const [editEmpModal, setEditEmpModal] = useState<{ open: boolean; oldNombre: string; empId: string } | null>(null);
+    const [newEmpNameInput, setNewEmpNameInput] = useState('');
+
     const [processingModal, setProcessingModal] = useState<{
         open: boolean;
         fileName: string;
@@ -88,12 +97,11 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
             completed: false
         });
 
-        // Intervalo para simular progreso dinámico
         const interval = setInterval(() => {
             setProcessingModal((prev) => {
                 if (!prev || prev.completed) return prev;
                 let nextProgress = prev.progress + Math.floor(Math.random() * 12) + 8;
-                if (nextProgress > 88) nextProgress = 88; // Mantener en 88% hasta que el servidor responda
+                if (nextProgress > 88) nextProgress = 88;
 
                 let nextStep = 0;
                 if (nextProgress >= 70) nextStep = 3;
@@ -116,7 +124,6 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                 setProcessingModal(null);
                 toast.error(res.error);
             } else {
-                // Completar al 100% con animación visual
                 setProcessingModal({
                     open: true,
                     fileName,
@@ -146,13 +153,11 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         startProgressAnimation(file.name, () => procesarArchivoHoras(formData));
     };
 
-    // Manejar evento de selección manual
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) processFile(file);
     };
 
-    // Eventos Drag and Drop
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -173,17 +178,14 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         if (file) processFile(file);
     };
 
-    // Manejar carga rápida del reporte de referencia (Agosto 2026)
     const handleCargarReferenciaAgosto = () => {
         startProgressAnimation("Reporte Horas Agosto Paraiso Floral 2026.xls", () => cargarReporteReferenciaAgosto());
     };
 
-    // Abrir Modal de Confirmación de Eliminación
     const promptDeleteModal = (id: string, titulo: string) => {
         setDeleteModal({ open: true, id, titulo });
     };
 
-    // Confirmar eliminación en el modal
     const confirmDelete = async () => {
         if (!deleteModal) return;
         const { id } = deleteModal;
@@ -204,6 +206,44 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         });
     };
 
+    // Renombrar empleado
+    const promptEditEmpName = (oldNombre: string, empId: string) => {
+        setNewEmpNameInput(oldNombre);
+        setEditEmpModal({ open: true, oldNombre, empId });
+    };
+
+    const confirmRenameEmp = async () => {
+        if (!editEmpModal || !selectedReporte || !newEmpNameInput.trim()) return;
+
+        startTransition(async () => {
+            const res = await renombrarEmpleadoEnReporte(selectedReporte.id, editEmpModal.oldNombre, newEmpNameInput);
+            if (res.error) {
+                toast.error(res.error);
+            } else {
+                toast.success(`Nombre actualizado a "${res.newNombre}"`);
+
+                const updatedEmpleados = selectedReporte.resumenJSON.empleados.map((emp: EmpleadoResumen) => {
+                    if (emp.nombre === editEmpModal.oldNombre || emp.empId === editEmpModal.empId) {
+                        return { ...emp, nombre: res.newNombre };
+                    }
+                    return emp;
+                });
+
+                const updatedReporte = {
+                    ...selectedReporte,
+                    resumenJSON: { ...selectedReporte.resumenJSON, empleados: updatedEmpleados }
+                };
+                setSelectedReporte(updatedReporte);
+
+                if (selectedEmpModal && (selectedEmpModal.nombre === editEmpModal.oldNombre || selectedEmpModal.empId === editEmpModal.empId)) {
+                    setSelectedEmpModal({ ...selectedEmpModal, nombre: res.newNombre });
+                }
+
+                setEditEmpModal(null);
+            }
+        });
+    };
+
     // Exportar tabla a Excel
     const handleExportExcel = () => {
         if (!selectedReporte || !selectedReporte.resumenJSON?.empleados) return;
@@ -213,9 +253,9 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
             'ID ZKteco': emp.empId,
             'Nombre Empleado': emp.nombre,
             'Días Trabajados': emp.diasTrabajados,
-            'Horas Extras Mañana': emp.horasExtrasTemprano,
-            'Horas Extras Tarde': emp.horasExtrasTarde,
-            'TOTAL HORAS EXTRAS': emp.totalHorasExtras
+            'Horas Extras Mañana': emp.extrasTempranoFormatted || `${fmtNum(emp.horasExtrasTemprano)} h`,
+            'Horas Extras Tarde': emp.extrasTardeFormatted || `${fmtNum(emp.horasExtrasTarde)} h`,
+            'TOTAL HORAS EXTRAS': emp.totalExtrasFormatted || `${fmtNum(emp.totalHorasExtras)} hrs`
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
@@ -225,7 +265,6 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         toast.success("Archivo Excel exportado");
     };
 
-    // Imprimir el estado / reporte de horas extras
     const handlePrint = () => {
         window.print();
     };
@@ -236,9 +275,23 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         emp.empId.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const totalHorasGenerales = selectedReporte?.totalHorasExtras || 0;
-    const totalTempranoGeneral = selectedReporte?.totalExtrasTemprano || 0;
-    const totalTardeGeneral = selectedReporte?.totalExtrasTarde || 0;
+    const totalMinutosGenerales = empleados.reduce((acc, e) => acc + (e.totalMinutos || Math.round(e.totalHorasExtras * 60)), 0);
+    const totalMinutosTemprano = empleados.reduce((acc, e) => acc + (e.totalMinutosTemprano || Math.round(e.horasExtrasTemprano * 60)), 0);
+    const totalMinutosTarde = empleados.reduce((acc, e) => acc + (e.totalMinutosTarde || Math.round(e.horasExtrasTarde * 60)), 0);
+
+    const filteredModalDias = selectedEmpModal?.dias.filter((dia: DiaDetalle) => {
+        if (!modalDaySearchQuery.trim()) return true;
+        const q = modalDaySearchQuery.toLowerCase();
+        return (
+            dia.fecha.toLowerCase().includes(q) ||
+            dia.diaSemana.toLowerCase().includes(q) ||
+            dia.primeraEntrada.toLowerCase().includes(q) ||
+            dia.ultimaSalida.toLowerCase().includes(q) ||
+            (dia.extrasTempranoFormatted && dia.extrasTempranoFormatted.toLowerCase().includes(q)) ||
+            (dia.extrasTardeFormatted && dia.extrasTardeFormatted.toLowerCase().includes(q)) ||
+            (dia.totalExtrasFormatted && dia.totalExtrasFormatted.toLowerCase().includes(q))
+        );
+    }) || [];
 
     return (
         <div className="min-h-screen bg-slate-100 text-slate-900 pb-16 font-sans print:bg-white print:pb-0">
@@ -417,7 +470,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                                         <td className="py-2.5 px-3 font-bold text-slate-900">{rep.titulo}</td>
                                                         <td className="py-2.5 px-3 font-mono text-slate-600">{rep.nombreArchivoOriginal}</td>
                                                         <td className="py-2.5 px-3 text-center font-bold">{rep.totalEmpleados}</td>
-                                                        <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-800">{fmtNum(rep.totalHorasExtras)} hrs</td>
+                                                        <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-800">{formatMinutos(Math.round(rep.totalHorasExtras * 60))}</td>
                                                         <td className="py-2.5 px-3 text-center">
                                                             <div className="flex items-center justify-center gap-2">
                                                                 <button
@@ -469,17 +522,17 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                         </div>
                                         <div className="flex justify-between text-xs py-0.5">
                                             <span className="text-slate-600">Extras Mañana (Antes Inicio):</span>
-                                            <span className="font-bold text-amber-800">{fmtNum(totalTempranoGeneral)} hrs</span>
+                                            <span className="font-bold text-amber-800">{formatMinutos(totalMinutosTemprano)}</span>
                                         </div>
                                         <div className="flex justify-between text-xs py-0.5">
                                             <span className="text-slate-600">Extras Tarde (Salida):</span>
-                                            <span className="font-bold text-blue-800">{fmtNum(totalTardeGeneral)} hrs</span>
+                                            <span className="font-bold text-blue-800">{formatMinutos(totalMinutosTarde)}</span>
                                         </div>
                                     </div>
 
                                     <div className="flex justify-between items-center text-sm pt-2 border-t border-emerald-300 font-black text-emerald-900">
                                         <span className="uppercase tracking-wider">TOTAL HORAS EXTRAS:</span>
-                                        <span className="text-xl font-mono font-black text-emerald-700">{fmtNum(totalHorasGenerales)} hrs</span>
+                                        <span className="text-xl font-mono font-black text-emerald-700">{formatMinutos(totalMinutosGenerales)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -518,7 +571,6 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                         <span>Excel</span>
                                     </button>
 
-                                    {/* Botón de Eliminar Reporte en Vista Principal para Francis */}
                                     {['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'].includes(userRole) && (
                                         <button
                                             onClick={() => promptDeleteModal(selectedReporte.id, selectedReporte.titulo)}
@@ -582,23 +634,37 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                                             {emp.empId}
                                                         </td>
                                                         <td className="py-2.5 px-3 font-bold text-slate-900">
-                                                            {emp.nombre}
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span>{emp.nombre}</span>
+                                                                {['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'].includes(userRole) && (
+                                                                    <button
+                                                                        onClick={() => promptEditEmpName(emp.nombre, emp.empId)}
+                                                                        className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition print:hidden cursor-pointer"
+                                                                        title="Editar nombre de empleado"
+                                                                    >
+                                                                        <Pencil className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="py-2.5 px-3 text-center font-semibold text-slate-700">
                                                             {emp.diasTrabajados} días
                                                         </td>
                                                         <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-900">
-                                                            {emp.horasExtrasTemprano > 0 ? `${fmtNum(emp.horasExtrasTemprano)} h` : '—'}
+                                                            {emp.extrasTempranoFormatted || (emp.horasExtrasTemprano > 0 ? `${fmtNum(emp.horasExtrasTemprano)} h` : '—')}
                                                         </td>
                                                         <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-900">
-                                                            {emp.horasExtrasTarde > 0 ? `${fmtNum(emp.horasExtrasTarde)} h` : '—'}
+                                                            {emp.extrasTardeFormatted || (emp.horasExtrasTarde > 0 ? `${fmtNum(emp.horasExtrasTarde)} h` : '—')}
                                                         </td>
                                                         <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-900 bg-emerald-50/40">
-                                                            {fmtNum(emp.totalHorasExtras)} hrs
+                                                            {emp.totalExtrasFormatted || `${fmtNum(emp.totalHorasExtras)} hrs`}
                                                         </td>
                                                         <td className="py-2.5 px-3 text-center print:hidden">
                                                             <button
-                                                                onClick={() => setSelectedEmpModal(emp)}
+                                                                onClick={() => {
+                                                                    setModalDaySearchQuery('');
+                                                                    setSelectedEmpModal(emp);
+                                                                }}
                                                                 className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[10px] rounded-lg transition active:scale-95 inline-flex items-center gap-1 cursor-pointer"
                                                             >
                                                                 <Eye className="w-3 h-3" />
@@ -653,7 +719,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                                             {rep.totalEmpleados}
                                                         </td>
                                                         <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-800">
-                                                            {fmtNum(rep.totalHorasExtras)} hrs
+                                                            {formatMinutos(Math.round(rep.totalHorasExtras * 60))}
                                                         </td>
                                                         <td className="py-2.5 px-3 text-slate-700">
                                                             {rep.usuarioCreador}
@@ -729,11 +795,9 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
             {processingModal?.open && (
                 <div className="fixed inset-0 z-[4000] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
                     <div className="bg-slate-900 rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-800 text-white space-y-6 relative overflow-hidden">
-                        {/* Background Glowing Gradients */}
                         <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
                         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
-                        {/* Header Icon Ring */}
                         <div className="flex flex-col items-center text-center space-y-3 relative z-10">
                             <div className="relative">
                                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/30 flex items-center justify-center">
@@ -763,7 +827,6 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                             </div>
                         </div>
 
-                        {/* Progress Bar Area */}
                         <div className="space-y-2 relative z-10">
                             <div className="flex justify-between items-center text-xs font-bold">
                                 <span className="text-emerald-400 flex items-center gap-1.5">
@@ -775,9 +838,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                 </span>
                             </div>
 
-                            {/* Outer Track */}
                             <div className="w-full bg-slate-800 rounded-full h-3.5 p-0.5 border border-slate-700/80 overflow-hidden shadow-inner">
-                                {/* Inner Animated Bar */}
                                 <div
                                     className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 rounded-full transition-all duration-300 shadow-md shadow-emerald-500/50 relative overflow-hidden"
                                     style={{ width: `${processingModal.progress}%` }}
@@ -785,7 +846,6 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                             </div>
                         </div>
 
-                        {/* Dynamic Step Indicator List */}
                         <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-2.5 relative z-10 text-xs">
                             {processingSteps.map((step, idx) => {
                                 const isDone = processingModal.progress >= step.percentage;
@@ -815,7 +875,6 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                             })}
                         </div>
 
-                        {/* Footer note */}
                         <div className="text-center pt-1 text-[10px] text-slate-500 font-mono tracking-wider uppercase relative z-10">
                             Distribuidora Paraíso Floral • Algoritmo ZKteco v2.0
                         </div>
@@ -823,7 +882,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                 </div>
             )}
 
-            {/* Modal de Detalle Diario por Empleado */}
+            {/* MODAL DE DETALLE DIARIO POR EMPLEADO (CON BUSCADOR POR DÍA) */}
             {selectedEmpModal && (
                 <div className="fixed inset-0 z-[3500] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 text-slate-900">
@@ -837,9 +896,20 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                     className="w-10 h-10 object-contain rounded-full border border-slate-200 shrink-0"
                                 />
                                 <div>
-                                    <h3 className="font-black text-base text-emerald-900">
-                                        DESGLOSE DIARIO — {selectedEmpModal.nombre}
-                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-black text-base text-emerald-900">
+                                            DESGLOSE DIARIO — {selectedEmpModal.nombre}
+                                        </h3>
+                                        {['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'].includes(userRole) && (
+                                            <button
+                                                onClick={() => promptEditEmpName(selectedEmpModal.nombre, selectedEmpModal.empId)}
+                                                className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition cursor-pointer"
+                                                title="Editar nombre del empleado"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
                                     <p className="text-xs text-slate-600 font-medium">
                                         ID ZKteco: <span className="font-mono font-bold">{selectedEmpModal.empId}</span> &nbsp;•&nbsp; {selectedEmpModal.diasTrabajados} días trabajados en el mes
                                     </p>
@@ -857,16 +927,41 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                         <div className="p-4 bg-emerald-50/70 border-b border-emerald-200 grid grid-cols-3 gap-4 text-center">
                             <div>
                                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Extras Mañana</span>
-                                <span className="text-base font-black text-amber-900">{fmtNum(selectedEmpModal.horasExtrasTemprano)} hrs</span>
+                                <span className="text-base font-black text-amber-900">{selectedEmpModal.extrasTempranoFormatted || `${fmtNum(selectedEmpModal.horasExtrasTemprano)} hrs`}</span>
                             </div>
                             <div>
                                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Extras Tarde</span>
-                                <span className="text-base font-black text-blue-900">{fmtNum(selectedEmpModal.horasExtrasTarde)} hrs</span>
+                                <span className="text-base font-black text-blue-900">{selectedEmpModal.extrasTardeFormatted || `${fmtNum(selectedEmpModal.horasExtrasTarde)} hrs`}</span>
                             </div>
                             <div>
                                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Total Horas Extras</span>
-                                <span className="text-base font-black text-emerald-900">{fmtNum(selectedEmpModal.totalHorasExtras)} hrs</span>
+                                <span className="text-base font-black text-emerald-900">{selectedEmpModal.totalExtrasFormatted || `${fmtNum(selectedEmpModal.totalHorasExtras)} hrs`}</span>
                             </div>
+                        </div>
+
+                        {/* Buscador de Días / Fechas */}
+                        <div className="px-5 pt-4 pb-2 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/50">
+                            <div className="relative flex-1">
+                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                                <input
+                                    type="text"
+                                    value={modalDaySearchQuery}
+                                    onChange={(e) => setModalDaySearchQuery(e.target.value)}
+                                    placeholder="Filtrar por día (ej. 'Jueves', '06', 'Sábado', '04:38')..."
+                                    className="w-full pl-9 pr-8 py-1.5 text-xs font-medium bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                />
+                                {modalDaySearchQuery && (
+                                    <button
+                                        onClick={() => setModalDaySearchQuery('')}
+                                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-500 shrink-0">
+                                {filteredModalDias.length} de {selectedEmpModal.dias.length} días
+                            </span>
                         </div>
 
                         {/* Table of Daily Punches */}
@@ -884,7 +979,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {selectedEmpModal.dias.map((dia: DiaDetalle) => (
+                                    {filteredModalDias.map((dia: DiaDetalle) => (
                                         <tr key={dia.fecha} className="hover:bg-slate-50">
                                             <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
                                                 {dia.fecha}
@@ -905,16 +1000,23 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                                 {dia.ultimaSalida}
                                             </td>
                                             <td className="py-2.5 px-3 text-right font-mono text-amber-800 font-semibold">
-                                                {dia.extrasTemprano > 0 ? `${fmtNum(dia.extrasTemprano)} h` : '—'}
+                                                {dia.extrasTempranoFormatted || (dia.extrasTemprano > 0 ? `${fmtNum(dia.extrasTemprano)} h` : '—')}
                                             </td>
                                             <td className="py-2.5 px-3 text-right font-mono text-blue-800 font-semibold">
-                                                {dia.extrasTarde > 0 ? `${fmtNum(dia.extrasTarde)} h` : '—'}
+                                                {dia.extrasTardeFormatted || (dia.extrasTarde > 0 ? `${fmtNum(dia.extrasTarde)} h` : '—')}
                                             </td>
                                             <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-900 bg-emerald-50/40">
-                                                {dia.totalExtras > 0 ? `${fmtNum(dia.totalExtras)} hrs` : '0.00 hrs'}
+                                                {dia.totalExtrasFormatted || (dia.totalExtras > 0 ? `${fmtNum(dia.totalExtras)} hrs` : '—')}
                                             </td>
                                         </tr>
                                     ))}
+                                    {filteredModalDias.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} className="py-6 text-center text-slate-500 italic">
+                                                No hay días coincidentes con la búsqueda &quot;{modalDaySearchQuery}&quot;.
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -926,6 +1028,63 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                 className="bg-emerald-800 hover:bg-emerald-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition active:scale-95 cursor-pointer"
                             >
                                 Cerrar Ventana
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE EDICIÓN DE NOMBRE DE EMPLEADO */}
+            {editEmpModal?.open && (
+                <div className="fixed inset-0 z-[3700] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-slate-900 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                <Pencil className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-extrabold text-base text-slate-900 leading-tight">
+                                    Editar Nombre de Empleado
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    ID ZKteco: <span className="font-mono font-bold">{editEmpModal.empId}</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                                Nombre Oficial / Asignado
+                            </label>
+                            <input
+                                type="text"
+                                value={newEmpNameInput}
+                                onChange={(e) => setNewEmpNameInput(e.target.value)}
+                                placeholder="Ejemplo: JUAN PÉREZ"
+                                className="w-full px-3.5 py-2 text-sm font-medium bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                                autoFocus
+                            />
+                            <p className="text-[11px] text-slate-500 italic">
+                                Este nombre reemplazará la etiqueta inicial exportada del reloj biométrico.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={confirmRenameEmp}
+                                disabled={isPending || !newEmpNameInput.trim()}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md cursor-pointer disabled:opacity-50"
+                            >
+                                {isPending ? 'Guardando...' : 'Guardar Nombre'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setEditEmpModal(null)}
+                                disabled={isPending}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition active:scale-95 text-center border border-slate-200 cursor-pointer"
+                            >
+                                Cancelar
                             </button>
                         </div>
                     </div>

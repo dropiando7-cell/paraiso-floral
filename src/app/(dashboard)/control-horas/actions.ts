@@ -29,6 +29,12 @@ export interface DiaDetalle {
     ultimaSalida: string; // "17:15"
     punchesCount: number;
     punches: string[];
+    minutosTemprano: number;
+    minutosTarde: number;
+    totalMinutos: number;
+    extrasTempranoFormatted: string; // "2h 22m"
+    extrasTardeFormatted: string; // "2h 08m"
+    totalExtrasFormatted: string; // "4h 30m"
     extrasTemprano: number;
     extrasTarde: number;
     totalExtras: number;
@@ -38,6 +44,12 @@ export interface EmpleadoResumen {
     empId: string;
     nombre: string;
     diasTrabajados: number;
+    totalMinutosTemprano: number;
+    totalMinutosTarde: number;
+    totalMinutos: number;
+    extrasTempranoFormatted: string; // "28h 36m"
+    extrasTardeFormatted: string; // "53h 03m"
+    totalExtrasFormatted: string; // "81h 39m"
     horasExtrasTemprano: number;
     horasExtrasTarde: number;
     totalHorasExtras: number;
@@ -49,6 +61,13 @@ export interface ResumenReporteJSON {
 }
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+export function formatMinutos(minutos: number): string {
+    if (!minutos || minutos <= 0) return '—';
+    const hrs = Math.floor(minutos / 60);
+    const mins = Math.round(minutos % 60);
+    return `${hrs}.${String(mins).padStart(2, '0')} hrs`;
+}
 
 // Función central para parsear Buffer de Excel y calcular horas extras por empleado
 function parsearExcelZKtecoBuffer(buffer: Buffer): {
@@ -116,13 +135,13 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
     });
 
     const empleadosResumen: EmpleadoResumen[] = [];
-    let globalTotalHorasExtras = 0;
-    let globalTotalTemprano = 0;
-    let globalTotalTarde = 0;
+    let globalTotalMinutos = 0;
+    let globalTotalTempranoMin = 0;
+    let globalTotalTardeMin = 0;
 
     empMap.forEach((userDateMap, empName) => {
-        let empTemprano = 0;
-        let empTarde = 0;
+        let empTempranoMin = 0;
+        let empTardeMin = 0;
         const diasDetalle: DiaDetalle[] = [];
         let empId = 'N/A';
 
@@ -160,21 +179,21 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
             const normalSalida = new Date(ultimaSalida);
             normalSalida.setHours(endHour, 0, 0, 0);
 
-            let extrasTemprano = 0;
-            let extrasTarde = 0;
+            let minTemprano = 0;
+            let minTarde = 0;
 
             if (primeraEntrada < normalEntrada) {
-                extrasTemprano = (normalEntrada.getTime() - primeraEntrada.getTime()) / (1000 * 60 * 60);
+                minTemprano = Math.round((normalEntrada.getTime() - primeraEntrada.getTime()) / (1000 * 60));
             }
 
             if (item.punches.length > 1 && ultimaSalida > normalSalida) {
-                extrasTarde = (ultimaSalida.getTime() - normalSalida.getTime()) / (1000 * 60 * 60);
+                minTarde = Math.round((ultimaSalida.getTime() - normalSalida.getTime()) / (1000 * 60));
             }
 
-            const totalExtrasDia = extrasTemprano + extrasTarde;
+            const minTotalDia = minTemprano + minTarde;
 
-            empTemprano += extrasTemprano;
-            empTarde += extrasTarde;
+            empTempranoMin += minTemprano;
+            empTardeMin += minTarde;
 
             const formatTime = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
@@ -185,37 +204,49 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
                 ultimaSalida: item.punches.length > 1 ? formatTime(ultimaSalida) : 'Sin Salida',
                 punchesCount: item.punches.length,
                 punches: item.punches.map(formatTime),
-                extrasTemprano: Number(extrasTemprano.toFixed(2)),
-                extrasTarde: Number(extrasTarde.toFixed(2)),
-                totalExtras: Number(totalExtrasDia.toFixed(2))
+                minutosTemprano: minTemprano,
+                minutosTarde: minTarde,
+                totalMinutos: minTotalDia,
+                extrasTempranoFormatted: formatMinutos(minTemprano),
+                extrasTardeFormatted: formatMinutos(minTarde),
+                totalExtrasFormatted: formatMinutos(minTotalDia),
+                extrasTemprano: Number((minTemprano / 60).toFixed(2)),
+                extrasTarde: Number((minTarde / 60).toFixed(2)),
+                totalExtras: Number((minTotalDia / 60).toFixed(2))
             });
         });
 
-        const totalEmp = empTemprano + empTarde;
-        globalTotalTemprano += empTemprano;
-        globalTotalTarde += empTarde;
-        globalTotalHorasExtras += totalEmp;
+        const minTotalEmp = empTempranoMin + empTardeMin;
+        globalTotalTempranoMin += empTempranoMin;
+        globalTotalTardeMin += empTardeMin;
+        globalTotalMinutos += minTotalEmp;
 
         empleadosResumen.push({
             empId,
             nombre: empName,
             diasTrabajados: userDateMap.size,
-            horasExtrasTemprano: Number(empTemprano.toFixed(2)),
-            horasExtrasTarde: Number(empTarde.toFixed(2)),
-            totalHorasExtras: Number(totalEmp.toFixed(2)),
+            totalMinutosTemprano: empTempranoMin,
+            totalMinutosTarde: empTardeMin,
+            totalMinutos: minTotalEmp,
+            extrasTempranoFormatted: formatMinutos(empTempranoMin),
+            extrasTardeFormatted: formatMinutos(empTardeMin),
+            totalExtrasFormatted: formatMinutos(minTotalEmp),
+            horasExtrasTemprano: Number((empTempranoMin / 60).toFixed(2)),
+            horasExtrasTarde: Number((empTardeMin / 60).toFixed(2)),
+            totalHorasExtras: Number((minTotalEmp / 60).toFixed(2)),
             dias: diasDetalle
         });
     });
 
-    // Ordenar empleados por mayor cantidad de horas extras
-    empleadosResumen.sort((a, b) => b.totalHorasExtras - a.totalHorasExtras);
+    // Ordenar empleados por mayor cantidad de minutos de horas extras
+    empleadosResumen.sort((a, b) => b.totalMinutos - a.totalMinutos);
 
     return {
         resumenJSON: { empleados: empleadosResumen },
         totalEmpleados: empleadosResumen.length,
-        totalHorasExtras: Number(globalTotalHorasExtras.toFixed(2)),
-        totalExtrasTemprano: Number(globalTotalTemprano.toFixed(2)),
-        totalExtrasTarde: Number(globalTotalTarde.toFixed(2)),
+        totalHorasExtras: Number((globalTotalMinutos / 60).toFixed(2)),
+        totalExtrasTemprano: Number((globalTotalTempranoMin / 60).toFixed(2)),
+        totalExtrasTarde: Number((globalTotalTardeMin / 60).toFixed(2)),
         mesDetectado,
         anioDetectado
     };
@@ -377,5 +408,44 @@ export async function anularReporteHoras(id: string) {
     } catch (e: any) {
         console.error('Error anulación reporte:', e);
         return { error: e.message || 'Error al anular el reporte.' };
+    }
+}
+
+// 5. Renombrar / Editar Nombre de Empleado en el Reporte
+export async function renombrarEmpleadoEnReporte(reporteId: string, oldNombre: string, newNombre: string) {
+    try {
+        const { orgId } = await getContextUser();
+
+        const reporte = await prisma.reporteHorasExtras.findFirst({
+            where: { id: reporteId, organizationId: orgId }
+        });
+        if (!reporte) return { error: 'Reporte no encontrado en el sistema.' };
+
+        const resumen = reporte.resumenJSON as unknown as ResumenReporteJSON;
+        if (!resumen || !resumen.empleados) return { error: 'Estructura de reporte inválida.' };
+
+        const formattedNew = newNombre.trim().toUpperCase();
+        if (!formattedNew) return { error: 'El nombre del empleado no puede estar vacío.' };
+
+        let found = false;
+        resumen.empleados.forEach(emp => {
+            if (emp.nombre === oldNombre || emp.empId === oldNombre) {
+                emp.nombre = formattedNew;
+                found = true;
+            }
+        });
+
+        if (!found) return { error: 'Empleado no encontrado en este reporte.' };
+
+        await prisma.reporteHorasExtras.update({
+            where: { id: reporteId },
+            data: { resumenJSON: resumen as any }
+        });
+
+        revalidatePath('/control-horas');
+        return { success: true, newNombre: formattedNew };
+    } catch (e: any) {
+        console.error('Error renombrando empleado:', e);
+        return { error: e.message || 'Error al renombrar empleado.' };
     }
 }
