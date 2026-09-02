@@ -109,6 +109,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     const availableModules = [
         { id: '/', label: 'Portal Bioelectrónica' },
+        { id: '/control-horas', label: 'Control de Horas Extras & Asistencia ZKteco' },
         { id: '/kanban', label: 'Proyectos & Kanban' },
         { id: 'eliminar_tareas', label: 'Proyectos & Kanban - Eliminar Tareas' },
         { id: '/inventario-ia', label: 'Inventario IA' },
@@ -188,7 +189,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         } else if (newRole === 'RECEPCION' || newRole === 'TECNICO') {
             setAccessibleModules(['/', '/soporte', '/inventario']);
         } else if (newRole === 'GERENTE') {
-            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas', '/inventario/toma-fisica', '/inventario/kardex']);
+            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas', '/inventario/toma-fisica', '/inventario/kardex', '/control-horas']);
         } else {
             setAccessibleModules(['/']);
         }
