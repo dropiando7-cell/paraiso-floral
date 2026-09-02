@@ -71,6 +71,7 @@ model Organization {
   actualizaciones       SistemaActualizacion[]
   pagosClientes         PagoCliente[]
   notasCreditoClientes  NotaCreditoCliente[]
+  reportesHorasExtras  ReporteHorasExtras[]
 
   @@map("organizations")
 }
@@ -108,6 +109,8 @@ model User {
   facturasCreadas       Factura[]              @relation("CreatedFacturas")
   facturasAnuladas      Factura[]              @relation("AnuladaFacturas")
   rentasCreadas         RentaEquipo[]          @relation("CreatedRentas")
+  reportesHorasCreados  ReporteHorasExtras[]   @relation("ReporteHorasCreadoPor")
+  reportesHorasAnulados ReporteHorasExtras[]   @relation("ReporteHorasAnuladoPor")
   rentasModificadas     RentaEquipo[]          @relation("UpdatedRentas")
   rentasRecibidas       RentaEquipo[]          @relation("ReceivedRentas")
   historialActivos      HistorialActivo[]      @relation("HistorialActivosCreados")
@@ -1868,6 +1871,41 @@ model RecepcionItem {
   @@index([activoFijoId])
   @@map("recepciones_item")
 }
+
+model ReporteHorasExtras {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String        @db.Uuid
+  organization          Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  titulo                String        // Ej: "Control de Horas - Agosto 2026"
+  mes                   Int
+  anio                  Int
+  nombreArchivoOriginal String?
+  
+  horaEntradaNormal     String        @default("07:00")
+  horaSalidaNormal      String        @default("16:00")
+
+  totalEmpleados        Int           @default(0)
+  totalHorasExtras      Float         @default(0.0)
+  totalExtrasTemprano   Float         @default(0.0)
+  totalExtrasTarde      Float         @default(0.0)
+  
+  resumenJSON           Json          
+  
+  status                String        @default("ACTIVO") // ACTIVO, ANULADO
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  creadoPorId           String?       @db.Uuid
+  creadoPor             User?         @relation("ReporteHorasCreadoPor", fields: [creadoPorId], references: [id])
+  anuladaPorId          String?       @db.Uuid
+  anuladaPor            User?         @relation("ReporteHorasAnuladoPor", fields: [anuladaPorId], references: [id])
+  anuladaAt             DateTime?
+
+  @@index([organizationId])
+  @@map("reportes_horas_extras")
+}
+
 
 
 

@@ -28,7 +28,8 @@ import {
   Megaphone,
   Coins,
   Tv,
-  Truck
+  Truck,
+  Clock
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -110,6 +111,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
   {
     category: 'ADMINISTRACIÓN',
     items: [
+      {
+        name: 'Control de Horas Extras',
+        href: '/control-horas',
+        icon: Clock,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'],
+      },
       {
         name: 'Avances del Desarrollo',
         href: '/admin/avances',
