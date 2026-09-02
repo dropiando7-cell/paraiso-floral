@@ -71,6 +71,10 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
     // Búsqueda por día dentro del modal de detalle
     const [modalDaySearchQuery, setModalDaySearchQuery] = useState('');
 
+    // Visor Interactivo de Excel en Modal
+    const [showExcelViewerModal, setShowExcelViewerModal] = useState(false);
+    const [excelSearchQuery, setExcelSearchQuery] = useState('');
+
     // Estados para Drag & Drop, Modal de Eliminación, Edición de Nombre y Modal de Procesamiento Animado
     const [isDragging, setIsDragging] = useState(false);
     const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; titulo: string } | null>(null);
@@ -300,6 +304,16 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         );
     }) || [];
 
+    const filteredExcelRows = empleados.filter((emp: EmpleadoResumen) => {
+        if (!excelSearchQuery.trim()) return true;
+        const q = excelSearchQuery.toLowerCase();
+        return (
+            emp.nombre.toLowerCase().includes(q) ||
+            emp.empId.toLowerCase().includes(q) ||
+            (emp.totalExtrasFormatted && emp.totalExtrasFormatted.toLowerCase().includes(q))
+        );
+    });
+
     return (
         <div className="min-h-screen bg-slate-100 text-slate-900 pb-16 font-sans print:bg-white print:pb-0">
             {/* Estilos Específicos para Impresión Oficial de Documento */}
@@ -420,11 +434,10 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
-                                className={`p-8 border-2 border-dashed rounded-3xl text-center space-y-4 transition-all duration-200 print:hidden ${
-                                    isDragging
+                                className={`p-8 border-2 border-dashed rounded-3xl text-center space-y-4 transition-all duration-200 print:hidden ${isDragging
                                         ? 'border-emerald-600 bg-emerald-100/50 scale-[1.01] shadow-lg'
                                         : 'border-emerald-400/80 bg-emerald-50/40 hover:bg-emerald-50/70 hover:border-emerald-500'
-                                }`}
+                                    }`}
                             >
                                 <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-emerald-600/30">
                                     <Upload className="w-7 h-7" />
@@ -559,21 +572,19 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                 <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={() => setActiveTab('RESUMEN')}
-                                        className={`py-2 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                                            activeTab === 'RESUMEN'
+                                        className={`py-2 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeTab === 'RESUMEN'
                                                 ? 'bg-emerald-600 text-white shadow-xs font-black'
                                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
+                                            }`}
                                     >
                                         📊 1. Resumen por Empleado ({empleados.length})
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('HISTORIAL')}
-                                        className={`py-2 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                                            activeTab === 'HISTORIAL'
+                                        className={`py-2 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${activeTab === 'HISTORIAL'
                                                 ? 'bg-emerald-600 text-white shadow-xs font-black'
                                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
+                                            }`}
                                     >
                                         📜 2. Historial de Reportes ({historial.length})
                                     </button>
@@ -589,11 +600,12 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
 
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={handleExportExcel}
-                                        className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-300 transition-all cursor-pointer"
+                                        onClick={() => setShowExcelViewerModal(true)}
+                                        className="py-1.5 px-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-extrabold text-xs rounded-xl flex items-center gap-1.5 border border-emerald-300 transition-all cursor-pointer shadow-xs active:scale-95"
+                                        title="Abrir visor interactivo de Excel"
                                     >
-                                        <Download className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Excel</span>
+                                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                                        <span>Ver Excel</span>
                                     </button>
 
                                     {['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'].includes(userRole) && (
@@ -646,12 +658,11 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                                 {filteredEmpleados.map((emp, index) => (
                                                     <tr key={emp.nombre} className="hover:bg-slate-50">
                                                         <td className="py-2.5 px-3 text-center font-bold">
-                                                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] ${
-                                                                index === 0 ? 'bg-emerald-100 text-emerald-900 font-black border border-emerald-300' :
-                                                                index === 1 ? 'bg-slate-200 text-slate-800 font-bold' :
-                                                                index === 2 ? 'bg-amber-100 text-amber-800 font-bold' :
-                                                                'text-slate-400'
-                                                            }`}>
+                                                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] ${index === 0 ? 'bg-emerald-100 text-emerald-900 font-black border border-emerald-300' :
+                                                                    index === 1 ? 'bg-slate-200 text-slate-800 font-bold' :
+                                                                        index === 2 ? 'bg-amber-100 text-amber-800 font-bold' :
+                                                                            'text-slate-400'
+                                                                }`}>
                                                                 #{index + 1}
                                                             </span>
                                                         </td>
@@ -879,9 +890,8 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                 return (
                                     <div
                                         key={step.label}
-                                        className={`flex items-center gap-2.5 transition-all duration-200 ${
-                                            isDone ? 'text-emerald-300 font-medium' : isCurrent ? 'text-white font-bold' : 'text-slate-600'
-                                        }`}
+                                        className={`flex items-center gap-2.5 transition-all duration-200 ${isDone ? 'text-emerald-300 font-medium' : isCurrent ? 'text-white font-bold' : 'text-slate-600'
+                                            }`}
                                     >
                                         <div className="shrink-0">
                                             {isDone ? (
@@ -1010,11 +1020,10 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                                 {dia.fecha}
                                             </td>
                                             <td className="py-2.5 px-3 font-bold">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] ${
-                                                    dia.diaSemana === 'Sábado' ? 'bg-amber-100 text-amber-800 font-extrabold' :
-                                                    dia.diaSemana === 'Domingo' ? 'bg-emerald-100 text-emerald-800 font-extrabold' :
-                                                    'text-slate-700'
-                                                }`}>
+                                                <span className={`px-2 py-0.5 rounded text-[10px] ${dia.diaSemana === 'Sábado' ? 'bg-amber-100 text-amber-800 font-extrabold' :
+                                                        dia.diaSemana === 'Domingo' ? 'bg-emerald-100 text-emerald-800 font-extrabold' :
+                                                            'text-slate-700'
+                                                    }`}>
                                                     {dia.diaSemana}
                                                 </span>
                                             </td>
@@ -1165,6 +1174,172 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                     </div>
                 </div>
             )}
-        </div>
-    );
+
+                    {/* VISOR INTERACTIVO EN MODAL DE HOJA DE CÁLCULO EXCEL */}
+                    {showExcelViewerModal && selectedReporte && (
+                        <div className="fixed inset-0 z-[3800] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+                            <div className="bg-slate-900 rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-800 text-white overflow-hidden">
+                                {/* Header Ribbon estilo Microsoft Excel */}
+                                <div className="bg-emerald-950 border-b border-emerald-800 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+                                            <FileSpreadsheet className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="px-2 py-0.5 bg-emerald-800 text-emerald-200 text-[10px] font-black uppercase rounded tracking-wider">
+                                                    Visor de Hoja de Cálculo Excel
+                                                </span>
+                                                <span className="text-xs text-slate-400 font-mono">.XLSX</span>
+                                            </div>
+                                            <h3 className="font-extrabold text-base text-white tracking-tight">
+                                                {selectedReporte.titulo}
+                                            </h3>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                        <button
+                                            onClick={handleExportExcel}
+                                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer"
+                                            title="Descargar archivo en formato Excel .xlsx"
+                                        >
+                                            <Download className="w-3.5 h-3.5" />
+                                            <span>Descargar .xlsx</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setShowExcelViewerModal(false)}
+                                            className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition cursor-pointer"
+                                            title="Cerrar Visor"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Barra de herramientas / Búsqueda dentro del Excel */}
+                                <div className="p-3 bg-slate-950 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                                    <div className="relative w-full sm:w-80">
+                                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                                        <input
+                                            type="text"
+                                            value={excelSearchQuery}
+                                            onChange={(e) => setExcelSearchQuery(e.target.value)}
+                                            placeholder="Buscar en la hoja de cálculo (ej. ID, Nombre)..."
+                                            className="w-full pl-9 pr-8 py-1.5 bg-slate-900 border border-slate-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/40 text-xs"
+                                        />
+                                        {excelSearchQuery && (
+                                            <button
+                                                onClick={() => setExcelSearchQuery('')}
+                                                className="absolute right-2.5 top-2 text-slate-400 hover:text-white cursor-pointer"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-3 text-slate-400 text-[11px] font-mono">
+                                        <span>Hoja 1: <strong>Horas Extras Auditadas</strong></span>
+                                        <span>•</span>
+                                        <span>{filteredExcelRows.length} Filas × 7 Columnas</span>
+                                    </div>
+                                </div>
+
+                                {/* Grilla / Contenedor estilo Excel */}
+                                <div className="flex-1 overflow-auto p-4 bg-slate-950 custom-scrollbar">
+                                    <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900 shadow-inner">
+                                        <table className="w-full text-left border-collapse text-xs font-mono">
+                                            <thead>
+                                                {/* Cabecera de Letras de Columna de Excel A B C D E F G */}
+                                                <tr className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800 text-[10px] text-center select-none">
+                                                    <th className="w-12 py-1 bg-slate-950 border-r border-slate-800 text-slate-600">#</th>
+                                                    <th className="py-1 border-r border-slate-800">A</th>
+                                                    <th className="py-1 border-r border-slate-800">B</th>
+                                                    <th className="py-1 border-r border-slate-800">C</th>
+                                                    <th className="py-1 border-r border-slate-800">D</th>
+                                                    <th className="py-1 border-r border-slate-800">E</th>
+                                                    <th className="py-1 border-r border-slate-800">F</th>
+                                                    <th className="py-1">G</th>
+                                                </tr>
+                                                {/* Nombres de las Columnas del Reporte */}
+                                                <tr className="bg-emerald-950/60 text-emerald-300 font-black border-b-2 border-emerald-700 uppercase tracking-wider text-[11px]">
+                                                    <th className="py-2.5 px-3 text-center border-r border-slate-800 bg-slate-950 text-slate-500">1</th>
+                                                    <th className="py-2.5 px-3 border-r border-slate-800">Ranking</th>
+                                                    <th className="py-2.5 px-3 border-r border-slate-800">ID ZKteco</th>
+                                                    <th className="py-2.5 px-3 border-r border-slate-800">Nombre Empleado</th>
+                                                    <th className="py-2.5 px-3 text-center border-r border-slate-800">Días Trab.</th>
+                                                    <th className="py-2.5 px-3 text-right border-r border-slate-800 text-amber-300">Extras Mañana</th>
+                                                    <th className="py-2.5 px-3 text-right border-r border-slate-800 text-blue-300">Extras Tarde</th>
+                                                    <th className="py-2.5 px-3 text-right text-emerald-400 bg-emerald-900/40">TOTAL EXTRAS</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-800 text-slate-200">
+                                                {filteredExcelRows.map((emp: EmpleadoResumen, idx: number) => (
+                                                    <tr
+                                                        key={emp.nombre}
+                                                        className="hover:bg-emerald-950/40 transition-colors group"
+                                                    >
+                                                        {/* Número de Fila Excel */}
+                                                        <td className="py-2 px-3 text-center font-bold bg-slate-950 text-slate-500 border-r border-slate-800 select-none group-hover:text-emerald-400">
+                                                            {idx + 2}
+                                                        </td>
+                                                        {/* A: Ranking */}
+                                                        <td className="py-2 px-3 border-r border-slate-800 font-bold text-center">
+                                                            #{idx + 1}
+                                                        </td>
+                                                        {/* B: ID ZKteco */}
+                                                        <td className="py-2 px-3 border-r border-slate-800 font-bold text-slate-400">
+                                                            {emp.empId}
+                                                        </td>
+                                                        {/* C: Nombre Empleado */}
+                                                        <td className="py-2 px-3 border-r border-slate-800 font-bold text-white">
+                                                            {emp.nombre}
+                                                        </td>
+                                                        {/* D: Días Trabajados */}
+                                                        <td className="py-2 px-3 border-r border-slate-800 text-center text-slate-300">
+                                                            {emp.diasTrabajados} días
+                                                        </td>
+                                                        {/* E: Extras Mañana */}
+                                                        <td className="py-2 px-3 border-r border-slate-800 text-right font-bold text-amber-300">
+                                                            {emp.extrasTempranoFormatted || (emp.horasExtrasTemprano > 0 ? `${fmtNum(emp.horasExtrasTemprano)} h` : '—')}
+                                                        </td>
+                                                        {/* F: Extras Tarde */}
+                                                        <td className="py-2 px-3 border-r border-slate-800 text-right font-bold text-blue-300">
+                                                            {emp.extrasTardeFormatted || (emp.horasExtrasTarde > 0 ? `${fmtNum(emp.horasExtrasTarde)} h` : '—')}
+                                                        </td>
+                                                        {/* G: Total Horas Extras */}
+                                                        <td className="py-2 px-3 text-right font-black text-emerald-400 bg-emerald-950/40">
+                                                            {emp.totalExtrasFormatted || `${fmtNum(emp.totalHorasExtras)} hrs`}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {filteredExcelRows.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={8} className="py-8 text-center text-slate-500 italic">
+                                                            No hay filas coincidentes en la hoja de cálculo.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Pie del Visor */}
+                                <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-slate-400 text-xs">
+                                    <span className="text-[11px] font-mono">
+                                        Hoja de Cálculo Autogenerada • Distribuidora Paraíso Floral
+                                    </span>
+                                    <button
+                                        onClick={() => setShowExcelViewerModal(false)}
+                                        className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs"
+                                    >
+                                        Cerrar Visor
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
 }
