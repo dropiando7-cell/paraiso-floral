@@ -22,7 +22,9 @@ import {
     Info,
     ChevronDown,
     X,
-    AlertTriangle
+    AlertTriangle,
+    Loader2,
+    Cpu
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import XLSX from 'xlsx';
@@ -39,6 +41,14 @@ interface ControlHorasClientProps {
     initialHistorial: any[];
 }
 
+const processingSteps = [
+    { label: 'Lectura de estructura biométrica Excel...', percentage: 20 },
+    { label: 'Decodificando marcas de entrada y salida por empleado...', percentage: 45 },
+    { label: 'Evaluando reglas de jornada (L-V 7am-4pm, Sáb 7am-11am, Dom 6am-6pm)...', percentage: 70 },
+    { label: 'Calculando horas extras temprano (mañana) y tarde (salida)...', percentage: 90 },
+    { label: 'Guardando reporte auditado y generando vista membretada...', percentage: 100 }
+];
+
 export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasClientProps) {
     const [historial, setHistorial] = useState<any[]>(initialHistorial);
     const [activeTab, setActiveTab] = useState<'RESUMEN' | 'DESGLOSE' | 'HISTORIAL'>('RESUMEN');
@@ -49,9 +59,16 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedEmpModal, setSelectedEmpModal] = useState<EmpleadoResumen | null>(null);
 
-    // Estados para Drag & Drop y Modal de Confirmación de Eliminación
+    // Estados para Drag & Drop, Modal de Eliminación y Modal de Procesamiento Animado
     const [isDragging, setIsDragging] = useState(false);
     const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; titulo: string } | null>(null);
+    const [processingModal, setProcessingModal] = useState<{
+        open: boolean;
+        fileName: string;
+        progress: number;
+        stepIndex: number;
+        completed: boolean;
+    } | null>(null);
 
     const fmtNum = (val: number) => val.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -60,6 +77,61 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         month: 'long',
         day: 'numeric'
     });
+
+    // Función auxiliar para animar la barra de progreso
+    const startProgressAnimation = (fileName: string, onCompleteAction: () => Promise<any>) => {
+        setProcessingModal({
+            open: true,
+            fileName,
+            progress: 15,
+            stepIndex: 0,
+            completed: false
+        });
+
+        // Intervalo para simular progreso dinámico
+        const interval = setInterval(() => {
+            setProcessingModal((prev) => {
+                if (!prev || prev.completed) return prev;
+                let nextProgress = prev.progress + Math.floor(Math.random() * 12) + 8;
+                if (nextProgress > 88) nextProgress = 88; // Mantener en 88% hasta que el servidor responda
+
+                let nextStep = 0;
+                if (nextProgress >= 70) nextStep = 3;
+                else if (nextProgress >= 45) nextStep = 2;
+                else if (nextProgress >= 20) nextStep = 1;
+
+                return {
+                    ...prev,
+                    progress: nextProgress,
+                    stepIndex: nextStep
+                };
+            });
+        }, 250);
+
+        startTransition(async () => {
+            const res = await onCompleteAction();
+            clearInterval(interval);
+
+            if (res.error) {
+                setProcessingModal(null);
+                toast.error(res.error);
+            } else {
+                // Completar al 100% con animación visual
+                setProcessingModal({
+                    open: true,
+                    fileName,
+                    progress: 100,
+                    stepIndex: 4,
+                    completed: true
+                });
+
+                setTimeout(() => {
+                    toast.success(`¡Reporte "${res.titulo || 'Horas Extras'}" generado exitosamente!`);
+                    window.location.reload();
+                }, 900);
+            }
+        });
+    };
 
     // Función genérica para procesar un objeto File
     const processFile = (file: File) => {
@@ -71,16 +143,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
         const formData = new FormData();
         formData.append('file', file);
 
-        startTransition(async () => {
-            toast.loading("Procesando marcas biométricas del archivo...", { id: 'upload' });
-            const res = await procesarArchivoHoras(formData);
-            if (res.error) {
-                toast.error(res.error, { id: 'upload' });
-            } else {
-                toast.success(`¡Reporte "${res.titulo}" generado y guardado correctamente!`, { id: 'upload' });
-                window.location.reload();
-            }
-        });
+        startProgressAnimation(file.name, () => procesarArchivoHoras(formData));
     };
 
     // Manejar evento de selección manual
@@ -111,17 +174,8 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
     };
 
     // Manejar carga rápida del reporte de referencia (Agosto 2026)
-    const handleCargarReferenciaAgosto = async () => {
-        startTransition(async () => {
-            toast.loading("Cargando reporte de referencia Agosto 2026...", { id: 'ref' });
-            const res = await cargarReporteReferenciaAgosto();
-            if (res.error) {
-                toast.error(res.error, { id: 'ref' });
-            } else {
-                toast.success("¡Reporte de Agosto 2026 procesado exitosamente!", { id: 'ref' });
-                window.location.reload();
-            }
-        });
+    const handleCargarReferenciaAgosto = () => {
+        startProgressAnimation("Reporte Horas Agosto Paraiso Floral 2026.xls", () => cargarReporteReferenciaAgosto());
     };
 
     // Abrir Modal de Confirmación de Eliminación
@@ -670,6 +724,104 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                     )}
                 </div>
             </main>
+
+            {/* MODAL MODERNO HIGH-TECH DE PROCESAMIENTO Y PROGRESO ANIMADO AI */}
+            {processingModal?.open && (
+                <div className="fixed inset-0 z-[4000] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-slate-900 rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-800 text-white space-y-6 relative overflow-hidden">
+                        {/* Background Glowing Gradients */}
+                        <div className="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-teal-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
+                        {/* Header Icon Ring */}
+                        <div className="flex flex-col items-center text-center space-y-3 relative z-10">
+                            <div className="relative">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/30 flex items-center justify-center">
+                                    <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
+                                        {processingModal.completed ? (
+                                            <CheckCircle2 className="w-8 h-8 text-emerald-400 animate-bounce" />
+                                        ) : (
+                                            <Sparkles className="w-8 h-8 text-emerald-400 animate-pulse" />
+                                        )}
+                                    </div>
+                                </div>
+                                {!processingModal.completed && (
+                                    <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="space-y-1">
+                                <h3 className="text-lg font-black tracking-tight text-white">
+                                    {processingModal.completed ? '¡Reporte Generado Exitosamente!' : 'Procesando Reporte de Horas Extras'}
+                                </h3>
+                                <p className="text-xs text-slate-400 font-medium truncate max-w-xs mx-auto">
+                                    {processingModal.fileName}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Progress Bar Area */}
+                        <div className="space-y-2 relative z-10">
+                            <div className="flex justify-between items-center text-xs font-bold">
+                                <span className="text-emerald-400 flex items-center gap-1.5">
+                                    <Cpu className="w-3.5 h-3.5 animate-pulse" />
+                                    <span>Motor de Auditoría ZKteco</span>
+                                </span>
+                                <span className="font-mono text-emerald-400 font-extrabold text-sm">
+                                    {processingModal.progress}%
+                                </span>
+                            </div>
+
+                            {/* Outer Track */}
+                            <div className="w-full bg-slate-800 rounded-full h-3.5 p-0.5 border border-slate-700/80 overflow-hidden shadow-inner">
+                                {/* Inner Animated Bar */}
+                                <div
+                                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 rounded-full transition-all duration-300 shadow-md shadow-emerald-500/50 relative overflow-hidden"
+                                    style={{ width: `${processingModal.progress}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Dynamic Step Indicator List */}
+                        <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-2.5 relative z-10 text-xs">
+                            {processingSteps.map((step, idx) => {
+                                const isDone = processingModal.progress >= step.percentage;
+                                const isCurrent = idx === processingModal.stepIndex && !processingModal.completed;
+
+                                return (
+                                    <div
+                                        key={step.label}
+                                        className={`flex items-center gap-2.5 transition-all duration-200 ${
+                                            isDone ? 'text-emerald-300 font-medium' : isCurrent ? 'text-white font-bold' : 'text-slate-600'
+                                        }`}
+                                    >
+                                        <div className="shrink-0">
+                                            {isDone ? (
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                            ) : isCurrent ? (
+                                                <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
+                                            ) : (
+                                                <div className="w-4 h-4 rounded-full border border-slate-700 flex items-center justify-center text-[9px] font-mono text-slate-600">
+                                                    {idx + 1}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="truncate">{step.label}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Footer note */}
+                        <div className="text-center pt-1 text-[10px] text-slate-500 font-mono tracking-wider uppercase relative z-10">
+                            Distribuidora Paraíso Floral • Algoritmo ZKteco v2.0
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de Detalle Diario por Empleado */}
             {selectedEmpModal && (
