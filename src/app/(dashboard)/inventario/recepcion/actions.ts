@@ -74,6 +74,7 @@ export async function getLotesRecepcion() {
                 let itemsTotal = 0;
                 let itemsVerificados = 0;
                 let totalDanados = 0;
+                let totalBonchesCalculado = 0;
                 const productosSet = new Set<string>();
 
                 l.cajas.forEach(c => {
@@ -81,6 +82,7 @@ export async function getLotesRecepcion() {
                         itemsTotal++;
                         if (i.verificado) itemsVerificados++;
                         totalDanados += i.bonchesDanados || 0;
+                        totalBonchesCalculado += (i.verificado && i.bonchesRecibidos > 0 ? i.bonchesRecibidos : (i.bonchesEsperados || 0));
                         if (i.descripcion) productosSet.add(i.descripcion);
                         if (i.cultivoOriginal) productosSet.add(i.cultivoOriginal);
                         if (i.activoFijo?.descripcionCorta) productosSet.add(i.activoFijo.descripcionCorta);
@@ -89,15 +91,17 @@ export async function getLotesRecepcion() {
                 });
 
                 const porcentaje = itemsTotal > 0 ? Math.round((itemsVerificados / itemsTotal) * 100) : 0;
+                const totalCajasFinal = l.cajas.length > 0 ? l.cajas.length : (l.totalCajas || 0);
+                const totalBonchesFinal = totalBonchesCalculado > 0 ? totalBonchesCalculado : (l.totalBonches || 0);
 
                 return {
                     id: l.id,
                     numeroEnvio: l.numeroEnvio,
                     proveedor: l.proveedor,
                     estado: l.estado,
-                    totalCajas: l.totalCajas,
+                    totalCajas: totalCajasFinal,
                     cajasVerificadas: l.cajas.filter(c => c.estado === 'VERIFICADA').length,
-                    totalBonches: l.totalBonches,
+                    totalBonches: totalBonchesFinal,
                     totalDanados,
                     itemsTotal,
                     itemsVerificados,
