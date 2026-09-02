@@ -958,8 +958,19 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     // Generar 1 idQr si es consumible (o será agrupado), o N idQrs si es Activo Fijo (serialización forzada)
     const numIds = (esConsumible || esServicio) ? 1 : cantidadRegistros;
     
+    // Soporte para reemplazo manual/escaneado de código por SuperAdmin
+    const customIdQr = (formData.get('customIdQr') as string || formData.get('idQr') as string)?.trim();
+    if (customIdQr) {
+        const duplicate = await prisma.activoFijo.findFirst({
+            where: { organizationId: orgId, idQr: customIdQr }
+        });
+        if (duplicate) {
+            return { error: `El código ID QR "${customIdQr}" ya existe en el sistema (${duplicate.descripcionCorta}). Elige un código único.` };
+        }
+    }
+
     // Si es servicio, usar el codigo manual ingresado (codigoBarras) como idQr para rastreo exacto.
-    const idQrs = (esServicio && codigoBarras) ? [codigoBarras] : await generateIdQr(orgId, area, codigoGrupo, numIds);
+    const idQrs = customIdQr ? [customIdQr] : ((esServicio && codigoBarras) ? [codigoBarras] : await generateIdQr(orgId, area, codigoGrupo, numIds));
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
@@ -1195,9 +1206,25 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
         const frecuenciaStr = formData.get('frecuenciaMantenimientoMeses') as string;
         const frecuenciaMantenimientoMeses = frecuenciaStr ? parseInt(frecuenciaStr, 10) : null;
 
+        // Soporte para reemplazo manual/escaneado de código por SuperAdmin
+        const customIdQr = (formData.get('customIdQr') as string || formData.get('idQr') as string)?.trim();
+        if (customIdQr) {
+            const duplicate = await prisma.activoFijo.findFirst({
+                where: {
+                    organizationId: orgId,
+                    idQr: customIdQr,
+                    id: { not: id }
+                }
+            });
+            if (duplicate) {
+                return { error: `El código ID QR "${customIdQr}" ya pertenece a otro producto (${duplicate.descripcionCorta}). Elige un código único.` };
+            }
+        }
+
         await prisma.activoFijo.updateMany({
             where: { id, organizationId: orgId },
             data: {
+                ...(customIdQr && { idQr: customIdQr }),
                 ...(stockNum !== undefined && !isNaN(stockNum) && { stock: stockNum }),
                 descripcionCorta: formData.get('descripcionCorta') as string,
                 descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,

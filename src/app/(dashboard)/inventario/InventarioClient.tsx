@@ -928,8 +928,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [] }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[];
+export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [], userRole }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[]; userRole?: string;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -960,6 +960,9 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [referencia, setReferencia] = useState(editActivo?.referencia || '');
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '');
     const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
+    const [customIdQr, setCustomIdQr] = useState(editActivo?.idQr || '');
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+    const [scannedQrPrompt, setScannedQrPrompt] = useState<{ open: boolean; scannedCode: string }>({ open: false, scannedCode: '' });
     const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
     const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
     const [garantia, setGarantia] = useState(editActivo?.garantia || '');
@@ -1456,6 +1459,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
 
     useEffect(() => {
         if (editActivo) {
+            setCustomIdQr(editActivo.idQr || '');
             setImagenUrl(editActivo.imagenUrl || '');
             setImagenPlacaUrl(editActivo.imagenPlacaUrl || '');
             setSelectedArea(editActivo.area);
@@ -1780,6 +1784,10 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
 
         fd.set('codigoGrupo', finalCodigoGrupo);
         if (codigoBarras) fd.set('codigoBarras', codigoBarras);
+        if (customIdQr && customIdQr.trim()) {
+            fd.set('customIdQr', customIdQr.trim());
+            fd.set('idQr', customIdQr.trim());
+        }
         fd.set('cantidad', isServiceMode ? '9999' : cantidad);
         fd.set('compatibilidad', JSON.stringify(compatibilidad));
 
@@ -1938,9 +1946,9 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                     <h2 className="text-lg font-bold text-slate-900">
                                         {isEdit ? 'Editar Producto' : 'Registrar Producto'}
                                     </h2>
-                                    {(previewQr || isEdit) ? (
+                                    {(previewQr || isEdit || customIdQr) ? (
                                         <p className="text-xs font-mono text-[#0500A3] font-bold mt-0.5">
-                                            ID QR: {isEdit ? editActivo?.idQr : previewQr}
+                                            ID QR: {customIdQr || (isEdit ? editActivo?.idQr : previewQr)}
                                         </p>
                                     ) : (
                                         <p className="text-xs text-slate-500 mt-0.5">
@@ -2373,7 +2381,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     </div>
                                                 ) : (
                                                     <Combobox
-                                                        options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                                        options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
                                                         value={codigoGrupo}
                                                         onChange={(val) => {
                                                             setCodigoGrupo(val);
@@ -2390,7 +2398,51 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                               </div>
                                             )}
 
-                                            {/* Código de Barras / SKU Comercial */}
+                                            {/* ── SUPERADMIN ID QR REPLACEMENT ── */}
+                                             {userRole === 'SUPER_ADMIN' && (
+                                                 <div className="bg-purple-50/80 border-2 border-purple-300 rounded-2xl p-4 space-y-3 mb-4 shadow-sm">
+                                                     <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                         <div className="flex items-center gap-2">
+                                                             <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-xs">
+                                                                 <Sparkles className="w-4.5 h-4.5" />
+                                                             </div>
+                                                             <div>
+                                                                 <div className="flex items-center gap-2">
+                                                                     <label className="block text-xs font-black text-purple-950 uppercase tracking-wider">
+                                                                         Código / ID QR del Producto
+                                                                     </label>
+                                                                     <span className="bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                                                         SuperAdmin
+                                                                     </span>
+                                                                 </div>
+                                                                 <p className="text-[10px] text-purple-700 font-medium">
+                                                                     Escribe el código todo corrido o escanea la etiqueta del proveedor.
+                                                                 </p>
+                                                             </div>
+                                                         </div>
+                                                         <button
+                                                             type="button"
+                                                             onClick={() => setIsQrScannerOpen(true)}
+                                                             className="bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition cursor-pointer shrink-0"
+                                                         >
+                                                             <Camera className="w-4 h-4" />
+                                                             <span>Escanear con Cámara</span>
+                                                         </button>
+                                                     </div>
+
+                                                     <div className="relative">
+                                                         <input
+                                                             type="text"
+                                                             value={customIdQr}
+                                                             onChange={(e) => setCustomIdQr(e.target.value)}
+                                                             placeholder={isEdit ? (editActivo?.idQr || 'Ej: 000256') : 'Escribe o escanea el código...'}
+                                                             className="w-full text-base font-mono font-bold tracking-widest text-purple-950 bg-white border-2 border-purple-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-600 transition-all placeholder:text-purple-300"
+                                                         />
+                                                     </div>
+                                                 </div>
+                                             )}
+
+                                             {/* Código de Barras / SKU Comercial */}
                                             {!isServiceMode && (
                                             <div>
                                                 <div className="relative" ref={barcodeRef}>
@@ -2876,6 +2928,76 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         </>
                                     )}
                                 </div>
+                                                            {isQrScannerOpen && (
+                                    <BarcodeScannerModal
+                                        onOpen={isQrScannerOpen}
+                                        onClose={() => setIsQrScannerOpen(false)}
+                                        onScanSuccess={(code) => {
+                                            setIsQrScannerOpen(false);
+                                            setScannedQrPrompt({ open: true, scannedCode: code });
+                                        }}
+                                    />
+                                )}
+
+                                {scannedQrPrompt.open && (
+                                    <div className="fixed inset-0 z-[3500] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                                        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-slate-900 space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                                                    <QrCode className="w-6 h-6" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-extrabold text-base text-slate-900 leading-tight">
+                                                        ¿Reemplazar Código del Producto?
+                                                    </h3>
+                                                    <p className="text-xs text-slate-500 mt-0.5">
+                                                        Confirmación de cambio para SuperAdmin
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-2 text-xs font-semibold">
+                                                <div className="flex justify-between items-center pb-2 border-b border-purple-200/60">
+                                                    <span className="text-purple-600">Código Actual:</span>
+                                                    <span className="font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                                        {customIdQr || (isEdit ? editActivo?.idQr : 'Sin código')}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-1">
+                                                    <span className="text-purple-800 font-bold">Código Escaneado:</span>
+                                                    <span className="font-mono font-black text-purple-950 bg-purple-200 px-2.5 py-1 rounded-md text-sm">
+                                                        {scannedQrPrompt.scannedCode}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCustomIdQr(scannedQrPrompt.scannedCode);
+                                                        if (!codigoBarras) {
+                                                            setCodigoBarras(scannedQrPrompt.scannedCode);
+                                                        }
+                                                        setScannedQrPrompt({ open: false, scannedCode: '' });
+                                                        toast.success("Código asignado correctamente");
+                                                    }}
+                                                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md cursor-pointer"
+                                                >
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                    Sí, Reemplazar Código
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setScannedQrPrompt({ open: false, scannedCode: '' })}
+                                                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs transition active:scale-95 text-center border border-slate-200 cursor-pointer"
+                                                >
+                                                    Cancelar (Escribir Manual)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </form>
                         )}
                     </div>
@@ -5099,6 +5221,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 />
             )}
             <ActivoModal
+                userRole={userRole}
                 disableAiVision={disableAiVision}
                 dbAreas={dbAreas}
                 open={modalOpen}
