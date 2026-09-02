@@ -62,7 +62,7 @@ export interface ResumenReporteJSON {
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-export function formatMinutos(minutos: number): string {
+function formatMinutos(minutos: number): string {
     if (!minutos || minutos <= 0) return '—';
     const hrs = Math.floor(minutos / 60);
     const mins = Math.round(minutos % 60);

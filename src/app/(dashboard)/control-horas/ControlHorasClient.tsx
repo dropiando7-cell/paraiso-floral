@@ -34,10 +34,16 @@ import {
     cargarReporteReferenciaAgosto,
     anularReporteHoras,
     renombrarEmpleadoEnReporte,
-    formatMinutos,
     EmpleadoResumen,
     DiaDetalle
 } from './actions';
+
+export function formatMinutos(minutos: number): string {
+    if (!minutos || minutos <= 0) return '—';
+    const hrs = Math.floor(minutos / 60);
+    const mins = Math.round(minutos % 60);
+    return `${hrs}.${String(mins).padStart(2, '0')} hrs`;
+}
 
 interface ControlHorasClientProps {
     userRole: string;
@@ -217,14 +223,15 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
 
         startTransition(async () => {
             const res = await renombrarEmpleadoEnReporte(selectedReporte.id, editEmpModal.oldNombre, newEmpNameInput);
-            if (res.error) {
-                toast.error(res.error);
+            if (res.error || !res.newNombre) {
+                toast.error(res.error || 'Error al renombrar');
             } else {
-                toast.success(`Nombre actualizado a "${res.newNombre}"`);
+                const updatedName: string = res.newNombre;
+                toast.success(`Nombre actualizado a "${updatedName}"`);
 
                 const updatedEmpleados = selectedReporte.resumenJSON.empleados.map((emp: EmpleadoResumen) => {
                     if (emp.nombre === editEmpModal.oldNombre || emp.empId === editEmpModal.empId) {
-                        return { ...emp, nombre: res.newNombre };
+                        return { ...emp, nombre: updatedName };
                     }
                     return emp;
                 });
@@ -236,7 +243,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                 setSelectedReporte(updatedReporte);
 
                 if (selectedEmpModal && (selectedEmpModal.nombre === editEmpModal.oldNombre || selectedEmpModal.empId === editEmpModal.empId)) {
-                    setSelectedEmpModal({ ...selectedEmpModal, nombre: res.newNombre });
+                    setSelectedEmpModal({ ...selectedEmpModal, nombre: updatedName });
                 }
 
                 setEditEmpModal(null);
