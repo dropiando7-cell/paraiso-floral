@@ -105,11 +105,11 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
             const rowStr = row.map((c: any) => String(c || '').trim()).join(' ');
 
             if (rowStr.includes('Nombre:')) {
-                const nameMatch = rowStr.match(/Nombre:\s*([^\s]+)/i);
+                const nameMatch = rowStr.match(/Nombre:\s*(.*?)(?=\s*Numeros:|\s*$)/i);
                 const numMatch = rowStr.match(/Numeros:\s*([0-9]+)/i);
                 const fechaMatch = rowStr.match(/fecha:\s*([0-9]{2})\.([0-9]{2})/i);
 
-                currentEmpName = nameMatch ? nameMatch[1].toUpperCase() : 'S/N';
+                currentEmpName = nameMatch ? nameMatch[1].trim().toUpperCase() : 'S/N';
                 currentEmpId = numMatch ? numMatch[1] : 'N/A';
                 if (fechaMatch) {
                     anioDetectado = 2000 + Number(fechaMatch[1]);
@@ -153,11 +153,11 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
                 userDateMap.get(dateKey)!.punches.push(...validPunches);
             };
 
-            // Bloque Izquierdo (días 1..16): fecha en col 0, marcajes en cols 2, 3, 4, 5
-            processBlock(0, [2, 3, 4, 5]);
+            // Bloque Izquierdo (días 1..16): fecha en col 0, marcajes en cols 2, 3, 4, 5, 6, 7
+            processBlock(0, [2, 3, 4, 5, 6, 7]);
 
-            // Bloque Derecho (días 17..31): fecha en col 8, marcajes en cols 10, 11, 12, 13
-            processBlock(8, [10, 11, 12, 13]);
+            // Bloque Derecho (días 17..31): fecha en col 8, marcajes en cols 10, 11, 12, 13, 14, 15
+            processBlock(8, [10, 11, 12, 13, 14, 15]);
         });
     } else {
         // Formato San Pedro Sula (lista de marcajes crudos ZKteco)
@@ -232,8 +232,8 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
 
             // Reglas de horario laboral:
             // Lunes a Viernes: 7:00 AM - 4:00 PM (16:00)
-            // Sábado: 7:00 AM - 11:00 AM
-            // Domingo: 6:00 AM - 6:00 PM (18:00)
+            // Sábado: 7:00 AM - 11:00 AM (11:00)
+            // Domingo: 7:00 AM - 2:00 PM (14:00) (se paga como día normal)
             let startHour = 7;
             let endHour = 16;
 
@@ -241,8 +241,8 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
                 startHour = 7;
                 endHour = 11;
             } else if (dayOfWeek === 0) { // Domingo
-                startHour = 6;
-                endHour = 18;
+                startHour = 7;
+                endHour = 14;
             }
 
             const normalEntrada = new Date(primeraEntrada);

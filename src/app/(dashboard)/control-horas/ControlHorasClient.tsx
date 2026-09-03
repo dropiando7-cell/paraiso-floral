@@ -58,7 +58,7 @@ interface ControlHorasClientProps {
 const processingSteps = [
     { label: 'Lectura de estructura biométrica Excel...', percentage: 20 },
     { label: 'Decodificando marcas de entrada y salida por empleado...', percentage: 45 },
-    { label: 'Evaluando reglas de jornada (L-V 7am-4pm, Sáb 7am-11am, Dom 6am-6pm)...', percentage: 70 },
+    { label: 'Evaluando reglas de jornada (L-V 7am-4pm, Sáb 7am-11am, Dom 7am-2pm)...', percentage: 70 },
     { label: 'Calculando horas extras temprano (mañana) y tarde (salida)...', percentage: 90 },
     { label: 'Guardando reporte auditado y generando vista membretada...', percentage: 100 }
 ];
@@ -671,7 +671,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                         </h3>
                                         <p className="text-base font-black text-slate-900">{selectedReporte.titulo}</p>
                                         <p className="text-xs text-slate-700"><strong>Archivo Origen:</strong> {selectedReporte.nombreArchivoOriginal}</p>
-                                        <p className="text-xs text-slate-700"><strong>Jornadas Aplicadas:</strong> L-V (7am-4pm) | Sáb (7am-11am) | Dom (6am-6pm)</p>
+                                        <p className="text-xs text-slate-700"><strong>Jornadas Aplicadas:</strong> L-V (7am-4pm) | Sáb (7am-11am) | Dom (7am-2pm)</p>
                                         <p className="text-xs text-slate-700"><strong>Auditado Por:</strong> {selectedReporte.usuarioCreador || 'Gerencia General'}</p>
                                     </div>
 
@@ -803,7 +803,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-slate-700">
                                         <div>• <strong>Lunes a Viernes:</strong> 7:00 AM – 4:00 PM (16:00)</div>
                                         <div>• <strong>Sábados:</strong> 7:00 AM – 11:00 AM</div>
-                                        <div>• <strong>Domingos:</strong> 6:00 AM – 6:00 PM (Jornada Normal)</div>
+                                        <div>• <strong>Domingos:</strong> 7:00 AM – 2:00 PM (Jornada Normal)</div>
                                     </div>
                                 </div>
 
