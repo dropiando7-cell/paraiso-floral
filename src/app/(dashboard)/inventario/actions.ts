@@ -391,8 +391,7 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
 
         const baseWhere: any = {
             organizationId: orgId,
-            esParaRenta: false,
-            area: { not: 'SERVICIOS' }
+            esParaRenta: false
         };
 
         // Excluir vendidos si no está habilitado el flag
@@ -575,10 +574,13 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
                 { stock: 9999 }
             ]
         }),
-        ...(tipoInventario === 'real' && {
+        ...(tipoInventario === 'real' && !cleanSearch && {
             esEquipoCliente: false,
             area: { not: 'SERVICIOS' },
             stock: { not: 9999 }
+        }),
+        ...(tipoInventario === 'real' && cleanSearch && {
+            esEquipoCliente: false
         })
     };
 
@@ -694,10 +696,13 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
                     { stock: 9999 }
                 ]
             }),
-            ...(tipoInventario === 'real' && {
+            ...(tipoInventario === 'real' && !search.trim() && {
                 esEquipoCliente: false,
                 area: { not: 'SERVICIOS' },
                 stock: { not: 9999 }
+            }),
+            ...(tipoInventario === 'real' && search.trim() && {
+                esEquipoCliente: false
             })
         };
 
