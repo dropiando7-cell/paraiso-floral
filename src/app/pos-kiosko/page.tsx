@@ -95,7 +95,7 @@ export default async function POSKioskoPage() {
       precioVenta: Number(a.producto?.precioVenta || a.costoAdq || 0),
       stockActual: 1, // Unique physical asset
       isvAplicable: a.producto?.isvAplicable ?? 15,
-      esServicio: false,
+      esServicio: a.area === 'SERVICIOS' || a.stock === 9999 || a.producto?.esServicio === true,
       imageUrl: a.imagenUrl || undefined,
       isActivoFijo: true
     }))

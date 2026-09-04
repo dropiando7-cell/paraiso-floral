@@ -822,7 +822,7 @@ export async function getUbicacionesActivasByProducto(identificador: string, tip
     
     const whereClause: any = { organizationId: orgId, esParaRenta: false };
     if (tipo === 'codigoBarras') {
-        whereClause.codigoBarras = identificador;
+        whereClause.codigoBarras = { contains: identificador.trim(), mode: 'insensitive' };
     } else if (tipo === 'codigoGrupo') {
         whereClause.codigoGrupo = identificador;
     } else if (tipo === 'descripcionCorta') {
@@ -846,9 +846,11 @@ export async function getUbicacionesActivasByProducto(identificador: string, tip
 }
 
 export async function findActivoByBarcode(codigoBarras: string) {
+    if (!codigoBarras?.trim()) return null;
     const orgId = await getOrgId();
+    const cleanCode = codigoBarras.trim();
     const activo = await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, codigoBarras, esParaRenta: false },
+        where: { organizationId: orgId, codigoBarras: { contains: cleanCode, mode: 'insensitive' }, esParaRenta: false },
         orderBy: { createdAt: 'asc' }
     });
     return activo;
@@ -861,8 +863,9 @@ export async function findActivoByBarcode(codigoBarras: string) {
 export async function checkExistingByBarcode(codigoBarras: string) {
     if (!codigoBarras?.trim()) return null;
     const orgId = await getOrgId();
+    const cleanCode = codigoBarras.trim();
     const activo = await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, codigoBarras: codigoBarras.trim(), esParaRenta: false },
+        where: { organizationId: orgId, codigoBarras: { contains: cleanCode, mode: 'insensitive' }, esParaRenta: false },
         orderBy: { createdAt: 'asc' },
         select: {
             id: true,
@@ -888,9 +891,11 @@ export async function checkExistingByBarcode(codigoBarras: string) {
 }
 
 export async function getActivoDetailsByBarcode(codigoBarras: string) {
+    if (!codigoBarras?.trim()) return null;
     const orgId = await getOrgId();
+    const cleanCode = codigoBarras.trim();
     return await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, codigoBarras, esParaRenta: false },
+        where: { organizationId: orgId, codigoBarras: { contains: cleanCode, mode: 'insensitive' }, esParaRenta: false },
         select: {
             descripcionCorta: true,
             descripcionDetallada: true,
@@ -945,7 +950,9 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     const cantidadForm = formData.get('cantidad') as string;
     const cantidadRegistros = cantidadForm ? parseInt(cantidadForm, 10) : 1;
     const codigoBarrasForm = formData.get('codigoBarras') as string;
-    const codigoBarras = codigoBarrasForm ? codigoBarrasForm.trim() : null;
+    const codigoBarras = codigoBarrasForm 
+        ? codigoBarrasForm.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).join(', ') 
+        : null;
     const esConsumible = formData.get('esConsumible') === 'true';
     const esParaRenta = formData.get('esParaRenta') === 'true';
     const esServicio = formData.get('esServicio') === 'true';
@@ -1052,8 +1059,12 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
 
     // ── Master-Data Integrity Constraint ──
     if (codigoBarras) {
+        const barCodesArray = codigoBarras.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
         const master = await prisma.activoFijo.findFirst({
-            where: { organizationId: orgId, codigoBarras },
+            where: { 
+                organizationId: orgId,
+                OR: barCodesArray.map(code => ({ codigoBarras: { contains: code, mode: 'insensitive' } }))
+            },
             orderBy: { createdAt: 'asc' },
             select: { categoriaId: true, marca: true, modelo: true, imagenUrl: true, descripcionCorta: true }
         });
@@ -1070,7 +1081,8 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     if (esConsumible && !baseData.fechaVencimiento && !baseData.serie && (codigoBarras || codigoGrupo)) {
         const whereClause: any = { organizationId: orgId, area };
         if (codigoBarras) {
-            whereClause.codigoBarras = codigoBarras;
+            const barCodesArray = codigoBarras.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+            whereClause.OR = barCodesArray.map(code => ({ codigoBarras: { contains: code, mode: 'insensitive' } }));
         } else if (codigoGrupo) {
             whereClause.codigoGrupo = codigoGrupo;
             whereClause.descripcionCorta = baseData.descripcionCorta; // PROTECCIÓN: Impide agrupar equipos distintos sin GS1
@@ -1082,10 +1094,19 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         });
         
         if (existente) {
+            let mergedBarcode = existente.codigoBarras;
+            if (codigoBarras) {
+                const existingCodes = (existente.codigoBarras || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+                const newCodes = codigoBarras.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+                const mergedSet = Array.from(new Set([...existingCodes, ...newCodes]));
+                mergedBarcode = mergedSet.join(', ');
+            }
+
             await prisma.activoFijo.update({
                 where: { id: existente.id },
                 data: {
                     stock: existente.stock + cantidadRegistros,
+                    codigoBarras: mergedBarcode,
                     estatusContable: 'VIGENTE'
                 }
             });
@@ -1267,7 +1288,9 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
                 deprecAcum: deprec?.deprecAcum ?? null,
                 valorLibros: deprec?.valorLibros ?? null,
                 // ── Retail fields ──
-                codigoBarras: (formData.get('codigoBarras') as string) || null,
+                codigoBarras: (formData.get('codigoBarras') as string)
+                    ? (formData.get('codigoBarras') as string).split(/[\n,]+/).map(s => s.trim()).filter(Boolean).join(', ')
+                    : null,
                 esEquipoCliente: formData.get('esEquipoCliente') === 'true',
                 cobertura: (formData.get('cobertura') as string) || 'externa',
                 clienteId: (formData.get('clienteId') as string) || null

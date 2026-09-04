@@ -99,7 +99,7 @@ export default async function POSPage() {
       precioVenta: Number(a.producto?.precioVenta || a.costoAdq || 0),
       stockActual: a.stock, // Use the real stock of the asset (for both unique assets and consumables)
       isvAplicable: a.producto?.isvAplicable ?? 15,
-      esServicio: false,
+      esServicio: a.area === 'SERVICIOS' || a.stock === 9999 || a.producto?.esServicio === true,
       isActivoFijo: true,
       imageUrl: a.imagenUrl || undefined,
       codigoBarras: a.codigoBarras || null

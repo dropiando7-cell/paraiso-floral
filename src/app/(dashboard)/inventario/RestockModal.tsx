@@ -270,8 +270,14 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
             fd.set('cantidad', cantidad);
             if (fechaVencimiento) fd.set('fechaVencimiento', fechaVencimiento);
 
-            if (selectedProduct.codigoBarras) {
-                fd.set('codigoBarras', selectedProduct.codigoBarras);
+            const barCodeSearchClean = codigoBarrasSearch.trim();
+            let finalBarcodes = selectedProduct.codigoBarras || barCodeSearchClean || '';
+            if (barCodeSearchClean && selectedProduct.codigoBarras && !selectedProduct.codigoBarras.toLowerCase().includes(barCodeSearchClean.toLowerCase())) {
+                finalBarcodes = `${selectedProduct.codigoBarras}, ${barCodeSearchClean}`;
+            }
+
+            if (finalBarcodes) {
+                fd.set('codigoBarras', finalBarcodes);
             } else if (selectedProduct.codigoGrupo) {
                 fd.set('codigoGrupo', selectedProduct.codigoGrupo);
             }

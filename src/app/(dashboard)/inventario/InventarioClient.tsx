@@ -1189,7 +1189,12 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
         }
         
         setIsScannerOpen(false);
-        setCodigoBarras(cleanText);
+        setCodigoBarras(prev => {
+            if (!prev) return cleanText;
+            const existingArray = prev.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+            if (existingArray.includes(cleanText)) return prev;
+            return [...existingArray, cleanText].join(', ');
+        });
 
         // Autocompletar lote y vencimiento desde GS1 si el modal los tiene
         if (gs1?.lote) setLote(gs1.lote);
@@ -2471,10 +2476,12 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     type="text" 
                                                     value={codigoBarras} 
                                                     onChange={e => setCodigoBarras(e.target.value)} 
-                                                    placeholder="Escanea o escribe el código..." 
-                                                    className={`${inputCls} font-mono font-bold tracking-widest text-[#0500A3] border-indigo-200 focus:ring-[#0500A3]`} 
+                                                    placeholder="Ej: QA50203, QA50204, 78612345..." 
+                                                    className={`${inputCls} font-mono font-bold tracking-wider text-[#0500A3] border-indigo-200 focus:ring-[#0500A3]`} 
                                                 />
-                                                <p className="text-[10px] text-slate-500 mt-1.5">Escanea la caja o placa si tiene UDI / GTIN. Si es detectado, se autocompletará el equipo.</p>
+                                                <p className="text-[10px] text-slate-500 mt-1.5">
+                                                    Escanea o ingresa múltiples códigos de barras separados por comas (ej. de distintas fincas de Ecuador). Al escanear cualquiera de ellos se detectará este mismo producto.
+                                                </p>
                                             </div>
                                             </div>
                                             )}
