@@ -301,12 +301,15 @@ def generar_tspl_raw(img, size_name="50x25"):
     w_px, h_px = img_mono.size
     w_bytes = (w_px + 7) // 8
 
+    # Inversión de bits para impresoras térmicas TSPL (0x00 PIL negro -> 0xFF TSPL encendido térmico)
+    tspl_bitmap = bytearray(b ^ 0xFF for b in img_mono.tobytes())
+
     tspl = bytearray()
     tspl.extend(f"SIZE {w_mm} mm, {h_mm} mm\r\n".encode("latin1"))
     tspl.extend(b"GAP 2 mm, 0 mm\r\n")
     tspl.extend(b"CLS\r\n")
     tspl.extend(f"BITMAP 0,0,{w_bytes},{h_px},0,".encode("latin1"))
-    tspl.extend(img_mono.tobytes())
+    tspl.extend(tspl_bitmap)
     tspl.extend(b"\r\nPRINT 1,1\r\n")
     return tspl
 
