@@ -413,9 +413,12 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
     alignItems: 'center' as const,
   };
 
-  const headerTextCol1 = settings?.showItemCode !== false 
-    ? 'Código' 
-    : (settings?.showProductImages ? 'Imagen' : '');
+  const showItemCode = settings?.showItemCode !== false;
+  const qtyPositionFirst = settings?.qtyPositionFirst === true;
+
+  const colCodeStyle = styles.colCode;
+  const colDescStyle = { ...styles.colDesc, width: !showItemCode ? '50%' : '35%' };
+  const colQtyStyle = styles.colQty;
 
   return (
     <Document>
@@ -531,11 +534,18 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             borderRightWidth: showTableOuterBorders ? tableBorderThickness : 0,
             borderRightColor: tableBorderColor,
           }}>
-            <Text style={[styles.tableColHeader, styles.colCode, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-              {headerTextCol1}
-            </Text>
-            <Text style={[styles.tableColHeader, styles.colDesc, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Descripción</Text>
-            <Text style={[styles.tableColHeader, styles.colQty, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Cant.</Text>
+            {qtyPositionFirst && (
+              <Text style={[styles.tableColHeader, colQtyStyle, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Cant.</Text>
+            )}
+            {showItemCode && (
+              <Text style={[styles.tableColHeader, colCodeStyle, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
+                Código
+              </Text>
+            )}
+            <Text style={[styles.tableColHeader, colDescStyle, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Descripción</Text>
+            {!qtyPositionFirst && (
+              <Text style={[styles.tableColHeader, colQtyStyle, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Cant.</Text>
+            )}
             <Text style={[styles.tableColHeader, styles.colPrice, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Precio</Text>
             <Text style={[styles.tableColHeader, styles.colDiscount, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Desc.</Text>
             <Text style={[styles.tableColHeader, styles.colTax, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Imp.</Text>
@@ -598,72 +608,78 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                   alignItems: 'stretch',
                   minHeight: 24,
                 }}>
-                  {/* First Column (Code / Image) */}
-                  <View style={[
-                    styles.colCode, 
-                    { 
-                      flexDirection: 'row', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      paddingVertical: tableCellPaddingY 
-                    }, 
-                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
-                  ]}>
-                    {settings?.showItemCode !== false ? (
-                      <>
+                  {/* Columns: Qty, Code, Desc according to settings */}
+                  {(() => {
+                    const qtyCell = (
+                      <View style={[
+                        colQtyStyle, 
+                        { 
+                          justifyContent: 'center',
+                          paddingVertical: tableCellPaddingY 
+                        }, 
+                        showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                      ]}>
+                        <Text style={[styles.tableCol, { fontSize: descFontSizePdf }]}>{item.qty}</Text>
+                      </View>
+                    );
+
+                    const codeCell = showItemCode ? (
+                      <View style={[
+                        colCodeStyle, 
+                        { 
+                          flexDirection: 'row', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          paddingVertical: tableCellPaddingY 
+                        }, 
+                        showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                      ]}>
                         {hasImage && settings?.productImagePosition === 'firstColumn' && (
                           <View style={dynamicImageContainer}>
                             <Image src={images[item.id]} style={styles.productImage} />
                           </View>
                         )}
                         <Text style={[styles.tableCol, { flex: 1, fontSize: descFontSizePdf }]}>{item.code || '-'}</Text>
-                      </>
-                    ) : (
-                      settings?.showProductImages && hasImage && (
-                        <View style={dynamicImageContainer}>
-                          <Image src={images[item.id]} style={styles.productImage} />
-                        </View>
-                      )
-                    )}
-                  </View>
-                  
-                  {/* Description Column */}
-                  <View style={[
-                    styles.colDesc, 
-                    { 
-                      flexDirection: 'row', 
-                      alignItems: 'center',
-                      paddingVertical: tableCellPaddingY
-                    }, 
-                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
-                  ]}>
-                    {hasImage && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && settings?.showItemCode !== false && (
-                      <View style={dynamicImageContainer}>
-                        <Image src={images[item.id]} style={styles.productImage} />
                       </View>
-                    )}
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <Text style={[styles.tableColLeft, styles.descText, { fontSize: descFontSizePdf }]}>{item.shortDesc || '-'}</Text>
-                      {(item.marcaModelo || item.serie) && (
-                        <Text style={[styles.tableColLeft, { fontSize: 7, color: '#4b5563', marginTop: 1, fontFamily: 'Helvetica' }]}>
-                          {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
-                          {item.marcaModelo && item.serie ? ' | ' : ''}
-                          {item.serie ? `Serie: ${item.serie}` : ''}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
+                    ) : null;
 
-                  <View style={[
-                    styles.colQty, 
-                    { 
-                      justifyContent: 'center',
-                      paddingVertical: tableCellPaddingY 
-                    }, 
-                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
-                  ]}>
-                    <Text style={[styles.tableCol, { fontSize: descFontSizePdf }]}>{item.qty}</Text>
-                  </View>
+                    const descCell = (
+                      <View style={[
+                        colDescStyle, 
+                        { 
+                          flexDirection: 'row', 
+                          alignItems: 'center',
+                          paddingVertical: tableCellPaddingY
+                        }, 
+                        showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                      ]}>
+                        {hasImage && ((!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') || !showItemCode) && (
+                          <View style={dynamicImageContainer}>
+                            <Image src={images[item.id]} style={styles.productImage} />
+                          </View>
+                        )}
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                          <Text style={[styles.tableColLeft, styles.descText, { fontSize: descFontSizePdf }]}>{item.shortDesc ? item.shortDesc.toUpperCase() : '-'}</Text>
+                          {(item.marcaModelo || item.serie) && (
+                            <Text style={[styles.tableColLeft, { fontSize: 7, color: '#4b5563', marginTop: 1, fontFamily: 'Helvetica', textTransform: 'uppercase' }]}>
+                              {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                              {item.marcaModelo && item.serie ? ' | ' : ''}
+                              {item.serie ? `Serie: ${item.serie}` : ''}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    );
+
+                    return (
+                      <>
+                        {qtyPositionFirst && qtyCell}
+                        {codeCell}
+                        {descCell}
+                        {!qtyPositionFirst && qtyCell}
+                      </>
+                    );
+                  })()}
                   
                   <View style={[
                     styles.colPrice, 

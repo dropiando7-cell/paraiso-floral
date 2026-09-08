@@ -66,6 +66,18 @@ export default function MinimalistTemplate(props: TemplateProps) {
  } as React.CSSProperties;
  const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-10';
 
+  const showItemCode = settings?.showItemCode !== false;
+  const qtyPositionFirst = settings?.qtyPositionFirst === true;
+
+  let gridColsClass = 'grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  if (!showItemCode && !qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,45fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (!showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,45fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,19fr)_minmax(0,26fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  }
+
  const renderLogo = () => (
  <div className={`mb-6 flex ${settings.logoPosition === 'center' ? 'justify-center' : settings.logoPosition === 'right' ? 'justify-end' : ''}`}>
  {organization?.logoUrl ? (
@@ -165,16 +177,17 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="mb-12 relative z-50 print:mb-6">
  <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
   <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
-  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
- <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} uppercase font-semibold text-slate-400`}>
- <div className="text-center">{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}</div>
- <div className="text-center">Descripción</div>
- <div className="text-center print:text-left">Cant.</div>
- <div className="text-center">Precio</div>
- <div className="text-center">Desc.</div>
- <div className="text-center">Imp</div>
- <div className="text-right pr-2">Monto</div>
- </div>
+  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className={`${imageColWidth} shrink-0`} />}
+  <div className={`flex-1 grid ${gridColsClass} gap-2 ${tableHeaderSize} uppercase font-semibold text-slate-400`}>
+    {qtyPositionFirst && <div className="text-center print:text-left">Cant.</div>}
+    {showItemCode && <div className="text-center">Código</div>}
+    <div className="text-center">Descripción</div>
+    {!qtyPositionFirst && <div className="text-center print:text-left">Cant.</div>}
+    <div className="text-center">Precio</div>
+    <div className="text-center">Desc.</div>
+    <div className="text-center">Imp</div>
+    <div className="text-right pr-2">Monto</div>
+  </div>
  <div className="w-6 shrink-0 print:hidden" />
  </div>
 

@@ -67,6 +67,18 @@ export default function ClassicTemplate(props: TemplateProps) {
 
   const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-[34px]';
 
+  const showItemCode = settings?.showItemCode !== false;
+  const qtyPositionFirst = settings?.qtyPositionFirst === true;
+
+  let gridColsClass = 'grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  if (!showItemCode && !qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,45fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (!showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,45fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,19fr)_minmax(0,26fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  }
+
  const renderLogo = () => (
  <div className={`mb-4 flex ${settings.logoPosition === 'center' ? 'justify-center' : settings.logoPosition === 'right' ? 'justify-end' : ''}`}>
  {organization?.logoUrl ? (
@@ -196,17 +208,26 @@ export default function ClassicTemplate(props: TemplateProps) {
  }}
  >
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
- {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
- <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} font-bold uppercase ${baseColor}`}>
-  <div className={`relative flex items-center justify-center text-center py-2 print:py-1 `}>{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}
-    {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
-  </div>
+ {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className={`${imageColWidth} shrink-0`} />}
+ <div className={`flex-1 grid ${gridColsClass} gap-2 ${tableHeaderSize} font-bold uppercase ${baseColor}`}>
+  {qtyPositionFirst && (
+    <div className={`relative flex items-center justify-center text-center print:text-center py-2 print:py-1 `}>Cant.
+      {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
+    </div>
+  )}
+  {showItemCode && (
+    <div className={`relative flex items-center justify-center text-center py-2 print:py-1 `}>Código
+      {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
+    </div>
+  )}
   <div className={`relative flex items-center justify-center text-center py-2 print:py-1 `}>Descripción
     {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
   </div>
-  <div className={`relative flex items-center justify-center text-center print:text-center py-2 print:py-1 `}>Cant.
-    {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
-  </div>
+  {!qtyPositionFirst && (
+    <div className={`relative flex items-center justify-center text-center print:text-center py-2 print:py-1 `}>Cant.
+      {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
+    </div>
+  )}
   <div className={`relative flex items-center justify-center text-center py-2 print:py-1 `}>Precio
     {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
   </div>

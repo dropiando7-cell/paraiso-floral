@@ -1098,7 +1098,7 @@ function LineItemRow({
     }
 
     onChange(item.id, 'code', product.code);
-    onChange(item.id, 'shortDesc', product.name);
+    onChange(item.id, 'shortDesc', (product.name || '').toUpperCase());
     
     // Si la imagen ya viene en la data cacheada
     if (product.imageUrl) {
@@ -1159,6 +1159,12 @@ function LineItemRow({
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const isMinusKey = e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract';
+    if ((e.ctrlKey || e.metaKey) && (isMinusKey || e.key === 'Enter')) {
+      setShowAutocomplete(false);
+      // Se permite que el evento suba al listener global único en document
+      return;
+    }
     if (showAutocomplete && filteredProducts.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -1169,7 +1175,12 @@ function LineItemRow({
       } else if (e.key === 'Enter') {
         e.preventDefault();
         handleSelectProduct(filteredProducts[selectedIndex]);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowAutocomplete(false);
       }
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (focusedField === 'code') {
@@ -1178,7 +1189,7 @@ function LineItemRow({
           try {
             const res = await buscarItemPorCodigo(val);
             if (res) {
-              onChange(item.id, 'shortDesc', res.name);
+              onChange(item.id, 'shortDesc', (res.name || '').toUpperCase());
               if ((res as any).marcaModelo) {
                 onChange(item.id, 'marcaModelo', (res as any).marcaModelo);
               } else {
@@ -1237,12 +1248,16 @@ function LineItemRow({
     if (!showAutocomplete || !focusedField) return null;
     if (query.trim().length < 2) return null;
     return (
-      <div className="absolute top-[calc(100%+4px)] left-0 w-[500px] md:w-[540px] z-[60] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-72 overflow-y-auto print:hidden">
-        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 z-[65]">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
+      <div className="absolute top-[calc(100%+6px)] left-0 w-[520px] md:w-[580px] max-w-[95vw] z-[100] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden print:hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10">
+        {/* Header */}
+        <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/95 backdrop-blur-sm flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">
+              Coincidencias en catálogo
+            </span>
             {isLoadingResults ? (
-              <span className="text-[10px] text-blue-500 font-semibold animate-pulse ml-1.5">Buscando en base de datos...</span>
+              <span className="text-[10px] text-blue-600 font-semibold animate-pulse ml-1">Buscando en base de datos...</span>
             ) : (
               <button
                 type="button"
@@ -1258,147 +1273,178 @@ function LineItemRow({
               </button>
             )}
           </div>
-          <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">↑↓ navegar · ↵ elegir</span>
+            <span className="text-[10px] font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}
+            </span>
+          </div>
         </div>
-        <div className="p-1">
-          {filteredProducts.map((p, idx) => (
-            <button
-              key={p.id}
-              type="button"
-              onMouseEnter={() => setSelectedIndex(idx)}
-              onClick={() => handleSelectProduct(p)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg group flex items-start gap-3 transition-colors ${idx === selectedIndex ? 'bg-blue-50' : 'hover:bg-blue-50/70'}`}
-            >
-              {/* Miniatura del Producto / Activo */}
-              <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 relative">
-                {p.imageUrl ? (
-                  <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
-                ) : p.isOrdenTrabajo ? (
-                  <Wrench size={16} className="text-indigo-600 group-hover:text-blue-500 transition-colors" />
-                ) : p.type === 'activo' ? (
-                  <Stethoscope size={16} className="text-indigo-400 group-hover:text-blue-500 transition-colors" />
-                ) : (
-                  <Package size={16} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                )}
-              </div>
 
-              {/* Información Detallada */}
-              <div className="flex-1 min-w-0 flex flex-col gap-1">
-                <div className="flex items-start justify-between gap-4">
-                  <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 leading-tight truncate">
-                    {p.name}
-                  </p>
-                  <p className="text-xs font-black text-blue-600 shrink-0">{fmt(p.price)}</p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-medium group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors`}>
-                    {p.code}
-                  </span>
-                  
-                  {p.isOrdenTrabajo ? (
-                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded">
-                      Orden de Trabajo
-                    </span>
+        {/* Scrollable list of products */}
+        <div className="p-1.5 overflow-y-auto max-h-[300px] divide-y divide-slate-100/80">
+          {filteredProducts.map((p, idx) => {
+            const isHovered = idx === selectedIndex;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onMouseEnter={() => setSelectedIndex(idx)}
+                onMouseDown={(e) => {
+                  // Evitar que el input pierda foco antes del click
+                  e.preventDefault();
+                }}
+                onClick={() => handleSelectProduct(p)}
+                className={`w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer ${
+                  isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200/80 shadow-xs' : 'hover:bg-slate-50 text-slate-800'
+                }`}
+              >
+                {/* Miniatura del Producto / Activo */}
+                <div className={`w-11 h-11 rounded-xl overflow-hidden border bg-white flex items-center justify-center shrink-0 relative transition-colors ${
+                  isHovered ? 'border-blue-300' : 'border-slate-200'
+                }`}>
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : p.isOrdenTrabajo ? (
+                    <Wrench size={18} className="text-indigo-600" />
                   ) : p.type === 'activo' ? (
-                    <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                      Activo Fijo
-                    </span>
+                    <Stethoscope size={18} className="text-indigo-500" />
                   ) : (
-                    <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                      Stock: {p.stock}
-                    </span>
-                  )}
-
-                  {p.type === 'activo' && p.serie && (
-                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100/50 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <Tag size={10} className="shrink-0" />
-                      S/N: {p.serie}
-                    </span>
-                  )}
-
-                  {p.fechaVencimiento && (
-                    <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-100/50 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <Calendar size={10} className="shrink-0" />
-                      Vence: {formatFecha(p.fechaVencimiento)}
-                    </span>
+                    <Package size={18} className="text-slate-400" />
                   )}
                 </div>
 
-                {p.type === 'activo' && p.description && (
-                  <p className="text-[10px] text-slate-400 truncate leading-tight">{p.description}</p>
-                )}
-              </div>
-            </button>
-          ))}
+                {/* Información Detallada */}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className={`text-xs font-bold leading-tight truncate uppercase ${
+                      isHovered ? 'text-blue-700' : 'text-slate-900'
+                    }`}>
+                      {p.name ? p.name.toUpperCase() : ''}
+                    </p>
+                    <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md shrink-0 border border-blue-100">
+                      {fmt(p.price)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold`}>
+                      {p.code}
+                    </span>
+                    
+                    {p.isOrdenTrabajo ? (
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                        Orden de Trabajo
+                      </span>
+                    ) : p.type === 'activo' ? (
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                        Activo Fijo
+                      </span>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        p.stock > 10
+                          ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
+                          : p.stock > 0
+                          ? 'text-amber-700 bg-amber-50 border border-amber-200/60'
+                          : 'text-rose-600 bg-rose-50 border border-rose-200/60'
+                      }`}>
+                        Stock: {p.stock}
+                      </span>
+                    )}
+
+                    {p.type === 'activo' && p.serie && (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Tag size={10} className="shrink-0" />
+                        S/N: {p.serie}
+                      </span>
+                    )}
+
+                    {p.fechaVencimiento && (
+                      <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-100/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Calendar size={10} className="shrink-0" />
+                        Vence: {formatFecha(p.fechaVencimiento)}
+                      </span>
+                    )}
+                  </div>
+
+                  {p.type === 'activo' && p.description && (
+                    <p className="text-[10px] text-slate-400 truncate leading-tight uppercase">{p.description ? p.description.toUpperCase() : ''}</p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
           
           {filteredProducts.length === 0 && (
-            <div className="px-4 py-3.5 text-xs text-slate-400 text-center font-medium">
-              No se encontraron coincidencias para "{query}"
+            <div className="px-4 py-6 text-xs text-slate-400 text-center font-medium flex flex-col items-center justify-center gap-1">
+              <AlertCircle className="w-5 h-5 text-slate-300" />
+              <span>No se encontraron coincidencias para "{query}"</span>
             </div>
           )}
-
-          {/* SECCIÓN: CREAR SERVICIO AL INSTANTE */}
-          <div className="border-t border-slate-100 bg-slate-50/70 p-3">
-            <div className="flex items-center gap-1.5 mb-2 px-1">
-              <Zap size={13} className="text-amber-500 fill-amber-500 shrink-0" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Crear e Insertar Servicio Rápido</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-              {[
-                { label: 'Instalación (INS)', prefix: 'INS' },
-                { label: 'Reparación (REP)', prefix: 'REP' },
-                { label: 'Diagnóstico (DIAG)', prefix: 'DIAG' },
-                { label: 'Mant. Prev. (MPV)', prefix: 'MPV' },
-                { label: 'Mant. Corr. (MCO)', prefix: 'MCO' },
-                { label: 'Mano Obra (MO)', prefix: 'MO' },
-              ].map((s) => (
-                <button
-                  key={s.prefix}
-                  type="button"
-                  onClick={async () => {
-                    const toastId = toast.loading(`Autogenerando código ${s.prefix} y registrando...`);
-                    try {
-                      const res = await crearServicioRapido(s.prefix);
-                      if (res.success && res.service) {
-                        toast.success(`Código ${res.service.code} reservado y asignado!`, { id: toastId });
-                        // Cerrar autocomplete y notificar al padre
-                        setShowAutocomplete(false);
-                        window.dispatchEvent(new CustomEvent('service-created', { detail: { service: res.service, lineId: item.id } }));
-                      } else {
-                        throw new Error(res.error || 'Error al generar el servicio');
-                      }
-                    } catch (e: any) {
-                      toast.error(e.message || 'Error al generar', { id: toastId });
-                    }
-                  }}
-                  className="flex items-center justify-center text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/20 py-2 px-1.5 rounded-lg transition-all text-center leading-tight active:scale-[0.98] cursor-pointer"
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setShowAutocomplete(false);
-              window.dispatchEvent(new CustomEvent('open-activo-modal', { detail: { lineId: item.id } }));
-            }}
-            className="w-full text-left px-3 py-2.5 border-t border-slate-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-colors sticky bottom-0 z-10"
-          >
-            <Plus size={14} className="shrink-0" />
-            Registrar nuevo producto o activo en Inventario
-          </button>
         </div>
+
+        {/* SECCIÓN: CREAR SERVICIO AL INSTANTE */}
+        <div className="border-t border-slate-100 bg-slate-50/70 p-2.5 shrink-0">
+          <div className="flex items-center gap-1.5 mb-2 px-1">
+            <Zap size={13} className="text-amber-500 fill-amber-500 shrink-0" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Crear e Insertar Servicio Rápido</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {[
+              { label: 'Instalación (INS)', prefix: 'INS' },
+              { label: 'Reparación (REP)', prefix: 'REP' },
+              { label: 'Diagnóstico (DIAG)', prefix: 'DIAG' },
+              { label: 'Mant. Prev. (MPV)', prefix: 'MPV' },
+              { label: 'Mant. Corr. (MCO)', prefix: 'MCO' },
+              { label: 'Mano Obra (MO)', prefix: 'MO' },
+            ].map((s) => (
+              <button
+                key={s.prefix}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  const toastId = toast.loading(`Autogenerando código ${s.prefix} y registrando...`);
+                  try {
+                    const res = await crearServicioRapido(s.prefix);
+                    if (res.success && res.service) {
+                      toast.success(`Código ${res.service.code} reservado y asignado!`, { id: toastId });
+                      // Cerrar autocomplete y notificar al padre
+                      setShowAutocomplete(false);
+                      window.dispatchEvent(new CustomEvent('service-created', { detail: { service: res.service, lineId: item.id } }));
+                    } else {
+                      throw new Error(res.error || 'Error al generar el servicio');
+                    }
+                  } catch (e: any) {
+                    toast.error(e.message || 'Error al generar', { id: toastId });
+                  }
+                }}
+                className="flex items-center justify-center text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/20 py-2 px-1.5 rounded-lg transition-all text-center leading-tight active:scale-[0.98] cursor-pointer"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setShowAutocomplete(false);
+            window.dispatchEvent(new CustomEvent('open-activo-modal', { detail: { lineId: item.id } }));
+          }}
+          className="w-full text-left px-3.5 py-2.5 border-t border-slate-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-colors shrink-0"
+        >
+          <Plus size={14} className="shrink-0" />
+          Registrar nuevo producto o activo en Inventario
+        </button>
       </div>
     );
   };
 
   return (
     <div 
-      className={`group relative hover:z-50 ${isDragOver ? 'border-t-[3px] border-blue-500' : ''} ${showAutocomplete ? 'z-[70]' : ''}`} 
+      className={`group relative hover:z-50 ${isDragOver ? 'border-t-[3px] border-blue-500' : ''} ${showAutocomplete ? 'z-[100]' : ''}`} 
       ref={containerRef} 
       data-line-id={item.id}
       draggable={isDraggable && !viewMode}
@@ -1465,10 +1511,10 @@ function LineItemRow({
         </div>
 
         {/* First Column Image Position (if enabled) */}
-        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && !item.isSection && (
+        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && !item.isSection && (
           <div className={`${padClass} shrink-0`}>
             <div className={`${imgSizeClass} ${imgStyleClass} flex items-center justify-center`}>
-{renderImage()}
+              {renderImage()}
             </div>
           </div>
         )}
@@ -1514,162 +1560,176 @@ function LineItemRow({
              </div>
           </div>
         ) : (
-          <div className="flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 min-w-0 relative">
-            {/* Code */}
-            <div className={`min-w-0 relative flex items-start justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
-              {settings?.showItemCode !== false ? (
-                viewMode ? (
-                  <div className={`w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
-                    {item.code || ' '}
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      value={item.code}
-                    onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
-                    onChange={e => {
-                      onChange(item.id, 'code', e.target.value);
-                      setFocusedField('code');
-                      setShowAutocomplete(true);
-                    }}
+          (() => {
+            const showItemCode = settings?.showItemCode !== false;
+            const qtyPositionFirst = settings?.qtyPositionFirst === true;
+
+            let gridColsClass = 'grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+            if (!showItemCode && !qtyPositionFirst) {
+              gridColsClass = 'grid-cols-[minmax(0,45fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+            } else if (!showItemCode && qtyPositionFirst) {
+              gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,45fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+            } else if (showItemCode && qtyPositionFirst) {
+              gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,19fr)_minmax(0,26fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+            }
+
+            const qtyColElement = (
+              <div className={`min-w-0 flex items-start justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'px-1' : ''}`}>
+                {!viewMode ? (
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.qty}
+                    onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                     onKeyDown={handleKeyDown}
-                    onBlur={async (e) => {
-                      const val = e.target.value.trim();
-                      setTimeout(async () => {
-                        if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
-                          try {
-                            const res = await buscarItemPorCodigo(val);
-                            if (res) {
-                              onChange(item.id, 'shortDesc', res.name);
-                              if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                              if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-                              if (res.type === 'producto') {
-                                onChange(item.id, 'productoId', res.id);
-                                onChange(item.id, 'activoId', undefined);
-                                onChange(item.id, 'serie', null);
-                              }
-                              if (res.type === 'activo') {
-                                onChange(item.id, 'activoId', res.id);
-                                onChange(item.id, 'productoId', undefined);
-                                onChange(item.id, 'serie', (res as any).serie || null);
-                              }
-                              if ((res as any).marcaModelo) {
-                                onChange(item.id, 'marcaModelo', (res as any).marcaModelo);
-                              } else {
-                                onChange(item.id, 'marcaModelo', null);
-                              }
-                              if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
-                            }
-                          } catch(err) { console.error('Error in onBlur search:', err); }
-                        }
-                      }, 200);
-                    }}
-                    placeholder="Código"
-                    className={`w-full h-[34px] text-[10px] md:text-[11px] tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700`}
+                    className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    style={descStyle}
                   />
-                  <span className={`hidden print:block w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
-                    {item.code || ' '}
-                  </span>
-                  </>
-                )
-              ) : (
-                settings?.showProductImages && (
-                  <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
-{renderImage()}
-                  </div>
-                )
-              )}
+                ) : null}
+                <span className={`${descSizeClass} font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
+                  {item.qty}
+                </span>
+                {settings?.showTableVerticalBorders && (
+                  <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+                )}
+              </div>
+            );
 
-              {focusedField === 'code' && !viewMode && renderDropdown()}
-              {settings?.showTableVerticalBorders && (
-                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
-              )}
-            </div>
+            return (
+              <div className={`flex-1 grid ${gridColsClass} gap-2 min-w-0 relative`}>
+                {qtyPositionFirst && qtyColElement}
 
-            {/* Description */}
-            <div className={`min-w-0 relative flex gap-2 items-start ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
-              {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && settings?.showItemCode !== false && (
-                <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
-{renderImage()}
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-              {viewMode ? (
-                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
-                  {item.shortDesc}
-                  {(item.marcaModelo || item.serie) && (
-                    <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-normal mt-0.5 leading-normal tracking-tight break-words">
-                      {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
-                      {item.marcaModelo && item.serie ? ' | ' : ''}
-                      {item.serie ? `Serie: ${item.serie}` : ''}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                <input
-                  type="text"
-                  value={item.shortDesc}
-                  disabled={viewMode}
-                  onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
-                  onChange={e => {
-                    onChange(item.id, 'shortDesc', e.target.value);
-                    setFocusedField('desc');
-                    setShowAutocomplete(true);
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Descripción del producto o servicio"
-                  className={`w-full h-[34px] ${inputDescSizeClass} border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800`}
-                  style={descStyle}
-                />
-                {(item.marcaModelo || item.serie) && (
-                  <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-normal mt-0.5 print:hidden leading-normal tracking-tight break-words">
-                    {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
-                    {item.marcaModelo && item.serie ? ' | ' : ''}
-                    {item.serie ? `Serie: ${item.serie}` : ''}
+                {/* Code */}
+                {showItemCode && (
+                  <div className={`min-w-0 relative flex items-start justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+                    {viewMode ? (
+                      <div className={`w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
+                        {item.code || ' '}
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          value={item.code}
+                          onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
+                          onChange={e => {
+                            onChange(item.id, 'code', e.target.value);
+                            setFocusedField('code');
+                            setShowAutocomplete(true);
+                          }}
+                          onKeyDown={handleKeyDown}
+                          onBlur={async (e) => {
+                            const val = e.target.value.trim();
+                            setTimeout(async () => {
+                              if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
+                                try {
+                                  const res = await buscarItemPorCodigo(val);
+                                  if (res) {
+                                    onChange(item.id, 'shortDesc', (res.name || '').toUpperCase());
+                                    if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+                                    if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+                                    if (res.type === 'producto') {
+                                      onChange(item.id, 'productoId', res.id);
+                                      onChange(item.id, 'activoId', undefined);
+                                      onChange(item.id, 'serie', null);
+                                    }
+                                    if (res.type === 'activo') {
+                                      onChange(item.id, 'activoId', res.id);
+                                      onChange(item.id, 'productoId', undefined);
+                                      onChange(item.id, 'serie', (res as any).serie || null);
+                                    }
+                                    if ((res as any).marcaModelo) {
+                                      onChange(item.id, 'marcaModelo', (res as any).marcaModelo);
+                                    } else {
+                                      onChange(item.id, 'marcaModelo', null);
+                                    }
+                                    if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
+                                  }
+                                } catch(err) { console.error('Error in onBlur search:', err); }
+                              }
+                            }, 200);
+                          }}
+                          placeholder="Código"
+                          className={`w-full h-[34px] text-[10px] md:text-[11px] tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700`}
+                        />
+                        <span className={`hidden print:block w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
+                          {item.code || ' '}
+                        </span>
+                      </>
+                    )}
+
+                    {focusedField === 'code' && !viewMode && renderDropdown()}
+                    {settings?.showTableVerticalBorders && (
+                      <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+                    )}
                   </div>
                 )}
-                <div className="hidden print:block">
-                  <span className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
-                    {item.shortDesc}
-                  </span>
-                  {(item.marcaModelo || item.serie) && (
-                    <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal tracking-tight break-words">
-                      {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
-                      {item.marcaModelo && item.serie ? ' | ' : ''}
-                      {item.serie ? `Serie: ${item.serie}` : ''}
+
+                {/* Description */}
+                <div className={`min-w-0 relative flex gap-2 items-start ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+                  {settings?.showProductImages && ((!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') || !showItemCode) && (
+                    <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
+                      {renderImage()}
                     </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                  {viewMode ? (
+                    <div className={`${descSizeClass} font-semibold uppercase text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
+                      {item.shortDesc ? item.shortDesc.toUpperCase() : ''}
+                      {(item.marcaModelo || item.serie) && (
+                        <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-normal mt-0.5 leading-normal tracking-tight break-words uppercase">
+                          {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                          {item.marcaModelo && item.serie ? ' | ' : ''}
+                          {item.serie ? `Serie: ${item.serie}` : ''}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                    <input
+                      type="text"
+                      value={item.shortDesc}
+                      disabled={viewMode}
+                      onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
+                      onChange={e => {
+                        onChange(item.id, 'shortDesc', e.target.value.toUpperCase());
+                        setFocusedField('desc');
+                        setShowAutocomplete(true);
+                      }}
+                      onKeyDown={handleKeyDown}
+                      placeholder="DESCRIPCIÓN DEL PRODUCTO O SERVICIO"
+                      className={`w-full h-[34px] uppercase ${inputDescSizeClass} border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800`}
+                      style={descStyle}
+                    />
+                    {(item.marcaModelo || item.serie) && (
+                      <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-normal mt-0.5 print:hidden leading-normal tracking-tight break-words uppercase">
+                        {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                        {item.marcaModelo && item.serie ? ' | ' : ''}
+                        {item.serie ? `Serie: ${item.serie}` : ''}
+                      </div>
+                    )}
+                    <div className="hidden print:block">
+                      <span className={`${descSizeClass} font-semibold uppercase text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
+                        {item.shortDesc ? item.shortDesc.toUpperCase() : ''}
+                      </span>
+                      {(item.marcaModelo || item.serie) && (
+                        <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal tracking-tight break-words uppercase">
+                          {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                          {item.marcaModelo && item.serie ? ' | ' : ''}
+                          {item.serie ? `Serie: ${item.serie}` : ''}
+                        </div>
+                      )}
+                    </div>
+                    </>
+                  )}
+
+                  </div>
+                  {focusedField === 'desc' && !viewMode && renderDropdown()}
+                  {settings?.showTableVerticalBorders && (
+                    <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+                  )}
                 </div>
-                </>
-              )}
 
-              </div>
-              {focusedField === 'desc' && !viewMode && renderDropdown()}
-              {settings?.showTableVerticalBorders && (
-                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
-              )}
-            </div>
-
-            {/* Qty — centered horizontally and vertically */}
-            <div className={`min-w-0 flex items-start justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'px-1' : ''}`}>
-              {!viewMode ? (
-                <input
-                  type="number"
-                  min="1"
-                  value={item.qty}
-                  onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                  className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                  style={descStyle}
-                />
-              ) : null}
-              <span className={`${descSizeClass} font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
-                {item.qty}
-              </span>
-              {settings?.showTableVerticalBorders && (
-                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
-              )}
-            </div>
+                {!qtyPositionFirst && qtyColElement}
 
             {/* Unit Price — vertically centered, right-aligned */}
             <div className={`min-w-0 flex items-start justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
@@ -1680,6 +1740,7 @@ function LineItemRow({
                     type="number"
                     value={item.unitPrice}
                     onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    onKeyDown={handleKeyDown}
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
                   />
@@ -1701,6 +1762,7 @@ function LineItemRow({
                     type="number"
                     value={item.discount}
                     onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    onKeyDown={handleKeyDown}
                     placeholder="0"
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
@@ -1789,7 +1851,9 @@ function LineItemRow({
               </span>
             </div>
           </div>
-        )}
+        );
+      })()
+    )}
 
         {/* Actions */}
         <div className={`relative w-[24px] shrink-0 print:hidden flex items-start justify-center ${padClass}`} data-pdf-hide>
@@ -1966,6 +2030,7 @@ export default function DocumentBuilderClient({
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const lastRowActionTimeRef = useRef<number>(0);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
@@ -3451,22 +3516,100 @@ export default function DocumentBuilderClient({
     }
   }, [allProducts, lineItems]);
 
-  // Global hotkey for adding new row
+  // Global hotkey for adding/removing row
   useEffect(() => {
+    const handleAddNewLine = (targetLineId?: string | null) => {
+      if (viewMode || showProductModal || showClientModal || showNewClientModal || showSuccessModal) {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastRowActionTimeRef.current < 250) return;
+      lastRowActionTimeRef.current = now;
+
+      const newLine = emptyLine();
+      setLineItems(prev => {
+        const afterId = targetLineId || activeLineId;
+        if (afterId) {
+          const idx = prev.findIndex(l => l.id === afterId);
+          if (idx !== -1) {
+            const next = [...prev];
+            next.splice(idx + 1, 0, newLine);
+            return next;
+          }
+        }
+        return [...prev, newLine];
+      });
+      setTimeout(() => {
+        const nextInput = document.querySelector(`[data-line-id="${newLine.id}"] input[placeholder*="Descripción"], [data-line-id="${newLine.id}"] input[placeholder*="Código"]`) as HTMLElement | null;
+        nextInput?.focus();
+      }, 60);
+    };
+
+    const handleRemoveLine = (targetLineId?: string | null) => {
+      if (viewMode || showProductModal || showClientModal || showNewClientModal || showSuccessModal) {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastRowActionTimeRef.current < 250) return;
+      lastRowActionTimeRef.current = now;
+
+      setLineItems(prev => {
+        if (prev.length <= 1) {
+          toast('Se restableció la línea vacía');
+          return [{ ...emptyLine(), id: prev[0]?.id || 'default-line-hash' }];
+        }
+        const toDeleteId = targetLineId || activeLineId;
+        if (toDeleteId) {
+          const idx = prev.findIndex(l => l.id === toDeleteId);
+          if (idx !== -1) {
+            const next = prev.filter(l => l.id !== toDeleteId);
+            const focusIdx = Math.max(0, idx - 1);
+            const focusTargetId = next[focusIdx]?.id;
+            if (focusTargetId) {
+              setTimeout(() => {
+                const targetInput = document.querySelector(`[data-line-id="${focusTargetId}"] input[placeholder*="Descripción"], [data-line-id="${focusTargetId}"] input[placeholder*="Código"]`) as HTMLElement | null;
+                targetInput?.focus();
+              }, 60);
+            }
+            return next;
+          }
+        }
+        const next = prev.slice(0, -1);
+        const lastRemaining = next[next.length - 1];
+        if (lastRemaining) {
+          setTimeout(() => {
+            const targetInput = document.querySelector(`[data-line-id="${lastRemaining.id}"] input[placeholder*="Descripción"], [data-line-id="${lastRemaining.id}"] input[placeholder*="Código"]`) as HTMLElement | null;
+            targetInput?.focus();
+          }, 60);
+        }
+        return next;
+      });
+    };
+
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        if (!viewMode && !showCustomizer && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
+      const isMinusKey = e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract';
+      if ((e.ctrlKey || e.metaKey) && isMinusKey) {
+        if (!viewMode && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
            e.preventDefault();
-           setLineItems(prev => [...prev, emptyLine()]);
+           const targetId = (e.target as HTMLElement)?.closest?.('[data-line-id]')?.getAttribute('data-line-id') || activeLineId;
+           handleRemoveLine(targetId);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (!viewMode && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
+           e.preventDefault();
+           const targetId = (e.target as HTMLElement)?.closest?.('[data-line-id]')?.getAttribute('data-line-id') || activeLineId;
+           handleAddNewLine(targetId);
         }
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
-         if (!viewMode && !showCustomizer && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
+         if (!viewMode && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
             e.preventDefault();
             setShowProductModal(true);
          }
       }
     };
+
     const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
       const rowDiv = target.closest('[data-line-id]');
@@ -3474,13 +3617,14 @@ export default function DocumentBuilderClient({
         setActiveLineId(rowDiv.getAttribute('data-line-id'));
       }
     };
+
     document.addEventListener('keydown', handleGlobalKeyDown);
     document.addEventListener('focusin', handleFocusIn);
     return () => {
        document.removeEventListener('keydown', handleGlobalKeyDown);
        document.removeEventListener('focusin', handleFocusIn);
     };
-  }, [viewMode, showCustomizer, showProductModal, showClientModal, showNewClientModal, showSuccessModal]);
+  }, [viewMode, showProductModal, showClientModal, showNewClientModal, showSuccessModal, activeLineId]);
 
   const nClientSearch = normalizeText(clientSearch);
   const filteredClients = allClients.filter(c =>

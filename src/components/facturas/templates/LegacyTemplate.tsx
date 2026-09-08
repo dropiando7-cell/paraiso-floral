@@ -65,6 +65,18 @@ export default function LegacyTemplate(props: TemplateProps) {
   const monoClass = settings?.useMonospaceNumbers !== false ? 'font-mono' : '';
 
   const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-[34px]';
+
+  const showItemCode = settings?.showItemCode !== false;
+  const qtyPositionFirst = settings?.qtyPositionFirst === true;
+
+  let gridColsClass = 'grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  if (!showItemCode && !qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,45fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (!showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,45fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,19fr)_minmax(0,26fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  }
  
  // Use state for the date string to avoid SSR/client hydration mismatch
   const [currentDateStr, setCurrentDateStr] = useState(() => {
@@ -206,7 +218,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  <div className="mb-8 relative z-50">
  {/* Content Layer */}
  <div 
- className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl overflow-hidden' : ''}`}
+ className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl' : ''}`}
  >
  <div 
  className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}
@@ -221,11 +233,18 @@ export default function LegacyTemplate(props: TemplateProps) {
  }}
  >
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
- {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
- <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} font-bold uppercase text-gray-800`}>
- <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}</div>
+ {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className={`${imageColWidth} shrink-0`} />}
+ <div className={`flex-1 grid ${gridColsClass} gap-2 ${tableHeaderSize} font-bold uppercase text-gray-800`}>
+ {qtyPositionFirst && (
+   <div className={`flex items-center justify-center text-center print:text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Cant.</div>
+ )}
+ {showItemCode && (
+   <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Código</div>
+ )}
  <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Descripción</div>
- <div className={`flex items-center justify-center text-center print:text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Cant.</div>
+ {!qtyPositionFirst && (
+   <div className={`flex items-center justify-center text-center print:text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Cant.</div>
+ )}
  <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Precio</div>
  <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Desc.</div>
  <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Imp.</div>

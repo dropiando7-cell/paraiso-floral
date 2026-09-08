@@ -69,6 +69,18 @@ export default function ModernTemplate(props: TemplateProps) {
   const monoClass = settings?.useMonospaceNumbers !== false ? 'font-mono' : '';
  const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-10';
 
+  const showItemCode = settings?.showItemCode !== false;
+  const qtyPositionFirst = settings?.qtyPositionFirst === true;
+
+  let gridColsClass = 'grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  if (!showItemCode && !qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,45fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (!showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,45fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  } else if (showItemCode && qtyPositionFirst) {
+    gridColsClass = 'grid-cols-[minmax(0,9fr)_minmax(0,19fr)_minmax(0,26fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)]';
+  }
+
  // Logo rendering block helper:
  const renderLogoSection = () => (
  <div className={`flex items-center gap-3 mb-4 ${settings.logoPosition === 'center' ? 'justify-center flex-col' : settings.logoPosition === 'right' ? 'flex-row-reverse justify-end' : ''}`}>
@@ -198,11 +210,12 @@ export default function ModernTemplate(props: TemplateProps) {
  {/* Column headers */}
  <div className="flex items-center gap-2 mb-3 px-3 print:px-0 print:mb-2">
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
- {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
- <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} font-bold text-slate-400 uppercase`}>
- <div className="text-center">{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}</div>
+ {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className={`${imageColWidth} shrink-0`} />}
+ <div className={`flex-1 grid ${gridColsClass} gap-2 ${tableHeaderSize} font-bold text-slate-400 uppercase`}>
+ {qtyPositionFirst && <div className="text-center print:text-left">Cant.</div>}
+ {showItemCode && <div className="text-center">Código</div>}
  <div className="text-center">Descripción</div>
- <div className="text-center print:text-left">Cant.</div>
+ {!qtyPositionFirst && <div className="text-center print:text-left">Cant.</div>}
  <div className="text-center">P. Unitario</div>
  <div className="text-center">Descuento</div>
  <div className="text-center">Impuesto</div>

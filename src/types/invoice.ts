@@ -55,6 +55,7 @@ export interface InvoiceSettings {
   totalTextColor?: string;
   // Misc
   showItemCode?: boolean;
+  qtyPositionFirst?: boolean;
   useMonospaceNumbers?: boolean;
   // Global Section Defaults
   sectionBgColor?: string;
@@ -134,6 +135,7 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   totalBgColor: '#0f172a',
   totalTextColor: '#ffffff',
   showItemCode: true,
+  qtyPositionFirst: false,
   useMonospaceNumbers: true,
   sectionBgColor: '#f1f5f9',
   sectionTextColor: '#1e293b',

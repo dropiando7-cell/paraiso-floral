@@ -392,8 +392,8 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
                 
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                   <div>
-                    <p className="text-xs font-bold text-slate-700">Código de Producto</p>
-                    <p className="text-[10px] text-slate-400">Mostrar código en la tabla</p>
+                    <p className="text-xs font-bold text-slate-700">Columna de Código</p>
+                    <p className="text-[10px] text-slate-400">Mostrar u ocultar toda la columna de código</p>
                   </div>
                   <button
                     onClick={() => onChange('showItemCode', settings.showItemCode !== false ? false : true)}
@@ -403,6 +403,44 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
                   >
                     <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
                       settings.showItemCode !== false ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Cantidad al Inicio</p>
+                    <p className="text-[10px] text-slate-400">Ubicar columna de cantidad en primera posición</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('qtyPositionFirst', !settings.qtyPositionFirst)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.qtyPositionFirst ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.qtyPositionFirst ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Precios ya incluyen ISV (15%)</p>
+                    <p className="text-[10px] text-slate-400">
+                      {settings.pricesIncludeTax 
+                        ? 'Activo: El precio ya tiene el 15% incluido (Ej: L. 180 final)' 
+                        : 'Inactivo: Se suma el 15% al precio (Ej: L. 180 + ISV = L. 207)'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onChange('pricesIncludeTax', !settings.pricesIncludeTax)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.pricesIncludeTax ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.pricesIncludeTax ? 'left-5' : 'left-0.5'
                     }`} />
                   </button>
                 </div>
