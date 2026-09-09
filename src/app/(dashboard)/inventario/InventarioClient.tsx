@@ -1584,10 +1584,6 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             const { publicUrl } = await res.json();
             setImagenUrl(publicUrl);
             setUploadPhase('done');
-            // Auto-trigger AI analysis right after upload if not disabled
-            if (!disableAiVision) {
-                analyzeWithAI(publicUrl);
-            }
         } catch (err: any) {
             setUploadPhase('idle');
             alert('Error: ' + (err.message || 'Intenta de nuevo'));
@@ -1595,6 +1591,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     }
 
     async function analyzeWithAI(urlOverride?: string) {
+        if (isEdit) return; // Safeguard: Nunca sobrescribir campos en modo edición
         const url = urlOverride ?? imagenUrl;
         if (!url) return;
         setAiResult(null);
