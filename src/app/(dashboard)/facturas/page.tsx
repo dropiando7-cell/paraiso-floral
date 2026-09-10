@@ -39,7 +39,8 @@ export default async function FacturasPage() {
                 telefono: true, 
                 correoContacto: true,
                 qrPrefix: true,
-                invoiceSettings: true
+                invoiceSettings: true,
+                invoiceTemplates: true
             }
         });
         

@@ -1601,18 +1601,62 @@ export async function guardarInvoiceTemplate(name: string, settings: any) {
         
         const existingIndex = currentTemplates.findIndex(t => t.name.trim().toLowerCase() === name.trim().toLowerCase());
         
+        const cleanSettings = settings ? JSON.parse(JSON.stringify(settings)) : {};
+        delete cleanSettings.activeCustomTemplateId;
+        delete cleanSettings.roundAdjustment;
+
         let updatedTemplates;
+        let savedId: string;
         if (existingIndex >= 0) {
+            savedId = currentTemplates[existingIndex].id;
             updatedTemplates = [...currentTemplates];
-            updatedTemplates[existingIndex] = { ...updatedTemplates[existingIndex], settings };
+            updatedTemplates[existingIndex] = { ...updatedTemplates[existingIndex], settings: cleanSettings };
         } else {
-            const newTemplate = { id: Math.random().toString(36).slice(2, 9), name: name.trim(), settings };
+            savedId = Math.random().toString(36).slice(2, 9);
+            const newTemplate = { id: savedId, name: name.trim(), settings: cleanSettings };
             updatedTemplates = [...currentTemplates, newTemplate];
         }
 
+        const orgSettings = { ...cleanSettings, activeCustomTemplateId: savedId };
+
         await prisma.organization.update({
             where: { id: organizationId },
-            data: { invoiceTemplates: updatedTemplates }
+            data: { 
+                invoiceTemplates: updatedTemplates,
+                invoiceSettings: orgSettings
+            }
+        });
+        return { success: true, templates: updatedTemplates, savedId };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function actualizarActiveTemplate(templateId: string, settings: any) {
+    try {
+        const organizationId = await getOrganizationId();
+        const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+        if (!org) throw new Error("Organización no encontrada");
+
+        const currentTemplates: any[] = Array.isArray(org.invoiceTemplates) ? org.invoiceTemplates : [];
+        const existingIndex = currentTemplates.findIndex(t => t.id === templateId);
+        if (existingIndex < 0) return { success: false, error: "Plantilla no encontrada" };
+
+        const cleanSettings = settings ? JSON.parse(JSON.stringify(settings)) : {};
+        delete cleanSettings.activeCustomTemplateId;
+        delete cleanSettings.roundAdjustment;
+
+        const updatedTemplates = [...currentTemplates];
+        updatedTemplates[existingIndex] = { ...updatedTemplates[existingIndex], settings: cleanSettings };
+
+        const orgSettings = { ...cleanSettings, activeCustomTemplateId: templateId };
+
+        await prisma.organization.update({
+            where: { id: organizationId },
+            data: { 
+                invoiceTemplates: updatedTemplates,
+                invoiceSettings: orgSettings
+            }
         });
         return { success: true, templates: updatedTemplates };
     } catch (e: any) {

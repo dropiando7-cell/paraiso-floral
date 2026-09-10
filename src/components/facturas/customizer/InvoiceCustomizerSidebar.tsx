@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature, Plus, UploadCloud, Loader2, FileText, Sparkles, Zap, RotateCcw } from 'lucide-react';
 import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate, SignatureItem, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
-import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
+import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate, actualizarActiveTemplate, updateOrganizationDefaultSettings } from '@/app/(dashboard)/facturas/actions';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -228,9 +228,17 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
 
   useEffect(() => {
     getInvoiceTemplates().then(res => {
-      setSavedTemplates((res as unknown) as CustomInvoiceTemplate[]);
+      const tpls = (res as unknown) as CustomInvoiceTemplate[];
+      setSavedTemplates(tpls);
+      if (settings.activeCustomTemplateId) {
+        const found = tpls.find(t => t.id === settings.activeCustomTemplateId);
+        if (found) setNewTemplateName(found.name);
+      }
     }).catch(console.error);
-  }, []);
+  }, [settings.activeCustomTemplateId]);
+
+  const activeTemplateObj = savedTemplates.find(t => t.id === settings.activeCustomTemplateId)
+    || (newTemplateName.trim() ? savedTemplates.find(t => t.name.trim().toLowerCase() === newTemplateName.trim().toLowerCase()) : undefined);
 
   const handleSaveTemplate = async () => {
     if (!newTemplateName.trim()) return toast.error("Ingresa un nombre para la plantilla");
@@ -241,20 +249,56 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
     
     const res = await guardarInvoiceTemplate(newTemplateName, settingsToSave);
     if (res.success && res.templates) {
-       setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
+       const tpls = (res.templates as unknown) as CustomInvoiceTemplate[];
+       setSavedTemplates(tpls);
        
-       // Encontrar la plantilla que se acaba de guardar/actualizar para seleccionarla
-       const savedTpl = ((res.templates as unknown) as CustomInvoiceTemplate[]).find(t => t.name.trim().toLowerCase() === newTemplateName.trim().toLowerCase());
-       if (savedTpl) onChange('activeCustomTemplateId', savedTpl.id);
+       const savedId = (res as any).savedId;
+       if (savedId) {
+         onChange('activeCustomTemplateId', savedId);
+       } else {
+         const savedTpl = tpls.find(t => t.name.trim().toLowerCase() === newTemplateName.trim().toLowerCase());
+         if (savedTpl) onChange('activeCustomTemplateId', savedTpl.id);
+       }
 
-       toast.success("Plantilla guardada exitosamente");
+       toast.success(`Plantilla "${newTemplateName.trim()}" guardada exitosamente`);
     } else {
        toast.error(res.error || "Error al guardar");
     }
     setIsSaving(false);
   };
 
-  const handleLoadTemplate = (t: CustomInvoiceTemplate) => {
+  const handleQuickSaveCurrentTemplate = async () => {
+    if (!activeTemplateObj) return;
+    setIsSaving(true);
+    try {
+      const { activeCustomTemplateId, ...settingsToSave } = settings;
+      const res = await actualizarActiveTemplate(activeTemplateObj.id, settingsToSave);
+      if (res.success && res.templates) {
+        setSavedTemplates(res.templates as unknown as CustomInvoiceTemplate[]);
+        toast.success(`Cambios guardados en "${activeTemplateObj.name}"`);
+      } else {
+        toast.error(res.error || "Error al actualizar plantilla");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error al guardar");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAsDefaultOrg = async () => {
+    setIsSaving(true);
+    try {
+      await updateOrganizationDefaultSettings(settings);
+      toast.success("Diseño guardado como predeterminado para la organización");
+    } catch (err: any) {
+      toast.error("Error al guardar diseño predeterminado");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLoadTemplate = async (t: CustomInvoiceTemplate) => {
     const mergedSettings = { 
       ...DEFAULT_INVOICE_SETTINGS, 
       ...t.settings, 
@@ -268,7 +312,12 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
       });
     }
     setNewTemplateName(t.name);
-    toast.success("Plantilla cargada");
+    try {
+      await updateOrganizationDefaultSettings(mergedSettings);
+    } catch (e) {
+      console.error("Error updating default org settings on load:", e);
+    }
+    toast.success(`Plantilla "${t.name}" cargada`);
   };
 
   const confirmDeleteTemplate = async () => {
@@ -1597,6 +1646,54 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
           </div>
         )}
 
+      </div>
+
+      {/* ── STICKY FOOTER ACTION BAR ── */}
+      <div className="p-3 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] shrink-0 flex flex-col gap-2 z-10">
+        <div className="flex items-center justify-between px-1">
+          {activeTemplateObj ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+              <span className="text-[11px] text-slate-600 truncate">
+                Plantilla: <strong className="text-emerald-700 font-bold">{activeTemplateObj.name}</strong>
+              </span>
+            </div>
+          ) : (
+            <span className="text-[11px] text-slate-400">Personalización de diseño</span>
+          )}
+          <span className="text-[10px] text-slate-400 font-mono">Sincronizado</span>
+        </div>
+
+        <div className="flex gap-2">
+          {activeTemplateObj ? (
+            <button
+              onClick={handleQuickSaveCurrentTemplate}
+              disabled={isSaving}
+              className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+              <span>Guardar en &quot;{activeTemplateObj.name}&quot;</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setActiveTab('template')}
+              className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Save size={13} />
+              <span>Guardar como Plantilla</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleSaveAsDefaultOrg}
+            disabled={isSaving}
+            className="py-2 px-3 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1 transition-all disabled:opacity-50"
+            title="Establecer este diseño como el predeterminado para todos los documentos de la organización"
+          >
+            <CheckCircle2 size={13} className="text-emerald-400" />
+            <span>Por Defecto</span>
+          </button>
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}

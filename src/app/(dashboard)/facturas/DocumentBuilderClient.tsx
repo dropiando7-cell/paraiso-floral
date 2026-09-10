@@ -78,7 +78,7 @@ interface Product {
   isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -2281,11 +2281,34 @@ export default function DocumentBuilderClient({
 
   const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
-    // Always merge organization settings (available on both server and client as a prop).
-    // localStorage preferences are loaded in useEffect to avoid hydration mismatch.
+    // 1. If existing document has saved template settings, use them
+    if (initialData?.templateSettings && typeof initialData.templateSettings === 'object') {
+      const docSettings = { ...initialData.templateSettings };
+      delete docSettings.roundAdjustment;
+      return { ...DEFAULT_INVOICE_SETTINGS, ...docSettings, showTerms: false };
+    }
+
+    // 2. If organization has saved settings and an active custom template, load it
     if (organization?.invoiceSettings) {
       const orgSettings = { ...organization.invoiceSettings };
       delete orgSettings.roundAdjustment;
+      
+      const activeId = orgSettings.activeCustomTemplateId;
+      if (activeId && Array.isArray(organization.invoiceTemplates)) {
+        const found = organization.invoiceTemplates.find((t: any) => t.id === activeId);
+        if (found?.settings) {
+          const tplSettings = { ...found.settings };
+          delete tplSettings.roundAdjustment;
+          return {
+            ...DEFAULT_INVOICE_SETTINGS,
+            ...orgSettings,
+            ...tplSettings,
+            activeCustomTemplateId: activeId,
+            showTerms: false
+          };
+        }
+      }
+
       return { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings, showTerms: false };
     }
     return { ...DEFAULT_INVOICE_SETTINGS, showTerms: false };
@@ -2582,6 +2605,9 @@ export default function DocumentBuilderClient({
         if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.validityDays) setValidityDays(parsed.validityDays);
+        if (parsed.settings && typeof parsed.settings === 'object') {
+          setSettings(prev => ({ ...prev, ...parsed.settings }));
+        }
         if (!parsed.reservedDocId) setIsLocked(true); // Must reserve first 
         draftLoadedRef.current = true;
         toast('Borrador restaurado', { icon: '📝' });
@@ -2602,7 +2628,7 @@ export default function DocumentBuilderClient({
     const handler = setTimeout(() => {
       try {
         const draft = {
-          reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays
+          reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, settings
         };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
         setLastSaved(new Date());
@@ -2610,7 +2636,7 @@ export default function DocumentBuilderClient({
     }, 1500);
 
     return () => clearTimeout(handler);
-  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, effectiveViewMode, draftKey]);
+  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, settings, effectiveViewMode, draftKey]);
 
   const clearLocalDraft = () => {
     try {
@@ -2991,6 +3017,9 @@ export default function DocumentBuilderClient({
     setTimeout(async () => {
       try {
         await updateOrganizationDefaultSettings(newSettings);
+        if (newSettings?.activeCustomTemplateId) {
+          await actualizarActiveTemplate(newSettings.activeCustomTemplateId, newSettings);
+        }
         const docId = reservedDocId || initialData?.id;
         if (docId && docId !== 'nuevo') {
           await updateDocumentTemplateSettings(docId, newSettings);
@@ -4076,43 +4105,45 @@ export default function DocumentBuilderClient({
 
   return (
     <div className={`${embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden'} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
-      {/* Top Bar (Visible solo en escritorio md:block) */}
-      {!embedMode && (
+      {/* Top Bar (Visible solo en escritorio md:block cuando no está bloqueado) */}
+      {!embedMode && !isLocked && (
       <div className={`hidden md:block bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 overflow-x-auto sm:overflow-visible">
           
-          <div className="flex items-center gap-4">
-             <DocTypeSelector value={docType} onChange={setDocType} />
+          <div className="flex items-center gap-3">
+             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold ${docTypeStatusConfig[docType]?.badge || 'bg-slate-50 text-slate-700 border-slate-200'}`}>
+                {currentDocType.icon}
+                <span className="uppercase tracking-wider">{currentDocType.label}</span>
+             </div>
+             {docNumber && (
+               <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 border border-slate-200/70 px-2.5 py-1 rounded-lg">
+                 #{docNumber}
+               </span>
+             )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
-            {!isLocked ? (
-              <>
-                {viewMode && !isAnulada && !isConvertida && (docType === 'cotizacion' || docType === 'factura') && (
-                  <button
-                    onClick={handleEditClick}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold hover:shadow-indigo-100 hover:shadow-lg transition-all shadow-sm whitespace-nowrap shrink-0"
-                  >
-                    <Pencil size={15} /> Editar
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowActionsModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm whitespace-nowrap shrink-0"
-                >
-                  <LayoutGrid size={15} /> Más Acciones
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm whitespace-nowrap shrink-0"
-                >
-                  <Printer size={15} /> Imprimir
-                </button>
-              </>
-            ) : (
-              <span className="text-sm font-semibold text-slate-400 mr-4 whitespace-nowrap">Selecciona y crea tu documento para comenzar</span>
+            {viewMode && !isAnulada && !isConvertida && (docType === 'cotizacion' || docType === 'factura') && (
+              <button
+                onClick={handleEditClick}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold hover:shadow-indigo-100 hover:shadow-lg transition-all shadow-sm whitespace-nowrap shrink-0"
+              >
+                <Pencil size={15} /> Editar
+              </button>
             )}
-            {!isAnulada && !isLocked && !viewMode && (
+            <button
+              onClick={() => setShowActionsModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm whitespace-nowrap shrink-0"
+            >
+              <LayoutGrid size={15} /> Más Acciones
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm whitespace-nowrap shrink-0"
+            >
+              <Printer size={15} /> Imprimir
+            </button>
+            {!isAnulada && !viewMode && (
               <button 
                 onClick={handleSave}
                 disabled={isSaving}

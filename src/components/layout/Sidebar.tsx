@@ -43,6 +43,7 @@ interface SubMenuItem {
   name: string;
   href: string;
   roles?: string[];
+  subItems?: SubMenuItem[];
 }
 
 interface MenuItem {
@@ -97,7 +98,17 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         subItems: [
           { name: 'Directorio de Clientes', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { 
+            name: 'Facturación', 
+            href: '/facturas', 
+            roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
+            subItems: [
+              { name: 'Crear Documento', href: '/facturas?tab=creador' },
+              { name: 'Registro de Facturas', href: '/facturas?tab=facturas' },
+              { name: 'Facturas Pro Forma', href: '/facturas?tab=proforma' },
+              { name: 'Cotizaciones Previas', href: '/facturas?tab=cotizaciones' },
+            ]
+          },
           { name: 'Pedidos y Picking', href: '/inventario-ventas/pedidos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'AUXILIAR_BODEGA', 'GERENTE'] },
           { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Garantías y Mantenimientos', href: '/mantenimientos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
@@ -172,6 +183,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
+  const [openNestedMenus, setOpenNestedMenus] = React.useState<Record<string, boolean>>({});
 
   const toggleMenu = (name: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -327,6 +339,97 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                       {hasSubMenu && isOpen && (
                         <div className="flex flex-col gap-1 pl-4 mt-1 border-l-2 border-slate-100 ml-4">
                           {visibleSubItems.map((subItem) => {
+                            const visibleNestedItems = subItem.subItems?.filter(nested => {
+                              if (dbUser?.role === 'SUPER_ADMIN') return true;
+                              const allowed = dbUser?.accessibleModules || [];
+                              if (allowed.includes('/facturas') || allowed.includes('facturas_propias')) return true;
+                              if (!nested.roles) return true;
+                              return nested.roles.includes(dbUser?.role);
+                            }) || [];
+
+                            const hasNestedMenu = visibleNestedItems.length > 0;
+
+                            const isNestedChildActive = (nestedHref: string) => {
+                              if (!nestedHref.includes('?')) {
+                                return pathname === nestedHref;
+                              }
+                              const [basePath, queryStr] = nestedHref.split('?');
+                              if (pathname !== basePath) return false;
+                              const params = new URLSearchParams(queryStr);
+                              const targetTab = params.get('tab');
+                              const currentTab = searchParams.get('tab') || 'creador';
+                              return targetTab === currentTab;
+                            };
+
+                            if (hasNestedMenu) {
+                              const isAnyNestedChildActive = visibleNestedItems.some(n => isNestedChildActive(n.href));
+                              const isParentFacturasActive = pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href + '/'));
+                              const isNestedOpen = openNestedMenus[subItem.name] !== undefined 
+                                ? openNestedMenus[subItem.name] 
+                                : (isAnyNestedChildActive || isParentFacturasActive);
+
+                              return (
+                                <div key={subItem.name} className="flex flex-col gap-0.5">
+                                  <div className={twMerge(
+                                    clsx(
+                                      'flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-200 group text-sm relative',
+                                      (isParentFacturasActive || isAnyNestedChildActive)
+                                        ? 'bg-emerald-50 text-emerald-800 font-semibold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                    )
+                                  )}>
+                                    <Link
+                                      href={subItem.href}
+                                      onClick={onClose}
+                                      className="flex-1 truncate"
+                                    >
+                                      <span>{subItem.name}</span>
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setOpenNestedMenus(prev => ({
+                                          ...prev,
+                                          [subItem.name]: !isNestedOpen
+                                        }));
+                                      }}
+                                      className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                      aria-label={`Alternar ${subItem.name}`}
+                                    >
+                                      <ChevronDown className={clsx("w-3.5 h-3.5 transition-transform duration-200", isNestedOpen ? "rotate-180" : "rotate-0")} />
+                                    </button>
+                                  </div>
+
+                                  {isNestedOpen && (
+                                    <div className="flex flex-col gap-0.5 pl-3 ml-3 border-l-2 border-emerald-200/70 my-0.5">
+                                      {visibleNestedItems.map((nested) => {
+                                        const isChildActive = isNestedChildActive(nested.href);
+                                        return (
+                                          <Link
+                                            key={nested.name}
+                                            href={nested.href}
+                                            onClick={onClose}
+                                            className={twMerge(
+                                              clsx(
+                                                'flex items-center px-2.5 py-1.5 rounded-lg transition-all duration-150 text-xs font-medium',
+                                                isChildActive
+                                                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                                                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/80'
+                                              )
+                                            )}
+                                          >
+                                            <span>{nested.name}</span>
+                                          </Link>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+
                             const hasQueryParams = subItem.href.includes('?');
                             let isSubActive = false;
                             

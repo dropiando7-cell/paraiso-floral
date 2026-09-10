@@ -53,7 +53,8 @@ export default async function ViewDocumentPage({
                 telefono: true, 
                 correoContacto: true,
                 qrPrefix: true,
-                invoiceSettings: true
+                invoiceSettings: true,
+                invoiceTemplates: true
             }
         });
 
