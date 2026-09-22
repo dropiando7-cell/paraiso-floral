@@ -57,7 +57,15 @@ export interface POSFacturaPayload {
 interface Props {
   productos: POSProduct[];
   categorias: string[];
-  onEmitirFactura: (payload: POSFacturaPayload) => Promise<{ success: boolean; correlativo?: string; facturaId?: string; error?: string }>;
+  onEmitirFactura: (payload: POSFacturaPayload) => Promise<{ 
+    success: boolean; 
+    correlativo?: string; 
+    facturaId?: string; 
+    error?: string;
+    numeroCAI?: string | null;
+    rangoAutorizado?: string | null;
+    fechaLimiteEmision?: string | Date | null;
+  }>;
   cajeroNombre: string;
   modoKiosko?: boolean;
   organization?: {
@@ -67,8 +75,10 @@ interface Props {
     correoContacto?: string;
     rtn?: string;
     logoUrl?: string;
+    invoiceSettings?: any;
   };
 }
+
 
 export const HONDURAS_BANKS = [
   // Top 5 Popular Honduran Banks
@@ -229,7 +239,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   };
   const [lastTicket, setLastTicket] = useState<string | null>(null);
   const [lastFacturaId, setLastFacturaId] = useState<string | null>(null);
+  const [lastFiscalData, setLastFiscalData] = useState<{
+    numeroCAI?: string | null;
+    rangoAutorizado?: string | null;
+    fechaLimiteEmision?: string | Date | null;
+  } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [customCreditDays, setCustomCreditDays] = useState<number>(15);
   const [selectedBank, setSelectedBank] = useState<string | null>('ficohsa');
@@ -747,7 +763,15 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     if (res.success && res.correlativo) {
       setLastTicket(res.correlativo);
       setLastFacturaId(res.facturaId || null);
+      if (res.numeroCAI || res.rangoAutorizado || res.fechaLimiteEmision) {
+        setLastFiscalData({
+          numeroCAI: res.numeroCAI,
+          rangoAutorizado: res.rangoAutorizado,
+          fechaLimiteEmision: res.fechaLimiteEmision
+        });
+      }
       setShowCheckout(false);
+
       setShowSuccess(true);
 
       // Auto-increment sales count for top products ranking
@@ -1042,7 +1066,14 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   const fmt = (v: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(v);
 
+  const sarCfg = organization?.invoiceSettings?.sarConfig;
+  const caiTicket = lastFiscalData?.numeroCAI || (sarCfg?.activo !== false ? sarCfg?.cai : null);
+  const rangoTicket = lastFiscalData?.rangoAutorizado || (sarCfg?.rangoInicial && sarCfg?.rangoFinal ? `Del ${sarCfg.rangoInicial} al ${sarCfg.rangoFinal}` : null);
+  const fechaLimiteTicket = lastFiscalData?.fechaLimiteEmision || sarCfg?.fechaLimiteEmision;
+  const fechaLimiteFormatted = fechaLimiteTicket ? (typeof fechaLimiteTicket === 'string' ? fechaLimiteTicket.split('T')[0] : new Date(fechaLimiteTicket).toLocaleDateString('es-HN')) : null;
+
   return (
+
     <div className={`flex flex-col h-screen h-[100dvh] bg-[#F3F4F6] font-sans ${modoKiosko ? 'fixed inset-0 z-[1000] overflow-hidden' : 'relative w-full overflow-hidden'}`}>
       
       {/* HEADER POS - FIJO Y SIEMPRE VISIBLE */}
@@ -2107,11 +2138,23 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 <h2 className="font-black text-sm uppercase tracking-tight">{organization?.name || 'Distribuidora Paraíso Floral'}</h2>
                 <p className="text-[10px] text-slate-600 mt-0.5">{organization?.direccion || 'San Pedro Sula, Cortés'}</p>
                 {organization?.telefono && <p className="text-[10px] text-slate-600">Tel: {organization.telefono}</p>}
-                {organization?.rtn && <p className="text-[10px] text-slate-600">RTN: {organization.rtn}</p>}
-                <div className="my-2 border-b border-dashed border-slate-400" />
-                <p className="text-xs font-bold text-indigo-900 font-sans">FACTURA OFICIAL: {lastTicket}</p>
+                {organization?.rtn && <p className="text-[10px] text-slate-600 font-mono">RTN: {organization.rtn}</p>}
+                {organization?.correoContacto && <p className="text-[9px] text-slate-500">{organization.correoContacto}</p>}
+                
+                {/* Bloque Fiscal SAR */}
+                {caiTicket && (
+                  <div className="my-2 py-1.5 px-2 bg-slate-50 border-y border-dashed border-slate-300 text-left text-[9.5px] space-y-0.5 font-mono">
+                    <p className="break-all"><strong>CAI:</strong> <span className="font-bold">{caiTicket}</span></p>
+                    {rangoTicket && <p><strong>Rango Aut.:</strong> {rangoTicket}</p>}
+                    {fechaLimiteFormatted && <p><strong>Fecha Límite:</strong> {fechaLimiteFormatted}</p>}
+                  </div>
+                )}
+
+                <div className="my-1.5 border-b border-dashed border-slate-400" />
+                <p className="text-xs font-black text-indigo-950 font-mono">FACTURA FISCAL Nº: {lastTicket}</p>
                 <p className="text-[10px] text-slate-500">{new Date().toLocaleString('es-HN')}</p>
                 <p className="text-[10px] text-slate-700 text-left mt-2"><strong>Cliente:</strong> {clientName}</p>
+                {selectedClient?.rtn && <p className="text-[10px] text-slate-700 text-left font-mono"><strong>RTN:</strong> {selectedClient.rtn}</p>}
                 <p className="text-[10px] text-slate-700 text-left"><strong>Cajero:</strong> {cajeroNombre}</p>
               </div>
 
@@ -2136,18 +2179,23 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
               <div className="space-y-0.5 text-right text-[11px] font-mono border-b border-dashed border-slate-400 pb-2">
                 <div className="flex justify-between"><span>Subtotal:</span><span>{fmt(totals.subTotal)}</span></div>
+                {totals.descuentos > 0 && <div className="flex justify-between"><span>Descuentos:</span><span>-{fmt(totals.descuentos)}</span></div>}
+                {totals.exonerado > 0 && <div className="flex justify-between"><span>Exonerado:</span><span>{fmt(totals.exonerado)}</span></div>}
                 <div className="flex justify-between"><span>ISV (15%):</span><span>{fmt(totals.isv15)}</span></div>
+                {totals.isv18 > 0 && <div className="flex justify-between"><span>ISV (18%):</span><span>{fmt(totals.isv18)}</span></div>}
                 <div className="flex justify-between font-black text-sm text-slate-900 pt-1 border-t border-slate-300">
                   <span>TOTAL:</span>
                   <span>{fmt(totals.total)}</span>
                 </div>
               </div>
 
-              <div className="text-center mt-3 text-[10px] text-slate-500">
-                <p className="font-bold text-slate-800 uppercase">¡Gracias por su compra!</p>
-                <p>Este es un documento equivalente de facturación local.</p>
+              <div className="text-center mt-3 text-[9.5px] leading-tight text-slate-600 border-t border-dashed border-slate-400 pt-2 space-y-0.5 font-sans">
+                <p className="font-black text-slate-900 uppercase tracking-widest text-[10px]">ORIGINAL: CLIENTE</p>
+                <p className="font-bold text-[9px] text-slate-800">LA FACTURA ES BENEFICIO DE TODOS, EXÍJALA</p>
+                <p className="text-[8.5px] text-slate-500 mt-1">¡Gracias por su compra!</p>
               </div>
             </div>
+
           </div>
 
           {/* Bottom Print & Share Actions */}
@@ -2173,23 +2221,35 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
       {/* TICKET FOR PRINTING ONLY */}
       {lastTicket && (
-        <div className="hidden print:block w-[80mm] p-2 font-mono text-black mx-auto">
-           <div className="text-center mb-4">
-             <h1 className="font-black text-lg leading-tight uppercase">{organization?.name || 'Distribuidora Paraíso Floral'}</h1>
+        <div className="hidden print:block w-[80mm] p-2 font-mono text-black mx-auto text-[10px]">
+           <div className="text-center mb-3">
+             <h1 className="font-black text-base leading-tight uppercase">{organization?.name || 'Distribuidora Paraíso Floral'}</h1>
              {organization?.direccion ? (
-               <p className="text-[10px] mt-1">{organization.direccion}</p>
+               <p className="text-[9.5px] mt-0.5">{organization.direccion}</p>
              ) : (
-               <p className="text-[10px] mt-1">San Pedro Sula, Honduras</p>
+               <p className="text-[9.5px] mt-0.5">San Pedro Sula, Honduras</p>
              )}
-             {organization?.telefono && <p className="text-[10px]">Tel: {organization.telefono}</p>}
-             {organization?.rtn && <p className="text-[10px]">RTN: {organization.rtn}</p>}
-             <p className="text-[10px] mt-3 font-bold font-sans">FACTURA OFICIAL: {lastTicket}</p>
-             <p className="text-[10px] border-b border-dashed border-black pb-2 mb-2">Fecha: {new Date().toLocaleDateString('es-HN', { hour: '2-digit', minute:'2-digit' })}</p>
-             <p className="text-[10px] text-left">Cliente: {clientName}</p>
-             <p className="text-[10px] text-left">Cajero: {cajeroNombre}</p>
+             {organization?.telefono && <p className="text-[9.5px]">Tel: {organization.telefono}</p>}
+             {organization?.rtn && <p className="text-[9.5px] font-mono">RTN: {organization.rtn}</p>}
+             {organization?.correoContacto && <p className="text-[9px]">{organization.correoContacto}</p>}
+             
+             {/* Bloque Fiscal SAR */}
+             {caiTicket && (
+               <div className="my-2 py-1.5 px-1 border-y border-dashed border-black text-left text-[9px] space-y-0.5 font-mono">
+                 <p className="break-all leading-tight"><strong>CAI:</strong> {caiTicket}</p>
+                 {rangoTicket && <p className="leading-tight"><strong>Rango Aut.:</strong> {rangoTicket}</p>}
+                 {fechaLimiteFormatted && <p className="leading-tight"><strong>Fecha Límite:</strong> {fechaLimiteFormatted}</p>}
+               </div>
+             )}
+
+             <p className="text-xs mt-2 font-bold font-mono">FACTURA FISCAL Nº: {lastTicket}</p>
+             <p className="text-[9.5px] border-b border-dashed border-black pb-1.5 mb-1.5">Fecha: {new Date().toLocaleDateString('es-HN', { hour: '2-digit', minute:'2-digit' })}</p>
+             <p className="text-[9.5px] text-left">Cliente: {clientName}</p>
+             {selectedClient?.rtn && <p className="text-[9.5px] text-left font-mono">RTN Cliente: {selectedClient.rtn}</p>}
+             <p className="text-[9.5px] text-left">Cajero: {cajeroNombre}</p>
            </div>
            
-           <table className="w-full mb-4 text-[11px]">
+           <table className="w-full mb-3 text-[10px]">
              <thead>
                <tr className="border-y border-dashed border-black">
                  <th className="text-left font-normal pb-0.5 pt-0.5">CANT</th>
@@ -2200,41 +2260,43 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
              <tbody>
                {cart.map((item, idx) => (
                  <tr key={idx} className="align-top">
-                   <td className="pt-2">{item.qty}</td>
-                   <td className="pt-2 px-1 pr-2 truncate max-w-[40mm]">
+                   <td className="pt-1.5">{item.qty}</td>
+                   <td className="pt-1.5 px-1 pr-2 truncate max-w-[40mm]">
                      {item.nombre}
                      {item.taxState === 'exento' && <span className="ml-1 text-[8px] font-bold">(E)</span>}
                      {item.taxState === 'exonerado' && <span className="ml-1 text-[8px] font-bold">(EXO)</span>}
                      {item.taxState === 'isv18' && <span className="ml-1 text-[8px] font-bold">(18%)</span>}
-                     {item.precioVenta > 0 && <span className="block text-[9px] mt-0.5 text-gray-500">L.{item.precioVenta} c/u {item.discountPercentage > 0 && <span className="text-black font-bold uppercase ml-1">-{item.discountPercentage}% off</span>}</span>}
+                     {item.precioVenta > 0 && <span className="block text-[8.5px] mt-0.5 text-gray-600">L.{item.precioVenta} c/u {item.discountPercentage > 0 && <span className="text-black font-bold uppercase ml-1">-{item.discountPercentage}%</span>}</span>}
                    </td>
-                   <td className="text-right pt-2">{fmt((item.precioVenta * item.qty) * (1 - item.discountPercentage / 100))}</td>
+                   <td className="text-right pt-1.5">{fmt((item.precioVenta * item.qty) * (1 - item.discountPercentage / 100))}</td>
                  </tr>
                ))}
              </tbody>
            </table>
 
-           <div className="text-[11px] border-t border-dashed border-black pt-2 flex flex-col gap-1 w-full items-end pb-4 border-b">
-             <div className="flex w-[80%] justify-between"><span className="uppercase">Sub Total:</span><span>{fmt(totals.subTotal)}</span></div>
-             {totals.descuentos > 0 && <div className="flex w-[80%] justify-between"><span className="uppercase">Descuentos:</span><span>-{fmt(totals.descuentos)}</span></div>}
-             {totals.exonerado > 0 && <div className="flex w-[80%] justify-between"><span className="uppercase">Exonerado:</span><span>{fmt(totals.exonerado)}</span></div>}
-             <div className="flex w-[80%] justify-between"><span className="uppercase">ISV 15%:</span><span>{fmt(totals.isv15)}</span></div>
-             {totals.isv18 > 0 && <div className="flex w-[80%] justify-between"><span className="uppercase">ISV 18%:</span><span>{fmt(totals.isv18)}</span></div>}
-             <div className="flex w-[80%] justify-between font-black text-sm mt-2"><span className="uppercase">TOTAL:</span><span>{fmt(totals.total)}</span></div>
+           <div className="text-[10px] border-t border-dashed border-black pt-1.5 flex flex-col gap-0.5 w-full items-end pb-3 border-b">
+             <div className="flex w-[85%] justify-between"><span className="uppercase">Sub Total:</span><span>{fmt(totals.subTotal)}</span></div>
+             {totals.descuentos > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Descuentos:</span><span>-{fmt(totals.descuentos)}</span></div>}
+             {totals.exonerado > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Exonerado:</span><span>{fmt(totals.exonerado)}</span></div>}
+             <div className="flex w-[85%] justify-between"><span className="uppercase">ISV 15%:</span><span>{fmt(totals.isv15)}</span></div>
+             {totals.isv18 > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">ISV 18%:</span><span>{fmt(totals.isv18)}</span></div>}
+             <div className="flex w-[85%] justify-between font-black text-xs mt-1 pt-1 border-t border-black"><span className="uppercase">TOTAL:</span><span>{fmt(totals.total)}</span></div>
            </div>
 
-           <div className="mt-4 flex flex-col gap-1 text-[11px] pb-4 border-b border-dashed border-black">
+           <div className="mt-3 flex flex-col gap-0.5 text-[10px] pb-3 border-b border-dashed border-black">
              <p className="font-bold">Método Pago: {paymentMethod}</p>
              {paymentMethod === 'Efectivo' && cashTendered && <p>Recibido: {fmt(Number(cashTendered))}</p>}
              {paymentMethod === 'Efectivo' && cashTendered && <p className="font-bold">Cambio: {fmt(Number(cashTendered) - totals.total)}</p>}
            </div>
 
-           <div className="text-center mt-4 text-[10px] leading-tight">
-             <p className="font-bold uppercase tracking-widest text-xs mb-1">¡Gracias por su compra!</p>
-             <p>Este es un documento equivalente de facturación local.</p>
+           <div className="text-center mt-3 text-[9px] leading-tight space-y-0.5">
+             <p className="font-bold uppercase tracking-widest text-[9.5px]">ORIGINAL: CLIENTE</p>
+             <p className="font-bold uppercase">LA FACTURA ES BENEFICIO DE TODOS, EXÍJALA</p>
+             <p className="mt-1 text-[8.5px]">¡Gracias por su compra!</p>
            </div>
         </div>
       )}
+
 
       {/* SHORTCUTS EDITOR MODAL */}
       {showShortcuts && (

@@ -3,17 +3,19 @@ import { Search, Plus } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
+import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
 
 export default function LegacyTemplate(props: TemplateProps) {
- const {
- settings, organization, docNumber, docType, currentDocType,
- today, futureDate, selectedClient, paymentTerms, paymentMethod, setPaymentMethod,
- validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
- handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
- setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode, fechaEmision,
- onToggleTerms
- } = props;
+  const {
+    settings, organization, docNumber, docType, currentDocType,
+    today, futureDate, selectedClient, paymentTerms, paymentMethod, setPaymentMethod,
+    validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
+    setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode, fechaEmision,
+    onToggleTerms,
+    numeroCAI, rangoAutorizado, fechaLimiteEmision, isSar
+  } = props;
 
  const colorMap: Record<string, { bgDark: string, border: string, text: string }> = {
  'blue-600': { bgDark: 'bg-blue-900', border: 'border-blue-900', text: 'text-blue-800' },
@@ -214,6 +216,17 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
  </div>
 
+  {/* SAR Fiscal Details Banner */}
+  {(numeroCAI || rangoAutorizado || fechaLimiteEmision) && (
+    <SarFiscalBanner
+      numeroCAI={numeroCAI}
+      rangoAutorizado={rangoAutorizado}
+      fechaLimiteEmision={fechaLimiteEmision}
+      variant="bordered"
+      className="mb-4"
+    />
+  )}
+
  {/* Items Table */}
  <div className="mb-8 relative z-50">
  {/* Content Layer */}
@@ -407,12 +420,15 @@ export default function LegacyTemplate(props: TemplateProps) {
   {/* Signatures and Seals */}
   <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
 
- {/* Footer */}
- <InvoiceFooter
- settings={settings}
- organization={organization}
- className="print:mt-auto print:mb-0 print:px-12"
- />
+  {/* SAR Fiscal Footnotes */}
+  {(isSar || numeroCAI) && <SarLeyendasFooter className="mt-4 mb-2" />}
+
+  {/* Footer */}
+  <InvoiceFooter
+    settings={settings}
+    organization={organization}
+    className="print:mt-auto print:mb-0 print:px-12"
+  />
 
  </div>
  </div>

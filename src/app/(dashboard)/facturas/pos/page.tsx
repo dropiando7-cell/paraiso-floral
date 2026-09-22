@@ -134,8 +134,10 @@ export default async function POSPage() {
           telefono: org.telefono || undefined,
           correoContacto: org.correoContacto || undefined,
           rtn: org.rtn || undefined,
-          logoUrl: org.logoUrl || undefined
+          logoUrl: org.logoUrl || undefined,
+          invoiceSettings: org.invoiceSettings || undefined
         } : undefined}
+
       />
     </div>
   );

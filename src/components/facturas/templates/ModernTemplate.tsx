@@ -3,17 +3,19 @@ import { Search, Plus, CheckCircle2, Receipt, Send, Sparkles, Copy, Printer, Mai
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
+import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
 
 export default function ModernTemplate(props: TemplateProps) {
- const {
- settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
- today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
- paymentMethod, setPaymentMethod,
- validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
- handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario,
- onToggleTerms
- } = props;
+  const {
+    settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
+    today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+    paymentMethod, setPaymentMethod,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario,
+    onToggleTerms,
+    numeroCAI, rangoAutorizado, fechaLimiteEmision, isSar
+  } = props;
 
  // Derive dynamic classes from settings
  // The original used: bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900
@@ -146,6 +148,18 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
  </div>
  </div>
+
+ {/* SAR Fiscal Details Banner */}
+ {(numeroCAI || rangoAutorizado || fechaLimiteEmision) && (
+ <div className="mt-5">
+ <SarFiscalBanner
+ numeroCAI={numeroCAI}
+ rangoAutorizado={rangoAutorizado}
+ fechaLimiteEmision={fechaLimiteEmision}
+ variant="dark"
+ />
+ </div>
+ )}
 
  {/* Client info strip */}
  <div className="mt-6 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap md:flex-nowrap items-center gap-4 relative ">
@@ -415,6 +429,9 @@ export default function ModernTemplate(props: TemplateProps) {
 
  {/* Signatures and Seals */}
  <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
+
+ {/* SAR Fiscal Footnotes */}
+ {(isSar || numeroCAI) && <SarLeyendasFooter className="mt-4 mb-2" />}
 
  {/* Footer */}
  <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0" />

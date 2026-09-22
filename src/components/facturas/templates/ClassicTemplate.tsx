@@ -3,17 +3,19 @@ import { Search, Plus, CheckCircle2, Receipt, Send, Percent, Stethoscope } from 
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
+import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
 
 export default function ClassicTemplate(props: TemplateProps) {
- const {
- settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
- today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
- paymentMethod, setPaymentMethod,
- validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
- handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,
- onToggleTerms
- } = props;
+  const {
+    settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
+    today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+    paymentMethod, setPaymentMethod,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,
+    onToggleTerms,
+    numeroCAI, rangoAutorizado, fechaLimiteEmision, isSar
+  } = props;
 
  const fontClass = settings.fontFamily || 'font-serif';
  
@@ -129,6 +131,17 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
  </div>
  </div>
+
+  {/* SAR Fiscal Banner */}
+  {(numeroCAI || rangoAutorizado || fechaLimiteEmision) && (
+    <SarFiscalBanner
+      numeroCAI={numeroCAI}
+      rangoAutorizado={rangoAutorizado}
+      fechaLimiteEmision={fechaLimiteEmision}
+      variant="bordered"
+      className="mb-6"
+    />
+  )}
 
  {/* Client Block */}
  <div className="grid grid-cols-2 gap-8 mb-8">
@@ -399,6 +412,9 @@ export default function ClassicTemplate(props: TemplateProps) {
 
  {/* Signatures and Seals */}
  <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
+
+ {/* SAR Fiscal Footnotes */}
+ {(isSar || numeroCAI) && <SarLeyendasFooter className="mt-4 mb-2" />}
 
  {/* Footer */}
  <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12" />

@@ -6,10 +6,14 @@ import { createClient } from '@/utils/supabase/client';
 import { 
     updatePreferences, getEmailTemplates, saveEmailTemplate, 
     getCompanyProfile, saveCompanyProfile, uploadCompanyLogo,
-    getAiVisionSetting, saveAiVisionSetting, getAllOrganizations
+    getAiVisionSetting, saveAiVisionSetting, getAllOrganizations,
+    getSarConfig, saveSarConfig
 } from './actions';
 import { getUserPreferencesData } from './data';
-import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save, Sparkles, Building2 } from 'lucide-react';
+import { 
+    Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save, Sparkles, Building2,
+    Receipt, FileText, AlertCircle, AlertTriangle, CheckCircle2, ShieldCheck, Hash, ArrowRight
+} from 'lucide-react';
 import { EmailTemplateType } from '@prisma/client';
 
 const allAvailableModules = [
@@ -40,7 +44,7 @@ export default function ConfiguracionPage() {
     const [saveSuccess, setSaveSuccess] = useState(false);
 
     // Tab Navigation State
-    const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails' | 'sar'>('general');
     
     // Multi-tenant Organizations
     const [organizations, setOrganizations] = useState<any[]>([]);
@@ -51,11 +55,29 @@ export default function ConfiguracionPage() {
     const [isSavingCompany, setIsSavingCompany] = useState(false);
     const [saveCompanySuccess, setSaveCompanySuccess] = useState(false);
     
+    // Facturación SAR (Honduras) State
+    const [sarConfig, setSarConfig] = useState({
+        cai: '',
+        establecimiento: '000',
+        puntoEmision: '001',
+        tipoDocumento: '01',
+        rangoInicial: '000-001-01-00000001',
+        rangoFinal: '000-001-01-00050000',
+        fechaLimiteEmision: '',
+        siguienteCorrelativo: 1,
+        activo: true
+    });
+    const [sarStats, setSarStats] = useState<{ ultimaFactura?: any; totalFacturasEmitidas?: number } | null>(null);
+    const [isSavingSar, setIsSavingSar] = useState(false);
+    const [saveSarSuccess, setSaveSarSuccess] = useState(false);
+    const [saveSarError, setSaveSarError] = useState<string | null>(null);
+
     // AI Vision State
     const [disableAiVision, setDisableAiVision] = useState(false);
 
     const [filteredModules, setFilteredModules] = useState(allAvailableModules);
     const [userRole, setUserRole] = useState<string | null>(null);
+
 
     const [preferences, setPreferences] = useState({
         defaultModule: '/',
@@ -114,6 +136,9 @@ export default function ConfiguracionPage() {
                         const profile = await getCompanyProfile(initialOrgId);
                         if (profile) setCompanyProfile(profile);
 
+                        // Fetch SAR Fiscal Config
+                        await loadSarData(initialOrgId);
+
                         // Fetch AI Vision Setting
                         const aiSetting = await getAiVisionSetting();
                         if (aiSetting.success) setDisableAiVision(aiSetting.disabled || false);
@@ -161,14 +186,44 @@ export default function ConfiguracionPage() {
         loadPreferences();
     }, []);
 
+    const loadSarData = async (orgId?: string) => {
+        try {
+            const sarRes = await getSarConfig(orgId);
+            if (sarRes.success) {
+                if (sarRes.sarConfig) {
+                    setSarConfig({
+                        cai: sarRes.sarConfig.cai || '',
+                        establecimiento: sarRes.sarConfig.establecimiento || '000',
+                        puntoEmision: sarRes.sarConfig.puntoEmision || '001',
+                        tipoDocumento: sarRes.sarConfig.tipoDocumento || '01',
+                        rangoInicial: sarRes.sarConfig.rangoInicial || '000-001-01-00000001',
+                        rangoFinal: sarRes.sarConfig.rangoFinal || '000-001-01-00050000',
+                        fechaLimiteEmision: sarRes.sarConfig.fechaLimiteEmision || '',
+                        siguienteCorrelativo: Number(sarRes.sarConfig.siguienteCorrelativo) || 1,
+                        activo: sarRes.sarConfig.activo !== false
+                    });
+                }
+                setSarStats({
+                    ultimaFactura: sarRes.ultimaFactura,
+                    totalFacturasEmitidas: sarRes.totalFacturasEmitidas
+                });
+            }
+        } catch (err) {
+            console.error('Error loading SAR data:', err);
+        }
+    };
+
     const handleOrgChange = async (newOrgId: string) => {
         setSelectedOrgId(newOrgId);
         setIsLoading(true);
         const profile = await getCompanyProfile(newOrgId);
         if (profile) setCompanyProfile(profile);
 
+        await loadSarData(newOrgId);
+
         const templates = await getEmailTemplates(newOrgId);
         setEmailTemplates(templates);
+
 
         const currentTypeTemplate = templates.find((t: any) => t.type === activeEmailType);
         if (currentTypeTemplate) {
@@ -301,22 +356,40 @@ export default function ConfiguracionPage() {
         }
     };
 
+    const handleSaveSar = async () => {
+        setIsSavingSar(true);
+        setSaveSarSuccess(false);
+        setSaveSarError(null);
+
+        const res = await saveSarConfig(sarConfig, selectedOrgId || undefined);
+        setIsSavingSar(false);
+
+        if (res.success) {
+            setSaveSarSuccess(true);
+            await loadSarData(selectedOrgId || undefined);
+            setTimeout(() => setSaveSarSuccess(false), 3500);
+        } else {
+            setSaveSarError(res.error || 'Error al guardar la configuración SAR');
+        }
+    };
+
+
     return (
-        <div className="w-full max-w-4xl mx-auto space-y-6">
+        <div className="w-full max-w-6xl mx-auto space-y-6">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">Configuración de Cuenta</h1>
                 <p className="text-sm text-slate-500 mt-1">
-                    Personaliza cómo se comporta la plataforma para ti.
+                    Personaliza cómo se comporta la plataforma para ti y tu empresa.
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
                 {/* Left Column - Navigation */}
-                <div className="md:col-span-1 space-y-1">
+                <div className="lg:col-span-1 space-y-1">
                     <button
                         onClick={() => setActiveTab('general')}
-                        className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'general' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                        className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'general' ? 'text-brand-600 bg-brand-50 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                     >
                         Preferencias Generales
                     </button>
@@ -327,6 +400,16 @@ export default function ConfiguracionPage() {
                                 className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'company' ? 'text-brand-600 bg-brand-50 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                             >
                                 Perfil de Empresa (Whitelabel)
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('sar')}
+                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'sar' ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60 font-bold shadow-2xs' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Receipt className="w-4 h-4 text-emerald-600" />
+                                    <span>Facturación SAR</span>
+                                </div>
+                                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Honduras</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('emails')}
@@ -349,7 +432,7 @@ export default function ConfiguracionPage() {
                 </div>
 
                 {/* Right Column - Content */}
-                <div className="md:col-span-2 space-y-6">
+                <div className="lg:col-span-3 space-y-6 min-w-0">
 
                     {activeTab === 'general' && (
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -755,8 +838,335 @@ export default function ConfiguracionPage() {
                         </div>
                     )}
 
+                    {activeTab === 'sar' && (userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userRole === 'GERENTE') && (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            {/* Header */}
+                            <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                                        <Receipt className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                            Régimen de Facturación SAR (Honduras)
+                                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wide">Oficial</span>
+                                        </h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">Configuración de CAI, rangos autorizados y correlativos para facturación fiscal.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <label className={`text-xs font-bold flex items-center gap-2 cursor-pointer px-3.5 py-2 rounded-xl border transition-all ${
+                                        sarConfig.activo 
+                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800' 
+                                            : 'bg-slate-50 border-slate-200 text-slate-600'
+                                    }`}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={sarConfig.activo} 
+                                            onChange={e => setSarConfig({ ...sarConfig, activo: e.target.checked })} 
+                                            className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                                        />
+                                        <span>{sarConfig.activo ? 'Régimen Activo' : 'Régimen Inactivo'}</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-6">
+                                {/* Selector de Organización para Super Admin */}
+                                {userRole === 'SUPER_ADMIN' && organizations.length > 0 && (
+                                    <div className="bg-amber-50/90 border border-amber-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                                        <div className="flex items-center gap-2.5">
+                                            <Building2 className="w-4 h-4 text-amber-700 shrink-0" />
+                                            <div>
+                                                <span className="text-xs font-black text-amber-900 block leading-tight">Organización Activa para Facturación Fiscal:</span>
+                                                <span className="text-[11px] font-medium text-amber-700">Selecciona la empresa para la que deseas configurar el CAI y correlativos SAR.</span>
+                                            </div>
+                                        </div>
+                                        <select
+                                            value={selectedOrgId}
+                                            onChange={(e) => handleOrgChange(e.target.value)}
+                                            className="px-3.5 py-2 bg-white border border-amber-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs shrink-0"
+                                        >
+                                            {organizations.map(org => (
+                                                <option key={org.id} value={org.id}>
+                                                    {org.name} ({org.slug})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {/* Banner explicativo de Transición desde Mónica 11 */}
+                                <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border border-indigo-100 rounded-2xl p-4.5 text-slate-800 shadow-2xs">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-sm shrink-0 mt-0.5">
+                                            <ShieldCheck className="w-5 h-5" />
+                                        </div>
+                                        <div className="space-y-2 flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h4 className="font-extrabold text-sm text-indigo-950">
+                                                    Transición Fluida desde Mónica 11 hacia el ERP
+                                                </h4>
+                                                <span className="text-[10px] font-bold bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded-md">
+                                                    Continuidad Fiscal
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 leading-relaxed">
+                                                Para continuar la facturación sin saltos de numeración ni duplicados, ingresa abajo el <strong>CAI vigente</strong>, el <strong>rango autorizado</strong> y en <strong>&quot;Siguiente Correlativo a Emitir&quot;</strong> coloca el número siguiente al último emitido en Mónica 11.
+                                            </p>
+                                            <div className="bg-white/90 border border-indigo-100 rounded-xl p-2.5 px-3 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-700">
+                                                <span className="text-slate-500 font-semibold">Ejemplo:</span>
+                                                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono text-[11px] border border-slate-200">Última en Mónica 11: 000-001-01-00004520</span>
+                                                <ArrowRight className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                                <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded font-mono text-[11px] border border-emerald-300">Ingresa en ERP: 4521 (Emitirá: 000-001-01-00004521)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bloque 1: Datos de Autorización Fiscal (CAI y Fecha Límite) */}
+                                <div className="space-y-3 pt-1">
+                                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                                        <FileText className="w-3.5 h-3.5 text-slate-400" /> 1. Datos de Autorización SAR
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                        <div className="lg:col-span-8 flex flex-col justify-between">
+                                            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                                Código de Autorización de Emisión (CAI) <span className="text-red-500 font-black">*</span>
+                                            </label>
+                                            <input 
+                                                type="text" 
+                                                value={sarConfig.cai} 
+                                                onChange={e => setSarConfig({ ...sarConfig, cai: e.target.value.toUpperCase() })} 
+                                                className="w-full h-11 px-3.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-bold tracking-wide text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none uppercase bg-slate-50/50 focus:bg-white transition-all" 
+                                                placeholder="Ej: 3B4C12-98EF45-A1C234-890DEF-123456-78" 
+                                            />
+                                            <p className="text-[11px] text-slate-400 mt-1">Código alfanumérico emitido por el SAR con sus guiones correspondientes.</p>
+                                        </div>
+
+                                        <div className="lg:col-span-4 flex flex-col justify-between">
+                                            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                                Fecha Límite de Emisión <span className="text-red-500 font-black">*</span>
+                                            </label>
+                                            <input 
+                                                type="date" 
+                                                value={sarConfig.fechaLimiteEmision ? sarConfig.fechaLimiteEmision.split('T')[0] : ''} 
+                                                onChange={e => setSarConfig({ ...sarConfig, fechaLimiteEmision: e.target.value })} 
+                                                className="w-full h-11 px-3.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-slate-50/50 focus:bg-white transition-all cursor-pointer" 
+                                            />
+                                            <p className="text-[11px] text-slate-400 mt-1">Fecha máxima autorizada para emitir facturas.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bloque 2: Estructura del Punto de Emisión y Rangos Aprobados */}
+                                <div className="space-y-4 pt-4 border-t border-slate-100">
+                                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                                        <Hash className="w-3.5 h-3.5 text-slate-400" /> 2. Estructura y Rangos Autorizados por el SAR
+                                    </h4>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
+                                            <div className="flex items-center justify-between gap-1 mb-2">
+                                                <label className="text-xs font-bold text-slate-700">Establecimiento</label>
+                                                <span className="text-[9px] bg-slate-200/80 text-slate-700 px-1.5 py-0.5 rounded font-bold uppercase">3 dígitos</span>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                maxLength={3} 
+                                                value={sarConfig.establecimiento} 
+                                                onChange={e => setSarConfig({ ...sarConfig, establecimiento: e.target.value.replace(/\D/g, '') })} 
+                                                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-mono font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white" 
+                                                placeholder="000" 
+                                            />
+                                            <p className="text-[10.5px] text-slate-400 mt-1.5 text-center min-h-[16px]">Por defecto: 000</p>
+                                        </div>
+
+                                        <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
+                                            <div className="flex items-center justify-between gap-1 mb-2">
+                                                <label className="text-xs font-bold text-slate-700">Punto de Emisión</label>
+                                                <span className="text-[9px] bg-slate-200/80 text-slate-700 px-1.5 py-0.5 rounded font-bold uppercase">3 dígitos</span>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                maxLength={3} 
+                                                value={sarConfig.puntoEmision} 
+                                                onChange={e => setSarConfig({ ...sarConfig, puntoEmision: e.target.value.replace(/\D/g, '') })} 
+                                                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-mono font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white" 
+                                                placeholder="001" 
+                                            />
+                                            <p className="text-[10.5px] text-slate-400 mt-1.5 text-center min-h-[16px]">Por defecto: 001</p>
+                                        </div>
+
+                                        <div className="bg-slate-50/70 border border-slate-200 rounded-xl p-3.5 flex flex-col justify-between">
+                                            <div className="flex items-center justify-between gap-1 mb-2">
+                                                <label className="text-xs font-bold text-slate-700">Tipo Documento</label>
+                                                <span className="text-[9px] bg-slate-200/80 text-slate-700 px-1.5 py-0.5 rounded font-bold uppercase">2 dígitos</span>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                maxLength={2} 
+                                                value={sarConfig.tipoDocumento} 
+                                                onChange={e => setSarConfig({ ...sarConfig, tipoDocumento: e.target.value.replace(/\D/g, '') })} 
+                                                className="w-full h-10 px-3 border border-slate-300 rounded-lg text-sm font-mono font-bold text-center text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white" 
+                                                placeholder="01" 
+                                            />
+                                            <p className="text-[10.5px] text-slate-400 mt-1.5 text-center min-h-[16px]">01 = Factura Fiscal</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="flex flex-col justify-between">
+                                            <label className="block text-xs font-bold text-slate-700 mb-1.5">Rango Autorizado Inicial</label>
+                                            <input 
+                                                type="text" 
+                                                value={sarConfig.rangoInicial} 
+                                                onChange={e => setSarConfig({ ...sarConfig, rangoInicial: e.target.value })} 
+                                                className="w-full h-11 px-3.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/50 focus:bg-white transition-all tracking-wide" 
+                                                placeholder="000-001-01-00000001" 
+                                            />
+                                            <p className="text-[11px] text-slate-400 mt-1">Primer correlativo del bloque aprobado por el SAR.</p>
+                                        </div>
+                                        <div className="flex flex-col justify-between">
+                                            <label className="block text-xs font-bold text-slate-700 mb-1.5">Rango Autorizado Final</label>
+                                            <input 
+                                                type="text" 
+                                                value={sarConfig.rangoFinal} 
+                                                onChange={e => setSarConfig({ ...sarConfig, rangoFinal: e.target.value })} 
+                                                className="w-full h-11 px-3.5 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/50 focus:bg-white transition-all tracking-wide" 
+                                                placeholder="000-001-01-00050000" 
+                                            />
+                                            <p className="text-[11px] text-slate-400 mt-1">Último correlativo autorizado del bloque SAR.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bloque 3: Control de Correlativo y Transición desde Mónica 11 */}
+                                <div className="space-y-3 pt-4 border-t border-slate-100">
+                                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> 3. Siguiente Correlativo a Emitir (Punto de Arranque)
+                                    </h4>
+
+                                    <div className="bg-slate-950 text-white rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-xl overflow-hidden">
+                                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                                            {/* Lado Izquierdo: Control numérico de arranque */}
+                                            <div className="lg:col-span-5 flex flex-col justify-between bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-4.5 space-y-3">
+                                                <div>
+                                                    <span className="text-xs font-black uppercase tracking-wider text-indigo-300 block mb-1">
+                                                        Número Secuencial de Arranque
+                                                    </span>
+                                                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                                                        Escribe el número con el que arrancará este ERP (continuación de Mónica 11).
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    <input 
+                                                        type="number" 
+                                                        min={1} 
+                                                        value={sarConfig.siguienteCorrelativo} 
+                                                        onChange={e => setSarConfig({ ...sarConfig, siguienteCorrelativo: Math.max(1, parseInt(e.target.value) || 1) })} 
+                                                        className="w-32 h-11 px-3 bg-slate-950 border-2 border-indigo-500/60 rounded-xl text-lg font-mono font-black text-white text-center focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition-all shadow-inner" 
+                                                    />
+                                                    <div className="text-xs text-slate-300 font-semibold bg-slate-800/90 px-3 py-2 rounded-lg border border-slate-700">
+                                                        Secuencia
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Lado Derecho: Display oficial SAR */}
+                                            <div className="lg:col-span-7 flex flex-col justify-between bg-slate-900/90 border border-emerald-500/30 rounded-xl p-4 sm:p-4.5">
+                                                <div className="flex items-center justify-between gap-2 mb-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                                        Formato Próxima Factura a Emitir
+                                                    </span>
+                                                    <span className="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800/80 px-2 py-0.5 rounded-md font-mono font-bold">
+                                                        16 DÍGITOS
+                                                    </span>
+                                                </div>
+
+                                                <div className="bg-slate-950 border border-emerald-500/40 rounded-xl px-4 py-2.5 text-center shadow-inner">
+                                                    <span className="text-base sm:text-lg md:text-xl font-mono font-black tracking-wider text-emerald-300 select-all block break-all">
+                                                        {String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3)}-
+                                                        {String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3)}-
+                                                        {String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2)}-
+                                                        {String(sarConfig.siguienteCorrelativo || 1).padStart(8, '0')}
+                                                    </span>
+                                                </div>
+
+                                                <p className="text-[10px] text-slate-400 mt-2 text-center sm:text-right font-medium">
+                                                    Estructura oficial SAR con ceros a la izquierda y guiones
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Bloque 4: Estado en ERP */}
+                                {sarStats && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                                Última Factura Fiscal en ERP
+                                            </span>
+                                            <p className="text-sm sm:text-base font-black font-mono text-slate-800 mt-1 break-all">
+                                                {sarStats.ultimaFactura?.correlativo || 'Ninguna factura registrada aún'}
+                                            </p>
+                                            {sarStats.ultimaFactura?.fechaEmision ? (
+                                                <p className="text-[10.5px] text-slate-500 mt-1">
+                                                    Fecha: {new Date(sarStats.ultimaFactura.fechaEmision).toLocaleString('es-HN')}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[10.5px] text-slate-400 mt-1">Listo para iniciar secuencia</p>
+                                            )}
+                                        </div>
+                                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                                Total Facturas Emitidas
+                                            </span>
+                                            <p className="text-xl sm:text-2xl font-black text-slate-800 mt-1">
+                                                {sarStats.totalFacturasEmitidas || 0}
+                                            </p>
+                                            <p className="text-[10.5px] text-slate-500 mt-1">Facturas registradas bajo el tipo FACTURA en esta empresa</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {saveSarError && (
+                                    <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-red-700 text-xs font-semibold">
+                                        <AlertCircle className="w-4 h-4 shrink-0" />
+                                        <span>{saveSarError}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer / Submit */}
+                            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="text-xs text-slate-500 flex items-center gap-1.5 text-center sm:text-left">
+                                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                    <span>Los datos se aplicarán de inmediato a facturas en formato Ticket (80mm) y Carta (Web y PDF).</span>
+                                </div>
+                                <button 
+                                    onClick={handleSaveSar} 
+                                    disabled={isLoading || isSavingSar} 
+                                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+                                >
+                                    {isSavingSar ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Guardando Configuración...</>
+                                    ) : saveSarSuccess ? (
+                                        <><CheckCircle2 className="w-4 h-4" /> Configuración Guardada</>
+                                    ) : (
+                                        <><Save className="w-4 h-4" /> Guardar Facturación SAR</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             </div>
         </div>
     );
 }
+

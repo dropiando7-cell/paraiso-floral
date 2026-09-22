@@ -326,3 +326,130 @@ export async function saveAiVisionSetting(disabled: boolean) {
     }
 }
 
+// --- CONFIGURACIÓN FISCAL SAR HONDURAS ---
+export async function getSarConfig(targetOrgId?: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return { success: false, error: 'No autorizado' };
+
+        const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } },
+            include: { organization: true }
+        });
+
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado' };
+
+        let org = dbUser.organization;
+        if (targetOrgId && (dbUser.role === 'SUPER_ADMIN' || dbUser.role === 'ORG_ADMIN')) {
+            const reqOrg = await prisma.organization.findUnique({ where: { id: targetOrgId } });
+            if (reqOrg) org = reqOrg;
+        }
+
+        const orgSettings = (org.invoiceSettings as any) || {};
+        const sarConfig = orgSettings.sarConfig || null;
+
+        // Obtener la última factura fiscal emitida de esta organización
+        const ultimaFactura = await prisma.factura.findFirst({
+            where: { 
+                organizationId: org.id,
+                tipoDocumento: 'FACTURA'
+            },
+            orderBy: { createdAt: 'desc' },
+            select: { correlativo: true, numeroInterno: true, fechaEmision: true }
+        });
+
+        // Contar total de facturas emitidas bajo este tipo
+        const totalFacturasEmitidas = await prisma.factura.count({
+            where: {
+                organizationId: org.id,
+                tipoDocumento: 'FACTURA'
+            }
+        });
+
+        return {
+            success: true,
+            sarConfig,
+            ultimaFactura,
+            totalFacturasEmitidas,
+            orgId: org.id,
+            orgName: org.name
+        };
+    } catch (e: any) {
+        console.error('Error fetching SAR config:', e);
+        return { success: false, error: e?.message || 'Error al obtener configuración SAR' };
+    }
+}
+
+export async function saveSarConfig(data: {
+    cai: string;
+    establecimiento: string;
+    puntoEmision: string;
+    tipoDocumento: string;
+    rangoInicial: string;
+    rangoFinal: string;
+    fechaLimiteEmision: string;
+    siguienteCorrelativo: number;
+    activo?: boolean;
+}, targetOrgId?: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return { success: false, error: 'No autorizado' };
+
+        const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } }
+        });
+
+        if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) {
+            return { success: false, error: 'Sin permisos suficientes' };
+        }
+
+        const orgId = (targetOrgId && dbUser.role === 'SUPER_ADMIN') ? targetOrgId : dbUser.organizationId;
+
+        const org = await prisma.organization.findUnique({ where: { id: orgId } });
+        if (!org) return { success: false, error: 'Organización no encontrada' };
+
+        const currentSettings = (org.invoiceSettings as any) || {};
+
+        // Limpiar y formatear datos
+        const cleanCai = (data.cai || '').trim().toUpperCase();
+        const cleanEstablecimiento = String(data.establecimiento || '000').padStart(3, '0').slice(-3);
+        const cleanPuntoEmision = String(data.puntoEmision || '001').padStart(3, '0').slice(-3);
+        const cleanTipoDoc = String(data.tipoDocumento || '01').padStart(2, '0').slice(-2);
+        const cleanRangoInicial = (data.rangoInicial || '').trim();
+        const cleanRangoFinal = (data.rangoFinal || '').trim();
+        const cleanFechaLimite = (data.fechaLimiteEmision || '').trim();
+        const cleanSiguiente = Math.max(1, Number(data.siguienteCorrelativo) || 1);
+
+        const updatedSettings = {
+            ...currentSettings,
+            sarConfig: {
+                cai: cleanCai,
+                establecimiento: cleanEstablecimiento,
+                puntoEmision: cleanPuntoEmision,
+                tipoDocumento: cleanTipoDoc,
+                rangoInicial: cleanRangoInicial,
+                rangoFinal: cleanRangoFinal,
+                fechaLimiteEmision: cleanFechaLimite,
+                siguienteCorrelativo: cleanSiguiente,
+                activo: data.activo !== false
+            }
+        };
+
+        await prisma.organization.update({
+            where: { id: orgId },
+            data: {
+                invoiceSettings: updatedSettings
+            }
+        });
+
+        revalidatePath('/configuracion');
+        revalidatePath('/facturas');
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error saving SAR config:', e);
+        return { success: false, error: e?.message || 'Error al guardar configuración SAR' };
+    }
+}
+

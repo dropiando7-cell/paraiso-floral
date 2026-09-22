@@ -112,6 +112,10 @@ export default async function POSKioskoPage() {
     }
   }
 
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId }
+  });
+
   return (
     <div className="bg-white min-h-screen">
       <POSFacturacion 
@@ -120,7 +124,17 @@ export default async function POSKioskoPage() {
         onEmitirFactura={emitFactura}
         cajeroNombre={user.fullName}
         modoKiosko={true}
+        organization={org ? {
+          name: org.name || undefined,
+          direccion: org.direccion || undefined,
+          telefono: org.telefono || undefined,
+          correoContacto: org.correoContacto || undefined,
+          rtn: org.rtn || undefined,
+          logoUrl: org.logoUrl || undefined,
+          invoiceSettings: org.invoiceSettings || undefined
+        } : undefined}
       />
     </div>
   );
+
 }

@@ -98,7 +98,23 @@ export interface InvoiceSettings {
   termsTextDefault2?: string;
   pricesIncludeTax?: boolean;
   roundAdjustment?: number;
+  // Configuración Fiscal SAR Honduras
+  sarConfig?: SarConfig;
 }
+
+export interface SarConfig {
+  cai: string;
+  establecimiento: string;
+  puntoEmision: string;
+  tipoDocumento: string;
+  rangoInicial: string;
+  rangoFinal: string;
+  fechaLimiteEmision: string;
+  siguienteCorrelativo: number;
+  ultimoCorrelativoEmitido?: string;
+  activo?: boolean;
+}
+
 
 export interface CustomInvoiceTemplate {
   id: string;

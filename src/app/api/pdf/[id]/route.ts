@@ -816,7 +816,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       fmt,
       fechaEmision: doc.fechaEmision || null,
       ordenEntrega: doc.ordenEntrega || null,
-      ordenTrabajo: doc.ordenTrabajo || null
+      ordenTrabajo: doc.ordenTrabajo || null,
+      numeroCAI: (doc as any).numeroCAI || (resolvedDocType === 'factura' && (org.invoiceSettings as any)?.sarConfig?.activo ? (org.invoiceSettings as any).sarConfig.cai : null),
+      rangoAutorizado: (doc as any).rangoAutorizado || (resolvedDocType === 'factura' && (org.invoiceSettings as any)?.sarConfig?.activo ? `Del ${(org.invoiceSettings as any).sarConfig.rangoInicial} al ${(org.invoiceSettings as any).sarConfig.rangoFinal}` : null),
+      fechaLimiteEmision: (doc as any).fechaLimiteEmision || (resolvedDocType === 'factura' && (org.invoiceSettings as any)?.sarConfig?.activo ? (org.invoiceSettings as any).sarConfig.fechaLimiteEmision : null),
+      isSar: resolvedDocType === 'factura' && (!!(doc as any).numeroCAI || !!(org.invoiceSettings as any)?.sarConfig?.activo),
     };
 
     // 3. Pre-fetch external images (Logo and Products) as Buffers

@@ -512,6 +512,53 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
           })()}
         </View>
 
+        {/* SAR Fiscal Details Banner */}
+        {(data.numeroCAI || data.rangoAutorizado || data.fechaLimiteEmision) && (
+          <View style={{
+            borderWidth: 1,
+            borderColor: '#cbd5e1',
+            borderRadius: 4,
+            backgroundColor: '#f8fafc',
+            paddingVertical: 4,
+            paddingHorizontal: 8,
+            marginBottom: 6,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <View style={{ flex: 1.4 }}>
+              <Text style={{ fontSize: 5.5, fontFamily: 'Inter', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
+                CAI (Código Autorización SAR)
+              </Text>
+              <Text style={{ fontSize: 6.8, fontFamily: 'Inter', fontWeight: 700, color: '#0f172a', marginTop: 1 }}>
+                {data.numeroCAI || '—'}
+              </Text>
+            </View>
+            {data.rangoAutorizado && (
+              <View style={{ flex: 1.2, paddingLeft: 6 }}>
+                <Text style={{ fontSize: 5.5, fontFamily: 'Inter', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
+                  Rango Autorizado
+                </Text>
+                <Text style={{ fontSize: 6.8, fontFamily: 'Inter', fontWeight: 500, color: '#334155', marginTop: 1 }}>
+                  {data.rangoAutorizado}
+                </Text>
+              </View>
+            )}
+            {data.fechaLimiteEmision && (
+              <View style={{ flex: 0.9, paddingLeft: 6, alignItems: 'flex-end' }}>
+                <Text style={{ fontSize: 5.5, fontFamily: 'Inter', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
+                  Fecha Límite Emisión
+                </Text>
+                <Text style={{ fontSize: 6.8, fontFamily: 'Inter', fontWeight: 700, color: '#0f172a', marginTop: 1 }}>
+                  {typeof data.fechaLimiteEmision === 'string'
+                    ? data.fechaLimiteEmision.split('T')[0]
+                    : new Date(data.fechaLimiteEmision).toLocaleDateString('es-HN')}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Table Area */}
         <View style={[
           styles.table, 
@@ -921,6 +968,16 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         )}
 
         <View style={[styles.pageFooter, { paddingTop: 4 }]} fixed>
+          {(data.isSar || data.numeroCAI) && (
+            <View style={{ marginBottom: 3, paddingBottom: 2, borderBottomWidth: 0.5, borderBottomColor: '#cbd5e1' }}>
+              <Text style={{ fontSize: 6.5, fontFamily: 'Inter', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', textAlign: 'center' }}>
+                ORIGINAL: CLIENTE • COPIA: EMISOR
+              </Text>
+              <Text style={{ fontSize: 5.5, fontFamily: 'Inter', fontWeight: 500, color: '#475569', textTransform: 'uppercase', textAlign: 'center', marginTop: 1 }}>
+                LA FACTURA ES BENEFICIO DE TODOS, EXÍJALA
+              </Text>
+            </View>
+          )}
           <Text style={{ fontSize: settings?.footerFontSize || 6.5 }}>
             {[
               settings?.footerTelefono || organization?.telefono ? `Tel.: ${settings?.footerTelefono || organization?.telefono}` : '',

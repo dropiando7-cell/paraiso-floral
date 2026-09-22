@@ -12,7 +12,13 @@ export interface TemplateProps {
   today: string;
   fechaEmision?: string | Date;
   futureDate: (days: number) => string;
+  // Campos Fiscales SAR (Honduras)
+  numeroCAI?: string | null;
+  rangoAutorizado?: string | null;
+  fechaLimiteEmision?: string | Date | null;
+  isSar?: boolean;
   selectedClient: any | null;
+
   setShowClientModal: (v: boolean) => void;
   paymentTerms: string;
   setPaymentTerms: (v: string) => void;

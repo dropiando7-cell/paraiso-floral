@@ -37,6 +37,96 @@ function formatCorrelativo(numeroInterno: number, tipoDocumento: string): string
     return `${prefix}${String(numeroInterno).padStart(8, '0')}`;
 }
 
+// Helper para obtener datos fiscales SAR y calcular el siguiente correlativo oficial para FACTURA
+export async function getNextSarCorrelativo(txOrPrisma: any, organizationId: string): Promise<{
+    correlativo: string;
+    numeroCAI: string;
+    rangoAutorizado: string;
+    fechaLimiteEmision: Date | null;
+    isSar: boolean;
+}> {
+    const org = await txOrPrisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { invoiceSettings: true }
+    });
+
+    const orgSettings = (org?.invoiceSettings as any) || {};
+    const sarConfig = orgSettings.sarConfig;
+
+    if (!sarConfig || sarConfig.activo === false || !sarConfig.cai) {
+        return {
+            correlativo: '',
+            numeroCAI: '',
+            rangoAutorizado: '',
+            fechaLimiteEmision: null,
+            isSar: false
+        };
+    }
+
+    const est = String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
+    const pto = String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
+    const tipoDoc = String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
+    const prefijo = `${est}-${pto}-${tipoDoc}-`;
+
+    const siguienteConfigurado = Math.max(1, Number(sarConfig.siguienteCorrelativo) || 1);
+
+    // Buscar la última factura emitida con este prefijo para esta organización
+    const ultimaFacturaSar = await txOrPrisma.factura.findFirst({
+        where: {
+            organizationId,
+            tipoDocumento: 'FACTURA',
+            correlativo: { startsWith: prefijo }
+        },
+        orderBy: { correlativo: 'desc' },
+        select: { correlativo: true }
+    });
+
+    let maxSecuencialEnBd = 0;
+    if (ultimaFacturaSar && ultimaFacturaSar.correlativo) {
+        const ultimosDigitos = ultimaFacturaSar.correlativo.slice(-8);
+        const parseado = parseInt(ultimosDigitos, 10);
+        if (!isNaN(parseado)) {
+            maxSecuencialEnBd = parseado;
+        }
+    }
+
+    const secuencialAsignar = Math.max(siguienteConfigurado, maxSecuencialEnBd + 1);
+    const correlativoGenerado = `${prefijo}${String(secuencialAsignar).padStart(8, '0')}`;
+
+    const fechaLimite = sarConfig.fechaLimiteEmision ? new Date(sarConfig.fechaLimiteEmision) : null;
+    const rangoStr = sarConfig.rangoInicial && sarConfig.rangoFinal 
+        ? `Del ${sarConfig.rangoInicial} al ${sarConfig.rangoFinal}` 
+        : (sarConfig.rangoInicial || sarConfig.rangoFinal || '');
+
+    // Actualizar el siguienteCorrelativo en invoiceSettings de la organización para continuar la secuencia
+    try {
+        const updatedSettings = {
+            ...orgSettings,
+            sarConfig: {
+                ...sarConfig,
+                siguienteCorrelativo: secuencialAsignar + 1,
+                ultimoCorrelativoEmitido: correlativoGenerado
+            }
+        };
+
+        await txOrPrisma.organization.update({
+            where: { id: organizationId },
+            data: { invoiceSettings: updatedSettings }
+        });
+    } catch (updateErr) {
+        console.warn('Advertencia al actualizar siguienteCorrelativo en org:', updateErr);
+    }
+
+    return {
+        correlativo: correlativoGenerado,
+        numeroCAI: sarConfig.cai || '',
+        rangoAutorizado: rangoStr,
+        fechaLimiteEmision: fechaLimite,
+        isSar: true
+    };
+}
+
+
 // --- CLIENTES ---
 export async function searchClientes(query: string = "") {
     try {
@@ -298,15 +388,30 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
 
         if (!clienteId) throw new Error("Se requiere un cliente válido.");
 
-        // AUTO-CORRELATIVO: Buscar la última factura para sumar 1
-        const ultimaFactura = await prisma.factura.findFirst({
-            where: { organizationId },
-            orderBy: { numeroInterno: 'desc' }
-        });
-        
-        const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
-        // Generador visual
-        const correlativoGenerado = formatCorrelativo(nextNumber, tipoCorrelativo);
+        // Asignación de Correlativo Oficial y Datos Fiscales
+        let correlativoGenerado = '';
+        let sarNumeroCAI: string | null = null;
+        let sarRangoAutorizado: string | null = null;
+        let sarFechaLimite: Date | null = null;
+
+        if (tipoCorrelativo === 'FACTURA') {
+            const sarData = await getNextSarCorrelativo(prisma, organizationId);
+            if (sarData.isSar) {
+                correlativoGenerado = sarData.correlativo;
+                sarNumeroCAI = sarData.numeroCAI;
+                sarRangoAutorizado = sarData.rangoAutorizado;
+                sarFechaLimite = sarData.fechaLimiteEmision;
+            }
+        }
+
+        if (!correlativoGenerado) {
+            const ultimaFactura = await prisma.factura.findFirst({
+                where: { organizationId },
+                orderBy: { numeroInterno: 'desc' }
+            });
+            const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
+            correlativoGenerado = formatCorrelativo(nextNumber, tipoCorrelativo);
+        }
 
         // TRANSACTION: Asegura que si falla el descuento de inventario, NO se guarde la factura.
         const result = await prisma.$transaction(async (tx) => {
@@ -318,9 +423,9 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     clienteId,
                     correlativo: correlativoGenerado,
                     tipoDocumento: tipoCorrelativo, // Explicitly save the document type
-                    numeroCAI: facturaData.numeroCAI || '3E6532-...-4C',
-                    rangoAutorizado: facturaData.rangoAutorizado || '000-001-01-000001 al ...',
-                    fechaLimiteEmision: facturaData.fechaLimiteEmision ? new Date(facturaData.fechaLimiteEmision) : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+                    numeroCAI: sarNumeroCAI || facturaData.numeroCAI || null,
+                    rangoAutorizado: sarRangoAutorizado || facturaData.rangoAutorizado || null,
+                    fechaLimiteEmision: sarFechaLimite || (facturaData.fechaLimiteEmision ? new Date(facturaData.fechaLimiteEmision) : null),
                     
                     subTotal: facturaData.subTotal,
                     descuentos: facturaData.descuentos,
@@ -337,6 +442,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     metodoPago: facturaData.metodoPago || 'Efectivo',
                     saldoPendiente: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? facturaData.total : 0,
                     estadoPago: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? 'PENDIENTE' : 'PAGADA',
+
                     fechaVencimiento: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') 
                         ? new Date(Date.now() + (Number(facturaData.diasCredito) || 15) * 24 * 60 * 60 * 1000) 
                         : null,
@@ -402,7 +508,15 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
         });
 
         revalidatePath('/facturas');
-        return { success: true, facturaId: result.id, correlativo: result.correlativo };
+        return { 
+            success: true, 
+            facturaId: result.id, 
+            correlativo: result.correlativo,
+            numeroCAI: result.numeroCAI,
+            rangoAutorizado: result.rangoAutorizado,
+            fechaLimiteEmision: result.fechaLimiteEmision
+        };
+
 
     } catch (error: any) {
         console.error("Error al crear factura:", error);
@@ -474,7 +588,26 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
         const nuevoTipo = data.tipoDocumento || docExistente.tipoDocumento;
         const nuevoEstado = (nuevoTipo === 'FACTURA' || nuevoTipo === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE';
-        const nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
+        
+        // Manejo de correlativo y régimen SAR si se convierte a FACTURA
+        let nuevoCorrelativo = docExistente.correlativo;
+        let sarFieldsUpdate: any = {};
+
+        if (docExistente.tipoDocumento !== 'FACTURA' && nuevoTipo === 'FACTURA') {
+            const sarData = await getNextSarCorrelativo(prisma, organizationId);
+            if (sarData.isSar) {
+                nuevoCorrelativo = sarData.correlativo;
+                sarFieldsUpdate = {
+                    numeroCAI: sarData.numeroCAI || null,
+                    rangoAutorizado: sarData.rangoAutorizado || null,
+                    fechaLimiteEmision: sarData.fechaLimiteEmision || null
+                };
+            } else {
+                nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
+            }
+        } else if (nuevoTipo !== docExistente.tipoDocumento) {
+            nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
+        }
 
         const result = await prisma.$transaction(async (tx) => {
             // Eliminar los detalles anteriores
@@ -486,7 +619,9 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 data: {
                     clienteId,
                     correlativo: nuevoCorrelativo,
+                    ...sarFieldsUpdate,
                     notas: data.notas || null,
+
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
                     subTotal: data.subTotal,
@@ -749,12 +884,34 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                 }
             });
 
-            // Ahora que tenemos numeroInterno, generar correlativo SO real y actualizar
-            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, data.tipoDocumento);
+            // Asignación de Correlativo Oficial
+            let correlativoFinal = '';
+            let sarUpdateData: any = {};
+
+            if (data.tipoDocumento === 'FACTURA') {
+                const sarData = await getNextSarCorrelativo(tx, organizationId);
+                if (sarData.isSar) {
+                    correlativoFinal = sarData.correlativo;
+                    sarUpdateData = {
+                        numeroCAI: sarData.numeroCAI || null,
+                        rangoAutorizado: sarData.rangoAutorizado || null,
+                        fechaLimiteEmision: sarData.fechaLimiteEmision || null
+                    };
+                }
+            }
+
+            if (!correlativoFinal) {
+                correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, data.tipoDocumento);
+            }
+
             const docFinal = await tx.factura.update({
                 where: { id: nuevoDoc.id },
-                data: { correlativo: correlativoFinal }
+                data: { 
+                    correlativo: correlativoFinal,
+                    ...sarUpdateData
+                }
             });
+
 
             // Descontar o restaurar inventario
             if (debeDescontarInventario || debeRestaurarInventario) {
@@ -1475,12 +1632,32 @@ export async function convertirDocumento(
                 }
             });
 
-            // Asignar el prefijo correcto al nuevo correlativo
-            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, nuevoTipo);
+            // Asignar el prefijo y numeración correcta al nuevo correlativo
+            let correlativoFinal = '';
+            let sarDataConvert: any = {};
+            if (nuevoTipo === 'FACTURA') {
+                const sarRes = await getNextSarCorrelativo(tx, doc.organizationId);
+                if (sarRes.isSar) {
+                    correlativoFinal = sarRes.correlativo;
+                    sarDataConvert = {
+                        numeroCAI: sarRes.numeroCAI || null,
+                        rangoAutorizado: sarRes.rangoAutorizado || null,
+                        fechaLimiteEmision: sarRes.fechaLimiteEmision || null
+                    };
+                }
+            }
+            if (!correlativoFinal) {
+                correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, nuevoTipo);
+            }
+
             await tx.factura.update({
                 where: { id: nuevoDoc.id },
-                data: { correlativo: correlativoFinal }
+                data: { 
+                    correlativo: correlativoFinal,
+                    ...sarDataConvert
+                }
             });
+
 
             // Descontar inventario si aplica
             if (debeDescontar) {
@@ -1544,6 +1721,55 @@ export async function getProximoCorrelativoPreview(tipoDocumento: string) {
         const organizationId = await getOrganizationId();
         const tipoNormalized = (tipoDocumento || 'FACTURA').toUpperCase();
 
+        if (tipoNormalized === 'FACTURA') {
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId },
+                select: { invoiceSettings: true }
+            });
+            const orgSettings = (org?.invoiceSettings as any) || {};
+            const sarConfig = orgSettings.sarConfig;
+
+            if (sarConfig && sarConfig.activo !== false && sarConfig.cai) {
+                const est = String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
+                const pto = String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
+                const tipoDoc = String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
+                const prefijo = `${est}-${pto}-${tipoDoc}-`;
+
+                const siguienteConfigurado = Math.max(1, Number(sarConfig.siguienteCorrelativo) || 1);
+
+                const ultimaFacturaSar = await prisma.factura.findFirst({
+                    where: {
+                        organizationId,
+                        tipoDocumento: 'FACTURA',
+                        correlativo: { startsWith: prefijo }
+                    },
+                    orderBy: { correlativo: 'desc' },
+                    select: { correlativo: true }
+                });
+
+                let maxSecuencialEnBd = 0;
+                if (ultimaFacturaSar && ultimaFacturaSar.correlativo) {
+                    const ultimosDigitos = ultimaFacturaSar.correlativo.slice(-8);
+                    const parseado = parseInt(ultimosDigitos, 10);
+                    if (!isNaN(parseado)) {
+                        maxSecuencialEnBd = parseado;
+                    }
+                }
+
+                const nextSeq = Math.max(siguienteConfigurado, maxSecuencialEnBd + 1);
+                const previewSar = `${prefijo}${String(nextSeq).padStart(8, '0')}`;
+                return { 
+                    success: true, 
+                    correlativo: previewSar, 
+                    nextNumber: nextSeq,
+                    numeroCAI: sarConfig.cai,
+                    rangoAutorizado: sarConfig.rangoInicial && sarConfig.rangoFinal ? `Del ${sarConfig.rangoInicial} al ${sarConfig.rangoFinal}` : '',
+                    fechaLimiteEmision: sarConfig.fechaLimiteEmision || null,
+                    isSar: true 
+                };
+            }
+        }
+
         const ultimaFactura = await prisma.factura.findFirst({
             where: { organizationId },
             orderBy: { numeroInterno: 'desc' }
@@ -1558,6 +1784,7 @@ export async function getProximoCorrelativoPreview(tipoDocumento: string) {
         return { success: false, correlativo: 'FAC-SO00000001', error: error.message };
     }
 }
+
 
 // Deprecada por motivos de cumplimiento fiscal SAR (retorna vista previa sin modificar DB)
 export async function reservarCorrelativoVacio(tipoDocumento: string) {

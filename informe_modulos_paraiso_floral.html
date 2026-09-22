@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informe Ejecutivo de Módulos y Desarrollos - Distribuidora Paraíso Floral</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --primary: #059669;
+      --primary-dark: #047857;
+      --primary-light: #ecfdf5;
+      --primary-border: #a7f3d0;
+      --secondary: #0284c7;
+      --accent: #d97706;
+      --dark: #0f172a;
+      --gray-800: #1e293b;
+      --gray-700: #334155;
+      --gray-600: #475569;
+      --gray-200: #e2e8f0;
+      --gray-100: #f1f5f9;
+      --gray-50: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    @page {
+      size: letter portrait;
+      margin: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--gray-800);
+      background-color: #cbd5e1;
+      line-height: 1.45;
+      font-size: 12px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Action bar */
+    .top-action-bar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--gray-200);
+      padding: 12px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .btn-print {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border: none;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 5px rgba(5, 150, 105, 0.3);
+    }
+    .btn-print:hover {
+      opacity: 0.95;
+    }
+
+    /* Page container */
+    .sheet-page {
+      width: 816px;
+      min-height: 1056px;
+      max-height: 1056px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 34px 40px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .top-action-bar {
+        display: none !important;
+      }
+      .sheet-page {
+        width: 100%;
+        max-width: 100%;
+        min-height: 100vh;
+        max-height: 100vh;
+        margin: 0;
+        padding: 30px 38px;
+        box-shadow: none;
+        page-break-after: always;
+        page-break-inside: avoid;
+      }
+      .sheet-page:last-child {
+        page-break-after: auto;
+      }
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--primary-light);
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    .header-title h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    .header-title p {
+      font-size: 12px;
+      color: var(--primary-dark);
+      font-weight: 600;
+    }
+    .header-meta {
+      text-align: right;
+      font-size: 10.5px;
+      color: var(--gray-600);
+      background: var(--gray-50);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+      line-height: 1.4;
+    }
+    .header-meta strong {
+      color: var(--dark);
+    }
+
+    /* Sub-header for page 2 & 3 */
+    .sub-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1.5px solid var(--primary-light);
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+      font-size: 11px;
+    }
+    .sub-header-title {
+      font-weight: 700;
+      color: var(--dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Resumen Ejecutivo */
+    .executive-card {
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    .executive-card h2 {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #065f46;
+      margin-bottom: 4px;
+    }
+    .executive-card p {
+      color: #047857;
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kpi-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 7px;
+      padding: 8px 12px;
+    }
+    .kpi-card .number {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--dark);
+      line-height: 1.1;
+    }
+    .kpi-card .label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gray-700);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-top: 2px;
+    }
+    .kpi-card .sub {
+      font-size: 9.5px;
+      color: var(--primary);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* Section Title */
+    .section-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--dark);
+      border-left: 3.5px solid var(--primary);
+      padding-left: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-title span.badge {
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 2px 7px;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-radius: 12px;
+      border: 1px solid #a7f3d0;
+    }
+
+    /* Module Box (Rich First Version Style) */
+    .module-card {
+      background: #ffffff;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .module-card:last-child {
+      margin-bottom: 0;
+    }
+    .module-card.featured {
+      border-color: #86efac;
+      background: #fafdfb;
+    }
+    .module-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .module-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+    .module-tag {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 1.5px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .tag-operational {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .tag-new {
+      background: #e0e7ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+    }
+    .tag-ai {
+      background: #fae8ff;
+      color: #86198f;
+      border: 1px solid #f5d0fe;
+    }
+
+    .module-desc {
+      color: var(--gray-700);
+      font-size: 11px;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .feature-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3px 14px;
+      margin-bottom: 6px;
+    }
+    .feature-list li {
+      position: relative;
+      padding-left: 14px;
+      font-size: 10.5px;
+      color: var(--gray-700);
+      line-height: 1.35;
+    }
+    .feature-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 10.5px;
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding-top: 5px;
+      border-top: 1px dashed var(--gray-200);
+    }
+    .tech-pill {
+      font-size: 9px;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      padding: 1.5px 6px;
+      border-radius: 3px;
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Comparison Table */
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+      margin-bottom: 12px;
+    }
+    .styled-table th {
+      background: var(--gray-100);
+      color: var(--gray-700);
+      text-align: left;
+      padding: 5px 8px;
+      font-weight: 700;
+      border-bottom: 1.5px solid var(--gray-200);
+    }
+    .styled-table td {
+      padding: 4.5px 8px;
+      border-bottom: 1px solid var(--gray-200);
+      color: var(--gray-800);
+    }
+    .styled-table tr:nth-child(even) td {
+      background: #fafafc;
+    }
+
+    /* Impact List */
+    .impact-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .impact-item {
+      display: flex;
+      gap: 8px;
+      font-size: 11px;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      padding: 6px 10px;
+      line-height: 1.35;
+    }
+    .impact-icon {
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* Signatures */
+    .signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 10px;
+      padding-top: 4px;
+    }
+    .sig-box {
+      border-top: 1px solid var(--gray-700);
+      padding-top: 4px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--gray-700);
+    }
+
+    /* Footer */
+    .report-footer {
+      border-top: 1px solid var(--gray-200);
+      padding-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9.5px;
+      color: var(--gray-600);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra de impresion web -->
+  <div class="top-action-bar no-print">
+    <div>
+      <strong>Distribuidora Paraíso Floral</strong> &mdash; Reporte Técnico y Ejecutivo de Módulos (Agosto - Septiembre 2026)
+    </div>
+    <button class="btn-print" onclick="window.print()">
+      <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+      Imprimir o Guardar en PDF
+    </button>
+  </div>
+
+  <!-- ==================== PÁGINA 1: RESUMEN Y MÓDULOS CEDI / BODEGA ==================== -->
+  <div class="sheet-page">
+    <div>
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <div class="logo-badge">🌸</div>
+          <div class="header-title">
+            <h1>Distribuidora Paraíso Floral</h1>
+            <p>Informe Consolidado de Módulos y Desarrollos Tecnológicos ERP</p>
+          </div>
+        </div>
+        <div class="header-meta">
+          <div><strong>Período:</strong> 1 de Agosto &mdash; 15 de Septiembre, 2026</div>
+          <div><strong>Estado:</strong> 100% Producción / Operativo</div>
+          <div><strong>Infraestructura:</strong> Cloud Vercel &bull; Supabase &bull; Cloudflare R2</div>
+        </div>
+      </div>
+
+      <!-- Resumen Ejecutivo -->
+      <div class="executive-card">
+        <h2>📌 Resumen Ejecutivo</h2>
+        <p>
+          Durante el período comprendido entre <strong>agosto y septiembre de 2026</strong>, se llevó a cabo la transformación tecnológica integral y puesta a punto de la plataforma ERP para <strong>Distribuidora Paraíso Floral</strong>. Los desarrollos abarcaron desde la adopción de la nueva identidad de marca hasta la implementación de módulos de alta complejidad operativa: <strong>recepción de mercadería con Inteligencia Artificial</strong>, <strong>impresión térmica industrial TSPL</strong>, <strong>picking y pedidos por voz</strong>, <strong>rutas logísticas</strong>, <strong>cuentas por cobrar con liquidación FIFO</strong> y <strong>auditoría de horas extras biométricas</strong>.
+        </p>
+      </div>
+
+      <!-- Tarjetas KPI Iniciales -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="number">10</div>
+          <div class="label">Módulos ERP</div>
+          <div class="sub">100% Integrados al ERP</div>
+        </div>
+        <div class="kpi-card">
+          <div class="number">Catálogo Mónica</div>
+          <div class="label">Catálogo Importado</div>
+          <div class="sub">+70 Variedades y Lotes</div>
+        </div>
+        <div class="kpi-card">
+          <div class="number">206 Clientes</div>
+          <div class="label">Clientes Importados</div>
+          <div class="sub">Migración de Mónica 11</div>
+        </div>
+        <div class="kpi-card">
+          <div class="number">TSPL &amp; AI</div>
+          <div class="label">Tecnología Especial</div>
+          <div class="sub">Etiquetas + Packing PDF</div>
+        </div>
+      </div>
+
+      <!-- Sección 1 -->
+      <div class="section-title">
+        <span>1. Módulos Operativos Principales: Bodega, Cuartos Fríos y CEDI</span>
+        <span class="badge">Nivel Producción</span>
+      </div>
+
+      <!-- Modulo 1: Inventario Floral & CEDI -->
+      <div class="module-card featured">
+        <div class="module-header">
+          <span class="module-name">1. Control de Inventario Floral y CEDI Central</span>
+          <span class="module-tag tag-operational">Operativo 100%</span>
+        </div>
+        <div class="module-desc">
+          Reestructuración integral del sistema para productos perecederos florales. Admite tracking por lotes, variedades, frescura, fechas de ingreso y catálogo compartido entre sucursales y organizaciones asociadas.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Soporte Perecedero Activo:</strong> Gestión de vida útil y lotes por variedad de flor.</li>
+          <li><strong>Modo "Ingreso tipo Excel":</strong> Captura masiva y ultra-rápida de múltiples códigos.</li>
+          <li><strong>Kardex con Aprobación Gerencial:</strong> Auditoría estricta y reversiones autorizadas.</li>
+          <li><strong>Multicódigos &amp; Tracking:</strong> Códigos de barras alternos y números de envío.</li>
+          <li><strong>Vista Predeterminada en Tabla:</strong> Vista densa en escritorio y compacta en móvil.</li>
+          <li><strong>Catálogo CEDI Compartido:</strong> Consulta inter-empresa con permisos selectivos.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">Prisma Transaction Isolation</span>
+          <span class="tech-pill">PostgreSQL Indexes</span>
+          <span class="tech-pill">Kardex Dynamic Tracking</span>
+        </div>
+      </div>
+
+      <!-- Modulo 2: Recepcion con IA y Tablets -->
+      <div class="module-card featured">
+        <div class="module-header">
+          <span class="module-name">2. Recepción Inteligente de Packing Lists con IA</span>
+          <div>
+            <span class="module-tag tag-ai">Inteligencia Artificial</span>
+            <span class="module-tag tag-new">Nuevo</span>
+          </div>
+        </div>
+        <div class="module-desc">
+          Módulo estrella para la descarga de embarques importados (Ecuador Premium, Quality Distr, etc.). Un modelo de IA extrae automáticamente los datos del PDF del Packing List (cajas, variedades, tallos y cantidades).
+        </div>
+        <ul class="feature-list">
+          <li><strong>Extracción Automática con IA:</strong> Lee PDFs de proveedores ecuatorianos sin digitación.</li>
+          <li><strong>Fases Operativas:</strong> Pestañas separadas "En Tránsito" vs "Ingresados al CEDI".</li>
+          <li><strong>Modo Tablet (Galaxy Tab 10.9"):</strong> UI táctil para operarios con doble guardado offline.</li>
+          <li><strong>Lector QR/Barras con Audio:</strong> Cámara integrada y sonido de supermercado a 1400Hz.</li>
+          <li><strong>Impresión Directa en Recepción:</strong> Modal para imprimir viñetas al desempacar.</li>
+          <li><strong>Buscador en Tiempo Real:</strong> Localización instantánea de flores dentro del embarque.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">Gemini Flash AI</span>
+          <span class="tech-pill">pdf-parse</span>
+          <span class="tech-pill">html5-qrcode</span>
+          <span class="tech-pill">Web Audio API (1400Hz)</span>
+        </div>
+      </div>
+
+      <!-- Modulo 3: Impresion Termica TSPL -->
+      <div class="module-card">
+        <div class="module-header">
+          <span class="module-name">3. Sistema de Impresión Térmica Industrial (TSPL / Zebra)</span>
+          <span class="module-tag tag-operational">Optimizado</span>
+        </div>
+        <div class="module-desc">
+          Generador nativo de comandos TSPL y servidor de impresión local (Windows / macOS) para generar viñetas térmicas de alta legibilidad física para cuartos fríos y cajas de flores.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Generador Nativo TSPL:</strong> Impresión directa a hardware sin latencias de drivers.</li>
+          <li><strong>Tipografía Maximizada (36px):</strong> Nombres de variedades legibles a distancia.</li>
+          <li><strong>Código de Barras y QR Robusto:</strong> QR con corrección ECC-L y barras ensanchadas.</li>
+          <li><strong>Servidor Local en Python:</strong> Binarización optimizada para red y USB.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">TSPL Native Protocol</span>
+          <span class="tech-pill">Python Print Server</span>
+          <span class="tech-pill">Thermal Binarizer</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Página 1 -->
+    <div class="report-footer">
+      <div>Distribuidora Paraíso Floral &bull; Documento Oficial de Entrega de Software</div>
+      <div>Página 1 de 3</div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 2: VENTAS, LOGÍSTICA Y CRÉDITOS ==================== -->
+  <div class="sheet-page">
+    <div>
+      <!-- Sub-header -->
+      <div class="sub-header">
+        <div class="sub-header-title">
+          <span>🌸 Distribuidora Paraíso Floral</span>
+          <span style="color: var(--gray-600); font-weight: 400;">| Módulos Comerciales, Ventas, Logística y Finanzas</span>
+        </div>
+        <div style="color: var(--gray-600);">Período: Agosto - Septiembre 2026</div>
+      </div>
+
+      <!-- Sección 2 -->
+      <div class="section-title">
+        <span>2. Módulos de Ventas, Picking, Distribución y Cobranza</span>
+        <span class="badge">Comercial y Finanzas</span>
+      </div>
+
+      <!-- Modulo 4: Pedidos y Picking por Voz -->
+      <div class="module-card">
+        <div class="module-header">
+          <span class="module-name">4. Módulo de Pedidos, Picking y Dictado por Voz (IA)</span>
+          <div>
+            <span class="module-tag tag-ai">Voz + IA</span>
+            <span class="module-tag tag-operational">Operativo</span>
+          </div>
+        </div>
+        <div class="module-desc">
+          Gestión integral de ventas mayoristas y preparación de pedidos. Permite a bodega realizar picking guiado ítem por ítem y a los vendedores crear pedidos dictándolos por voz a costo ultra-bajo.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Dictado por Voz con IA:</strong> Web Speech API + Gemini Flash para transcripción.</li>
+          <li><strong>Picking Guiado en Bodega:</strong> Chequeo en tiempo real de tallos y paquetes empacados.</li>
+          <li><strong>Asignador de Preparadores:</strong> Selector rápido estilo tareas con atajo (Ctrl + Enter).</li>
+          <li><strong>Comparador Histórico:</strong> Vista de "Pedido Anterior vs Pedido Nuevo".</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">Web Speech API</span>
+          <span class="tech-pill">Gemini Flash</span>
+          <span class="tech-pill">Picking Flow Engine</span>
+        </div>
+      </div>
+
+      <!-- Modulo 5: Rutas y Distribucion -->
+      <div class="module-card">
+        <div class="module-header">
+          <span class="module-name">5. Módulo de Rutas y Logística de Distribución</span>
+          <span class="module-tag tag-new">Nuevo</span>
+        </div>
+        <div class="module-desc">
+          Coordinación logística para entregas foráneas y locales (San Pedro Sula, Tegucigalpa, Occidente). Vincula pedidos, vehículos, choferes y permite auto-venta en ruta.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Planificación de Rutas:</strong> Organización de clientes por zonas geográficas.</li>
+          <li><strong>Asignación de Unidades:</strong> Control de choferes y vehículos asignados.</li>
+          <li><strong>Soporte Multi-Empresa:</strong> Rutas compartidas con HonduFlores.</li>
+          <li><strong>Liquidación de Entrega:</strong> Confirmación de recepción y reporte de cobranza en ruta.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">Multi-tenant Architecture</span>
+          <span class="tech-pill">Route Coordinator</span>
+          <span class="tech-pill">Auto-Venta Slip</span>
+        </div>
+      </div>
+
+      <!-- Modulo 6: Facturacion SAR y POS -->
+      <div class="module-card">
+        <div class="module-header">
+          <span class="module-name">6. Facturación Fiscal SAR y Punto de Venta (POS)</span>
+          <span class="module-tag tag-operational">Operativo 100%</span>
+        </div>
+        <div class="module-desc">
+          Emisión formal de facturas computarizadas autorizadas por la SAR con control estricto de CAI, rangos correlativos atómicos y modo POS táctil para mostrador.
+        </div>
+        <ul class="feature-list">
+          <li><strong>206 Clientes de Mónica:</strong> Base migrada de Monica 11 con búsqueda predictiva.</li>
+          <li><strong>POS con Escáner Móvil:</strong> Cámara web/móvil integrada con adición por QR.</li>
+          <li><strong>Controles Táctiles:</strong> Botones rápidos (+ / -) de cantidad en tarjeta de producto.</li>
+          <li><strong>Cumplimiento SAR:</strong> CAI configurable, rangos límite, proformas y cotizaciones.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">SAR Regulatory Engine</span>
+          <span class="tech-pill">React PDF &amp; Canvas</span>
+          <span class="tech-pill">Atomic Correlatives</span>
+        </div>
+      </div>
+
+      <!-- Modulo 7: CXC con WhatsApp -->
+      <div class="module-card">
+        <div class="module-header">
+          <span class="module-name">7. Cuentas por Cobrar (CXC) con Liquidación FIFO y WhatsApp</span>
+          <span class="module-tag tag-operational">Operativo</span>
+        </div>
+        <div class="module-desc">
+          Plataforma financiera para el seguimiento y recuperación de cartera de clientes mayoristas, integrando estados de cuenta instantáneos y conciliación por factura más antigua.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Algoritmo FIFO Dinámico:</strong> Los abonos amortizan automáticamente facturas viejas.</li>
+          <li><strong>Envío a WhatsApp:</strong> Mensajes y estados de cuenta estructurados en 1 clic.</li>
+          <li><strong>Filtro de Cartera Activa:</strong> Exclusión automática de consumidor final y saldos en cero.</li>
+          <li><strong>Notas de Crédito &amp; Merma:</strong> Ajustes por flor marchita o reclamos de calidad.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">FIFO Payment Engine</span>
+          <span class="tech-pill">WhatsApp URL Encoding</span>
+          <span class="tech-pill">Financial Reconciliation</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Página 2 -->
+    <div class="report-footer">
+      <div>Distribuidora Paraíso Floral &bull; Documento Oficial de Entrega de Software</div>
+      <div>Página 2 de 3</div>
+    </div>
+  </div>
+
+  <!-- ==================== PÁGINA 3: NÓMINA, ROLES, MATRIZ Y FIRMAS ==================== -->
+  <div class="sheet-page">
+    <div>
+      <!-- Sub-header -->
+      <div class="sub-header">
+        <div class="sub-header-title">
+          <span>🌸 Distribuidora Paraíso Floral</span>
+          <span style="color: var(--gray-600); font-weight: 400;">| Horas Extras, Matriz de Módulos e Impacto Operativo</span>
+        </div>
+        <div style="color: var(--gray-600);">Período: Agosto - Septiembre 2026</div>
+      </div>
+
+      <!-- Modulo 8: Horas Extras -->
+      <div class="module-card" style="margin-bottom: 8px;">
+        <div class="module-header">
+          <span class="module-name">8. Control de Horas Extras y Asistencia Biométrica</span>
+          <span class="module-tag tag-new">Nuevo</span>
+        </div>
+        <div class="module-desc">
+          Sistema de auditoría de nómina para el cálculo exacto de horas extras del personal operativo de cuartos fríos y logística, alimentado directamente desde los relojes biométricos.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Importador Automático Excel:</strong> Lee reportes de asistencia (Tegucigalpa y SPS).</li>
+          <li><strong>Visor de Excel Interactivo:</strong> Audita y visualiza las marcas antes de aplicar nómina.</li>
+          <li><strong>Cálculo de Jornadas:</strong> Desglose de horas diurnas, nocturnas y días feriados.</li>
+          <li><strong>Control de Acceso:</strong> Rol exclusivo para jefaturas y recursos humanos.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">XLS/XLSX Parser</span>
+          <span class="tech-pill">Interactive Spreadsheet Modal</span>
+          <span class="tech-pill">Overtime Calculator</span>
+        </div>
+      </div>
+
+      <!-- Modulo 9: Seguridad y Roles -->
+      <div class="module-card" style="margin-bottom: 10px;">
+        <div class="module-header">
+          <span class="module-name">9. Seguridad, Matriz de Roles y Trazabilidad</span>
+          <span class="module-tag tag-operational">Operativo</span>
+        </div>
+        <div class="module-desc">
+          Capa transversal de seguridad que asegura que cada colaborador acceda únicamente a sus opciones, auditando cada movimiento en el sistema.
+        </div>
+        <ul class="feature-list">
+          <li><strong>Roles Dedicados:</strong> Gerencia, Auxiliar de Bodega, Recepción, Vendedores y Rutas.</li>
+          <li><strong>Gestión de Accesos:</strong> Cambio de contraseñas y auto-reparación tolerante a mayúsculas.</li>
+        </ul>
+        <div class="tech-pills">
+          <span class="tech-pill">Supabase Auth</span>
+          <span class="tech-pill">Granular RBAC</span>
+          <span class="tech-pill">Audit Trail</span>
+        </div>
+      </div>
+
+      <!-- Tabla de Estado Resumen -->
+      <div class="section-title">
+        <span>Matriz de Estado y Disponibilidad de Módulos</span>
+        <span class="badge">Consolidado Final</span>
+      </div>
+
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Módulo</th>
+            <th>Área</th>
+            <th>Funcionalidades Clave</th>
+            <th>Estado</th>
+            <th>Progreso</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Control de Inventario Floral</strong></td>
+            <td>Bodega / CEDI</td>
+            <td>Perecederos, modo tabla, ingreso tipo Excel, Kardex con aprobación</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>2. Recepción Packing List con IA</strong></td>
+            <td>Bodega / CEDI</td>
+            <td>Lectura de PDF de Ecuador con IA, modo tablet, beep 1400Hz</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>3. Impresión Térmica TSPL</strong></td>
+            <td>Almacén / Frío</td>
+            <td>Protocolo TSPL nativo, etiquetas 50x25, servidor local Python</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>4. Pedidos y Picking por Voz</strong></td>
+            <td>Ventas / Bodega</td>
+            <td>Picking guiado, pedidos dictados por voz con IA, atajo Ctrl+Enter</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>5. Rutas y Distribución</strong></td>
+            <td>Logística</td>
+            <td>Asignación de unidades, choferes, auto-venta y multi-empresa</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>95%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>6. Facturación SAR y POS</strong></td>
+            <td>Caja / Ventas</td>
+            <td>206 clientes de Monica 11, escaneo móvil, CAI fiscal, proformas</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>7. Cuentas por Cobrar (CXC)</strong></td>
+            <td>Créditos</td>
+            <td>Cobranza FIFO, estados de cuenta WhatsApp, notas de crédito</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>8. Control de Horas Extras</strong></td>
+            <td>RRHH / Nómina</td>
+            <td>Importador biométrico XLS de TGU/SPS, visor Excel en modal</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>9. Seguridad y Roles</strong></td>
+            <td>Tecnología</td>
+            <td>Permisos por rol (Bodega, Gerente, Rutas, Recepción), Auth Sync</td>
+            <td><span class="module-tag tag-operational">Operativo</span></td>
+            <td><strong>100%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Impacto Operativo -->
+      <div class="section-title">
+        <span>Impacto Operativo para Distribuidora Paraíso Floral</span>
+      </div>
+
+      <ul class="impact-list">
+        <li class="impact-item">
+          <span class="impact-icon">⚡</span>
+          <div><strong>80% de Aceleración en Recepción:</strong> La IA extrae los Packing Lists de Ecuador eliminando digitación manual y pérdidas por tallos mal contados.</div>
+        </li>
+        <li class="impact-item">
+          <span class="impact-icon">🏷️</span>
+          <div><strong>Trazabilidad en Cuarto Frío:</strong> Viñetas térmicas TSPL legibles a distancia que resisten la humedad y agilizan el picking.</div>
+        </li>
+        <li class="impact-item">
+          <span class="impact-icon">💰</span>
+          <div><strong>Mayor Recuperación de Cartera en CXC:</strong> Estados de cuenta con liquidación FIFO enviados directo a WhatsApp en 1 solo clic.</div>
+        </li>
+        <li class="impact-item">
+          <span class="impact-icon">📱</span>
+          <div><strong>Operación 100% en Bodega:</strong> Los auxiliares operan desde Tablets Galaxy Tab de 10.9" en los andenes de descarga sin cables.</div>
+        </li>
+      </ul>
+
+      <!-- Firmas -->
+      <div class="signature-grid">
+        <div class="sig-box">
+          <strong>Ing. Marcio Barahona</strong><br>
+          Líder de Desarrollo e Integraciones ERP<br>
+          Distribuidora Paraíso Floral
+        </div>
+        <div class="sig-box">
+          <strong>Distribuidora Paraíso Floral</strong><br>
+          Recepción y Aprobación de Entrega de Módulos<br>
+          Dirección General / Operaciones
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Página 3 -->
+    <div class="report-footer">
+      <div>Documento Oficial de Entrega de Software &bull; Generado el 15 de Septiembre, 2026</div>
+      <div>Página 3 de 3 &bull; Distribuidora Paraíso Floral ERP</div>
+    </div>
+  </div>
+
+</body>
+</html>

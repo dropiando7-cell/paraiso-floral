@@ -3,17 +3,19 @@ import { Search, Plus, Percent, Stethoscope } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
+import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
 
 export default function MinimalistTemplate(props: TemplateProps) {
- const {
- settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
- today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
- paymentMethod, setPaymentMethod,
- validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
- handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,
- onToggleTerms
- } = props;
+  const {
+    settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
+    today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+    paymentMethod, setPaymentMethod,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,
+    onToggleTerms,
+    numeroCAI, rangoAutorizado, fechaLimiteEmision, isSar
+  } = props;
 
  const fontClass = settings.fontFamily || 'font-sans';
  const colorMap: Record<string, string> = {
@@ -120,6 +122,17 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
  </div>
  </div>
+
+ {/* SAR Fiscal Details Banner */}
+ {(numeroCAI || rangoAutorizado || fechaLimiteEmision) && (
+   <SarFiscalBanner
+     numeroCAI={numeroCAI}
+     rangoAutorizado={rangoAutorizado}
+     fechaLimiteEmision={fechaLimiteEmision}
+     variant="light"
+     className="mb-8"
+   />
+ )}
 
  {/* Client Block Minimal */}
  <div className="flex flex-col print:flex-row sm:flex-row justify-between gap-6 print:gap-4 mb-10 print:mb-6">
@@ -321,6 +334,9 @@ export default function MinimalistTemplate(props: TemplateProps) {
 
  {/* Signatures and Seals */}
  <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
+
+ {/* SAR Fiscal Footnotes */}
+ {(isSar || numeroCAI) && <SarLeyendasFooter className="mt-4 mb-2" />}
 
  {/* Footer */}
  <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12" />

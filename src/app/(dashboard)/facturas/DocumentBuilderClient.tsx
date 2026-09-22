@@ -4242,75 +4242,105 @@ export default function DocumentBuilderClient({
             />
           )}
 
-          {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
-            settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-            nombreUsuario={resolvedNombreUsuario}
-            docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-            today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-            setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-            setPaymentTerms={setPaymentTerms}
-            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-            validityDays={validityDays} setValidityDays={setValidityDays} 
-            lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-            setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-            setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-            LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
-            setSettings={setSettings}
-            onToggleTerms={handleToggleTerms}
-          />}
-          {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
-             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={resolvedNombreUsuario}
-             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms}
-             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-             validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
-             setSettings={setSettings}
-             onToggleTerms={handleToggleTerms}
-          />}
-          {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
-             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={resolvedNombreUsuario}
-             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms}
-             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-             validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
-             setSettings={setSettings}
-             onToggleTerms={handleToggleTerms}
-          />}
-          {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
-             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={resolvedNombreUsuario}
-             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms}
-             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-             validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
-             setSettings={setSettings}
-             onToggleTerms={handleToggleTerms}
-          />}
+          {/* Datos Fiscales SAR */}
+          {(() => {
+            const sarOrgConfig = organization?.invoiceSettings?.sarConfig;
+            const resolvedNumeroCAI = initialData?.numeroCAI || (docType === 'factura' && sarOrgConfig?.activo !== false ? sarOrgConfig?.cai : null);
+            const resolvedRangoAutorizado = initialData?.rangoAutorizado || (docType === 'factura' && sarOrgConfig?.activo !== false && sarOrgConfig?.rangoInicial && sarOrgConfig?.rangoFinal ? `Del ${sarOrgConfig.rangoInicial} al ${sarOrgConfig.rangoFinal}` : null);
+            const resolvedFechaLimiteEmision = initialData?.fechaLimiteEmision || (docType === 'factura' && sarOrgConfig?.activo !== false ? sarOrgConfig?.fechaLimiteEmision : null);
+            const isDocumentoFiscal = docType === 'factura' || Boolean(resolvedNumeroCAI);
+
+            return (
+              <>
+                {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
+                  settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                  nombreUsuario={resolvedNombreUsuario}
+                  docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                  today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                  setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                  setPaymentTerms={setPaymentTerms}
+                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                  validityDays={validityDays} setValidityDays={setValidityDays} 
+                  lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                  handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                  setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                  setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                  LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                  setSettings={setSettings}
+                  onToggleTerms={handleToggleTerms}
+                  numeroCAI={resolvedNumeroCAI}
+                  rangoAutorizado={resolvedRangoAutorizado}
+                  fechaLimiteEmision={resolvedFechaLimiteEmision}
+                  isSar={isDocumentoFiscal}
+                />}
+                {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
+                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   nombreUsuario={resolvedNombreUsuario}
+                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={setPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                   setSettings={setSettings}
+                   onToggleTerms={handleToggleTerms}
+                   numeroCAI={resolvedNumeroCAI}
+                   rangoAutorizado={resolvedRangoAutorizado}
+                   fechaLimiteEmision={resolvedFechaLimiteEmision}
+                   isSar={isDocumentoFiscal}
+                />}
+                {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
+                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   nombreUsuario={resolvedNombreUsuario}
+                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={setPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                  handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                   setSettings={setSettings}
+                   onToggleTerms={handleToggleTerms}
+                   numeroCAI={resolvedNumeroCAI}
+                   rangoAutorizado={resolvedRangoAutorizado}
+                   fechaLimiteEmision={resolvedFechaLimiteEmision}
+                   isSar={isDocumentoFiscal}
+                />}
+                {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
+                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   nombreUsuario={resolvedNombreUsuario}
+                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={setPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                   setSettings={setSettings}
+                   onToggleTerms={handleToggleTerms}
+                   numeroCAI={resolvedNumeroCAI}
+                   rangoAutorizado={resolvedRangoAutorizado}
+                   fechaLimiteEmision={resolvedFechaLimiteEmision}
+                   isSar={isDocumentoFiscal}
+                />}
+              </>
+            );
+          })()}
           </div>
+
 
           {/* Bottom Action Bar */}
           {!effectiveViewMode && (
@@ -6591,74 +6621,103 @@ export default function DocumentBuilderClient({
             />
           )}
 
-          {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
-            settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-            nombreUsuario={resolvedNombreUsuario}
-            docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-            today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-            setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-            setPaymentTerms={setPaymentTerms}
-            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-            validityDays={validityDays} setValidityDays={setValidityDays} 
-            lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-            setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-            setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-            LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-            setSettings={setSettings}
-            onToggleTerms={handleToggleTerms}
-          />}
-          {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
-             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={resolvedNombreUsuario}
-             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms}
-             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-             validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-             setSettings={setSettings}
-             onToggleTerms={handleToggleTerms}
-          />}
-          {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
-             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={resolvedNombreUsuario}
-             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms}
-             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-             validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-             setSettings={setSettings}
-             onToggleTerms={handleToggleTerms}
-          />}
-          {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
-             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={resolvedNombreUsuario}
-             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms}
-             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-             validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-             setSettings={setSettings}
-             onToggleTerms={handleToggleTerms}
-          />}
+          {/* SAR Fiscal Data in Mobile Print Modal */}
+          {(() => {
+            const sarOrgConfig = organization?.invoiceSettings?.sarConfig;
+            const resolvedNumeroCAI = initialData?.numeroCAI || (docType === 'factura' && sarOrgConfig?.activo !== false ? sarOrgConfig?.cai : null);
+            const resolvedRangoAutorizado = initialData?.rangoAutorizado || (docType === 'factura' && sarOrgConfig?.activo !== false && sarOrgConfig?.rangoInicial && sarOrgConfig?.rangoFinal ? `Del ${sarOrgConfig.rangoInicial} al ${sarOrgConfig.rangoFinal}` : null);
+            const resolvedFechaLimiteEmision = initialData?.fechaLimiteEmision || (docType === 'factura' && sarOrgConfig?.activo !== false ? sarOrgConfig?.fechaLimiteEmision : null);
+            const isDocumentoFiscal = docType === 'factura' || Boolean(resolvedNumeroCAI);
+
+            return (
+              <>
+                {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
+                  settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                  nombreUsuario={resolvedNombreUsuario}
+                  docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                  today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                  setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                  setPaymentTerms={setPaymentTerms}
+                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                  validityDays={validityDays} setValidityDays={setValidityDays} 
+                  lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                  handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                  setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                  setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                  LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                  setSettings={setSettings}
+                  onToggleTerms={handleToggleTerms}
+                  numeroCAI={resolvedNumeroCAI}
+                  rangoAutorizado={resolvedRangoAutorizado}
+                  fechaLimiteEmision={resolvedFechaLimiteEmision}
+                  isSar={isDocumentoFiscal}
+                />}
+                {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
+                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   nombreUsuario={resolvedNombreUsuario}
+                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={setPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                   LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                   setSettings={setSettings}
+                   onToggleTerms={handleToggleTerms}
+                   numeroCAI={resolvedNumeroCAI}
+                   rangoAutorizado={resolvedRangoAutorizado}
+                   fechaLimiteEmision={resolvedFechaLimiteEmision}
+                   isSar={isDocumentoFiscal}
+                />}
+                {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
+                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   nombreUsuario={resolvedNombreUsuario}
+                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={setPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                  handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                   LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                   setSettings={setSettings}
+                   onToggleTerms={handleToggleTerms}
+                   numeroCAI={resolvedNumeroCAI}
+                   rangoAutorizado={resolvedRangoAutorizado}
+                   fechaLimiteEmision={resolvedFechaLimiteEmision}
+                   isSar={isDocumentoFiscal}
+                />}
+                {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
+                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   nombreUsuario={resolvedNombreUsuario}
+                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={setPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                   LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                   setSettings={setSettings}
+                   onToggleTerms={handleToggleTerms}
+                   numeroCAI={resolvedNumeroCAI}
+                   rangoAutorizado={resolvedRangoAutorizado}
+                   fechaLimiteEmision={resolvedFechaLimiteEmision}
+                   isSar={isDocumentoFiscal}
+                />}
+              </>
+            );
+          })()}
         </div>
       </MobilePrintPreviewModal>
     </div>
