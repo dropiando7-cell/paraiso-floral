@@ -395,11 +395,11 @@ export default function LegacyTemplate(props: TemplateProps) {
 
  
     <div 
-    className={`flex justify-between items-center px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-3 ${settings?.subtotalsBorder && isGrouped ? 'border-x border-b border-t rounded-t-none mt-0' : ''}`}
+    className={`flex justify-between items-center px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-3 ${(settings?.subtotalsBorder && isGrouped) ? 'border-x border-b rounded-none mt-0 shadow-none' : ''}`}
     style={{
       backgroundColor: settings.totalBgColor || '#0f172a',
       color: settings.totalTextColor || '#ffffff',
-      borderColor: settings.totalBgColor || '#0f172a',
+      borderColor: (settings?.subtotalsBorder && isGrouped) ? (settings.tableBorderColor || '#1e293b') : (settings.totalBgColor || '#0f172a'),
       WebkitPrintColorAdjust: 'exact',
       printColorAdjust: 'exact'
     }}
