@@ -42,7 +42,7 @@ export default function FacturacionHeader(props: Props) {
   const TabIcon = tabInfo.icon;
 
   return (
-    <div className="bg-white border-b border-slate-200 print:hidden sticky top-0 z-30 shadow-xs">
+    <div className="bg-white border-b border-slate-200 print:hidden shadow-xs relative z-10">
       <div className="max-w-[1600px] mx-auto px-2 sm:px-4 flex items-center justify-between min-h-[52px] sm:min-h-[58px] gap-2">
         
         {/* Lado Izquierdo: Título y Ubicación Actual (Breadcrumb) */}

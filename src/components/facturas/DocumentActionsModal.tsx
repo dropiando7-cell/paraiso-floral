@@ -12,6 +12,7 @@ interface DocumentActionsModalProps {
   onConvert?: (targetType: 'PROFORMA' | 'FACTURA') => void;
   onShowOrdenEntrega?: () => void;
   onSendEmail?: () => void;
+  onSendWhatsApp?: () => void;
   isDownloadingPDF?: boolean;
   isConverting?: boolean;
   docType?: string; // 'cotizacion', 'proforma', etc
@@ -26,6 +27,7 @@ export default function DocumentActionsModal({
   onConvert,
   onShowOrdenEntrega,
   onSendEmail,
+  onSendWhatsApp,
   isDownloadingPDF,
   isConverting,
   docType,
@@ -166,12 +168,22 @@ export default function DocumentActionsModal({
               </button>
 
               {/* WhatsApp */}
-              <button disabled className="group flex flex-col items-center justify-center gap-3 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl transition-all opacity-70 relative">
-                <div className="absolute top-2 right-2 bg-slate-200 text-slate-500 text-[9px] font-black uppercase px-2 py-1 rounded-md">Pronto</div>
-                <div className="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center">
+              <button 
+                onClick={() => onSendWhatsApp && handleAction(onSendWhatsApp)}
+                disabled={!onSendWhatsApp}
+                className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all relative ${
+                  onSendWhatsApp
+                    ? 'border-green-100 hover:border-green-500 hover:shadow-lg cursor-pointer'
+                    : 'border-slate-100 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                {!onSendWhatsApp && <div className="absolute top-2 right-2 bg-slate-200 text-slate-500 text-[9px] font-black uppercase px-2 py-1 rounded-md">Pronto</div>}
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform ${
+                  onSendWhatsApp ? 'bg-green-50 text-green-600 group-hover:scale-110' : 'bg-slate-50 text-slate-400'
+                }`}>
                   <MessageSquare size={28} />
                 </div>
-                <span className="font-bold text-slate-500 text-sm text-center">Por WhatsApp</span>
+                <span className={`font-bold text-sm text-center ${onSendWhatsApp ? 'text-slate-700' : 'text-slate-500'}`}>Por WhatsApp</span>
               </button>
 
               {/* Link */}

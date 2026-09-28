@@ -32,31 +32,31 @@ export default function SarFiscalBanner({
   if (variant === 'dark') {
     return (
       <div className={`bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-3 text-white font-mono text-[11px] ${className}`}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2.5">
           <div>
-            <span className="block text-[9px] uppercase tracking-wider text-slate-300 font-sans font-bold">
+            <span className="block text-[9px] uppercase tracking-wider text-slate-300 font-sans font-bold whitespace-nowrap">
               CAI (Autorizado por SAR)
             </span>
-            <span className="font-bold text-[11px] tracking-wide break-all text-white">
+            <span className="font-bold text-[11px] tracking-wide text-white whitespace-nowrap">
               {numeroCAI || '—'}
             </span>
           </div>
           {rangoAutorizado && (
             <div>
-              <span className="block text-[9px] uppercase tracking-wider text-slate-300 font-sans font-bold">
+              <span className="block text-[9px] uppercase tracking-wider text-slate-300 font-sans font-bold whitespace-nowrap">
                 Rango Autorizado
               </span>
-              <span className="text-[11px] font-semibold text-slate-100">
+              <span className="text-[11px] font-semibold text-slate-100 whitespace-nowrap">
                 {rangoAutorizado}
               </span>
             </div>
           )}
           {formattedDate && (
-            <div>
-              <span className="block text-[9px] uppercase tracking-wider text-slate-300 font-sans font-bold">
+            <div className="text-left sm:text-right">
+              <span className="block text-[9px] uppercase tracking-wider text-slate-300 font-sans font-bold whitespace-nowrap">
                 Fecha Límite de Emisión
               </span>
-              <span className="text-[11px] font-semibold text-emerald-300">
+              <span className="text-[11px] font-semibold text-emerald-300 whitespace-nowrap">
                 {formattedDate}
               </span>
             </div>
@@ -74,31 +74,31 @@ export default function SarFiscalBanner({
         ? 'border-2 border-slate-800 bg-white text-slate-900' 
         : 'border border-slate-200 bg-slate-50 text-slate-800'
     } ${className}`}>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
         <div>
-          <span className="block text-[8.5px] uppercase tracking-wider text-slate-500 font-sans font-bold">
+          <span className="block text-[8.5px] uppercase tracking-wider text-slate-500 font-sans font-bold whitespace-nowrap">
             CAI (Código Autorización)
           </span>
-          <span className="font-bold tracking-wide break-all text-slate-950">
+          <span className="font-bold tracking-wide text-slate-950 whitespace-nowrap">
             {numeroCAI || '—'}
           </span>
         </div>
         {rangoAutorizado && (
           <div>
-            <span className="block text-[8.5px] uppercase tracking-wider text-slate-500 font-sans font-bold">
+            <span className="block text-[8.5px] uppercase tracking-wider text-slate-500 font-sans font-bold whitespace-nowrap">
               Rango Autorizado
             </span>
-            <span className="font-semibold text-slate-800">
+            <span className="font-semibold text-slate-800 whitespace-nowrap">
               {rangoAutorizado}
             </span>
           </div>
         )}
         {formattedDate && (
-          <div>
-            <span className="block text-[8.5px] uppercase tracking-wider text-slate-500 font-sans font-bold">
+          <div className="text-left sm:text-right">
+            <span className="block text-[8.5px] uppercase tracking-wider text-slate-500 font-sans font-bold whitespace-nowrap">
               Fecha Límite Emisión
             </span>
-            <span className="font-semibold text-slate-800">
+            <span className="font-semibold text-slate-800 whitespace-nowrap">
               {formattedDate}
             </span>
           </div>

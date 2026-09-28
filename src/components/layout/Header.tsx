@@ -436,7 +436,7 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
                                                 const isSelected = item.originalIndex === selectedIndex;
                                                 return (
                                                     <button
-                                                        key={item.href}
+                                                        key={`${item.href}-${item.name}`}
                                                         onClick={() => handleNavigate(item.href)}
                                                         className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-all text-left group border ${
                                                             isSelected 

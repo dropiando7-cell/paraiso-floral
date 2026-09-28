@@ -227,6 +227,14 @@ export default function MinimalistTemplate(props: TemplateProps) {
   <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-medium hover:bg-slate-100 rounded flex gap-2 items-center"><Search size={14} /> Catálogo</button>
   <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Fila</button>
   <button onClick={() => setLineItems(prev => [...prev, emptySectionLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Sección</button>
+  {props.setSettings && (
+    <div className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 bg-slate-50 rounded ml-auto">
+      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Precios incluyen ISV</span>
+      <button type="button" onClick={() => props.setSettings?.(s => ({ ...s, pricesIncludeTax: !s.pricesIncludeTax }))} className={`w-8 h-4 rounded-full transition-all relative ${settings.pricesIncludeTax ? 'bg-blue-600' : 'bg-slate-300'}`}>
+        <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${settings.pricesIncludeTax ? 'left-4' : 'left-0.5'}`} />
+      </button>
+    </div>
+  )}
   </div>
   )}
  </div>

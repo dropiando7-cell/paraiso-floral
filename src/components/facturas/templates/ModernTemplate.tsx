@@ -278,6 +278,22 @@ export default function ModernTemplate(props: TemplateProps) {
  >
  <Plus size={16} /> Sección
  </button>
+ {props.setSettings && (
+   <div className="flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3 px-4 bg-slate-50 rounded-xl border border-slate-100 shadow-sm shrink-0">
+     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Incluyen 15%</span>
+     <button
+       type="button"
+       onClick={() => props.setSettings?.(s => ({ ...s, pricesIncludeTax: !s.pricesIncludeTax }))}
+       className={`w-9 h-5 rounded-full transition-all relative shrink-0 ${
+         settings.pricesIncludeTax ? 'bg-blue-600' : 'bg-slate-300'
+       }`}
+     >
+       <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+         settings.pricesIncludeTax ? 'left-[18px]' : 'left-0.5'
+       }`} />
+     </button>
+   </div>
+ )}
  </div>
  )}
  </div>

@@ -45,6 +45,7 @@ interface LineItem {
     bold: boolean;
     align: 'left' | 'center' | 'right';
   };
+  _isNew?: boolean;
 }
 
 interface Client {
@@ -99,9 +100,9 @@ import { getAreas } from '../admin/areas/actions';
 
 
 const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: string; bg: string; description: string }[] = [
-  { key: 'cotizacion', label: 'Cotización', icon: <FileText size={14} />, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Propuesta comercial formal o presupuesto de soporte' },
-  { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
+  { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
+  { key: 'cotizacion', label: 'Cotización', icon: <FileText size={14} />, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Propuesta comercial formal o presupuesto de soporte' },
   { key: 'nota_credito', label: 'Nota de Crédito', icon: <Undo size={14} />, color: 'text-purple-600', bg: 'bg-purple-50', description: 'Documento de devolución/descuento' },
 ];
 
@@ -136,7 +137,7 @@ const formatFecha = (dStr: string | Date | null | undefined) => {
 
 const emptyLine = (): LineItem => ({
   id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false,
-  qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage',
+  qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage', _isNew: true
 });
 
 const emptySectionLine = (): LineItem => ({
@@ -145,7 +146,8 @@ const emptySectionLine = (): LineItem => ({
   isSection: true,
   sectionStyle: { 
     bold: true, align: 'left' 
-  }
+  },
+  _isNew: true
 });
 
 const calcLine = (item: LineItem, pricesIncludeTax?: boolean) => {
@@ -859,6 +861,17 @@ function LineItemRow({
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
+    if (!viewMode && item._isNew) {
+      setTimeout(() => {
+        if (containerRef.current) {
+          const firstInput = containerRef.current.querySelector('input:not([type="hidden"])') as HTMLInputElement;
+          if (firstInput) {
+            firstInput.focus();
+            setTimeout(() => firstInput.select(), 10);
+          }
+        }
+      }, 50);
+    }
   }, []);
   const lastNonSectionIndex = lineItems ? lineItems.reduceRight((acc: number, it: any, idx: number) => acc !== -1 ? acc : (!it.isSection ? idx : -1), -1) : -1;
   const isLastNonSection = index === lastNonSectionIndex;
@@ -1037,13 +1050,35 @@ function LineItemRow({
     return () => clearTimeout(delayDebounce);
   }, [query, showAutocomplete]);
 
-  const matchedProducts = query.trim().length >= 2 
-    ? (searchResults.length > 0 ? searchResults : (isLoadingResults ? [] : allProducts.filter(p => 
+  const localMatched = query.trim().length >= 2 
+    ? allProducts.filter(p => 
         normalizeText(p.name).includes(nQuery) || 
         normalizeText(p.code).includes(nQuery) ||
         (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
         (p.serie && normalizeText(p.serie).includes(nQuery))
-      )))
+      )
+    : [];
+
+  const matchedProducts = query.trim().length >= 2 
+    ? (() => {
+        const map = new Map();
+        localMatched.forEach(p => map.set(p.id, p));
+        searchResults.forEach(p => {
+          if (isLoadingResults) {
+            if (
+              normalizeText(p.name).includes(nQuery) || 
+              normalizeText(p.code).includes(nQuery) ||
+              (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
+              (p.serie && normalizeText(p.serie).includes(nQuery))
+            ) {
+              map.set(p.id, p);
+            }
+          } else {
+            map.set(p.id, p);
+          }
+        });
+        return Array.from(map.values());
+      })()
     : [];
 
   const filteredProducts = matchedProducts.sort((a, b) => {
@@ -1581,6 +1616,7 @@ function LineItemRow({
                     min="1"
                     value={item.qty}
                     onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); }}
                     onKeyDown={handleKeyDown}
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
@@ -1610,7 +1646,7 @@ function LineItemRow({
                       <>
                         <input
                           value={item.code}
-                          onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
+                          onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); setFocusedField('code'); setShowAutocomplete(true); }}
                           onChange={e => {
                             onChange(item.id, 'code', e.target.value);
                             setFocusedField('code');
@@ -1689,7 +1725,7 @@ function LineItemRow({
                       type="text"
                       value={item.shortDesc}
                       disabled={viewMode}
-                      onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
+                      onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); setFocusedField('desc'); setShowAutocomplete(true); }}
                       onChange={e => {
                         onChange(item.id, 'shortDesc', e.target.value.toUpperCase());
                         setFocusedField('desc');
@@ -1740,6 +1776,7 @@ function LineItemRow({
                     type="number"
                     value={item.unitPrice}
                     onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); }}
                     onKeyDown={handleKeyDown}
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
@@ -1762,6 +1799,7 @@ function LineItemRow({
                     type="number"
                     value={item.discount}
                     onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); }}
                     onKeyDown={handleKeyDown}
                     placeholder="0"
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
@@ -1817,7 +1855,9 @@ function LineItemRow({
                     type="number"
                     step="any"
                     value={focusedField === 'monto' ? montoInputValue : displayTotal.toFixed(2)}
-                    onFocus={() => {
+                    onFocus={(e) => {
+                      const t = e.target;
+                      setTimeout(() => t.select(), 10);
                       setFocusedField('monto');
                       setMontoInputValue(displayTotal.toFixed(2));
                     }}
@@ -1993,7 +2033,7 @@ export default function DocumentBuilderClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [docType, setDocType] = useState<DocType>('cotizacion');
+  const [docType, setDocType] = useState<DocType>('factura');
 
   const docDate = (initialData?.fechaEmision && (editMode || viewMode))
     ? new Date(initialData.fechaEmision)
@@ -2608,7 +2648,11 @@ export default function DocumentBuilderClient({
         if (parsed.settings && typeof parsed.settings === 'object') {
           setSettings(prev => ({ ...prev, ...parsed.settings }));
         }
-        if (!parsed.reservedDocId) setIsLocked(true); // Must reserve first 
+        if (parsed.docNumber) {
+          setIsLocked(false);
+        } else if (!parsed.reservedDocId) {
+          setIsLocked(true); // Must reserve first 
+        }
         draftLoadedRef.current = true;
         toast('Borrador restaurado', { icon: '📝' });
       } else {
@@ -3077,15 +3121,18 @@ export default function DocumentBuilderClient({
       return;
     }
 
-    // Solo podemos descargar el vectorial si el documento ya tiene ID oficial en BD
     const docId = initialData?.id;
-    if (!docId || docId === 'nuevo') {
-      toast.error('Debes GUARDAR EL DOCUMENTO antes de poder exportarlo en formato PDF.');
+    const isUnsaved = !docId || docId === 'nuevo';
+
+    if (isUnsaved && (pdfType === 'entrega' || pdfType === 'garantia')) {
+      toast.error('Debes GUARDAR EL DOCUMENTO antes de poder exportar Notas de Entrega o Garantías.');
       return;
     }
 
-    // Guardar cambios silenciosamente antes de descargar
-    await handleSilentSave();
+    if (!isUnsaved) {
+      // Guardar cambios silenciosamente antes de descargar
+      await handleSilentSave();
+    }
 
     if (pdfType === 'entrega' || pdfType === 'garantia') {
       window.open(`/api/pdf/${docId}?type=${pdfType}`, '_blank');
@@ -3132,9 +3179,12 @@ export default function DocumentBuilderClient({
       ), { duration: Infinity });
     };
 
-    let toastId = customToast('Generando PDF Vectorial (Máxima Calidad)...');
+    let toastId = customToast(isUnsaved ? 'Generando PDF (Modo Local)...' : 'Generando PDF Vectorial (Máxima Calidad)...', isUnsaved);
 
     try {
+      if (isUnsaved) {
+        throw new Error("LocalFallbackRequired");
+      }
       // Petición al API de generación PDF Serverless con query param type
       const res = await fetch(`/api/pdf/${docId}?type=${pdfType}`);
       if (!res.ok) {
@@ -3166,16 +3216,19 @@ export default function DocumentBuilderClient({
       toast.success('PDF generado y descargado exitosamente');
       setIsDownloadingPDF(false);
       return;
-    } catch (apiError) {
+    } catch (apiError: any) {
       if (pdfType !== 'factura') {
         toast.dismiss(toastId);
         toast.error('Error al generar este PDF especial en el servidor.');
         setIsDownloadingPDF(false);
         return;
       }
-      console.warn('API Vector Serverless failed/timeout. Falling back to html2canvas local render.', apiError);
-      toast.dismiss(toastId);
-      toastId = customToast('Generando PDF de Respaldo...', true);
+      
+      if (apiError.message !== "LocalFallbackRequired") {
+        console.warn('API Vector Serverless failed/timeout. Falling back to html2canvas local render.', apiError);
+        toast.dismiss(toastId);
+        toastId = customToast('Generando PDF de Respaldo...', true);
+      }
       
       // FALLBACK LOCAL IMAGE-BASED PDF
       const container = templateContainerRef.current;
@@ -6007,6 +6060,25 @@ export default function DocumentBuilderClient({
             await handleSilentSave();
             setSendEmailDocId(initialData.id);
             setSendEmailModalOpen(true);
+          } : undefined}
+          onSendWhatsApp={initialData?.id ? async () => {
+            await handleSilentSave();
+            const defaultPhone = selectedClient?.phone || initialData?.cliente?.telefono || '';
+            const phone = window.prompt("Confirme o ingrese el número de teléfono para enviar por WhatsApp (Ej: 9900-0000):", defaultPhone);
+            if (phone !== null) {
+              let cleanPhone = phone.replace(/[^0-9]/g, '');
+              if (cleanPhone.length === 8) {
+                cleanPhone = '504' + cleanPhone;
+              }
+              if (!cleanPhone) {
+                toast.error("Número de teléfono inválido.");
+                return;
+              }
+              const docName = docType === 'factura' ? 'la Factura Oficial' : docType === 'proforma' ? 'la Factura Pro Forma' : docType === 'nota_credito' ? 'la Nota de Crédito' : 'la Cotización';
+              const docUrl = `${window.location.origin}/c/${initialData.id}/doc`;
+              const mensaje = `Hola! Adjunto ${docName} de *Paraíso Floral*.\n\nPuedes verla y descargarla en el siguiente enlace seguro:\n${docUrl}`;
+              window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            }
           } : undefined}
           isDownloadingPDF={isDownloadingPDF}
           isConverting={isConverting}
