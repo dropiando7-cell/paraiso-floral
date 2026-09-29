@@ -1431,6 +1431,32 @@ export async function toggleMostrarDescripcion(id: string, mostrar: boolean) {
 }
 
 // --- ANULAR DOCUMENTO (Soft Delete + Restore Inventory) ---
+// --- ELIMINAR BORRADOR ---
+export async function eliminarDocumentoBorrador(id: string) {
+    try {
+        const authUser = await getAuthenticatedUser();
+        const { organizationId } = authUser;
+
+        const doc = await prisma.factura.findUnique({
+            where: { id }
+        });
+
+        if (!doc) throw new Error("Documento no encontrado.");
+        if (doc.organizationId !== organizationId) throw new Error("No tienes permisos para eliminar este documento.");
+        if (doc.estado !== 'BORRADOR') throw new Error("Solo se pueden eliminar documentos en estado BORRADOR.");
+
+        await prisma.factura.delete({
+            where: { id }
+        });
+
+        revalidatePath('/facturas');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error al eliminar borrador:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function anularDocumento(id: string) {
     try {
         const organizationId = await getOrganizationId();

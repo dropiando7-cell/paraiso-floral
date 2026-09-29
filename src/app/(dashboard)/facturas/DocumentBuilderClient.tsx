@@ -79,7 +79,7 @@ interface Product {
   isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages, eliminarDocumentoBorrador } from './actions';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -6012,9 +6012,19 @@ export default function DocumentBuilderClient({
                 Cancelar
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (initialData?.id && initialData?.estado === 'BORRADOR') {
+                    const res = await eliminarDocumentoBorrador(initialData.id);
+                    if (res.success) {
+                      toast.success("Borrador eliminado");
+                      router.push('/facturas?tab=creador');
+                      return;
+                    } else {
+                      toast.error("Error al eliminar borrador: " + res.error);
+                    }
+                  }
                   clearLocalDraft();
-                  window.location.reload();
+                  window.location.href = window.location.pathname;
                 }}
                 className="flex-[1.5] py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 shadow-lg shadow-red-500/30 transition-all"
               >
