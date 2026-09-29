@@ -191,7 +191,7 @@ export function VoiceAssistant() {
     };
 
     // Ejecutar guardado final
-    const handleConfirm = async () => {
+    const handleConfirm = async (asBorrador = false) => {
         if (!client) return;
         setState('saving');
 
@@ -264,7 +264,8 @@ export function VoiceAssistant() {
                 totalGravado15: subTotal,
                 isv15,
                 total,
-                metodoPago: 'Efectivo'
+                metodoPago: 'Efectivo',
+                estado: asBorrador ? 'BORRADOR' : undefined
             };
 
             const docRes = await guardarDocumentoBuilder(docData, finalItems);
@@ -287,8 +288,12 @@ export function VoiceAssistant() {
                 { id: saveToast }
             );
 
-            // Redirigir al listado de facturas/cotizaciones
-            router.push('/facturas?tab=' + (documentAction === 'CREATE_FACTURA' ? 'facturas' : 'cotizaciones'));
+            // Redirigir al listado de facturas/cotizaciones o al canvas
+            if (asBorrador) {
+                router.push(`/facturas?tab=creador&id=${docRes.docId}`);
+            } else {
+                router.push('/facturas?tab=' + (documentAction === 'CREATE_FACTURA' ? 'facturas' : 'cotizaciones'));
+            }
             closeAssistant();
         } catch (e: any) {
             console.error("Error confirming voice document:", e);
@@ -551,17 +556,24 @@ export function VoiceAssistant() {
                         <>
                             <button
                                 onClick={startListening}
-                                className="px-4 py-2.5 border border-slate-800 hover:bg-slate-800 text-slate-300 font-medium rounded-xl text-sm transition-colors flex items-center gap-1.5"
+                                className="p-2.5 border border-slate-800 hover:bg-slate-800 text-slate-300 font-medium rounded-xl transition-colors"
+                                title="Volver a Grabar"
                             >
-                                <Mic size={16} />
-                                Volver a Grabar
+                                <Mic size={18} />
                             </button>
                             <button
-                                onClick={handleConfirm}
+                                onClick={() => handleConfirm(true)}
+                                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-xl text-sm flex items-center gap-1.5 transition-all"
+                            >
+                                <FileText size={16} />
+                                Verificar en Documento
+                            </button>
+                            <button
+                                onClick={() => handleConfirm(false)}
                                 className="flex-1 py-2.5 bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
                             >
                                 <Check size={18} />
-                                Confirmar y Generar
+                                Emitir Oficialmente
                             </button>
                         </>
                     ) : state === 'saving' ? (

@@ -818,7 +818,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     clienteId,
                     correlativo: 'TEMP', // Temporal — se actualiza abajo con el numeroInterno real
                     tipoDocumento: data.tipoDocumento,
-                    estado: (data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE',
+                    estado: data.estado || ((data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE'),
                     notas: data.notas || null,
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
