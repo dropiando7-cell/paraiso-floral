@@ -1226,7 +1226,14 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
     try {
         const organizationId = await getOrganizationId();
         
-        const whereClause: any = { organizationId };
+        const whereClause: any = { 
+            organizationId,
+            correlativo: {
+                not: {
+                    startsWith: 'FAC-OCC'
+                }
+            }
+        };
         if (soloPropiosUserId) {
             whereClause.creadoPorId = soloPropiosUserId;
         }
