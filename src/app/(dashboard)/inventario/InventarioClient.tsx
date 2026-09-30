@@ -67,8 +67,8 @@ function DebouncedInput({
 }
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
-function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string, impresora: string) => void; isPrinting: boolean }) {
-    const [cantidadStr, setCantidadStr] = useState('1');
+function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting, defaultCantidad = '1' }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string, impresora: string) => void; isPrinting: boolean; defaultCantidad?: string }) {
+    const [cantidadStr, setCantidadStr] = useState(defaultCantidad);
     const [size, setSize] = useState('50x25');
     const [impresora, setImpresora] = useState('Vorttek');
 
@@ -113,7 +113,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                     </div>
                 </div>
                 <div className="mb-4 flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-2">
                         <span className="text-sm font-semibold text-slate-700">Copias a Imprimir:</span>
                         <input 
                             type="number" 
@@ -128,7 +128,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                                 }
                             }}
                             placeholder="1"
-                            className="w-24 text-center font-black text-lg py-2 px-3 rounded-xl border-2 border-slate-300 focus:border-[#0500A3] focus:ring-2 focus:ring-blue-100 outline-none text-slate-900 shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="w-full text-center font-black text-3xl py-4 px-4 rounded-xl border-2 border-slate-300 focus:border-[#0500A3] focus:ring-2 focus:ring-blue-100 outline-none text-slate-900 shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
@@ -156,11 +156,11 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} className="w-full max-w-[406px] h-auto object-contain bg-white shadow-sm" alt="Preview Etiqueta" />
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 font-semibold border-2 border-slate-200 text-slate-600 py-3 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
-                    <button onClick={() => { onPrint(cantidadFinal, size, impresora); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
-                        {isPrinting ? <Loader2 className="w-5 h-5 animate-spin"/> : <Printer className="w-5 h-5" />} Enviar a Impresora
+                <div className="flex flex-col gap-3">
+                    <button onClick={() => { onPrint(cantidadFinal, size, impresora); onClose(); }} disabled={isPrinting} className="w-full flex items-center justify-center gap-2 py-4 bg-[#0500A3] text-white hover:bg-[#0600c2] text-lg font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
+                        {isPrinting ? <Loader2 className="w-6 h-6 animate-spin"/> : <Printer className="w-6 h-6" />} Enviar a Impresora
                     </button>
+                    <button onClick={onClose} className="w-full font-bold border-2 border-slate-200 text-slate-600 py-4 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
                 </div>
             </div>
         </div>
@@ -1854,43 +1854,19 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
 
                     // Auto-print label for the newly created activo
                     if (result?.id && result?.idQr && fd.get('shouldPrint') === 'true') {
-                        try {
-                            const params = new URLSearchParams({
-                                idQr: result.idQr,
-                                descripcion: fd.get('descripcionCorta') as string || '',
-                                area: fd.get('area') as string || '',
-                                cuenta: fd.get('cuentaAct') as string || '',
-                                marca: fd.get('marca') as string || '',
-                                modelo: fd.get('modelo') as string || '',
-                                codigoBarras: codigoBarras || '',
-                                serie: fd.get('serie') as string || '',
-                                size: '50x25',
-                            });
-                            const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
-                            
-                            // Si el stock es N, encolamos N etiquetas iguales
-                            const defaultPrinter = localStorage.getItem('default_printer') || 'Niimbot';
-                            const qtyToPrint = Number(cantidad) || 1;
-                            const enqueuePromises = [];
-                            for (let i = 0; i < qtyToPrint; i++) {
-                                enqueuePromises.push(
-                                    fetch('/api/impresion/encolar', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ 
-                                            activoId: result.id, 
-                                            urlImagen,
-                                            impresora: defaultPrinter,
-                                            tamano: '50x25'
-                                        }),
-                                    })
-                                );
-                            }
-                            await Promise.all(enqueuePromises);
-                        } catch {
-                            // Print failure is non-fatal — asset was still saved
-                            console.warn('Auto-print enqueue failed');
-                        }
+                        const previewObj = {
+                            id: result.id,
+                            idQr: result.idQr,
+                            descripcionCorta: fd.get('descripcionCorta') as string || '',
+                            area: fd.get('area') as string || '',
+                            cuentaAct: fd.get('cuentaAct') as string || '',
+                            marca: fd.get('marca') as string || '',
+                            modelo: fd.get('modelo') as string || '',
+                            codigoBarras: codigoBarras || '',
+                            serie: fd.get('serie') as string || '',
+                        };
+                        setPreviewDefaultQty(String(cantidad || 1));
+                        setPreviewActivo(previewObj as any);
                     }
                 }
             } catch (err: any) {
@@ -2509,6 +2485,8 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                         min="1"
                                                         value={cantidad}
                                                         onChange={e => setCantidad(e.target.value)}
+                                                        autoFocus
+                                                        onFocus={e => e.target.select()}
                                                         className={`${inputCls} font-mono font-bold text-center border-slate-200 focus:ring-blue-500`}
                                                     />
                                                     <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Stock Inicial</p>
@@ -3920,6 +3898,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     }, [viewActivo]);
 
     const [previewActivo, setPreviewActivo] = useState<Activo | null>(null);
+    const [previewDefaultQty, setPreviewDefaultQty] = useState('1');
     const [searchModalOpen, setSearchModalOpen] = useState(false);
     const [searchModalQuery, setSearchModalQuery] = useState<string | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
@@ -4857,6 +4836,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             {previewActivo && (
                 <PreviewEtiquetaModal
                     activo={previewActivo}
+                    defaultCantidad={previewDefaultQty}
                     onClose={() => setPreviewActivo(null)}
                     isPrinting={printingId === previewActivo.id && printStatus === 'sending'}
                     onPrint={(cantidad, size, impresora) => handlePrintLabel(previewActivo, cantidad, size, impresora)}

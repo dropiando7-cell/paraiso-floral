@@ -2632,12 +2632,13 @@ export default function DocumentBuilderClient({
               
               return {
                 ...item,
+                _isNew: false,
                 imageUrl: item.imageUrl || recoveredImg,
                 serie: item.serie || recoveredSerie,
                 marcaModelo: item.marcaModelo || recoveredBrand
               };
             }
-            return item;
+            return { ...item, _isNew: false };
           });
           setLineItems(mergedLineItems);
         }
@@ -3502,7 +3503,8 @@ export default function DocumentBuilderClient({
             activoId: d.activoId || undefined,
             imageUrl: metadata.imageUrl || d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || resolveServiceImageUrl(shortDesc) || undefined,
             serie: metadata.serie || parsedSerie,
-            marcaModelo: metadata.marcaModelo || marcaModelo
+            marcaModelo: metadata.marcaModelo || marcaModelo,
+            _isNew: false
           };
         });
         setLineItems(loadedItems);
