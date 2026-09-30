@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportarCarteraGeneralExcel, exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
+import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 
 interface ClienteTab {
   id: string;
@@ -367,27 +368,25 @@ export default function ExcelLiveGrid({
       {/* 2. Banner de Información del Cliente Activo & Métricas de Hoja */}
       {clienteActual && (
         <div className="bg-slate-50 border-b border-slate-200 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1.5 flex-1 max-w-lg">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
                 HOJA DE CLIENTE ACTIVA:
               </span>
               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black rounded-lg text-xs">
                 {clienteActual.departamento || 'RUTA OCCIDENTE'}
               </span>
             </div>
-            <div className="flex items-center gap-3">
-              <h3 className="text-xl font-black text-slate-900">{clienteActual.nombre}</h3>
-              <Link
-                href={`/cxc/cliente/${clienteActual.id}`}
-                className="text-emerald-700 hover:text-emerald-800 text-xs font-bold flex items-center gap-0.5 hover:underline"
-                title="Ver perfil completo"
-              >
-                <span>Ver Perfil</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <p className="text-xs text-slate-500 font-medium">
+
+            {/* Campo Inteligente Selector Rápido de Cliente */}
+            <ClienteSearchSwitcher
+              currentClienteId={selectedClienteId}
+              currentClienteNombre={clienteActual.nombre}
+              onSelectCliente={(id) => setSelectedClienteId(id)}
+              placeholder="🔍 Escribe para buscar y cambiar de cliente..."
+            />
+
+            <p className="text-xs text-slate-500 font-medium pt-0.5">
               📱 {clienteActual.telefono || 'Sin teléfono'} | Movimientos registrados: {movimientos.length}
             </p>
           </div>

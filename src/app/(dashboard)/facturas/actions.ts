@@ -593,7 +593,9 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
         let nuevoCorrelativo = docExistente.correlativo;
         let sarFieldsUpdate: any = {};
 
-        if (docExistente.tipoDocumento !== 'FACTURA' && nuevoTipo === 'FACTURA') {
+        const isTransitioningFromBorrador = (docExistente.estado as string) === 'BORRADOR' && (nuevoEstado as string) !== 'BORRADOR';
+        
+        if ((docExistente.tipoDocumento !== 'FACTURA' && nuevoTipo === 'FACTURA') || (nuevoTipo === 'FACTURA' && isTransitioningFromBorrador)) {
             const sarData = await getNextSarCorrelativo(prisma, organizationId);
             if (sarData.isSar) {
                 nuevoCorrelativo = sarData.correlativo;
@@ -605,7 +607,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             } else {
                 nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
             }
-        } else if (nuevoTipo !== docExistente.tipoDocumento) {
+        } else if (nuevoTipo !== docExistente.tipoDocumento || isTransitioningFromBorrador) {
             nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
         }
 
@@ -888,7 +890,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             let correlativoFinal = '';
             let sarUpdateData: any = {};
 
-            if (data.tipoDocumento === 'FACTURA') {
+            if (data.tipoDocumento === 'FACTURA' && (data.estado !== 'BORRADOR')) {
                 const sarData = await getNextSarCorrelativo(tx, organizationId);
                 if (sarData.isSar) {
                     correlativoFinal = sarData.correlativo;
@@ -901,7 +903,11 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             }
 
             if (!correlativoFinal) {
-                correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, data.tipoDocumento);
+                if (data.estado === 'BORRADOR') {
+                    correlativoFinal = `BORRADOR-${nuevoDoc.numeroInterno}`;
+                } else {
+                    correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, data.tipoDocumento);
+                }
             }
 
             const docFinal = await tx.factura.update({

@@ -22,7 +22,16 @@ import {
   Zap,
   Tv,
   Truck,
-  ShoppingBag
+  ShoppingBag,
+  Wallet,
+  Coins,
+  Package,
+  FileText,
+  Settings,
+  Boxes,
+  BarChart3,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { getRutas } from './inventario-ventas/rutas/actions';
 
@@ -89,107 +98,150 @@ export default function HomeClient({
     day: 'numeric'
   });
 
-  // Predefined configuration of all main shortcuts
+  // Main 3-card-per-row ERP Modules grid inspired by Monica 11 structure with ultra-modern design
   const modulesConfig = [
     {
-      name: 'Proyectos y Tareas',
-      href: '/kanban',
-      description: 'Tableros Kanban, asignación de tareas, seguimiento de avances y colaboración.',
-      icon: Trello,
-      color: 'blue',
-      glow: 'shadow-blue-500/5 hover:shadow-blue-500/15 border-blue-100 hover:border-blue-300',
-      iconBg: 'bg-blue-50 text-blue-600',
+      name: 'Facturación y Ventas',
+      href: '/facturas',
+      description: 'Emisión de facturas autorizadas SAR (CAI), ventas en caja rápida POS, proformas y notas de crédito.',
+      icon: Receipt,
+      badgeText: 'Facturación & POS',
+      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20',
+      hoverGlow: 'hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1',
+      quickAction: 'Cobrar en POS'
     },
     {
-      name: 'Soporte y Reparaciones',
-      href: '/soporte',
-      description: 'Gestión de órdenes de trabajo, reparaciones y soporte técnico de equipos.',
-      icon: Wrench,
-      color: 'emerald',
-      glow: 'shadow-emerald-500/5 hover:shadow-emerald-500/15 border-emerald-100 hover:border-emerald-300',
-      iconBg: 'bg-emerald-50 text-emerald-600',
+      name: 'Cuentas por Cobrar',
+      href: '/cxc',
+      description: 'Gestión de saldos a favor/deuda de clientes, estados de cuenta, abonos y antigüedad de saldos.',
+      icon: Wallet,
+      badgeText: 'CxC & Saldos',
+      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+      iconBg: 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/20',
+      hoverGlow: 'hover:border-amber-300 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1',
+      quickAction: 'Ver CxC'
+    },
+    {
+      name: 'Cierre y Control de Caja',
+      href: '/caja-chica',
+      description: 'Arqueos diarios de caja, aperturas, cierres, egresos rápidos y control de flujo de efectivo.',
+      icon: Coins,
+      badgeText: 'Caja Chica & Arqueos',
+      badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
+      iconBg: 'bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-md shadow-rose-500/20',
+      hoverGlow: 'hover:border-rose-300 hover:shadow-lg hover:shadow-rose-500/10 hover:-translate-y-1',
+      quickAction: 'Abrir / Cerrar'
     },
     {
       name: 'Control de Inventario',
       href: '/inventario',
-      description: 'Gestión de activos fijos, repuestos, stock mínimo y garantías de equipos.',
-      icon: Box,
-      color: 'indigo',
-      glow: 'shadow-indigo-500/5 hover:shadow-indigo-500/15 border-indigo-100 hover:border-indigo-300',
-      iconBg: 'bg-indigo-50 text-indigo-600',
-    },
-    {
-      name: 'Facturación y Ventas',
-      href: '/facturas',
-      description: 'Emisión de facturas autorizadas por el CAI, cotizaciones y órdenes de entrega.',
-      icon: Receipt,
-      color: 'amber',
-      glow: 'shadow-amber-500/5 hover:shadow-amber-500/15 border-amber-100 hover:border-amber-300',
-      iconBg: 'bg-amber-50 text-amber-600',
-    },
-    {
-      name: 'Rentas de Equipos',
-      href: '/rentas',
-      description: 'Control de contratos de alquiler de equipos médicos, cobros y retornos.',
-      icon: Box, // Reutilizando Box para coherencia o podemos poner otro
-      color: 'cyan',
-      glow: 'shadow-cyan-500/5 hover:shadow-cyan-500/15 border-cyan-100 hover:border-cyan-300',
-      iconBg: 'bg-cyan-50 text-cyan-600',
-    },
-    {
-      name: 'Caja Chica',
-      href: '/caja-chica',
-      description: 'Arqueos diarios, control de egresos rápidos y registro de ingresos.',
-      icon: CircleDollarSign,
-      color: 'rose',
-      glow: 'shadow-rose-500/5 hover:shadow-rose-500/15 border-rose-100 hover:border-rose-300',
-      iconBg: 'bg-rose-50 text-rose-600',
-    },
-    {
-      name: 'Gráficas e Informes',
-      href: '/graficas',
-      description: 'Estadísticas de facturación, cierres de caja y rentabilidad del negocio.',
-      icon: TrendingUp,
-      color: 'violet',
-      glow: 'shadow-violet-500/5 hover:shadow-violet-500/15 border-violet-100 hover:border-violet-300',
-      iconBg: 'bg-violet-50 text-violet-600',
-    },
-    {
-      name: 'Directorio de Contactos',
-      href: '/contactos',
-      description: 'Gestión y directorio de clientes, técnicos y proveedores autorizados.',
-      icon: Users,
-      color: 'sky',
-      glow: 'shadow-sky-500/5 hover:shadow-sky-500/15 border-sky-100 hover:border-sky-300',
-      iconBg: 'bg-sky-50 text-sky-600',
+      description: 'Catálogo de productos, stock de almacén, repuestos, mermas, garantías y tomas físicas.',
+      icon: Package,
+      badgeText: 'Stock & Almacén',
+      badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      iconBg: 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-500/20',
+      hoverGlow: 'hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Catálogo'
     },
     {
       name: 'Rutas y Auto-Venta',
       href: '/inventario-ventas/rutas',
-      description: 'Gestión de rutas de distribución, camiones, auto-venta y cobros en campo.',
+      description: 'Gestión de unidades repartidoras, camiones en tránsito, cobros en campo y liquidación.',
       icon: Truck,
-      color: 'emerald',
-      glow: 'shadow-emerald-500/5 hover:shadow-emerald-500/15 border-emerald-100 hover:border-emerald-300',
-      iconBg: 'bg-emerald-50 text-emerald-600',
+      badgeText: routeStats.active > 0 ? `${routeStats.active} En Tránsito` : 'Unidades & Campo',
+      badgeColor: 'bg-teal-100 text-teal-800 border-teal-200',
+      iconBg: 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/20',
+      hoverGlow: 'hover:border-teal-300 hover:shadow-lg hover:shadow-teal-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Rutas',
+      liveStat: routeStats.active > 0 ? `L${routeStats.cash.toLocaleString('es-HN', { maximumFractionDigits: 0 })} en tránsito` : null
     },
     {
-      name: 'Centro de Novedades',
-      href: '/actualizaciones',
-      description: 'Novedades, anuncios y videotutoriales explicativos del ERP.',
-      icon: Tv,
-      color: 'indigo',
-      glow: 'shadow-indigo-500/5 hover:shadow-indigo-500/15 border-indigo-100 hover:border-indigo-300',
-      iconBg: 'bg-indigo-50 text-indigo-600',
+      name: 'Soporte y Reparaciones',
+      href: '/soporte',
+      description: 'Recepción de equipos en taller, órdenes de trabajo, presupuestos de reparación y estado técnico.',
+      icon: Wrench,
+      badgeText: totalPendingOrders > 0 ? `${totalPendingOrders} Órdenes Activas` : 'Taller & Equipos',
+      badgeColor: 'bg-orange-100 text-orange-800 border-orange-200',
+      iconBg: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/20',
+      hoverGlow: 'hover:border-orange-300 hover:shadow-lg hover:shadow-orange-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Taller',
+      liveStat: ordersSummary ? `${ordersSummary.inProgress} en reparación • ${ordersSummary.pending} pend.` : null
     },
+    {
+      name: 'Proyectos y Tareas Kanban',
+      href: '/kanban',
+      description: 'Tableros de trabajo en equipo, asignación de tareas, columnas de avance y colaboración.',
+      icon: Trello,
+      badgeText: totalPendingTasks > 0 ? `${totalPendingTasks} Tareas Pendientes` : 'Tableros Kanban',
+      badgeColor: 'bg-sky-100 text-sky-800 border-sky-200',
+      iconBg: 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20',
+      hoverGlow: 'hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Tableros',
+      liveStat: tasksSummary ? `${tasksSummary.inProgress} en ejecución • ${tasksSummary.pending} por hacer` : null
+    },
+    {
+      name: 'Cotizaciones y Proformas',
+      href: '/facturas',
+      description: 'Elaboración de cotizaciones para clientes y proformas con descuento de inventario reservado.',
+      icon: FileText,
+      badgeText: 'Proformas & Promesas',
+      badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
+      iconBg: 'bg-gradient-to-br from-purple-500 to-violet-600 text-white shadow-md shadow-purple-500/20',
+      hoverGlow: 'hover:border-purple-300 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1',
+      quickAction: 'Nueva Cotización'
+    },
+    {
+      name: 'Directorio de Clientes',
+      href: '/contactos',
+      description: 'Directorio de clientes, contactos de empresas, rutas comerciales y límites de crédito asignados.',
+      icon: Users,
+      badgeText: 'Expedientes & Clientes',
+      badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+      iconBg: 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/20',
+      hoverGlow: 'hover:border-blue-300 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Clientes'
+    },
+    {
+      name: 'Rentas de Equipos',
+      href: '/rentas',
+      description: 'Gestión de contratos de alquiler de equipos médicos, cobros mensuales y control de activos.',
+      icon: Boxes,
+      badgeText: 'Alquileres & Retornos',
+      badgeColor: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      iconBg: 'bg-gradient-to-br from-cyan-500 to-teal-600 text-white shadow-md shadow-cyan-500/20',
+      hoverGlow: 'hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Contratos'
+    },
+    {
+      name: 'Gráficas e Informes',
+      href: '/graficas',
+      description: 'Métricas de ventas, volumen de facturación, gráficos de ingresos y rentabilidad por periodo.',
+      icon: TrendingUp,
+      badgeText: 'Reportes & Métricas',
+      badgeColor: 'bg-violet-100 text-violet-800 border-violet-200',
+      iconBg: 'bg-gradient-to-br from-violet-500 to-purple-700 text-white shadow-md shadow-violet-500/20',
+      hoverGlow: 'hover:border-violet-300 hover:shadow-lg hover:shadow-violet-500/10 hover:-translate-y-1',
+      quickAction: 'Ver Informes'
+    },
+    {
+      name: 'Configuración del Sistema',
+      href: '/configuracion',
+      description: 'Administración del régimen fiscal SAR, CAI, datos de empresa (Whitelabel), usuarios y perfiles.',
+      icon: Settings,
+      badgeText: 'SAR & Ajustes ERP',
+      badgeColor: 'bg-slate-200 text-slate-800 border-slate-300',
+      iconBg: 'bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-md shadow-slate-600/20',
+      hoverGlow: 'hover:border-slate-400 hover:shadow-lg hover:shadow-slate-500/10 hover:-translate-y-1',
+      quickAction: 'Ajustes'
+    }
   ];
 
   // Filter shortcuts based on user role or modules permissions
   const allowedShortcuts = modulesConfig.filter(mod => {
     if (dbUser.role === 'SUPER_ADMIN') return true;
-    if (mod.href === '/actualizaciones') return true;
     const allowed = dbUser.accessibleModules || [];
     if (allowed.includes(mod.href)) return true;
-    // Permit access if any subpath is allowed
     if (allowed.some((path: string) => path.startsWith(mod.href))) return true;
     return false;
   });
@@ -249,11 +301,10 @@ export default function HomeClient({
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 ease-out py-2 w-full max-w-7xl mx-auto">
       
-      {/* 1. WELCOME CARD (Modern gradient with glassmorphism) */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-800 text-white p-6 md:p-8 shadow-lg shadow-brand-500/10">
-        {/* Decorative background shapes */}
-        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-white/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-        <div className="absolute bottom-0 right-1/4 w-[150px] h-[150px] bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+      {/* 1. WELCOME BANNER (Modern gradient header) */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-700 via-teal-700 to-indigo-900 text-white p-6 md:p-8 shadow-xl shadow-emerald-900/10">
+        <div className="absolute top-0 right-0 w-[350px] h-[350px] bg-white/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+        <div className="absolute bottom-0 right-1/3 w-[180px] h-[180px] bg-teal-400/10 rounded-full blur-2xl pointer-events-none"></div>
 
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -261,30 +312,34 @@ export default function HomeClient({
               <img 
                 src={dbUser.avatarUrl} 
                 alt="Avatar" 
-                className="w-16 h-16 rounded-full border-2 border-white/20 shadow-md object-cover" 
+                className="w-16 h-16 rounded-2xl border-2 border-white/20 shadow-md object-cover" 
               />
             ) : (
-              <div className="w-16 h-16 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center shadow-md">
-                <User className="w-8 h-8 text-white/80" />
+              <div className="w-16 h-16 rounded-2xl border-2 border-white/20 bg-white/10 flex items-center justify-center shadow-md">
+                <User className="w-8 h-8 text-white/90" />
               </div>
             )}
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                {greeting}, {dbUser.nombre || 'Equipo'}! ☕
-              </h1>
-              <p className="text-white/80 text-sm md:text-base mt-1 capitalize font-medium">
-                {formattedDate}
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+                  {greeting}, {dbUser.nombre || 'Equipo'}! ☕
+                </h1>
+              </div>
+              <p className="text-emerald-100/90 text-xs md:text-sm mt-1 capitalize font-medium flex items-center gap-2">
+                <span>📅 {formattedDate}</span>
+                <span className="hidden sm:inline-block">•</span>
+                <span className="hidden sm:inline-block text-emerald-200 font-semibold">Módulos del Sistema Operativo ERP</span>
               </p>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-md text-xs font-semibold border border-white/10">
-              <ShieldCheck className="w-3.5 h-3.5 text-green-300" />
+          <div className="flex flex-wrap gap-2.5 items-center">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/15 backdrop-blur-md text-xs font-bold border border-white/15 shadow-2xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-300" />
               {dbUser.role === 'SUPER_ADMIN' ? 'Super Admin' : dbUser.puesto || 'Miembro del Equipo'}
             </span>
             {dbUser.organization?.name && (
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-md text-xs font-semibold border border-white/10">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/15 backdrop-blur-md text-xs font-bold border border-white/15 shadow-2xs">
                 🏢 {dbUser.organization.name}
               </span>
             )}
@@ -335,147 +390,81 @@ export default function HomeClient({
         </div>
       )}
 
-      {/* 2. STATS ROW (V0 Modern layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* Stat 1: Soporte */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner">
-              <Wrench className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-sm font-medium text-slate-500 font-semibold">Reparaciones en Curso</span>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
-                {totalPendingOrders} ordenes
-              </h2>
-              {ordersSummary && (
-                <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] font-bold">
-                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
-                    Pendientes: {ordersSummary.pending}
-                  </span>
-                  <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                    En Reparación: {ordersSummary.inProgress}
-                  </span>
-                  <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                    Listos: {ordersSummary.completed}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <Link 
-            href="/soporte"
-            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg transition-colors shrink-0"
-          >
-            <span>Ver todo</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {/* Stat 2: Kanban Tasks */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-inner">
-              <Trello className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-sm font-medium text-slate-500 font-semibold">Mis Tareas Pendientes</span>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
-                {totalPendingTasks} asignadas
-              </h2>
-              {tasksSummary && (
-                <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] font-bold">
-                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
-                    Por Ejecutar: {tasksSummary.pending}
-                  </span>
-                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
-                    En Ejecución: {tasksSummary.inProgress}
-                  </span>
-                  <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200">
-                    Completadas: {tasksSummary.completed}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <Link 
-            href="/kanban"
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-2 rounded-lg transition-colors shrink-0"
-          >
-            <span>Ver todo</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {/* Stat 3: Camiones en Ruta */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner">
-              <Truck className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-sm font-medium text-slate-500 font-semibold">Reparto y Auto-Venta</span>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
-                {routeStats.active} activos
-              </h2>
-              <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] font-bold">
-                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
-                  En Tránsito: L{routeStats.cash.toLocaleString('es-HN', { maximumFractionDigits: 0 })}
-                </span>
-                <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                  Liquidar: {routeStats.pending}
-                </span>
-              </div>
-            </div>
-          </div>
-          <Link 
-            href="/inventario-ventas/rutas"
-            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg transition-colors shrink-0"
-          >
-            <span>Ver todo</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-      </div>
-
-      {/* 3. QUICK SHORTCUTS GRID (Modern cards with soft shadows and glow on hover) */}
+      {/* 2. MAIN MODULE CARDS (3 CARDS PER ROW GRID) - REPLACING THE OLD TOP SUMMARY STAT CARDS */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 px-1">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Accesos Rápidos</h2>
-            <p className="text-xs text-slate-500">Módulos habilitados en tu cuenta para navegación directa</p>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-600" />
+              Módulos Principales del ERP
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Acceso directo a todos los procesos operativos y administrativos de la empresa
+            </p>
           </div>
-          <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1 rounded-full border border-slate-200">
-            {allowedShortcuts.length} Módulos
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-emerald-50 text-emerald-800 font-bold px-3 py-1 rounded-full border border-emerald-200/80 shadow-2xs">
+              {allowedShortcuts.length} Módulos Activos
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 3 CARDS PER ROW GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
           {allowedShortcuts.map((mod) => {
             const IconComponent = mod.icon;
             return (
               <Link 
                 key={mod.name} 
                 href={mod.href}
-                className={`group flex flex-col justify-between p-5 bg-white rounded-xl border border-slate-200 hover:border-transparent shadow-sm hover:shadow-md ${mod.glow} transition-all duration-300 min-h-[140px]`}
+                className={`group flex flex-col justify-between p-6 bg-white rounded-3xl border border-slate-200/90 shadow-sm transition-all duration-300 ${mod.hoverGlow} min-h-[190px] relative overflow-hidden`}
               >
+                {/* Accent background highlight on hover */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full blur-2xl group-hover:bg-emerald-50/50 transition-colors pointer-events-none -mr-10 -mt-10"></div>
+
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-lg ${mod.iconBg} flex items-center justify-center shadow-sm font-bold`}>
-                      <IconComponent className="w-5 h-5" />
+                  {/* Top card header: Large Icon Container + Badge + Arrow */}
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className={`w-14 h-14 rounded-2xl ${mod.iconBg} flex items-center justify-center font-bold shrink-0 transition-transform duration-300 group-hover:scale-105`}>
+                      <IconComponent className="w-7 h-7" />
                     </div>
-                    <span className="opacity-0 group-hover:opacity-100 transition-all duration-300 text-slate-400 group-hover:translate-x-1 group-hover:text-slate-700 transform">
-                      <ArrowRight className="w-4 h-4" />
-                    </span>
+                    
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${mod.badgeColor} shadow-2xs`}>
+                        {mod.badgeText}
+                      </span>
+                      <span className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-all duration-300 group-hover:translate-x-0.5">
+                        <ArrowRight className="w-4 h-4" />
+                      </span>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-slate-900 text-sm group-hover:text-brand-600 transition-colors">
+
+                  {/* Title & Description */}
+                  <h3 className="font-extrabold text-slate-900 text-lg group-hover:text-emerald-700 transition-colors tracking-tight">
                     {mod.name}
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed font-medium">
                     {mod.description}
                   </p>
+                </div>
+
+                {/* Card Footer: Live Stat or Quick Action */}
+                <div className="border-t border-slate-100 pt-3.5 mt-4 flex items-center justify-between text-xs font-bold text-slate-600">
+                  {mod.liveStat ? (
+                    <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 text-[11px] font-extrabold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                      {mod.liveStat}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-medium text-[11px]">
+                      Módulo Integrado
+                    </span>
+                  )}
+
+                  <span className="text-emerald-600 group-hover:text-emerald-700 font-extrabold text-xs flex items-center gap-1 group-hover:underline">
+                    {mod.quickAction}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
                 </div>
               </Link>
             );
@@ -483,32 +472,32 @@ export default function HomeClient({
         </div>
       </div>
 
-      {/* 4. ASSIGNED WORK & TASKS (Interactive Tabs) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* 3. ASSIGNED WORK & TASKS (Interactive Tabs at the Bottom) */}
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden mt-2">
         {/* Tab Headers */}
-        <div className="flex border-b border-slate-150 bg-slate-50/50 px-4 md:px-6 pt-3 gap-2">
+        <div className="flex border-b border-slate-150 bg-slate-50/70 px-4 md:px-6 pt-3 gap-2">
           <button
             onClick={() => setActiveTab('soporte')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-extrabold border-b-2 transition-all cursor-pointer ${
               activeTab === 'soporte'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-emerald-600 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Wrench className="w-4 h-4" />
-            <span>Soporte Técnico ({workOrders.length})</span>
+            <span>Tus Órdenes de Soporte Técnico ({workOrders.length})</span>
           </button>
           
           <button
             onClick={() => setActiveTab('kanban')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-extrabold border-b-2 transition-all cursor-pointer ${
               activeTab === 'kanban'
-                ? 'border-brand-600 text-brand-600'
+                ? 'border-emerald-600 text-emerald-700'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Trello className="w-4 h-4" />
-            <span>Tareas de Proyectos ({kanbanTasks.length})</span>
+            <span>Tus Tareas Asignadas en Proyectos ({kanbanTasks.length})</span>
           </button>
         </div>
 
@@ -519,18 +508,18 @@ export default function HomeClient({
           {activeTab === 'soporte' && (
             <div className="flex flex-col gap-4">
               {ordersSummary && (
-                <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-150 text-xs text-slate-600 font-medium">
-                  <span className="font-bold text-slate-700 mr-1">Tus Órdenes de Trabajo:</span>
-                  <span className="bg-slate-200/60 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200/80">
+                <div className="flex flex-wrap items-center gap-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-150 text-xs text-slate-600 font-medium">
+                  <span className="font-extrabold text-slate-800 mr-1">Resumen de Soporte Técnico:</span>
+                  <span className="bg-slate-200/60 text-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 font-bold">
                     {ordersSummary.pending} Pendientes
                   </span>
-                  <span className="bg-amber-100/60 text-amber-800 px-2 py-0.5 rounded-md border border-amber-200/50">
+                  <span className="bg-amber-100/70 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200/60 font-bold">
                     {ordersSummary.inProgress} En Reparación
                   </span>
-                  <span className="bg-emerald-100/60 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200/50">
-                    {ordersSummary.completed} Entregados
+                  <span className="bg-emerald-100/70 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200/60 font-bold">
+                    {ordersSummary.completed} Listos
                   </span>
-                  <span className="ml-auto text-[10px] text-slate-400 font-semibold">Total Asignado: {ordersSummary.pending + ordersSummary.inProgress + ordersSummary.completed}</span>
+                  <span className="ml-auto text-[11px] text-slate-400 font-bold">Total Asignado: {ordersSummary.pending + ordersSummary.inProgress + ordersSummary.completed}</span>
                 </div>
               )}
               {workOrders.length > 0 ? (
@@ -538,30 +527,30 @@ export default function HomeClient({
                   {workOrders.map((orden) => (
                     <div 
                       key={orden.id}
-                      className="border border-slate-150 rounded-xl p-4 hover:border-slate-300 hover:bg-slate-50/50 transition-all flex flex-col justify-between gap-3 relative group"
+                      className="border border-slate-150 rounded-2xl p-4.5 hover:border-slate-300 hover:bg-slate-50/50 transition-all flex flex-col justify-between gap-3 relative group"
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                             Trabajo de Soporte
                           </span>
-                          <h4 className="font-bold text-slate-800 text-sm mt-0.5 line-clamp-1">
+                          <h4 className="font-extrabold text-slate-800 text-sm mt-0.5 line-clamp-1">
                             {orden.equipoDano}
                           </h4>
                           {orden.marcaModelo && (
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 font-medium">
                               {orden.marcaModelo} {orden.serie ? `(S/N: ${orden.serie})` : ''}
                             </p>
                           )}
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getOrdenEstadoBadge(orden.estado)} shrink-0`}>
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getOrdenEstadoBadge(orden.estado)} shrink-0`}>
                           {getOrdenEstadoText(orden.estado)}
                         </span>
                       </div>
 
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 border-t border-slate-100 pt-2.5">
-                        <span className="flex items-center gap-1">
-                          👤 <strong className="text-slate-700 font-medium">{orden.cliente?.nombre || 'Sin cliente'}</strong>
+                        <span className="flex items-center gap-1 font-medium">
+                          👤 <strong className="text-slate-700 font-bold">{orden.cliente?.nombre || 'Sin cliente'}</strong>
                         </span>
                         <span className="flex items-center gap-1">
                           📅 {new Date(orden.fechaRecibido).toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })}
@@ -570,7 +559,7 @@ export default function HomeClient({
 
                       <Link 
                         href={`/soporte/${orden.id}`}
-                        className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 bg-white border border-slate-200 shadow-sm p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-brand-600 transition-all"
+                        className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 bg-white border border-slate-200 shadow-sm p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-emerald-700 transition-all"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Link>
@@ -579,12 +568,12 @@ export default function HomeClient({
                 </div>
               ) : (
                 <div className="text-center py-10 flex flex-col items-center justify-center">
-                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-3">
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h3 className="font-bold text-slate-800 text-sm">¡Al día con las reparaciones!</h3>
-                  <p className="text-xs text-slate-500 max-w-[280px] mt-1">
-                    No tienes órdenes de soporte técnico asignadas con estado pendiente en este momento.
+                  <h3 className="font-extrabold text-slate-800 text-sm">¡Al día con las reparaciones!</h3>
+                  <p className="text-xs text-slate-500 max-w-[280px] mt-1 font-medium">
+                    No tienes órdenes de soporte técnico asignadas pendientes en este momento.
                   </p>
                 </div>
               )}
@@ -595,18 +584,18 @@ export default function HomeClient({
           {activeTab === 'kanban' && (
             <div className="flex flex-col gap-4">
               {tasksSummary && (
-                <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-150 text-xs text-slate-600 font-medium">
-                  <span className="font-bold text-slate-700 mr-1">Tus Tareas en Tableros:</span>
-                  <span className="bg-slate-200/60 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200/80">
+                <div className="flex flex-wrap items-center gap-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-150 text-xs text-slate-600 font-medium">
+                  <span className="font-extrabold text-slate-800 mr-1">Resumen de Tareas Kanban:</span>
+                  <span className="bg-slate-200/60 text-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 font-bold">
                     {tasksSummary.pending} Por Ejecutar
                   </span>
-                  <span className="bg-blue-100/60 text-blue-800 px-2 py-0.5 rounded-md border border-blue-200/50">
+                  <span className="bg-blue-100/70 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200/60 font-bold">
                     {tasksSummary.inProgress} En Ejecución
                   </span>
-                  <span className="bg-green-100/60 text-green-800 px-2 py-0.5 rounded-md border border-green-200/50">
+                  <span className="bg-emerald-100/70 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200/60 font-bold">
                     {tasksSummary.completed} Completadas
                   </span>
-                  <span className="ml-auto text-[10px] text-slate-400 font-semibold">Total Asignado: {tasksSummary.pending + tasksSummary.inProgress + tasksSummary.completed}</span>
+                  <span className="ml-auto text-[11px] text-slate-400 font-bold">Total Asignado: {tasksSummary.pending + tasksSummary.inProgress + tasksSummary.completed}</span>
                 </div>
               )}
               {kanbanTasks.length > 0 ? (
@@ -614,31 +603,31 @@ export default function HomeClient({
                   {kanbanTasks.map((task) => (
                     <div 
                       key={task.id}
-                      className="border border-slate-150 rounded-xl p-4 hover:border-slate-300 hover:bg-slate-50/50 transition-all flex flex-col justify-between gap-3 relative group"
+                      className="border border-slate-150 rounded-2xl p-4.5 hover:border-slate-300 hover:bg-slate-50/50 transition-all flex flex-col justify-between gap-3 relative group"
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                             Espacio: {task.space?.name || 'Kanban'}
                           </span>
-                          <h4 className="font-bold text-slate-800 text-sm mt-0.5 line-clamp-1">
-                            <span className="text-brand-600 mr-1.5 font-bold">[{task.codigo}]</span>
+                          <h4 className="font-extrabold text-slate-800 text-sm mt-0.5 line-clamp-1">
+                            <span className="text-emerald-700 mr-1.5 font-black">[{task.codigo}]</span>
                             {task.title}
                           </h4>
                           {task.description && (
-                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 font-medium">
                               {task.description}
                             </p>
                           )}
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getPriorityColor(task.priority)} shrink-0`}>
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${getPriorityColor(task.priority)} shrink-0`}>
                           {getPriorityText(task.priority)}
                         </span>
                       </div>
 
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 border-t border-slate-100 pt-2.5">
                         <span className="flex items-center gap-1 font-medium">
-                          📌 Status: <span className="text-slate-800">{task.status}</span>
+                          📌 Status: <span className="text-slate-800 font-bold">{task.status}</span>
                         </span>
                         {task.dueDate && (
                           <span className="flex items-center gap-1">
@@ -649,7 +638,7 @@ export default function HomeClient({
 
                       <Link 
                         href={`/kanban`}
-                        className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 bg-white border border-slate-200 shadow-sm p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-brand-600 transition-all"
+                        className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 bg-white border border-slate-200 shadow-sm p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-emerald-700 transition-all"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Link>
@@ -658,11 +647,11 @@ export default function HomeClient({
                 </div>
               ) : (
                 <div className="text-center py-10 flex flex-col items-center justify-center">
-                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h3 className="font-bold text-slate-800 text-sm">¡Tablero al día!</h3>
-                  <p className="text-xs text-slate-500 max-w-[280px] mt-1">
+                  <h3 className="font-extrabold text-slate-800 text-sm">¡Tablero al día!</h3>
+                  <p className="text-xs text-slate-500 max-w-[280px] mt-1 font-medium">
                     No tienes tareas pendientes asignadas en tus proyectos de Kanban hoy.
                   </p>
                 </div>

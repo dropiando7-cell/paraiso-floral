@@ -393,12 +393,15 @@ ${publicUrl}
               title="Modo Hoja de Cálculo Interactiva (Excel Live Grid)"
               className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'EXCEL'
-                  ? 'bg-emerald-600 text-white shadow-md font-black'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-emerald-600 text-white shadow-md font-black ring-2 ring-emerald-400'
+                  : 'text-emerald-700 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200'
               }`}
             >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>Hoja de Cálculo (Excel)</span>
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />
+              <span>Modo Excel (Grilla)</span>
+              <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 font-black text-[9px] rounded-full uppercase animate-bounce">
+                ¡Nuevo!
+              </span>
             </button>
 
             <button

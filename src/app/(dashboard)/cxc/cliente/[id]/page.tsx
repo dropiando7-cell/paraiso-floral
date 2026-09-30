@@ -28,6 +28,7 @@ import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
 import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
+import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 
 interface ClienteDetalle {
   cliente: {
@@ -573,12 +574,24 @@ ${publicUrl}
       <div className="no-print p-4 sm:p-6 max-w-6xl mx-auto space-y-6 bg-slate-50/50 min-h-screen">
         {/* Botón Volver & Acciones de Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <Link
-            href="/cxc"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Volver a Cuentas por Cobrar
-          </Link>
+          <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap flex-1">
+            <Link
+              href="/cxc"
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" /> Volver
+            </Link>
+
+            {/* Campo Inteligente Selector Rápido de Cliente */}
+            <div className="w-full sm:w-80">
+              <ClienteSearchSwitcher
+                currentClienteId={cliente.id}
+                currentClienteNombre={cliente.nombre}
+                navigateToPage={true}
+                placeholder="⚡ Ir a otro cliente inmediatamente..."
+              />
+            </div>
+          </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Botón Exportar a Excel */}
