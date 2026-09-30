@@ -928,8 +928,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [], userRole }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[]; userRole?: string;
+export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [], userRole, onOpenPreview }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[]; userRole?: string; onOpenPreview?: (activo: any, qty: string) => void;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -1865,8 +1865,9 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                             codigoBarras: codigoBarras || '',
                             serie: fd.get('serie') as string || '',
                         };
-                        setPreviewDefaultQty(String(cantidad || 1));
-                        setPreviewActivo(previewObj as any);
+                        if (onOpenPreview) {
+                            onOpenPreview(previewObj, String(cantidad || 1));
+                        }
                     }
                 }
             } catch (err: any) {
@@ -5222,6 +5223,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 defaultCondition={defaultCondition}
                 onManageConditions={() => setManageConditionsOpen(true)}
                 clientes={clientes}
+                onOpenPreview={(activo, qty) => {
+                    setPreviewDefaultQty(qty);
+                    setPreviewActivo(activo);
+                }}
             />
             {/* No Area Open Modal */}
             {noAreaModalOpen && (
