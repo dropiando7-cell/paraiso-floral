@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { anularDocumento, limpiarBorradoresTemporalesHuecos } from '@/app/(dashboard)/facturas/actions';
+import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 
 export interface DocumentRecord {
@@ -17,6 +17,9 @@ export interface DocumentRecord {
   clienteNombre: string;
   clienteRtn: string;
   total: number;
+  metodoPago?: string | null;
+  aliasVenta?: string;
+  transferenciaConfirmada?: boolean;
   detalles?: {
     descripcion: string;
     cantidad: number;
@@ -37,6 +40,7 @@ export default function DocumentListTable({ data, type }: Props) {
   const [showAnuladas, setShowAnuladas] = useState(false);
   const [isAnulando, setIsAnulando] = useState<string | null>(null);
   const [docToAnul, setDocToAnul] = useState<DocumentRecord | null>(null);
+  const [docToConfirmTransfer, setDocToConfirmTransfer] = useState<DocumentRecord | null>(null);
   
   // Email modal states
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
@@ -56,6 +60,7 @@ export default function DocumentListTable({ data, type }: Props) {
   const itemsPerPage = 10;
 
   const [isCleaningDrafts, setIsCleaningDrafts] = useState(false);
+  const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
 
   // Auto-clean legacy empty "Borrador Temporal" records on mount
   useEffect(() => {
@@ -116,6 +121,23 @@ export default function DocumentListTable({ data, type }: Props) {
     }
   };
 
+  const handleConfirmarTransferencia = async () => {
+    if (!docToConfirmTransfer) return;
+    const id = docToConfirmTransfer.id;
+    setDocToConfirmTransfer(null);
+    const toastId = toast.loading('Confirmando transferencia...');
+    try {
+      const res = await confirmarTransferencia(id);
+      if (res.success) {
+        toast.success('Transferencia confirmada con éxito', { id: toastId });
+      } else {
+        toast.error(res.error || 'Error al confirmar transferencia', { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Error del servidor', { id: toastId });
+    }
+  };
+
   const filteredData = useMemo(() => {
     const filtered = data.filter(doc => {
       if (!showAnuladas && doc.estado === 'ANULADA') return false;
@@ -125,6 +147,9 @@ export default function DocumentListTable({ data, type }: Props) {
       } else if (type !== 'TODOS' && doc.tipoDocumento !== type) {
         return false;
       }
+
+      if (filterOrigen === 'PARAISO' && doc.aliasVenta === 'HonduFlores') return false;
+      if (filterOrigen === 'HF' && doc.aliasVenta !== 'HonduFlores') return false;
       
       const q = search.toLowerCase();
       return doc.correlativo.toLowerCase().includes(q) || 
@@ -206,6 +231,18 @@ export default function DocumentListTable({ data, type }: Props) {
             />
             <span className="text-xs font-bold text-slate-700 select-none">Mostrar Anuladas</span>
           </label>
+
+          {type === 'FACTURA' && (
+            <select
+              value={filterOrigen}
+              onChange={(e) => setFilterOrigen(e.target.value as any)}
+              className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="TODOS">Todas las Ventas</option>
+              <option value="PARAISO">Solo Paraíso Floral</option>
+              <option value="HF">Solo HonduFlores</option>
+            </select>
+          )}
 
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -383,7 +420,12 @@ export default function DocumentListTable({ data, type }: Props) {
                    </div>
                 </td>
                 <td className="p-4 align-middle max-w-[250px]">
-                  <p className="font-semibold text-slate-800 truncate">{doc.clienteNombre}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-800 truncate">{doc.clienteNombre}</p>
+                    {doc.aliasVenta === 'HonduFlores' && (
+                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title="Venta externa de HonduFlores">HF</span>
+                    )}
+                  </div>
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
                 </td>
                 <td className="p-4 align-middle">
@@ -428,6 +470,20 @@ export default function DocumentListTable({ data, type }: Props) {
                       <Link href={`/facturas/${doc.id}?notaCredito=true`} title="Generar Nota de Crédito" className="p-2 text-slate-500 hover:text-purple-600 hover:bg-purple-100 rounded-lg transition-colors">
                         <Undo size={16} />
                       </Link>
+                    )}
+                    {doc.metodoPago === 'Transferencia' && !doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
+                      <button 
+                        onClick={() => setDocToConfirmTransfer(doc)} 
+                        title="Confirmar Transferencia" 
+                        className="p-2 text-amber-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        <Clock size={16} />
+                      </button>
+                    )}
+                    {doc.metodoPago === 'Transferencia' && doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
+                      <span title="Transferencia Confirmada" className="p-2 text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 size={16} />
+                      </span>
                     )}
                     {doc.estado !== 'ANULADA' && (
                       <button 
@@ -525,6 +581,43 @@ export default function DocumentListTable({ data, type }: Props) {
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl shadow-md"
                 >
                   Sí, Anular Documento
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Transferencia */}
+      {docToConfirmTransfer && (
+        <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+             <div className="flex items-center gap-3 text-emerald-600">
+               <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold">
+                 <CheckCircle2 size={20} />
+               </div>
+               <div>
+                 <h3 className="font-extrabold text-slate-900 text-base">¿Confirmar Transferencia?</h3>
+                 <p className="text-xs text-slate-500 font-mono">{docToConfirmTransfer.correlativo}</p>
+               </div>
+             </div>
+             <p className="text-xs text-slate-600 leading-relaxed font-medium">
+               Asegúrate de haber verificado que los fondos ({fmt(docToConfirmTransfer.total)}) estén reflejados correctamente en la cuenta bancaria de Paraíso Floral. Esta acción marcará la factura como pagada definitivamente.
+             </p>
+             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDocToConfirmTransfer(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmarTransferencia}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Sí, Fondos Verificados</span>
                 </button>
              </div>
           </div>

@@ -51,6 +51,7 @@ export interface POSFacturaPayload {
   isv18: number;
   total: number;
   metodoPago: string;
+  aliasVenta: string;
   detalles: any[];
 }
 
@@ -248,6 +249,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [customCreditDays, setCustomCreditDays] = useState<number>(15);
+  const [aliasVenta, setAliasVenta] = useState('Paraíso Floral');
   const [selectedBank, setSelectedBank] = useState<string | null>('ficohsa');
   const [showAllBanks, setShowAllBanks] = useState(false);
   const [cashTendered, setCashTendered] = useState<string>('');
@@ -736,6 +738,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       isv18: totals.isv18,
       total: totals.total,
       metodoPago: paymentMethod,
+      aliasVenta: aliasVenta,
       detalles: cart.map(c => {
         let tasa = 0;
         if (c.taxState === 'isv15') tasa = 0.15;
@@ -1788,6 +1791,24 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                       {paymentMethod === m.id && <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-current shadow-sm" />}
                    </button>
                  ))}
+               </div>
+
+               <div className="mb-6 animate-in fade-in slide-in-from-top-2">
+                 <h3 className="font-bold text-gray-900 mb-3 text-xs sm:text-sm uppercase tracking-widest">Origen de la Venta / Marca</h3>
+                 <div className="flex gap-3">
+                   <button 
+                     onClick={() => setAliasVenta('Paraíso Floral')}
+                     className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${aliasVenta === 'Paraíso Floral' ? 'bg-pink-50 border-pink-500 text-pink-700 shadow-md ring-4 ring-pink-500/20' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}
+                   >
+                     Paraíso Floral
+                   </button>
+                   <button 
+                     onClick={() => setAliasVenta('HonduFlores')}
+                     className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${aliasVenta === 'HonduFlores' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-md ring-4 ring-emerald-500/20' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}
+                   >
+                     HonduFlores (HF)
+                   </button>
+                 </div>
                </div>
 
                {paymentMethod === 'Efectivo' && (

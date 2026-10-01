@@ -440,6 +440,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     estado: 'EMITIDA',
                     inventarioDescontado: true,
                     metodoPago: facturaData.metodoPago || 'Efectivo',
+                    aliasVenta: facturaData.aliasVenta || 'Paraíso Floral',
                     saldoPendiente: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? facturaData.total : 0,
                     estadoPago: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? 'PENDIENTE' : 'PAGADA',
 
@@ -1248,6 +1249,9 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 fechaEmision: true,
                 validezDias: true,
                 total: true,
+                metodoPago: true,
+                aliasVenta: true,
+                transferenciaConfirmada: true,
                 cliente: {
                     select: {
                         nombre: true,
@@ -1277,6 +1281,9 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
             clienteNombre: doc.cliente?.nombre || 'Desconocido',
             clienteRtn: doc.cliente?.rtn || '',
             total: Number(doc.total),
+            metodoPago: doc.metodoPago,
+            aliasVenta: doc.aliasVenta,
+            transferenciaConfirmada: doc.transferenciaConfirmada,
             detalles: doc.detalles.map(d => ({
                descripcion: d.descripcion,
                cantidad: d.cantidad,
@@ -1287,6 +1294,36 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
     } catch (e) {
         console.error("Error obteniendo historial:", e);
         return [];
+    }
+}
+
+// --- CONFIRMAR TRANSFERENCIA ---
+export async function confirmarTransferencia(id: string) {
+    try {
+        const user = await getAuthenticatedUser();
+        const doc = await prisma.factura.findUnique({ where: { id } });
+        if (!doc || doc.organizationId !== user.organizationId) {
+            throw new Error('Documento no encontrado.');
+        }
+
+        await prisma.factura.update({
+            where: { id },
+            data: { transferenciaConfirmada: true }
+        });
+
+        await logActivity({
+            userId: user.id,
+            organizationId: user.organizationId,
+            action: 'UPDATE',
+            module: '/facturas',
+            description: `Confirmó transferencia de factura ${doc.correlativo}`,
+            metadata: { facturaId: id }
+        });
+
+        revalidatePath('/facturas');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
     }
 }
 

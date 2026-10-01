@@ -72,6 +72,7 @@ model Organization {
   pagosClientes         PagoCliente[]
   notasCreditoClientes  NotaCreditoCliente[]
   reportesHorasExtras  ReporteHorasExtras[]
+  registrosCompras      RegistroCompra[]
 
   @@map("organizations")
 }
@@ -185,6 +186,7 @@ model User {
   pedidosAsignados         Pedido[]              @relation("AuxiliarPedidos")
   pedidosCreados           Pedido[]              @relation("CreatedPedidos")
   pedidosAnulados          Pedido[]              @relation("AnuladoPedidos")
+  comprasCreadas           RegistroCompra[]      @relation("ComprasCreadas")
 
   @@map("users")
 }
@@ -801,6 +803,8 @@ model Factura {
   cajaSession              CorteCajaSession? @relation(fields: [cajaSessionId], references: [id])
   firmaClienteBase64       String?          @db.Text
   firmaClienteAt           DateTime?
+  transferenciaConfirmada  Boolean          @default(false)
+  aliasVenta               String           @default("Paraíso Floral")
   ordenEntrega             OrdenEntrega?
   equiposCliente           EquipoCliente[]
   detallesPago             PagoDetalleFactura[]
@@ -1907,6 +1911,25 @@ model ReporteHorasExtras {
 }
 
 
+model RegistroCompra {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  fecha          DateTime
+  descripcion    String
+  factura        String?
+  exenta         Decimal      @default(0) @db.Decimal(12, 2)
+  gravada        Decimal      @default(0) @db.Decimal(12, 2)
+  isv15          Decimal      @default(0) @db.Decimal(12, 2)
+  total          Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
+  creadoPorId    String?      @db.Uuid
+  creadoPor      User?        @relation("ComprasCreadas", fields: [creadoPorId], references: [id])
 
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
+  @@index([fecha])
+  @@map("registros_compras")
+}
