@@ -24,6 +24,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const [sesionActiva, setSesionActiva] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [userRole, setUserRole] = useState(dbUser?.role || '');
+  const tienePrivilegiosCaja = ['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole) || (dbUser?.accessibleModules || []).includes('/caja-chica') || dbUser?.customRoleName === 'PF_GERENCIA';
   const [showModalSinPrivilegios, setShowModalSinPrivilegios] = useState(false);
   const [showModalSobregiro, setShowModalSobregiro] = useState(false);
   const [montoApertura, setMontoApertura] = useState('');
@@ -478,14 +479,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
-                  if (!['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole)) {
+                  if (!tienePrivilegiosCaja) {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
                   if (!cajaAbierta) setShowModalApertura(true);
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  (cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole))
+                  (cajaAbierta || !tienePrivilegiosCaja)
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20'
                 }`}
@@ -495,7 +496,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               </button>
               <button
                 onClick={() => {
-                  if (!['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole)) {
+                  if (!tienePrivilegiosCaja) {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
@@ -506,7 +507,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   }
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  (!cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole))
+                  (!cajaAbierta || !tienePrivilegiosCaja)
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-500/20'
                 }`}
