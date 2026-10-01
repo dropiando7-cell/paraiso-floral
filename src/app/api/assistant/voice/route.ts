@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
         const { organizationId, id: userId } = dbUser;
 
         // 2. Leer texto
-        const { text } = await req.json();
+        const { text, currentItems } = await req.json();
         if (!text || text.trim() === '') {
             return NextResponse.json({ error: 'El texto de la transcripción es requerido.' }, { status: 400 });
         }
 
         // 3. Procesar intención con Gemini 2.5 Flash
-        const intent = await analizarIntencionVoz(text);
+        const intent = await analizarIntencionVoz(text, currentItems);
 
         // 4. Mapear Cliente en base de datos
         let matchedClient = null;
@@ -67,7 +67,8 @@ export async function POST(req: NextRequest) {
 
         // 5. Mapear Productos en el Inventario (Productos y Activos Fijos)
         const processedItems = [];
-        for (const item of intent.items) {
+        const itemsToProcess = intent.items || [];
+        for (const item of itemsToProcess) {
             // Buscar en Productos (Sku o Nombre)
             const prod = await prisma.producto.findFirst({
                 where: {
@@ -87,7 +88,10 @@ export async function POST(req: NextRequest) {
                     type: 'producto',
                     productoId: prod.id,
                     sku: prod.sku,
-                    stockActual: prod.stockActual
+                    stockActual: prod.stockActual,
+                    isUpdate: item.isUpdate || false,
+                    isDelete: item.isDelete || false,
+                    descuento: item.descuento || 0
                 });
                 continue;
             }
@@ -113,7 +117,10 @@ export async function POST(req: NextRequest) {
                     type: 'activo',
                     activoId: activo.id,
                     sku: activo.idQr,
-                    stockActual: activo.stock
+                    stockActual: activo.stock,
+                    isUpdate: item.isUpdate || false,
+                    isDelete: item.isDelete || false,
+                    descuento: item.descuento || 0
                 });
                 continue;
             }
@@ -125,7 +132,10 @@ export async function POST(req: NextRequest) {
                 quantity: item.cantidad,
                 price: item.precioVenta || 0,
                 cost: item.costoBase || 0,
-                type: 'nuevo'
+                type: 'nuevo',
+                isUpdate: item.isUpdate || false,
+                isDelete: item.isDelete || false,
+                descuento: item.descuento || 0
             });
         }
 
@@ -144,6 +154,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             success: true,
             action: intent.action,
+            nuevoTipoDocumento: intent.nuevoTipoDocumento,
+            notasDocumento: intent.notasDocumento,
+            terminosPago: intent.terminosPago,
+            metodoPago: intent.metodoPago,
             client: matchedClient,
             items: processedItems,
             logId: log.id

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { 
     Mic, MicOff, X, Check, Loader2, AlertTriangle, 
     Plus, FileText, Database, ArrowRight, Sparkles 
@@ -50,6 +50,8 @@ interface MatchedClient {
 
 export function VoiceAssistant() {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [state, setState] = useState<AssistantState>('idle');
     const [transcript, setTranscript] = useState('');
     const [isOpen, setIsOpen] = useState(false);
@@ -301,6 +303,14 @@ export function VoiceAssistant() {
             setState('reviewing');
         }
     };
+
+    // Si estamos en el creador de facturas/cotizaciones, ocultar el asistente global porque el componente DocumentBuilderClient tiene el suyo propio
+    const isCreatorTab = searchParams.get('tab') === 'creador' || pathname.includes('/facturas/nueva');
+    if (pathname.includes('/facturas') && (isCreatorTab || pathname.endsWith('/facturas'))) {
+        // Asumimos que la página principal de /facturas muestra el DocumentBuilderClient por defecto si no hay tab,
+        // o si tiene tab=creador
+        return null;
+    }
 
     if (!isOpen) {
         return (

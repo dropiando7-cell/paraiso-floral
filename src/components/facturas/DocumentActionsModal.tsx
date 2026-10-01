@@ -18,6 +18,7 @@ interface DocumentActionsModalProps {
   docType?: string; // 'cotizacion', 'proforma', etc
   estaVencida?: boolean;
   isEmitida?: boolean;
+  isSaved?: boolean;
 }
 
 export default function DocumentActionsModal({
@@ -32,7 +33,8 @@ export default function DocumentActionsModal({
   isConverting,
   docType,
   estaVencida,
-  isEmitida = false
+  isEmitida = false,
+  isSaved = true
 }: DocumentActionsModalProps) {
   
   React.useEffect(() => {
@@ -80,9 +82,10 @@ export default function DocumentActionsModal({
               {/* Descargar PDF */}
               <button 
                 onClick={() => handleAction(onDownloadPDF)}
-                disabled={isDownloadingPDF}
-                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isDownloadingPDF || !isSaved}
+                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed relative"
               >
+                {!isSaved && <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div>}
                 <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Download size={28} className={isDownloadingPDF ? 'animate-bounce' : ''} />
                 </div>
@@ -104,8 +107,10 @@ export default function DocumentActionsModal({
               {onShowOrdenEntrega && (
                 <button 
                   onClick={() => handleAction(onShowOrdenEntrega)}
-                  className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-indigo-100 hover:border-indigo-500 hover:shadow-lg rounded-2xl transition-all shadow-sm cursor-pointer"
+                  disabled={!isSaved}
+                  className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-indigo-100 hover:border-indigo-500 hover:shadow-lg rounded-2xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed relative"
                 >
+                  {!isSaved && <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div>}
                   <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Truck size={28} />
                   </div>
@@ -117,9 +122,10 @@ export default function DocumentActionsModal({
               {docType === 'cotizacion' && onConvert && (
                 <button 
                   onClick={() => handleAction(() => onConvert('PROFORMA'))}
-                  disabled={isConverting || estaVencida}
+                  disabled={isConverting || estaVencida || !isSaved}
                   className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-violet-100 hover:border-violet-500 rounded-2xl transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed relative"
                 >
+                  {!isSaved && <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div>}
                   <div className="w-14 h-14 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                     <ArrowRight size={28} />
                   </div>
@@ -131,9 +137,10 @@ export default function DocumentActionsModal({
               {(docType === 'cotizacion' || docType === 'proforma') && onConvert && (
                 <button 
                   onClick={() => handleAction(() => onConvert('FACTURA'))}
-                  disabled={isConverting || (docType === 'cotizacion' && estaVencida)}
-                  className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-amber-100 hover:border-amber-500 rounded-2xl transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isConverting || (docType === 'cotizacion' && estaVencida) || !isSaved}
+                  className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-amber-100 hover:border-amber-500 rounded-2xl transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed relative"
                 >
+                  {!isSaved && <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div>}
                   <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                     <FileText size={28} />
                   </div>
@@ -152,13 +159,14 @@ export default function DocumentActionsModal({
               {/* Email */}
               <button 
                 onClick={() => onSendEmail && handleAction(onSendEmail)}
-                disabled={!onSendEmail}
-                className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all ${
-                  onSendEmail 
+                disabled={!onSendEmail || !isSaved}
+                className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all relative ${
+                  (onSendEmail && isSaved)
                     ? 'border-blue-100 hover:border-blue-500 hover:shadow-lg cursor-pointer' 
                     : 'border-slate-100 opacity-50 cursor-not-allowed'
                 }`}
               >
+                {!isSaved && <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div>}
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform ${
                   onSendEmail ? 'bg-blue-50 text-blue-600 group-hover:scale-110' : 'bg-slate-50 text-slate-400'
                 }`}>
@@ -170,14 +178,14 @@ export default function DocumentActionsModal({
               {/* WhatsApp */}
               <button 
                 onClick={() => onSendWhatsApp && handleAction(onSendWhatsApp)}
-                disabled={!onSendWhatsApp}
+                disabled={!onSendWhatsApp || !isSaved}
                 className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all relative ${
-                  onSendWhatsApp
+                  (onSendWhatsApp && isSaved)
                     ? 'border-green-100 hover:border-green-500 hover:shadow-lg cursor-pointer'
                     : 'border-slate-100 opacity-50 cursor-not-allowed'
                 }`}
               >
-                {!onSendWhatsApp && <div className="absolute top-2 right-2 bg-slate-200 text-slate-500 text-[9px] font-black uppercase px-2 py-1 rounded-md">Pronto</div>}
+                {(!isSaved && onSendWhatsApp) ? <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div> : (!onSendWhatsApp && <div className="absolute top-2 right-2 bg-slate-200 text-slate-500 text-[9px] font-black uppercase px-2 py-1 rounded-md">Pronto</div>)}
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform ${
                   onSendWhatsApp ? 'bg-green-50 text-green-600 group-hover:scale-110' : 'bg-slate-50 text-slate-400'
                 }`}>

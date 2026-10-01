@@ -10,7 +10,7 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
-  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize
+  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
@@ -1192,11 +1192,11 @@ function LineItemRow({
 
     // Autofocus the price input
     setTimeout(() => {
-      const priceInput = document.getElementById(`unitPrice-${item.id}`);
+      const priceInput = document.getElementById(`unitPrice-desktop-${item.id}`);
       if (priceInput) {
         priceInput.focus();
       }
-    }, 50);
+    }, 100);
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1779,11 +1779,11 @@ function LineItemRow({
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
                   <input
-                    id={`unitPrice-${item.id}`}
+                    id={`unitPrice-desktop-${item.id}`}
                     type="number"
                     value={item.unitPrice}
                     onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); }}
+                    onFocus={e => { const t = e.target as HTMLInputElement; setTimeout(() => t.select(), 10); }}
                     onKeyDown={handleKeyDown}
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
@@ -2110,6 +2110,248 @@ export default function DocumentBuilderClient({
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
+
+  // Local Voice Assistant State
+  const [isListeningLocal, setIsListeningLocal] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const rec = new SpeechRecognition();
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.lang = 'es-HN';
+
+            rec.onstart = () => {
+                setIsListeningLocal(true);
+            };
+
+            rec.onresult = (event: any) => {
+                // We just let it run. We will grab the final transcript when we stop.
+            };
+
+            rec.onerror = (event: any) => {
+                console.error("Local speech recognition error:", event);
+                setIsListeningLocal(false);
+            };
+
+            rec.onend = () => {
+                // If it ends naturally or by command, we do nothing. The stop function handles processing.
+            };
+
+            recognitionRef.current = rec;
+        }
+    }
+  }, []);
+
+  const handleStartLocalListening = () => {
+    if (!recognitionRef.current) {
+        toast.error("El reconocimiento de voz no está soportado en este navegador.");
+        return;
+    }
+    try {
+        recognitionRef.current.start();
+        setIsListeningLocal(true);
+        toast('Escuchando...', { icon: '🎙️' });
+    } catch (e) {
+        console.error("Error starting recognition:", e);
+    }
+  };
+
+  const handleStopLocalListening = () => {
+    if (recognitionRef.current && isListeningLocal) {
+        recognitionRef.current.stop();
+        setIsListeningLocal(false);
+        // We can't synchronously get the final transcript if we stop it manually like this without waiting for the last onresult,
+        // so we need a different approach. Actually, standard approach is grabbing interim and final in onresult.
+    }
+  };
+
+  // Better approach for manual start/stop recording with full transcript
+  const transcriptRef = useRef('');
+  
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = (event: any) => {
+        let currentTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+            currentTranscript += event.results[i][0].transcript;
+        }
+        transcriptRef.current = currentTranscript;
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListeningLocal(false);
+        const finalTranscript = transcriptRef.current;
+        if (finalTranscript.trim()) {
+            processLocalVoiceCommand(finalTranscript);
+        }
+        transcriptRef.current = ''; // Reset
+      };
+    }
+  }, [recognitionRef.current]);
+
+  const toggleLocalListening = () => {
+    if (isListeningLocal) {
+      if (recognitionRef.current) recognitionRef.current.stop();
+    } else {
+      if (!recognitionRef.current) {
+        toast.error("Reconocimiento de voz no soportado.");
+        return;
+      }
+      transcriptRef.current = '';
+      try {
+        recognitionRef.current.start();
+        setIsListeningLocal(true);
+      } catch(e){}
+    }
+  };
+
+  const processLocalVoiceCommand = async (text: string) => {
+    setIsProcessingVoice(true);
+    const toastId = toast.loading("Procesando comando inteligente...");
+    try {
+        const currentItems = lineItems.filter(l => l.shortDesc && !l.isSection).map(l => ({ nombre: l.shortDesc, cantidad: Number(l.qty) }));
+        const res = await fetch('/api/assistant/voice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, currentItems })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Error al procesar.');
+
+        let itemsAdded = 0;
+        
+        // 1. Asignar cliente si se detectó
+        if (data.client && data.client.found && data.client.id) {
+            setSelectedClient({
+                id: data.client.id,
+                name: data.client.nombre || '',
+                rtn: data.client.rtn || '',
+                email: data.client.email || '',
+                phone: data.client.telefono || '',
+                address: data.client.direccion || '',
+                city: '',
+                category: ''
+            });
+            toast.success(`Cliente asignado: ${data.client.nombre}`, { id: toastId });
+        }
+
+        // 1.5 Acciones a nivel de documento
+        if (data.action === 'CLEAR_DOCUMENT') {
+            setLineItems([{ id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false, qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage', _isNew: true }]);
+            setNotes('');
+            setSelectedClient(null);
+            toast.success("Documento limpiado.", { id: toastId });
+            setIsProcessingVoice(false);
+            return;
+        }
+
+        if (data.action === 'CHANGE_DOC_TYPE' && data.nuevoTipoDocumento) {
+            setDocType(data.nuevoTipoDocumento);
+            toast.success(`Tipo de documento cambiado a ${data.nuevoTipoDocumento.toUpperCase()}`, { id: toastId });
+        }
+
+        if (data.notasDocumento) {
+            setNotes(data.notasDocumento);
+            toast.success("Notas actualizadas.", { id: toastId });
+        }
+
+        if (data.terminosPago) {
+            setPaymentTerms(data.terminosPago);
+            toast.success(`Términos de pago: ${data.terminosPago}`, { id: toastId });
+        }
+
+        if (data.metodoPago) {
+            setPaymentMethod(data.metodoPago);
+            toast.success(`Método de pago: ${data.metodoPago}`, { id: toastId });
+        }
+
+        // 2. Agregar o actualizar líneas a la factura
+        if (data.items && data.items.length > 0) {
+            setLineItems(prev => {
+                let updatedLines = [...prev];
+                const newLines: LineItem[] = [];
+
+                for (const aiItem of data.items) {
+                    if (aiItem.type === 'nuevo' || !aiItem.found) {
+                        toast.error(`El ítem "${aiItem.name}" no está registrado en el inventario. Se omitió de la lista.`, { duration: 5000, id: `err-${aiItem.name}` });
+                        continue;
+                    }
+
+                    if (aiItem.found) {
+                        const existingIndex = updatedLines.findIndex(l => 
+                            (aiItem.type === 'producto' && l.productoId === aiItem.productoId) ||
+                            (aiItem.type === 'activo' && l.activoId === aiItem.activoId)
+                        );
+
+                        if (existingIndex !== -1) {
+                            if (aiItem.isDelete) {
+                                // Eliminar el renglón
+                                updatedLines.splice(existingIndex, 1);
+                                itemsAdded++;
+                                toast.success(`Ítem eliminado: ${aiItem.name}`, { id: `del-${aiItem.name}` });
+                            } else if (aiItem.isUpdate) {
+                                // Actualizar renglón existente
+                                updatedLines[existingIndex] = {
+                                    ...updatedLines[existingIndex],
+                                    qty: aiItem.quantity > 0 ? aiItem.quantity : updatedLines[existingIndex].qty,
+                                    unitPrice: aiItem.price || updatedLines[existingIndex].unitPrice,
+                                    discount: aiItem.descuento || updatedLines[existingIndex].discount
+                                };
+                                itemsAdded++;
+                            }
+                        } else if (!aiItem.isDelete) {
+                            // Agregar como nueva línea (solo si no es un delete huérfano)
+                            newLines.push({
+                                id: uid(),
+                                code: aiItem.sku || '',
+                                shortDesc: aiItem.name || '',
+                                longDesc: aiItem.type === 'activo' && aiItem.sku ? `S/N: ${aiItem.sku}` : '',
+                                richDesc: '',
+                                showLongDesc: false,
+                                qty: aiItem.quantity || 1,
+                                unitPrice: aiItem.price || 0,
+                                tax: 'isv15',
+                                discount: aiItem.descuento || 0,
+                                discountType: 'percentage',
+                                productoId: aiItem.type === 'producto' ? aiItem.productoId : undefined,
+                                activoId: aiItem.type === 'activo' ? aiItem.activoId : undefined,
+                                serie: aiItem.type === 'activo' ? aiItem.sku : null,
+                                _isNew: false
+                            });
+                            itemsAdded++;
+                        }
+                    }
+                }
+
+                if (newLines.length > 0) {
+                    if (updatedLines.length === 1 && !updatedLines[0].shortDesc && !updatedLines[0].unitPrice) {
+                        return newLines;
+                    }
+                    return [...updatedLines, ...newLines];
+                }
+
+                return updatedLines.length > 0 ? updatedLines : [{ id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false, qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage', _isNew: true }];
+            });
+        }
+
+        if (itemsAdded > 0) {
+            toast.success(`${itemsAdded} producto(s) agregado(s).`, { id: toastId });
+        } else if (data.client?.found) {
+            // Already handled
+        } else {
+            toast('No se detectaron productos o clientes.', { id: toastId, icon: '🤔' });
+        }
+    } catch (e: any) {
+        toast.error(e.message || "Error al procesar el comando.", { id: toastId });
+    } finally {
+        setIsProcessingVoice(false);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -3989,6 +4231,13 @@ export default function DocumentBuilderClient({
       return;
     }
 
+    // 2.5 Todos los ítems deben estar registrados en la base de datos (tener productoId o activoId)
+    const unregisteredItem = validItems.find(i => !i.isSection && !i.productoId && !i.activoId);
+    if (unregisteredItem) {
+      toast.error(`El renglón "${unregisteredItem.shortDesc || 'Sin descripción'}" no está vinculado al inventario. Debe seleccionarlo de la lista o registrarlo.`, { duration: 6000 });
+      return;
+    }
+
     // 3. El total no puede ser 0.
     if (totals.total <= 0) {
       toast.custom((t) => (
@@ -4217,9 +4466,8 @@ export default function DocumentBuilderClient({
             </button>
             <button
               onClick={() => setShowActionsModal(true)}
-              disabled={!viewMode}
-              title={!viewMode ? "Debe guardar el documento primero" : "Más Acciones"}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${!viewMode ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed opacity-70' : 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 hover:border-slate-300'}`}
+              title="Más Acciones"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 hover:border-slate-300`}
             >
               <LayoutGrid size={15} /> Más Acciones
             </button>
@@ -4433,16 +4681,7 @@ export default function DocumentBuilderClient({
           {/* Bottom Action Bar */}
           {!effectiveViewMode && (
           <div className="flex items-center gap-3 print:hidden mt-6">
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
-              <Copy size={14} /> Duplicar
-            </button>
-            <button onClick={handlePrintEditor} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
-              <Printer size={14} /> Imprimir
-            </button>
-
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
-              <Mail size={14} /> Enviar por Email
-            </button>
+            <div className="flex-1" />
             <div className="flex-1" />
             {lastSaved && (
               <div className="flex items-center gap-3 mr-2">
@@ -6182,6 +6421,7 @@ export default function DocumentBuilderClient({
 
       {showActionsModal && (
         <DocumentActionsModal
+          isSaved={!!initialData?.id || !!lastSaved}
           onClose={() => setShowActionsModal(false)}
           onDownloadPDF={handleDownloadPDF}
           onToggleCustomizer={() => setShowCustomizer(!showCustomizer)}
@@ -6923,6 +7163,35 @@ export default function DocumentBuilderClient({
           })()}
         </div>
       </MobilePrintPreviewModal>
+
+      {/* Floating Local Voice Assistant Button */}
+      {!effectiveViewMode && !isLocked && (
+        <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-2 print:hidden">
+          {isListeningLocal && (
+            <div className="bg-white px-4 py-2 rounded-full shadow-lg border border-red-100 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+              </span>
+              <span className="text-xs font-bold text-red-600">Escuchando productos...</span>
+            </div>
+          )}
+          <button
+            onClick={toggleLocalListening}
+            disabled={isProcessingVoice}
+            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all ${
+              isProcessingVoice ? 'bg-slate-700 text-white cursor-wait' :
+              isListeningLocal ? 'bg-red-500 text-white hover:bg-red-600 scale-110 shadow-red-200' : 
+              'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 shadow-blue-200'
+            }`}
+            title="Asistente de Voz (Agregar productos o seleccionar cliente)"
+          >
+            {isProcessingVoice ? <Loader2 className="w-6 h-6 animate-spin" /> : 
+             isListeningLocal ? <MicOff className="w-6 h-6" /> : 
+             <Mic className="w-6 h-6" />}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
