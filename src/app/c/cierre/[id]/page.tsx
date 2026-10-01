@@ -160,6 +160,45 @@ export default async function PublicCierrePage({ params }: PageProps) {
         cierreAt: session.cierreAt ? session.cierreAt.toISOString() : null,
         creadoPor: session.creadoPor ? { nombre: session.creadoPor.nombre, apellido: session.creadoPor.apellido } : null,
         cerradoPor: session.cerradoPor ? { nombre: session.cerradoPor.nombre, apellido: session.cerradoPor.apellido } : null,
+        facturas: session.facturas.map(f => ({
+            id: f.id,
+            metodoPago: f.metodoPago,
+            fechaEmision: f.fechaEmision.toISOString(),
+            correlativo: f.correlativo,
+            cliente: f.cliente ? { nombre: f.cliente.nombre } : null,
+            total: Number(f.total),
+            transferenciaConfirmada: f.transferenciaConfirmada
+        })),
+        rentasPagos: session.rentasPagos.map(p => ({
+            id: p.id,
+            metodoPago: p.metodoPago,
+            fechaPago: p.fechaPago.toISOString(),
+            notas: p.notas,
+            renta: p.renta ? { 
+                activoFijo: p.renta.activoFijo ? { nombre: p.renta.activoFijo.nombre } : null,
+                cliente: p.renta.cliente ? { nombre: p.renta.cliente.nombre } : null
+            } : null,
+            monto: Number(p.monto)
+        })),
+        ordenesTrabajo: session.ordenesTrabajo.map(o => ({
+            id: o.id,
+            metodoPagoRevision: o.metodoPagoRevision,
+            fechaRecibido: o.fechaRecibido.toISOString(),
+            codigoSeguridad: o.codigoSeguridad,
+            equipoDano: o.equipoDano,
+            cliente: o.cliente ? { nombre: o.cliente.nombre } : null,
+            costoRevision: Number(o.costoRevision)
+        })),
+        movimientos: session.movimientos.map(m => ({
+            id: m.id,
+            metodoPago: m.metodoPago,
+            concepto: m.concepto,
+            tipo: m.tipo,
+            createdAt: m.createdAt.toISOString(),
+            anuladaAt: m.anuladaAt ? m.anuladaAt.toISOString() : null,
+            descripcion: m.descripcion,
+            monto: Number(m.monto)
+        }))
     },
     totals: {
         totalVentas,
