@@ -470,7 +470,8 @@ export default function ConfiguracionPage() {
 
                                 <hr className="border-slate-100" />
 
-                                {/* Modal de Inactividad */}
+                                {/* Modal de Inactividad (Oculto temporalmente por solicitud del negocio para que no se deslogueen por error) */}
+                                {/* 
                                 <div>
                                     <div className="flex items-center justify-between mb-1 max-w-md">
                                         <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -481,15 +482,16 @@ export default function ConfiguracionPage() {
                                         </label>
                                         <button
                                             onClick={() => setPreferences({ ...preferences, idleTimeoutEnabled: !preferences.idleTimeoutEnabled })}
-                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${preferences.idleTimeoutEnabled ? 'bg-brand-500' : 'bg-slate-300'}`}
+                                            className={\`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 \${preferences.idleTimeoutEnabled ? 'bg-brand-500' : 'bg-slate-300'}\`}
                                         >
-                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${preferences.idleTimeoutEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            <span className={\`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out \${preferences.idleTimeoutEnabled ? 'translate-x-5' : 'translate-x-0'}\`} />
                                         </button>
                                     </div>
                                     <p className="text-sm text-slate-500 mb-3 max-w-md">
                                         Activa la ventana azul que avisa y cierra tu sesión tras un tiempo por seguridad. Si la desactivas, la sesión permanecerá abierta.
                                     </p>
                                 </div>
+                                */}
 
                                 {/* Desactivar IA Vision (Admin Only) */}
                                 {userRole === 'SUPER_ADMIN' && (

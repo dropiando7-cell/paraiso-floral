@@ -10,7 +10,8 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, dbUser }: DashboardLayoutProps) {
     return (
         <MobileDashboardWrapper dbUser={dbUser}>
-            <InactivityGuard enabled={dbUser?.idleTimeoutEnabled ?? true}>
+            {/* Se desactiva el cierre por inactividad globalmente por requerimiento del negocio */}
+            <InactivityGuard enabled={false}>
                 <ActivityTracker />
                 {children}
             </InactivityGuard>

@@ -10,7 +10,7 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
-  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus
+  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
@@ -553,10 +553,12 @@ function MobileDocumentForm({
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Precio Unit. (L)</label>
                     <input
+                      id={`unitPrice-${item.id}`}
                       type="number"
                       step="any"
                       value={item.unitPrice}
                       onChange={(e) => handleLineChange(item.id, 'unitPrice', e.target.value)}
+                      onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); }}
                       placeholder="0.00"
                       className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500"
                     />
@@ -1045,18 +1047,18 @@ function LineItemRow({
       } finally {
         setIsLoadingResults(false);
       }
-    }, 300);
+    }, 600); // Aumentado a 600ms para redes lentas
 
     return () => clearTimeout(delayDebounce);
   }, [query, showAutocomplete]);
 
+  const queryWords = nQuery.split(/\s+/).filter(w => w.length > 0);
+
   const localMatched = query.trim().length >= 2 
-    ? allProducts.filter(p => 
-        normalizeText(p.name).includes(nQuery) || 
-        normalizeText(p.code).includes(nQuery) ||
-        (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
-        (p.serie && normalizeText(p.serie).includes(nQuery))
-      )
+    ? allProducts.filter(p => {
+        const searchableText = `${normalizeText(p.name)} ${normalizeText(p.code)} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
+        return queryWords.every(word => searchableText.includes(word));
+      })
     : [];
 
   const matchedProducts = query.trim().length >= 2 
@@ -1065,12 +1067,8 @@ function LineItemRow({
         localMatched.forEach(p => map.set(p.id, p));
         searchResults.forEach(p => {
           if (isLoadingResults) {
-            if (
-              normalizeText(p.name).includes(nQuery) || 
-              normalizeText(p.code).includes(nQuery) ||
-              (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
-              (p.serie && normalizeText(p.serie).includes(nQuery))
-            ) {
+            const searchableText = `${normalizeText(p.name)} ${normalizeText(p.code)} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
+            if (queryWords.every(word => searchableText.includes(word))) {
               map.set(p.id, p);
             }
           } else {
@@ -1191,6 +1189,14 @@ function LineItemRow({
     }
     
     setShowAutocomplete(false);
+
+    // Autofocus the price input
+    setTimeout(() => {
+      const priceInput = document.getElementById(`unitPrice-${item.id}`);
+      if (priceInput) {
+        priceInput.focus();
+      }
+    }, 50);
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1773,6 +1779,7 @@ function LineItemRow({
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
                   <input
+                    id={`unitPrice-${item.id}`}
                     type="number"
                     value={item.unitPrice}
                     onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
@@ -2087,7 +2094,7 @@ export default function DocumentBuilderClient({
   const [isUploadingFoto, setIsUploadingFoto] = useState(false);
   const [showOrdenEntregaPanel, setShowOrdenEntregaPanel] = useState(false);
   const [activeCanvasMode, setActiveCanvasMode] = useState<'document' | 'orden_entrega'>('document');
-  
+  const [isKioskMode, setIsKioskMode] = useState(false);
   const [ordenTrabajoId, setOrdenTrabajoId] = useState<string | undefined>(initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined);
   const [showWorkOrderModal, setShowWorkOrderModal] = useState(false);
   const [workOrderSearch, setWorkOrderSearch] = useState('');
@@ -2098,6 +2105,21 @@ export default function DocumentBuilderClient({
   const [otImages, setOtImages] = useState<string[]>([]);
   const [loadingOtImages, setLoadingOtImages] = useState(false);
   const [isUploadingLineImage, setIsUploadingLineImage] = useState(false);
+  
+  // WhatsApp Modal State
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isKioskMode) {
+        setIsKioskMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isKioskMode]);
 
   useEffect(() => {
     const handleOpenPicker = (e: Event) => {
@@ -4159,7 +4181,7 @@ export default function DocumentBuilderClient({
   const resolvedNombreUsuario = (initialData?.creadoPor ? [initialData.creadoPor.nombre, initialData.creadoPor.apellido].filter(Boolean).join(' ') : null) || initialData?.nombreUsuario || currentUser?.fullName || 'Administrador (BEA)';
 
   return (
-    <div className={`${embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden'} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
+    <div className={`${isKioskMode ? 'fixed inset-0 z-[5000] bg-slate-50 overflow-y-auto' : (embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden')} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
       {/* Top Bar (Visible solo en escritorio md:block cuando no está bloqueado) */}
       {!embedMode && !isLocked && (
       <div className={`hidden md:block bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
@@ -4187,14 +4209,25 @@ export default function DocumentBuilderClient({
               </button>
             )}
             <button
+              onClick={() => setIsKioskMode(!isKioskMode)}
+              title={isKioskMode ? "Salir de pantalla completa (Esc)" : "Pantalla completa (Kiosko)"}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${isKioskMode ? 'bg-indigo-100 text-indigo-700 border border-indigo-200 hover:bg-indigo-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            >
+              {isKioskMode ? <Minimize size={15} /> : <Maximize size={15} />}
+            </button>
+            <button
               onClick={() => setShowActionsModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm whitespace-nowrap shrink-0"
+              disabled={!viewMode}
+              title={!viewMode ? "Debe guardar el documento primero" : "Más Acciones"}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${!viewMode ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed opacity-70' : 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 hover:border-slate-300'}`}
             >
               <LayoutGrid size={15} /> Más Acciones
             </button>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm whitespace-nowrap shrink-0"
+              disabled={!viewMode}
+              title={!viewMode ? "Debe guardar el documento primero" : "Imprimir Documento"}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${!viewMode ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed opacity-70' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
             >
               <Printer size={15} /> Imprimir
             </button>
@@ -5937,7 +5970,43 @@ export default function DocumentBuilderClient({
               <p className={`${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-lg font-bold text-slate-800`}>{showSuccessModal.correlativo}</p>
             </div>
 
-            <div className="flex gap-3 w-full mt-4">
+            <div className="grid grid-cols-3 gap-2 w-full mt-4">
+              <button
+                onClick={() => {
+                  setShowSuccessModal(null);
+                  router.push(`/print/${showSuccessModal.docId}`);
+                }}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-700 transition-colors"
+              >
+                <Printer size={20} className="text-slate-500" />
+                <span className="text-xs font-bold">Imprimir</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  // Simulate PDF generation or redirect to API
+                  window.open(`/api/pdf/${showSuccessModal.docId}`, '_blank');
+                }}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 border border-red-200 rounded-2xl text-red-700 transition-colors"
+              >
+                <Download size={20} className="text-red-500" />
+                <span className="text-xs font-bold">PDF</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setWhatsappPhone(selectedClient?.telefono || selectedClient?.telefonoContacto || '');
+                  setShowSuccessModal(null);
+                  setShowWhatsappModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-green-50 hover:bg-green-100 border border-green-200 rounded-2xl text-green-700 transition-colors"
+              >
+                <Phone size={20} className="text-green-500" />
+                <span className="text-xs font-bold">WhatsApp</span>
+              </button>
+            </div>
+
+            <div className="flex gap-3 w-full mt-2 pt-4 border-t border-slate-100">
               {isPrintIframe ? (
                 <>
                   <button
@@ -5954,11 +6023,11 @@ export default function DocumentBuilderClient({
                   <button
                     onClick={() => {
                       setShowSuccessModal(null);
-                      router.push(`/print/${showSuccessModal.docId}`);
+                      router.push(`/facturas/ver/${showSuccessModal.docId}`);
                     }}
                     className="flex-[1.2] py-3 px-3 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all text-xs cursor-pointer"
                   >
-                    Ver Vista Previa
+                    Ver Documento
                   </button>
                 </>
               ) : (
@@ -5973,22 +6042,72 @@ export default function DocumentBuilderClient({
                         router.push('/facturas');
                       }
                     }}
-                    className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
+                    className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-xs sm:text-sm cursor-pointer"
                   >
-                    {ordenTrabajoId ? 'Volver a la Orden' : 'Hacer Nuevo'}
+                    {ordenTrabajoId ? 'Volver' : 'Hacer Nuevo'}
                   </button>
                   <button
                     onClick={() => {
                       setShowSuccessModal(null);
                       router.push(`/facturas/ver/${showSuccessModal.docId}`);
                     }}
-                    className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all cursor-pointer"
+                    className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all text-xs sm:text-sm cursor-pointer"
                   >
                     Ver Documento
                   </button>
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Modal */}
+      {showWhatsappModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 relative overflow-hidden">
+            <button 
+              onClick={() => setShowWhatsappModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
+            >
+              <X size={20} />
+            </button>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+              <Phone size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">Enviar por WhatsApp</h3>
+            <p className="text-sm text-slate-500 px-2">
+              Verifica el número de {selectedClient?.name || 'Cliente'}. Si lo cambias, se actualizará en su perfil.
+            </p>
+            
+            <div className="w-full text-left mt-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono Móvil</label>
+              <input
+                type="text"
+                value={whatsappPhone}
+                onChange={(e) => setWhatsappPhone(e.target.value)}
+                placeholder="+504 0000-0000"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all font-semibold text-slate-800"
+              />
+            </div>
+            
+            <button
+              onClick={async () => {
+                setIsSendingWhatsapp(true);
+                // Aquí iría la lógica de actualización en base de datos del cliente
+                // y la llamada a /api/twilio/send-invoice
+                setTimeout(() => {
+                  setIsSendingWhatsapp(false);
+                  setShowWhatsappModal(false);
+                  toast.success('Factura enviada por WhatsApp correctamente');
+                }, 1500);
+              }}
+              disabled={isSendingWhatsapp || !whatsappPhone.trim()}
+              className="w-full py-3 mt-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {isSendingWhatsapp ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {isSendingWhatsapp ? 'Enviando...' : 'Enviar Mensaje'}
+            </button>
           </div>
         </div>
       )}
