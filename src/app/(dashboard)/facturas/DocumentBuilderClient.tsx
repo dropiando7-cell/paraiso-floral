@@ -6234,7 +6234,7 @@ export default function DocumentBuilderClient({
 
               <button
                 onClick={() => {
-                  setWhatsappPhone(selectedClient?.telefono || selectedClient?.telefonoContacto || '');
+                  setWhatsappPhone(selectedClient?.telefonoContacto || '');
                   setShowSuccessModal(null);
                   setShowWhatsappModal(true);
                 }}
