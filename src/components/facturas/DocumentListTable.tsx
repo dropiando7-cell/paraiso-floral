@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
@@ -36,6 +37,7 @@ interface Props {
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 
 export default function DocumentListTable({ data, type }: Props) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [showAnuladas, setShowAnuladas] = useState(false);
   const [isAnulando, setIsAnulando] = useState<string | null>(null);
@@ -130,6 +132,7 @@ export default function DocumentListTable({ data, type }: Props) {
       const res = await confirmarTransferencia(id);
       if (res.success) {
         toast.success('Transferencia confirmada con éxito', { id: toastId });
+        router.refresh();
       } else {
         toast.error(res.error || 'Error al confirmar transferencia', { id: toastId });
       }
@@ -188,15 +191,39 @@ export default function DocumentListTable({ data, type }: Props) {
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const getStatusBadge = (estado: string) => {
-    switch (estado) {
-      case 'BORRADOR': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">Borrador</span>;
-      case 'EMITIDA': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">Emitida</span>;
-      case 'CONVERTIDA': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-blue-50 text-blue-700 border border-blue-200" title="Este documento fue convertido en otro">Convertida</span>;
-      case 'PENDIENTE': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>;
-      case 'ANULADA': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-rose-50 text-rose-700 border border-rose-200">Anulada</span>;
-      default: return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">{estado}</span>;
+  const getStatusBadge = (doc: DocumentRecord) => {
+    let badge = null;
+    switch (doc.estado) {
+      case 'BORRADOR': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">Borrador</span>; break;
+      case 'EMITIDA': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">Emitida</span>; break;
+      case 'CONVERTIDA': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-blue-50 text-blue-700 border border-blue-200" title="Este documento fue convertido en otro">Convertida</span>; break;
+      case 'PENDIENTE': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>; break;
+      case 'ANULADA': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-rose-50 text-rose-700 border border-rose-200">Anulada</span>; break;
+      default: badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">{doc.estado}</span>; break;
     }
+    
+    if (doc.metodoPago === 'Transferencia' && doc.estado !== 'ANULADA') {
+      if (doc.transferenciaConfirmada) {
+        return (
+          <div className="flex flex-col items-center gap-1">
+            {badge}
+            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-emerald-700 bg-emerald-100 border border-emerald-200 flex items-center gap-1">
+              <CheckCircle2 size={10} /> Tr. Confirmada
+            </span>
+          </div>
+        );
+      } else {
+        return (
+          <div className="flex flex-col items-center gap-1">
+            {badge}
+            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-amber-700 bg-amber-100 border border-amber-200">
+              Pend. Transferencia
+            </span>
+          </div>
+        );
+      }
+    }
+    return badge;
   };
 
   return (
@@ -436,7 +463,7 @@ export default function DocumentListTable({ data, type }: Props) {
                   <p className="font-bold text-slate-800 tracking-tight text-base">{fmt(doc.total)}</p>
                 </td>
                 <td className="p-4 align-middle text-center">
-                  {getStatusBadge(doc.estado)}
+                  {getStatusBadge(doc)}
                 </td>
                 <td className="p-4 align-middle text-right">
                   <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>

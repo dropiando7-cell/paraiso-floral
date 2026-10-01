@@ -62,6 +62,7 @@ interface Props {
     success: boolean; 
     correlativo?: string; 
     facturaId?: string; 
+    docId?: string;
     error?: string;
     numeroCAI?: string | null;
     rangoAutorizado?: string | null;
@@ -765,7 +766,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     
     if (res.success && res.correlativo) {
       setLastTicket(res.correlativo);
-      setLastFacturaId(res.facturaId || null);
+      setLastFacturaId(res.facturaId || res.docId || null);
       if (res.numeroCAI || res.rangoAutorizado || res.fechaLimiteEmision) {
         setLastFiscalData({
           numeroCAI: res.numeroCAI,

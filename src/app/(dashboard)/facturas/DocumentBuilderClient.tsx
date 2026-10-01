@@ -273,6 +273,7 @@ function MobileDocumentForm({
   docType, setDocType, docNumber, currentDocType, selectedClient, setShowClientModal,
   resolvedFechaEmision, today, futureDate, validityDays, setValidityDays,
   paymentTerms, setPaymentTerms, paymentMethod, setPaymentMethod,
+  aliasVenta, setAliasVenta,
   lineItems, setLineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
   handleToggleLongDesc, emptyLine, emptySectionLine, setShowProductModal,
   totals, fmt, notes, setNotes, isSaving, handleSave, viewMode, isLocked,
@@ -424,6 +425,17 @@ function MobileDocumentForm({
               <option value="Crédito 15 días">Crédito 15 días</option>
               <option value="Crédito 30 días">Crédito 30 días</option>
               <option value="Crédito 60 días">Crédito 60 días</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Origen Venta</label>
+            <select
+              value={aliasVenta}
+              onChange={(e) => setAliasVenta(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Paraíso Floral">Paraíso Floral</option>
+              <option value="HonduFlores">HonduFlores (HF)</option>
             </select>
           </div>
           <div>
@@ -2077,6 +2089,7 @@ export default function DocumentBuilderClient({
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const [aliasVenta, setAliasVenta] = useState(initialData?.aliasVenta || 'Paraíso Floral');
   const lastRowActionTimeRef = useRef<number>(0);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
@@ -2110,6 +2123,25 @@ export default function DocumentBuilderClient({
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
+
+  // Verification Mode State
+  const [verificationMode, setVerificationMode] = useState(false);
+  const [verificationIndex, setVerificationIndex] = useState(0);
+
+  // Verification mode highlight effect
+  useEffect(() => {
+    document.querySelectorAll('.verification-highlight').forEach(n => {
+       n.classList.remove('verification-highlight', 'ring-4', 'ring-amber-400', '!bg-amber-50', 'shadow-xl', 'scale-[1.01]', 'z-50');
+    });
+    if (verificationMode && lineItems[verificationIndex]) {
+       const item = lineItems[verificationIndex];
+       const el = document.querySelector(`[data-line-id="${item.id}"]`);
+       if (el) {
+          el.classList.add('verification-highlight', 'ring-4', 'ring-amber-400', '!bg-amber-50', 'shadow-xl', 'scale-[1.01]', 'z-50');
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+       }
+    }
+  }, [verificationMode, verificationIndex, lineItems]);
 
   // Local Voice Assistant State
   const [isListeningLocal, setIsListeningLocal] = useState(false);
@@ -3935,6 +3967,35 @@ export default function DocumentBuilderClient({
     };
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Toggle Verification Mode
+      if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+         if (!viewMode && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
+            e.preventDefault();
+            setVerificationMode(v => {
+               const next = !v;
+               if (next) {
+                 setVerificationIndex(0);
+                 toast.success('Modo Verificación Activado (Use ↑ ↓ para navegar)', { icon: '🔍' });
+               } else {
+                 toast('Modo Verificación Desactivado');
+               }
+               return next;
+            });
+         }
+      }
+
+      if (verificationMode) {
+         if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setVerificationIndex(prev => Math.min(prev + 1, lineItems.length - 1));
+            return;
+         } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setVerificationIndex(prev => Math.max(prev - 1, 0));
+            return;
+         }
+      }
+
       const isMinusKey = e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract';
       if ((e.ctrlKey || e.metaKey) && isMinusKey) {
         if (!viewMode && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
@@ -3972,7 +4033,7 @@ export default function DocumentBuilderClient({
        document.removeEventListener('keydown', handleGlobalKeyDown);
        document.removeEventListener('focusin', handleFocusIn);
     };
-  }, [viewMode, showProductModal, showClientModal, showNewClientModal, showSuccessModal, activeLineId]);
+  }, [viewMode, showProductModal, showClientModal, showNewClientModal, showSuccessModal, activeLineId, verificationMode, lineItems.length]);
 
   const nClientSearch = normalizeText(clientSearch);
   const filteredClients = allClients.filter(c =>
@@ -4270,6 +4331,7 @@ export default function DocumentBuilderClient({
         notas: notes,
         terminosPago: paymentTerms,
         metodoPago: paymentMethod,
+        aliasVenta: aliasVenta,
         validezDias: validityDays,
         subTotal: totals.subtotal,
         descuentos: totals.descuentos,
@@ -4446,6 +4508,17 @@ export default function DocumentBuilderClient({
                  #{docNumber}
                </span>
              )}
+             
+             {/* Selector de Origen de Venta */}
+             <select
+               value={aliasVenta}
+               onChange={(e) => setAliasVenta(e.target.value)}
+               className="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+               title="Origen de Venta"
+             >
+               <option value="Paraíso Floral">Paraíso Floral</option>
+               <option value="HonduFlores">HonduFlores (HF)</option>
+             </select>
           </div>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
@@ -4514,6 +4587,8 @@ export default function DocumentBuilderClient({
             setPaymentTerms={setPaymentTerms}
             paymentMethod={paymentMethod}
             setPaymentMethod={setPaymentMethod}
+            aliasVenta={aliasVenta}
+            setAliasVenta={setAliasVenta}
             lineItems={lineItems}
             setLineItems={setLineItems}
             handleLineChange={handleLineChange}
@@ -6213,7 +6288,7 @@ export default function DocumentBuilderClient({
               <button
                 onClick={() => {
                   setShowSuccessModal(null);
-                  router.push(`/print/${showSuccessModal.docId}`);
+                  router.push(`/facturas/ver/${showSuccessModal.docId}?print=true`);
                 }}
                 className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-700 transition-colors"
               >
@@ -6223,8 +6298,8 @@ export default function DocumentBuilderClient({
               
               <button
                 onClick={() => {
-                  // Simulate PDF generation or redirect to API
-                  window.open(`/api/pdf/${showSuccessModal.docId}`, '_blank');
+                  setShowSuccessModal(null);
+                  router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
                 }}
                 className="flex flex-col items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 border border-red-200 rounded-2xl text-red-700 transition-colors"
               >

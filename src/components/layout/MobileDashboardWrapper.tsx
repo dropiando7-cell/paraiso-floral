@@ -35,6 +35,24 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') setMobileSidebarOpen(false);
+            
+            // Toggle Kiosk Mode (Fullscreen)
+            if (e.key === 'F11' || (e.ctrlKey && e.key.toLowerCase() === 'k')) {
+                e.preventDefault();
+                setIsFullscreen(prev => {
+                    const next = !prev;
+                    if (next) {
+                        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                            document.documentElement.requestFullscreen().catch(() => {});
+                        }
+                    } else {
+                        if (document.fullscreenElement && document.exitFullscreen) {
+                            document.exitFullscreen().catch(() => {});
+                        }
+                    }
+                    return next;
+                });
+            }
         };
         document.addEventListener('keydown', handleKey);
         return () => document.removeEventListener('keydown', handleKey);

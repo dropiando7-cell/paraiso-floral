@@ -8,6 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
         start_url: '/inventario',
         scope: '/',
         display: 'standalone',
+        orientation: 'any',
         background_color: '#ffffff',
         theme_color: '#1b4332',
         icons: [
