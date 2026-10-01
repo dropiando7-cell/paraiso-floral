@@ -40,6 +40,70 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
     window.open(`https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  const getMethodTransactions = (metodo: string) => {
+    if (!session) return [];
+    const txList: Array<{
+        id: string;
+        fechaStr: string;
+        concepto: string;
+        cliente: string;
+        monto: number;
+        isPendingTransfer?: boolean;
+    }> = [];
+
+    const facturas = session.facturas || [];
+    facturas.filter((f: any) => (f.metodoPago || 'Efectivo') === metodo)
+        .forEach((f: any) => {
+            txList.push({
+                id: f.id,
+                fechaStr: f.fechaEmision,
+                concepto: `Facturación POS (${f.correlativo})`,
+                cliente: f.cliente?.nombre || 'Cliente General',
+                monto: Number(f.total),
+                isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+            });
+        });
+
+    const rentasPagos = session.rentasPagos || [];
+    rentasPagos.filter((p: any) => (p.metodoPago || 'Efectivo') === metodo)
+        .forEach((p: any) => {
+            txList.push({
+                id: p.id,
+                fechaStr: p.fechaPago,
+                concepto: p.notas || `Pago de Renta (${p.renta?.activoFijo?.nombre || 'Equipo'})`,
+                cliente: p.renta?.cliente?.nombre || 'Cliente General',
+                monto: Number(p.monto)
+            });
+        });
+
+    const ordenesTrabajo = session.ordenesTrabajo || [];
+    ordenesTrabajo.filter((o: any) => (o.metodoPagoRevision || 'Efectivo') === metodo)
+        .forEach((o: any) => {
+            txList.push({
+                id: o.id,
+                fechaStr: o.fechaRecibido,
+                concepto: `Revisión Soporte #${o.codigoSeguridad} (${o.equipoDano})`,
+                cliente: o.cliente?.nombre || 'Cliente General',
+                monto: Number(o.costoRevision || 0)
+            });
+        });
+
+    const movimientos = session.movimientos || [];
+    movimientos.filter((m: any) => m.metodoPago === metodo && m.concepto !== 'REEMBOLSO_GARANTIA')
+        .forEach((m: any) => {
+            const isNegative = m.tipo === 'EGRESO';
+            txList.push({
+                id: m.id,
+                fechaStr: m.createdAt,
+                concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
+                cliente: m.descripcion || 'Movimiento de Caja',
+                monto: isNegative ? -Number(m.monto) : Number(m.monto)
+            });
+        });
+
+    return txList.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 pb-16 font-sans print:bg-white print:pb-0">
       <style jsx global>{`
@@ -226,14 +290,59 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                     const r = summary.rentas[m] || 0;
                     const s = summary.soporte[m] || 0;
                     const tot = v + r + s;
+                    const txs = getMethodTransactions(m);
                     return (
-                      <tr key={m} className="hover:bg-slate-50">
-                        <td className="py-2.5 px-3 font-bold text-slate-800">{m}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{fmt(v)}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{fmt(r)}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{fmt(s)}</td>
-                        <td className="py-2.5 px-3 text-right font-black text-slate-900">{fmt(tot)}</td>
-                      </tr>
+                      <React.Fragment key={m}>
+                        <tr className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3 font-bold text-slate-800">{m}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{fmt(v)}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{fmt(r)}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{fmt(s)}</td>
+                          <td className="py-2.5 px-3 text-right font-black text-slate-900">{fmt(tot)}</td>
+                        </tr>
+                        {txs.length > 0 && (
+                          <tr className="bg-slate-50/50 print:table-row">
+                            <td colSpan={5} className="px-3 py-2 border-b border-slate-100">
+                              <div className="bg-white rounded-lg border border-slate-200 p-2 ml-4">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                  Desglose de Transacciones ({txs.length})
+                                </div>
+                                <table className="w-full text-left text-[10px] text-slate-600">
+                                  <thead>
+                                    <tr className="text-slate-400 border-b border-slate-100">
+                                      <th className="px-1 py-0.5">Hora</th>
+                                      <th className="px-1 py-0.5">Concepto</th>
+                                      <th className="px-1 py-0.5">Cliente</th>
+                                      <th className="px-1 py-0.5 text-right">Monto</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {txs.map(tx => (
+                                      <tr key={tx.id}>
+                                        <td className="px-1 py-0.5 text-slate-500">
+                                          {new Date(tx.fechaStr).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                        </td>
+                                        <td className="px-1 py-0.5 text-slate-800 font-semibold">
+                                          {tx.concepto}
+                                          {tx.isPendingTransfer && (
+                                              <span className="ml-1 px-1 rounded text-[8px] bg-amber-100 text-amber-800 uppercase print:border print:border-amber-400">
+                                                  Pend. Confirmar
+                                              </span>
+                                          )}
+                                        </td>
+                                        <td className="px-1 py-0.5">{tx.cliente}</td>
+                                        <td className={`px-1 py-0.5 text-right font-bold ${tx.isPendingTransfer ? 'text-amber-600/60 line-through' : tx.monto < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                          {tx.monto < 0 ? '-' : '+'} {fmt(Math.abs(tx.monto))}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                   <tr className="bg-slate-800 text-white font-black">
