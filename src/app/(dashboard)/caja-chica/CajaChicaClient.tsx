@@ -478,14 +478,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
-                  if (!['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole)) {
+                  if (!['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole)) {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
                   if (!cajaAbierta) setShowModalApertura(true);
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  (cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole))
+                  (cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole))
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20'
                 }`}
@@ -495,7 +495,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               </button>
               <button
                 onClick={() => {
-                  if (!['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole)) {
+                  if (!['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole)) {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
@@ -506,7 +506,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   }
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  (!cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole))
+                  (!cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN', 'RECEPCION', 'GERENTE', 'VENDEDOR'].includes(userRole))
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-500/20'
                 }`}
@@ -2104,7 +2104,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
             <p className="text-sm text-gray-500 mb-6">
-              No tienes los privilegios necesarios para realizar esta acción. Solo un Administrador General (ORG_ADMIN / SUPER_ADMIN) puede abrir, cerrar o modificar los fondos de la caja chica.
+              No tienes los privilegios necesarios para realizar esta acción. Solo un Administrador, Gerente o Cajera puede abrir, cerrar o modificar los fondos de la caja chica.
             </p>
             <button
               onClick={() => setShowModalSinPrivilegios(false)}
