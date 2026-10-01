@@ -63,6 +63,7 @@ export default function DocumentListTable({ data, type }: Props) {
 
   const [isCleaningDrafts, setIsCleaningDrafts] = useState(false);
   const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
+  const [showPendientesTrans, setShowPendientesTrans] = useState(false);
 
   // Auto-clean legacy empty "Borrador Temporal" records on mount
   useEffect(() => {
@@ -154,6 +155,10 @@ export default function DocumentListTable({ data, type }: Props) {
       if (filterOrigen === 'PARAISO' && doc.aliasVenta === 'HonduFlores') return false;
       if (filterOrigen === 'HF' && doc.aliasVenta !== 'HonduFlores') return false;
       
+      if (showPendientesTrans) {
+        if (doc.metodoPago !== 'Transferencia' || doc.transferenciaConfirmada) return false;
+      }
+      
       const q = search.toLowerCase();
       return doc.correlativo.toLowerCase().includes(q) || 
              doc.clienteNombre.toLowerCase().includes(q) ||
@@ -182,7 +187,7 @@ export default function DocumentListTable({ data, type }: Props) {
     }
 
     return filtered;
-  }, [data, type, search, showAnuladas, sortField, sortDirection]);
+  }, [data, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -258,6 +263,15 @@ export default function DocumentListTable({ data, type }: Props) {
             />
             <span className="text-xs font-bold text-slate-700 select-none">Mostrar Anuladas</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
+            <input 
+              type="checkbox" 
+              checked={showPendientesTrans}
+              onChange={e => setShowPendientesTrans(e.target.checked)}
+              className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
+            />
+            <span className="text-xs font-bold text-slate-700 select-none">Pend. Transferencia</span>
+          </label>
 
           {type === 'FACTURA' && (
             <select
@@ -307,14 +321,19 @@ export default function DocumentListTable({ data, type }: Props) {
                   </div>
                 </div>
                 <div>
-                  {getStatusBadge(doc.estado)}
+                  {getStatusBadge(doc)}
                 </div>
               </div>
 
               {/* Información de Cliente y Fecha */}
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-900 truncate">{doc.clienteNombre}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-slate-900 truncate">{doc.clienteNombre}</p>
+                    {doc.aliasVenta === 'HonduFlores' && (
+                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title="Venta externa de HonduFlores">HF</span>
+                    )}
+                  </div>
                   {doc.clienteRtn && <p className="text-[11px] text-slate-500 font-mono">RTN: {doc.clienteRtn}</p>}
                   <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
                     Emisión: {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}

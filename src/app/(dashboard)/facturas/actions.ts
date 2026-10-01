@@ -640,6 +640,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     tipoDocumento: nuevoTipo,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
                     metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
+                    aliasVenta: data.aliasVenta !== undefined ? data.aliasVenta : docExistente.aliasVenta,
+                    transferenciaConfirmada: data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada,
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
                     detalles: {
@@ -842,6 +844,8 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     referenciaOriginalId: data.referenciaOriginalId || null,
                     ordenTrabajoId: data.ordenTrabajoId || null,
                     metodoPago: data.metodoPago || 'Efectivo',
+                    aliasVenta: data.aliasVenta || null,
+                    transferenciaConfirmada: data.transferenciaConfirmada || false,
                     cajaSessionId,
                     detalles: {
                         create: lineItems.map((item) => {

@@ -173,6 +173,24 @@ export default function ModernTemplate(props: TemplateProps) {
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>RTN</p>
  <p className={`text-white ${headerSmallSize} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>{selectedClient?.rtn || '—'}</p>
  </div>
+ <div className="min-w-[120px]">
+  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Marca / Origen</p>
+  {viewMode ? (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold border ${props.aliasVenta === 'HonduFlores' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'bg-pink-500/20 text-pink-300 border-pink-500/30'}`}>
+      {props.aliasVenta === 'HonduFlores' ? 'HF' : 'PF'}
+    </span>
+  ) : (
+    <label className="flex items-center gap-2 cursor-pointer mt-1">
+      <input 
+        type="checkbox" 
+        className="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 print:hidden"
+        checked={props.aliasVenta === 'HonduFlores'}
+        onChange={(e) => props.setAliasVenta?.(e.target.checked ? 'HonduFlores' : 'Paraíso Floral')}
+      />
+      <span className="text-white text-xs font-semibold print:text-slate-800">{props.aliasVenta === 'HonduFlores' ? 'HonduFlores (HF)' : 'Paraíso Floral (PF)'}</span>
+    </label>
+  )}
+ </div>
  <div className="w-32">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Términos de Pago</p>
  <select
@@ -214,6 +232,27 @@ export default function ModernTemplate(props: TemplateProps) {
  <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
  <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>
  </select>
+ {paymentMethod === 'Transferencia' && (
+   <div className="mt-2">
+     {viewMode ? (
+       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${props.transferenciaConfirmada ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
+         {props.transferenciaConfirmada ? 'Confirmada' : 'Pendiente'}
+       </span>
+     ) : (
+       <label className="flex items-center gap-1.5 cursor-pointer">
+         <input 
+           type="checkbox" 
+           className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 print:hidden"
+           checked={props.transferenciaConfirmada}
+           onChange={(e) => props.setTransferenciaConfirmada?.(e.target.checked)}
+         />
+         <span className={`text-xs font-bold ${props.transferenciaConfirmada ? 'text-emerald-400' : 'text-amber-400'} print:text-slate-800`}>
+           {props.transferenciaConfirmada ? 'Confirmada' : 'Pendiente'}
+         </span>
+       </label>
+     )}
+   </div>
+ )}
  </div>
  )}
  </div>
