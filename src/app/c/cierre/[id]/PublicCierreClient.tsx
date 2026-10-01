@@ -147,7 +147,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                 </div>
                 <div>
                   <span className="text-slate-500 block">Operador:</span>
-                  <span className="font-bold text-slate-900">{session.creadoPor ? \`\${session.creadoPor.nombre} \${session.creadoPor.apellido}\` : 'N/A'}</span>
+                  <span className="font-bold text-slate-900">{session.creadoPor ? `${session.creadoPor.nombre} ${session.creadoPor.apellido}` : 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Apertura:</span>
@@ -196,7 +196,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                   <span className="uppercase tracking-wider text-xs text-slate-600">EFECTIVO CONTADO:</span>
                   <span className="text-base text-indigo-700">{fmt(session.saldoFinalEfectivo || 0)}</span>
                 </div>
-                <div className={\`flex justify-between items-center text-sm font-black mt-2 pt-2 border-t border-slate-200 \${session.diferencia === 0 ? 'text-emerald-600' : session.diferencia < 0 ? 'text-red-600' : 'text-blue-600'}\`}>
+                <div className={`flex justify-between items-center text-sm font-black mt-2 pt-2 border-t border-slate-200 ${session.diferencia === 0 ? 'text-emerald-600' : session.diferencia < 0 ? 'text-red-600' : 'text-blue-600'}`}>
                   <span className="uppercase tracking-wider text-xs">DIFERENCIA (RECONCILIACIÓN):</span>
                   <span>{session.diferencia === 0 ? 'L. 0.00 (CUADRADA)' : fmt(session.diferencia)}</span>
                 </div>
@@ -251,7 +251,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
           {/* Firmas */}
           <div className="pt-12 grid grid-cols-2 gap-8 text-center text-[11px] text-slate-600">
             <div className="border-t border-slate-400 pt-1">
-              <p className="font-bold text-slate-800">{session.cerradoPor ? \`\${session.cerradoPor.nombre} \${session.cerradoPor.apellido}\` : 'Operador de Caja'}</p>
+              <p className="font-bold text-slate-800">{session.cerradoPor ? `${session.cerradoPor.nombre} ${session.cerradoPor.apellido}` : 'Operador de Caja'}</p>
               <p className="text-[10px] text-slate-400">Entregado por (Operador de Turno)</p>
             </div>
             <div className="border-t border-slate-400 pt-1">
