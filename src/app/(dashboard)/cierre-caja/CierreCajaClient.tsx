@@ -407,6 +407,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
             concepto: string;
             cliente: string;
             monto: number;
+            isPendingTransfer?: boolean;
         }> = [];
 
         // Add invoices
@@ -418,7 +419,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                     fechaStr: f.fechaEmision,
                     concepto: `Facturación POS (${f.correlativo})`,
                     cliente: f.clienteNombre || 'Cliente General',
-                    monto: f.total
+                    monto: f.total,
+                    isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
                 });
             });
 
@@ -510,9 +512,16 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                             hour12: true
                                                         })}
                                                     </td>
-                                                    <td className="px-2 py-1.5 text-slate-900 font-semibold">{tx.concepto}</td>
+                                                    <td className="px-2 py-1.5 text-slate-900 font-semibold">
+                                                        {tx.concepto}
+                                                        {tx.isPendingTransfer && (
+                                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 uppercase tracking-wider">
+                                                                Pend. Confirmar
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-2 py-1.5 text-slate-600">{tx.cliente}</td>
-                                                    <td className={`px-2 py-1.5 text-right font-bold ${isNegative ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                    <td className={`px-2 py-1.5 text-right font-bold ${tx.isPendingTransfer ? 'text-amber-600/60 line-through' : isNegative ? 'text-rose-600' : 'text-slate-800'}`}>
                                                         {isNegative ? '-' : '+'} {formatCurrency(Math.abs(tx.monto))}
                                                     </td>
                                                 </tr>

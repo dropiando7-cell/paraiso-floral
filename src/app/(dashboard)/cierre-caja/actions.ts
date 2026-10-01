@@ -376,6 +376,12 @@ export async function getCajaSessionSummary(sessionId: string) {
     session.facturas.forEach(f => {
         const metodo = f.metodoPago || 'Efectivo';
         const total = Number(f.total);
+        
+        // Exclude unconfirmed transfers from totals
+        if (metodo === 'Transferencia' && f.transferenciaConfirmada === false) {
+            return;
+        }
+
         if (summary.ventas[metodo] !== undefined) {
             summary.ventas[metodo] += total;
         } else {
@@ -464,7 +470,8 @@ export async function getCajaSessionSummary(sessionId: string) {
             total: Number(f.total),
             metodoPago: f.metodoPago,
             fechaEmision: f.fechaEmision.toISOString(),
-            clienteNombre: f.cliente?.nombre || 'Cliente General'
+            clienteNombre: f.cliente?.nombre || 'Cliente General',
+            transferenciaConfirmada: f.transferenciaConfirmada
         })),
         rentasPagos: session.rentasPagos.map(p => ({
             id: p.id,
