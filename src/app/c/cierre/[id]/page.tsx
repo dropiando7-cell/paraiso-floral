@@ -59,10 +59,6 @@ export default async function PublicCierrePage({ params }: PageProps) {
         }
       },
       ordenesTrabajo: {
-        where: {
-            pagadaEnCaja: true,
-            estado: { in: ['COMPLETADA', 'ENTREGADA'] }
-        },
         include: {
             cliente: true
         }
