@@ -224,7 +224,12 @@ export async function abrirCaja(saldoInicial: number) {
             organizationId: user.organizationId,
             cajaSessionId: null,
             tipoDocumento: 'FACTURA',
-            fechaEmision: { gte: startOfTodayUtc }
+            fechaEmision: { gte: startOfTodayUtc },
+            NOT: {
+                correlativo: {
+                    startsWith: 'FAC-OCC'
+                }
+            }
         },
         data: {
             cajaSessionId: nuevaSesion.id
