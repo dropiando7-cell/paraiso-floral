@@ -914,7 +914,7 @@ export default function TomaFisicaDetalleClient({
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="🔍 Buscar variedad de flor o código QR..."
-                                className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-extrabold text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-[#0500A3] transition-all shadow-2xs"
+                                className="w-full pl-14 pr-6 py-4 sm:py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-lg sm:text-xl font-extrabold text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-[#0500A3] transition-all shadow-2xs"
                             />
                         </div>
 
@@ -972,8 +972,7 @@ export default function TomaFisicaDetalleClient({
                                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                                 }`}
                             >
-                                <Filter className="w-4 h-4" />
-                                <span>{showFilters ? "Ocultar Filtros" : "Filtros y Acciones"}</span>
+                                <Filter className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
@@ -1282,7 +1281,8 @@ export default function TomaFisicaDetalleClient({
                                                                     handleSetCount(item.id, val);
                                                                 }}
                                                                 placeholder={item.stockSistema.toString()}
-                                                                className={`w-20 sm:w-24 h-12 text-center text-lg font-black font-mono rounded-xl border-2 transition-all focus:outline-none ${
+                                                                onFocus={(e) => e.target.select()}
+                                                                className={`w-24 sm:w-32 h-14 sm:h-16 text-center text-xl sm:text-2xl font-black font-mono rounded-xl border-2 transition-all focus:outline-none ${
                                                                     isCounted 
                                                                         ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
                                                                         : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
@@ -1533,6 +1533,7 @@ export default function TomaFisicaDetalleClient({
                                                                 handleSetConteoAnterior(item.id, val);
                                                             }}
                                                             placeholder="0"
+                                                            onFocus={(e) => e.target.select()}
                                                             className="w-full text-center font-bold font-mono text-lg text-slate-800 focus:outline-none"
                                                         />
                                                     </div>
@@ -1557,6 +1558,7 @@ export default function TomaFisicaDetalleClient({
                                                                     handleSetConteoNuevo(item.id, val);
                                                                 }}
                                                                 placeholder="0"
+                                                                onFocus={(e) => e.target.select()}
                                                                 className="w-full text-center font-bold font-mono text-lg text-slate-800 focus:outline-none"
                                                             />
                                                             <button
