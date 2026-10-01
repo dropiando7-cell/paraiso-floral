@@ -49,7 +49,7 @@ const searchItems: SearchItem[] = [
     { name: 'Facturas Pro Forma', category: 'Ventas y Servicios', href: '/facturas?tab=proforma', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['proforma', 'pro forma', 'preliminar', 'facturas'] },
     { name: 'Cotizaciones Previas', category: 'Ventas y Servicios', href: '/facturas?tab=cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['cotizaciones', 'previas', 'presupuestos', 'quotes'] },
     { name: 'Órdenes de Entrega', category: 'Ventas y Servicios', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ordenes', 'entrega', 'delivery', 'shipping'] },
-    { name: 'Cierre de Caja', category: 'Ventas y Servicios', href: '/cierre-caja', keywords: ['cierre', 'caja', 'cortes', 'arqueo', 'cash close'] },
+    { name: 'Cierre de Caja (Ventas)', category: 'Ventas y Servicios', href: '/cierre-caja', keywords: ['cierre', 'caja', 'cortes', 'arqueo', 'cash close'] },
     { name: 'Cuentas por Cobrar', category: 'Ventas y Servicios', href: '/cxc', keywords: ['cxc', 'cuentas', 'cobrar', 'abonos', 'pagos', 'clientes', 'saldos', 'credito', 'deuda', 'libro mayor'] },
     { name: 'Rutas y Auto-Venta', category: 'Ventas y Servicios', href: '/inventario-ventas/rutas', keywords: ['rutas', 'auto-venta', 'reparto', 'camiones', 'conductores', 'vendedores', 'auto venta'] },
     { name: 'Control de Horas Extras', category: 'Administración', href: '/control-horas', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'], keywords: ['horas', 'extras', 'control', 'zkteco', 'asistencia', 'marcas', 'reloj', 'asistencias', 'sobretiempo', 'planilla'] },

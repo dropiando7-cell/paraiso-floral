@@ -112,7 +112,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Pedidos y Picking', href: '/inventario-ventas/pedidos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'AUXILIAR_BODEGA', 'GERENTE'] },
           { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Garantías y Mantenimientos', href: '/mantenimientos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Cierre de Caja', href: '/cierre-caja' }
+          { name: 'Cierre de Caja (Ventas)', href: '/cierre-caja' }
         ]
       },
       { name: 'Cuentas por Cobrar', href: '/cxc', icon: Coins },

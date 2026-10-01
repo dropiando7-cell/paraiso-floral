@@ -301,7 +301,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                           <td className="py-2.5 px-3 text-right font-black text-slate-900">{fmt(tot)}</td>
                         </tr>
                         {txs.length > 0 && (
-                          <tr className="bg-slate-50/50 print:table-row">
+                          <tr className="bg-slate-50/50">
                             <td colSpan={5} className="px-3 py-2 border-b border-slate-100">
                               <div className="bg-white rounded-lg border border-slate-200 p-2 ml-4">
                                 <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">

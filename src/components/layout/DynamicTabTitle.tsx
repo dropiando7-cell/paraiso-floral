@@ -12,7 +12,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/inventario/salidas': 'Salidas de Inventario',
   '/inventario/kardex': 'Kardex de Productos',
   '/contactos': 'Directorio de Clientes',
-  '/cierre-caja': 'Control y Cierre de Caja',
+  '/cierre-caja': 'Control y Cierre de Caja (Ventas)',
   '/caja-chica': 'Control de Caja Chica',
   '/mantenimientos': 'Órdenes de Trabajo y Mantenimiento',
   '/soporte': 'Soporte Técnico y Reparaciones',
