@@ -175,7 +175,7 @@ export default async function PublicCierrePage({ params }: PageProps) {
             fechaPago: p.fechaPago.toISOString(),
             notas: p.notas,
             renta: p.renta ? { 
-                activoFijo: p.renta.activoFijo ? { nombre: p.renta.activoFijo.nombre } : null,
+                activoFijo: p.renta.activoFijo ? { nombre: p.renta.activoFijo.descripcionCorta } : null,
                 cliente: p.renta.cliente ? { nombre: p.renta.cliente.nombre } : null
             } : null,
             monto: Number(p.monto)

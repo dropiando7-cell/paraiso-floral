@@ -4696,6 +4696,7 @@ export default function DocumentBuilderClient({
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -4717,6 +4718,7 @@ export default function DocumentBuilderClient({
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -4738,6 +4740,7 @@ export default function DocumentBuilderClient({
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
