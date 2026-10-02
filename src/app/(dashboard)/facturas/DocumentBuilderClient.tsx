@@ -6291,12 +6291,25 @@ export default function DocumentBuilderClient({
         />
       )}
 
-      {showSuccessModal && (
+      {(() => {
+        const handleExitAfterSave = () => {
+          setShowSuccessModal(null);
+          setShowWhatsappModal(false);
+          if (ordenTrabajoId) {
+            router.push(`/soporte/${ordenTrabajoId}`);
+          } else {
+            window.location.href = '/facturas/nuevo';
+          }
+        };
+
+        return (
+          <>
+            {showSuccessModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden">
             {/* Boton X para cerrar */}
             <button 
-              onClick={() => setShowSuccessModal(null)}
+              onClick={handleExitAfterSave}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
             >
               <X size={20} />
@@ -6381,15 +6394,7 @@ export default function DocumentBuilderClient({
               ) : (
                 <>
                   <button
-                    onClick={() => {
-                      setShowSuccessModal(null);
-                      const otId = ordenTrabajoId;
-                      if (otId) {
-                        router.push(`/soporte/${otId}`);
-                      } else {
-                        router.push('/facturas');
-                      }
-                    }}
+                    onClick={handleExitAfterSave}
                     className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-xs sm:text-sm cursor-pointer"
                   >
                     {ordenTrabajoId ? 'Volver' : 'Hacer Nuevo'}
@@ -6415,7 +6420,7 @@ export default function DocumentBuilderClient({
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 relative overflow-hidden">
             <button 
-              onClick={() => setShowWhatsappModal(false)}
+              onClick={handleExitAfterSave}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
             >
               <X size={20} />
@@ -6446,8 +6451,8 @@ export default function DocumentBuilderClient({
                 // y la llamada a /api/twilio/send-invoice
                 setTimeout(() => {
                   setIsSendingWhatsapp(false);
-                  setShowWhatsappModal(false);
                   toast.success('Factura enviada por WhatsApp correctamente');
+                  handleExitAfterSave();
                 }, 1500);
               }}
               disabled={isSendingWhatsapp || !whatsappPhone.trim()}
@@ -6459,6 +6464,9 @@ export default function DocumentBuilderClient({
           </div>
         </div>
       )}
+          </>
+        );
+      })()}
 
       {showDiscardModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
