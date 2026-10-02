@@ -79,7 +79,8 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     { nombre: 'Reparaciones menores', cuenta: '5106-002' },
     { nombre: 'Donaciones', cuenta: '5115-001' },
     { nombre: 'Propinas', cuenta: '5115-002' },
-    { nombre: 'Otros gastos', cuenta: '5199-001' }
+    { nombre: 'Otros gastos', cuenta: '5199-001' },
+    { nombre: 'Reembolso', cuenta: '5199-002' }
   ]);
 
   const cargarSesion = async () => {
