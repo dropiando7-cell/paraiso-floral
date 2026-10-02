@@ -215,7 +215,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
             prisma.activoFijo.findMany({
                 where: {
                     organizationId,
-                    estatusContable: 'VIGENTE',
+                    estatusContable: { notIn: ['DE BAJA', 'ELIMINADO'] },
                     ...(queryTrim ? {
                         OR: [
                             { descripcionCorta: { contains: queryTrim, mode: 'insensitive' } },
@@ -1045,7 +1045,7 @@ export async function buscarItemPorCodigo(codigo: string) {
                     { idQr: { equals: codigoTrim, mode: 'insensitive' } },
                     { serie: { equals: codigoTrim, mode: 'insensitive' } }
                 ],
-                estatusContable: 'VIGENTE'
+                estatusContable: { notIn: ['DE BAJA', 'ELIMINADO'] }
             },
             include: { producto: true }
         });
