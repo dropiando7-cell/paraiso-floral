@@ -24,7 +24,9 @@ export async function getUserPreferencesData(email: string) {
                 }
             }
         });
-        const invoiceSettings = (user?.organization?.invoiceSettings as any) || {};
+        if (!user) return null;
+
+        const invoiceSettings = (user.organization?.invoiceSettings as any) || {};
         
         return {
             ...user,

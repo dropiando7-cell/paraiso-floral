@@ -120,7 +120,7 @@ export default function ConfiguracionPage() {
                         allowZeroStockBilling: data.allowZeroStockBilling ?? true
                     });
 
-                    setUserRole(dbData.role);
+                    setUserRole(dbData.role || null);
                     const isAdmin = dbData.role === 'SUPER_ADMIN' || dbData.role === 'ORG_ADMIN' || dbData.role === 'GERENTE';
                     if (isAdmin) {
                         setFilteredModules(allAvailableModules);
