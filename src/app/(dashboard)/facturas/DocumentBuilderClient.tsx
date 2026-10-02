@@ -2238,7 +2238,15 @@ export default function DocumentBuilderClient({
       recognitionRef.current.onresult = (event: any) => {
         let currentTranscript = '';
         for (let i = 0; i < event.results.length; ++i) {
-            currentTranscript += event.results[i][0].transcript;
+            const chunk = event.results[i][0].transcript;
+            if (currentTranscript && chunk.toLowerCase().trim() === currentTranscript.toLowerCase().trim()) continue;
+            if (currentTranscript && chunk.toLowerCase().startsWith(currentTranscript.toLowerCase().trim())) {
+                currentTranscript = chunk;
+            } else if (currentTranscript && currentTranscript.toLowerCase().endsWith(chunk.toLowerCase().trim())) {
+                continue;
+            } else {
+                currentTranscript += chunk;
+            }
         }
         transcriptRef.current = currentTranscript;
       };
