@@ -1348,7 +1348,7 @@ function LineItemRow({
                   e.preventDefault();
                 }}
                 onClick={() => handleSelectProduct(p)}
-                className={`w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer ${
+                className={`group w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer ${
                   isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200/80 shadow-xs' : 'hover:bg-slate-50 text-slate-800'
                 }`}
               >
@@ -1423,6 +1423,33 @@ function LineItemRow({
                   {p.type === 'activo' && p.description && (
                     <p className="text-[10px] text-slate-400 truncate leading-tight uppercase">{p.description ? p.description.toUpperCase() : ''}</p>
                   )}
+                </div>
+
+                <div className="shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      const lineItemForEdit = {
+                        id: '',
+                        code: p.code,
+                        shortDesc: p.name,
+                        longDesc: p.description,
+                        unitPrice: p.price,
+                        productoId: p.type === 'producto' ? p.id : undefined,
+                        activoId: p.type === 'activo' ? p.id : undefined,
+                        serie: p.serie,
+                        marcaModelo: p.marcaModelo,
+                        imageUrl: p.imageUrl
+                      };
+                      window.dispatchEvent(new CustomEvent('open-edit-item-modal', { detail: { item: lineItemForEdit } }));
+                    }}
+                    title="Editar producto/activo"
+                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                  >
+                    <Pencil size={14} />
+                  </button>
                 </div>
               </button>
             );
