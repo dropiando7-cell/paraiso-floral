@@ -413,6 +413,31 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
             correlativoGenerado = formatCorrelativo(nextNumber, tipoCorrelativo);
         }
 
+        // Validate Stock if allowZeroStockBilling is disabled
+        const orgSettings = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+        const allowZeroStockBilling = (orgSettings?.invoiceSettings as any)?.allowZeroStockBilling !== false;
+
+        if (!allowZeroStockBilling && (tipoCorrelativo === 'FACTURA' || tipoCorrelativo === 'PROFORMA')) {
+            for (const d of detalles) {
+                if (d.productoId) {
+                    const p = await prisma.producto.findUnique({ where: { id: d.productoId }});
+                    if (p && !p.esServicio && p.stockActual !== 9999 && p.stockActual < d.cantidad) {
+                        throw new Error(`Inventario insuficiente para: ${d.descripcion}. Stock disponible: ${p.stockActual}. Activa la opción "Permitir Facturación Sin Stock" en configuración para omitir esta restricción.`);
+                    }
+                }
+                if (d.activoId) {
+                    const a = await prisma.activoFijo.findUnique({ where: { id: d.activoId }, include: { producto: true } });
+                    const esServicio = a?.area === 'SERVICIOS' || a?.stock === 9999 || a?.producto?.esServicio === true;
+                    if (a && !esServicio && a.stock < d.cantidad) {
+                        throw new Error(`Inventario insuficiente para: ${d.descripcion}. Stock disponible: ${a.stock}. Activa la opción "Permitir Facturación Sin Stock" en configuración para omitir esta restricción.`);
+                    }
+                }
+            }
+        }
+
         // TRANSACTION: Asegura que si falla el descuento de inventario, NO se guarde la factura.
         const result = await prisma.$transaction(async (tx) => {
             
@@ -612,6 +637,35 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
         }
 
+        const debeDescontarInventario = (nuevoTipo === 'FACTURA' || nuevoTipo === 'PROFORMA');
+        const debeRestaurarInventario = (nuevoTipo === 'NOTA_CREDITO');
+
+        // Validate Stock if allowZeroStockBilling is disabled
+        const orgSettings = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+        const allowZeroStockBilling = (orgSettings?.invoiceSettings as any)?.allowZeroStockBilling !== false;
+
+        if (!allowZeroStockBilling && docExistente.estado === 'BORRADOR' && debeDescontarInventario) {
+            for (const item of lineItems) {
+                const qty = Number(item.qty);
+                if (item.productoId) {
+                    const p = await prisma.producto.findUnique({ where: { id: item.productoId }});
+                    if (p && !p.esServicio && p.stockActual !== 9999 && p.stockActual < qty) {
+                        throw new Error(`Inventario insuficiente para: ${item.shortDesc}. Stock disponible: ${p.stockActual}. Activa la opción "Permitir Facturación Sin Stock" en configuración para omitir esta restricción.`);
+                    }
+                }
+                if (item.activoId) {
+                    const a = await prisma.activoFijo.findUnique({ where: { id: item.activoId }, include: { producto: true } });
+                    const esServicio = a?.area === 'SERVICIOS' || a?.stock === 9999 || a?.producto?.esServicio === true;
+                    if (a && !esServicio && a.stock < qty) {
+                        throw new Error(`Inventario insuficiente para: ${item.shortDesc}. Stock disponible: ${a.stock}. Activa la opción "Permitir Facturación Sin Stock" en configuración para omitir esta restricción.`);
+                    }
+                }
+            }
+        }
+
         const result = await prisma.$transaction(async (tx) => {
             // Eliminar los detalles anteriores
             await tx.detalleFactura.deleteMany({ where: { facturaId: id } });
@@ -689,9 +743,6 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             });
 
             // Descontar inventario (sólo si no lo estaba ya)
-            const debeDescontarInventario = (data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA');
-            const debeRestaurarInventario = (data.tipoDocumento === 'NOTA_CREDITO');
-            
             if (docExistente.estado === 'BORRADOR' && (debeDescontarInventario || debeRestaurarInventario)) {
                 for (const item of lineItems) {
                     if (item.productoId) {
@@ -814,6 +865,32 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
         // Descuenta inventario: FACTURA y PROFORMA sí, COTIZACION no
         const debeDescontarInventario = data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA';
         const debeRestaurarInventario = data.tipoDocumento === 'NOTA_CREDITO';
+
+        // Validate Stock if allowZeroStockBilling is disabled
+        const orgSettings = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+        const allowZeroStockBilling = (orgSettings?.invoiceSettings as any)?.allowZeroStockBilling !== false;
+
+        if (!allowZeroStockBilling && data.estado !== 'BORRADOR' && debeDescontarInventario) {
+            for (const item of lineItems) {
+                const qty = Number(item.qty);
+                if (item.productoId) {
+                    const p = await prisma.producto.findUnique({ where: { id: item.productoId }});
+                    if (p && !p.esServicio && p.stockActual !== 9999 && p.stockActual < qty) {
+                        throw new Error(`Inventario insuficiente para: ${item.shortDesc}. Stock disponible: ${p.stockActual}. Activa la opción "Permitir Facturación Sin Stock" en configuración para omitir esta restricción.`);
+                    }
+                }
+                if (item.activoId) {
+                    const a = await prisma.activoFijo.findUnique({ where: { id: item.activoId }, include: { producto: true } });
+                    const esServicio = a?.area === 'SERVICIOS' || a?.stock === 9999 || a?.producto?.esServicio === true;
+                    if (a && !esServicio && a.stock < qty) {
+                        throw new Error(`Inventario insuficiente para: ${item.shortDesc}. Stock disponible: ${a.stock}. Activa la opción "Permitir Facturación Sin Stock" en configuración para omitir esta restricción.`);
+                    }
+                }
+            }
+        }
 
         const result = await prisma.$transaction(async (tx) => {
             // Crear el documento — el correlativo se genera DESPUÉS del create (usa numeroInterno auto)

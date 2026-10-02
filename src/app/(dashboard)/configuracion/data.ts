@@ -16,10 +16,20 @@ export async function getUserPreferencesData(email: string) {
                 enableVoiceAi: true,
                 role: true,
                 accessibleModules: true,
-                organizationId: true
+                organizationId: true,
+                organization: {
+                    select: {
+                        invoiceSettings: true
+                    }
+                }
             }
         });
-        return user;
+        const invoiceSettings = (user?.organization?.invoiceSettings as any) || {};
+        
+        return {
+            ...user,
+            allowZeroStockBilling: invoiceSettings.allowZeroStockBilling ?? true
+        };
     } catch (error) {
         console.error("Error fetching user preferences data", error);
         return null;

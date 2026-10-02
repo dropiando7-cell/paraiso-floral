@@ -84,7 +84,8 @@ export default function ConfiguracionPage() {
         timezone: 'America/Tegucigalpa',
         theme: 'system',
         idleTimeoutEnabled: true,
-        enableVoiceAi: true
+        enableVoiceAi: true,
+        allowZeroStockBilling: true
     });
 
     // Email Templates State
@@ -115,7 +116,8 @@ export default function ConfiguracionPage() {
                         timezone: data.timezone || 'America/Tegucigalpa',
                         theme: data.theme || 'system',
                         idleTimeoutEnabled: data.idleTimeoutEnabled ?? true,
-                        enableVoiceAi: data.enableVoiceAi ?? true
+                        enableVoiceAi: data.enableVoiceAi ?? true,
+                        allowZeroStockBilling: data.allowZeroStockBilling ?? true
                     });
 
                     setUserRole(dbData.role);
@@ -308,6 +310,7 @@ export default function ConfiguracionPage() {
             theme: preferences.theme,
             idleTimeoutEnabled: preferences.idleTimeoutEnabled,
             enableVoiceAi: preferences.enableVoiceAi,
+            ...(userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userRole === 'GERENTE' ? { allowZeroStockBilling: preferences.allowZeroStockBilling } : {}),
             ...(userRole === 'SUPER_ADMIN' && { disableAiVision })
         });
 
@@ -517,6 +520,29 @@ export default function ConfiguracionPage() {
                                          Muestra o desactiva el botón flotante del micrófono con IA para dictado por voz y comandos inteligentes en la plataforma.
                                      </p>
                                  </div>
+
+                                 <hr className="border-slate-100" />
+                                 { (userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userRole === 'GERENTE') && (
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1 max-w-md">
+                                                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                                    <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    </svg>
+                                                    Permitir Facturación Sin Stock
+                                                </label>
+                                                <button
+                                                    onClick={() => setPreferences({ ...preferences, allowZeroStockBilling: !preferences.allowZeroStockBilling })}
+                                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${preferences.allowZeroStockBilling ? 'bg-brand-500' : 'bg-slate-300'}`}
+                                                >
+                                                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${preferences.allowZeroStockBilling ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <p className="text-sm text-slate-500 mb-3 max-w-md">
+                                                Al activar esta opción, los usuarios podrán emitir facturas aunque los productos o activos no tengan inventario disponible. Útil durante ajustes de inventario.
+                                            </p>
+                                        </div>
+                                 )}
 
                                  <hr className="border-slate-100" />
                                         <div>
