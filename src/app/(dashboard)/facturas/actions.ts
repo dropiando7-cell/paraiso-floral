@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/activity-logger';
+import crypto from 'crypto';
 
 // Helper for Auth — returns full user object with nombre+apellido
 export async function getAuthenticatedUser() {
@@ -2324,5 +2325,41 @@ export async function getOrdenTrabajoImages(id: string) {
         console.error("Error en getOrdenTrabajoImages:", e);
         return [];
     }
+}
+
+// --- QZ TRAY FIRMA DE CERTIFICADOS ---
+export async function signQzMessage(messageToSign: string) {
+    const privateKey = `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDlUlmuxaHxVQ/u
+1ZTaea8EPbvNWpmsmRXsJSijRewCfBfg4I1339RwEF0SYTFjrYVcr8bTBgn75/Mb
+ZK2e/QQublJLq7Zg13TQWpnYgfBipXhm+Dn5/q9KXp/opdpkus8VmNQD5eJ1hYzG
+hy+zjyerxHrrVUqv2tFBWfxyAqwMa3C4DtI+v8jJz73mPp5oek2rz1pxgtXc6dWV
+T/gIx1LYkBvBCf5I0NFgX6zi3L3kPku7QguWuixF+dk22oNvsEvB88UirjE7gNEk
+majeRPj28Nk/V+FJyJWloVA88kMkWbzYG7WhTGz3dkXx3YHfqVk4g3rHPbUnqQTA
+Ar4Etyl1AgMBAAECggEAEYi5aL6dwkkhvb5A8m+JbUaXHH2H8IWIApVYxRssj4gT
+f1NMHdVUdfkaVLRvxVJYNx0Nk8cLbmJu2TJagCSSdEZlLnoDqOXwfZnf14kf6zsB
+uMXUEQRjPMl9apl72GXcPaeA1od2SEwc1nUxtYYFn4GXcHUGD+ooQ9nwjnsb0psj
+ZpV7phe0v75v/8SyA9keEFiXb5Kw+sqxj99tW0vN7U+ROP3rAa5u5UX/QxNbWSxX
+eyonNS9GqTPaJmbiwpFoqQb+MBki9wd6VGnq3HBeL9dEp5ctFdSfvkPJzE+Q1tul
+eLR9qwPavyLXyaaw7zlflqTRU6JrRcd0HkNAI5d/ZQKBgQD0ATGKj0jDRuzb4vX8
+SVq2yIt4cbAmi4Joqeup3X6VTxCZKMjc/NgLum2uDgohLysmQhYGruPNln8DrjLo
+uh0JHid28RToEJUPKO2Sc4Mb4ACGWPjzABl9zauYOjs9SoaSsqb2espsMM6ENYt0
+TPW0nhgOv5kI3/lTjZCMzv8eMwKBgQDwmF76xOdR92hWOgOf/8zH6H5jprg+iv8W
+JNCZb21BseIU+7b9P9du97Dh6XtIIVhjQ3JL84MAtf4pj1hpB2ixUwvY8WqJlKZP
+tKXXQSkHVBFAATNRjPsvMkFtaupBjPbbqGU/gfqiD1+6JkBy72j2ZMHC9TavpEVi
+VRCLFLwhtwKBgG1/g53sgvivAWgDx+O5f237PSuFyUji3ljduBX4ge+7FXXF6a3S
+AZnxxXqQbldJ9ZErovrIzQ3bdZBPQiVSL+mBkLA9q+YgWuP8t/A6yiFeOp4Pm1hh
+OQ9Nlq2vpBnzMcTvSyHdJK28kVCfPr+oMbMmJyGnNaPX7ulh4/ZshewlAoGBAOeJ
+2639nJgXPwPsZNyvsgWYyzlfkuQto/tNhqqCv2R/qhGDhMEHlW4nVMS0i34JCSTO
+HcrWGHawrl6UowLArJIqV7Z57otk0QDX2tnizXdOAiPUg+yxfnIXLTv9rl9TJ6aQ
+0o9hqTAZF4jvkwqJODwXDxluHyi9MEDHmFogpETVAoGBAMZ+VJJGveaRH82X4Hvo
+iQ9lWa5r5elxIZV7H7QweysbmRCqB1xT/QPd1hHjQcX9p91bXxrTzu2BNG3vlFXW
+5ZGzCSohCwHVaH1XEtifgn1cqeb3cPoWam5J/ToOAFRrW7PUhxe3aENFcdQ0OiB0
+o1kuxQIwIURB3gBPhMFDttRS
+-----END PRIVATE KEY-----`;
+
+    const sign = crypto.createSign('SHA512');
+    sign.update(messageToSign);
+    return sign.sign(privateKey, 'base64');
 }
 
