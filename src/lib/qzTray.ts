@@ -1,3 +1,4 @@
+// @ts-ignore
 import qz from 'qz-tray';
 import { toast } from 'react-hot-toast';
 
