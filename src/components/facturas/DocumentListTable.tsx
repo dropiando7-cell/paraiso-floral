@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
+import { printURLSilent } from '@/lib/qzTray';
 
 export interface DocumentRecord {
   id: string;
@@ -43,6 +44,7 @@ export default function DocumentListTable({ data, type }: Props) {
   const [isAnulando, setIsAnulando] = useState<string | null>(null);
   const [docToAnul, setDocToAnul] = useState<DocumentRecord | null>(null);
   const [docToConfirmTransfer, setDocToConfirmTransfer] = useState<DocumentRecord | null>(null);
+  const [docToPrint, setDocToPrint] = useState<DocumentRecord | null>(null);
   
   // Email modal states
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
@@ -354,13 +356,13 @@ export default function DocumentListTable({ data, type }: Props) {
                   >
                     <Eye size={14} /> Ver
                   </Link>
-                  <Link 
-                    href={`/facturas/ver/${doc.id}?print=true`} 
+                  <button 
+                    onClick={() => setDocToPrint(doc)}
                     title="Imprimir" 
                     className="p-1.5 bg-slate-50 border border-slate-200 text-slate-700 hover:text-blue-600 rounded-lg transition-colors"
                   >
                     <Printer size={15} />
-                  </Link>
+                  </button>
                   <Link 
                     href={`/facturas/ver/${doc.id}?download=true`} 
                     title="Descargar PDF" 
@@ -489,9 +491,9 @@ export default function DocumentListTable({ data, type }: Props) {
                     <Link href={`/facturas/ver/${doc.id}`} title="Ver Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Eye size={16} />
                     </Link>
-                    <Link href={`/facturas/ver/${doc.id}?print=true`} title="Imprimir Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                    <button onClick={() => setDocToPrint(doc)} title="Imprimir Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Printer size={16} />
-                    </Link>
+                    </button>
                     <Link href={`/facturas/ver/${doc.id}?download=true`} title="Descargar PDF" className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
                       <Download size={16} />
                     </Link>
@@ -666,6 +668,53 @@ export default function DocumentListTable({ data, type }: Props) {
                   <span>Sí, Fondos Verificados</span>
                 </button>
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Opciones de Impresión QZ Tray */}
+      {docToPrint && (
+        <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 text-center flex flex-col items-center">
+             <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-2">
+               <Printer size={24} />
+             </div>
+             <h3 className="font-black text-slate-900 text-lg">Opciones de Impresión</h3>
+             <p className="text-xs text-slate-500 font-medium">¿Cómo deseas imprimir el documento <span className="font-mono text-slate-700 font-bold">{docToPrint.correlativo}</span>?</p>
+             
+             <div className="grid grid-cols-2 gap-3 w-full mt-4">
+               <button
+                 onClick={async () => {
+                   const url = `${window.location.origin}/facturas/ver/${docToPrint.id}?print=true&silent=true`;
+                   const success = await printURLSilent('EPSON', url);
+                   if (success) setDocToPrint(null);
+                 }}
+                 className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-xl text-slate-700 transition-colors"
+               >
+                 <FileText size={24} className="text-blue-500" />
+                 <span className="text-xs font-bold">Carta (EPSON)</span>
+               </button>
+               
+               <button
+                 onClick={async () => {
+                   const url = `${window.location.origin}/facturas/ver/${docToPrint.id}?print=ticket&silent=true`;
+                   const success = await printURLSilent('STAR', url);
+                   if (success) setDocToPrint(null);
+                 }}
+                 className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-xl text-slate-700 transition-colors"
+               >
+                 <div className="w-6 h-6 border-2 border-emerald-500 rounded-sm flex items-center justify-center"><span className="text-[8px] font-black text-emerald-500">POS</span></div>
+                 <span className="text-xs font-bold">Ticket (STAR)</span>
+               </button>
+             </div>
+             
+             <button
+                type="button"
+                onClick={() => setDocToPrint(null)}
+                className="mt-4 px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl w-full transition-colors"
+             >
+                Cancelar
+             </button>
           </div>
         </div>
       )}

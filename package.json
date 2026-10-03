@@ -50,6 +50,7 @@
     "prisma": "^5.22.0",
     "puppeteer-core": "^24.41.0",
     "qrcode": "^1.5.4",
+    "qz-tray": "^2.3.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hot-toast": "^2.6.0",

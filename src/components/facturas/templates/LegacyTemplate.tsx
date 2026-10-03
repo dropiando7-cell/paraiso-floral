@@ -141,6 +141,11 @@ export default function LegacyTemplate(props: TemplateProps) {
  ) : (
  <p>San Pedro Sula, Honduras</p>
  )}
+ <div className="mt-1 space-y-0.5">
+ {organization?.rtn && <p className="font-semibold text-slate-800 text-xs">RTN: {organization.rtn}</p>}
+ {organization?.telefono && <p className="text-xs">Tel: {organization.telefono}</p>}
+ {organization?.correoContacto && <p className="text-xs">{organization.correoContacto}</p>}
+ </div>
  </div>
 
  <div className={`mt-6 cursor-pointer ${settings.logoPosition === 'right' ? 'text-left w-full' : settings.logoPosition === 'center' ? 'text-center' : 'text-right'}`} onClick={() => setShowClientModal(true)}>

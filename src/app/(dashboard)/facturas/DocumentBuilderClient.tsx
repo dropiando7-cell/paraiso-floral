@@ -89,7 +89,9 @@ import ModernTemplate from '@/components/facturas/templates/ModernTemplate';
 import ClassicTemplate from '@/components/facturas/templates/ClassicTemplate';
 import MinimalistTemplate from '@/components/facturas/templates/MinimalistTemplate';
 import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
+import TicketTemplate from '@/components/facturas/templates/TicketTemplate';
 import OrdenEntregaTemplate from '@/components/facturas/templates/OrdenEntregaTemplate';
+import { printURLSilent } from '@/lib/qzTray';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS, SignatureItem } from '@/types/invoice';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 import { convertirDocumento, crearServicioRapido } from './actions';
@@ -3354,7 +3356,7 @@ export default function DocumentBuilderClient({
 
   // Auto-print if requested via query param
   useEffect(() => {
-    if (effectiveViewMode && searchParams.get('print') === 'true') {
+    if (effectiveViewMode && (searchParams.get('print') === 'true' || searchParams.get('print') === 'ticket') && searchParams.get('silent') !== 'true') {
       const timer = setTimeout(() => {
         window.print();
         const newUrl = new URL(window.location.href);
@@ -4700,7 +4702,21 @@ export default function DocumentBuilderClient({
 
             return (
               <>
-                {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
+                {currentCanvasMode === 'document' && searchParams.get('print') === 'ticket' && (
+                  <TicketTemplate
+                    settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                    nombreUsuario={resolvedNombreUsuario}
+                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} 
+                    validityDays={validityDays} setValidityDays={setValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
+                    handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+                    emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
+                    totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignature} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
+                  />
+                )}
+                {currentCanvasMode === 'document' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && <ModernTemplate 
                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                   nombreUsuario={resolvedNombreUsuario}
                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
@@ -6339,16 +6355,29 @@ export default function DocumentBuilderClient({
               <p className={`${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-lg font-bold text-slate-800`}>{showSuccessModal.correlativo}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 w-full mt-4">
+            <div className="grid grid-cols-4 gap-2 w-full mt-4">
               <button
-                onClick={() => {
-                  setShowSuccessModal(null);
-                  router.push(`/facturas/ver/${showSuccessModal.docId}?print=true`);
+                onClick={async () => {
+                  const url = `${window.location.origin}/facturas/ver/${showSuccessModal.docId}?print=true&silent=true`;
+                  const success = await printURLSilent('EPSON', url);
+                  if (success) setShowSuccessModal(null);
                 }}
                 className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-700 transition-colors"
               >
                 <Printer size={20} className="text-slate-500" />
-                <span className="text-xs font-bold">Imprimir</span>
+                <span className="text-xs font-bold text-center">Imprimir (Carta)</span>
+              </button>
+              
+              <button
+                onClick={async () => {
+                  const url = `${window.location.origin}/facturas/ver/${showSuccessModal.docId}?print=ticket&silent=true`;
+                  const success = await printURLSilent('STAR', url);
+                  if (success) setShowSuccessModal(null);
+                }}
+                className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-700 transition-colors"
+              >
+                <Printer size={20} className="text-slate-500" />
+                <span className="text-xs font-bold text-center">Imprimir (Ticket)</span>
               </button>
               
               <button
@@ -7199,7 +7228,21 @@ export default function DocumentBuilderClient({
 
             return (
               <>
-                {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
+                {currentCanvasMode === 'document' && searchParams.get('print') === 'ticket' && (
+                  <TicketTemplate
+                    settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                    nombreUsuario={resolvedNombreUsuario}
+                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} 
+                    validityDays={validityDays} setValidityDays={setValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
+                    handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+                    emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
+                    totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignature} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
+                  />
+                )}
+                {currentCanvasMode === 'document' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && <ModernTemplate 
                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                   nombreUsuario={resolvedNombreUsuario}
                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
