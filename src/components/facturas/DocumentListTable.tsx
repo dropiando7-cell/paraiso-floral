@@ -46,6 +46,8 @@ export default function DocumentListTable({ data, type }: Props) {
   const [docToConfirmTransfer, setDocToConfirmTransfer] = useState<DocumentRecord | null>(null);
   const [docToPrint, setDocToPrint] = useState<DocumentRecord | null>(null);
   const [ticketPreview, setTicketPreview] = useState<DocumentRecord | null>(null);
+  const [directPrint, setDirectPrint] = useState(false);
+  useEffect(() => { setDirectPrint(localStorage.getItem('pos_direct_print') === 'true'); }, []);
   
   // Email modal states
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
@@ -697,11 +699,34 @@ export default function DocumentListTable({ data, type }: Props) {
                </button>
                
                <button
-                 onClick={() => { setTicketPreview(docToPrint); setDocToPrint(null); }}
+                 onClick={async () => {
+                    if (directPrint) {
+                        try {
+                            const toastId = toast.loading('Enviando a cola de tickets...');
+                            const res = await fetch('/api/impresion/tickets/encolar', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ docId: docToPrint.id })
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                                toast.success('Ticket enviado exitosamente', { id: toastId });
+                                setDocToPrint(null);
+                            } else {
+                                toast.error(data.error || 'Error al encolar', { id: toastId });
+                            }
+                        } catch (e) {
+                            toast.error('Error de red al imprimir');
+                        }
+                    } else {
+                        setTicketPreview(docToPrint); 
+                        setDocToPrint(null); 
+                    }
+                  }}
                  className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-xl text-slate-700 transition-colors"
                >
                  <div className="w-6 h-6 border-2 border-emerald-500 rounded-sm flex items-center justify-center"><span className="text-[8px] font-black text-emerald-500">POS</span></div>
-                 <span className="text-xs font-bold">Ticket (Vista Previa)</span>
+                 <span className="text-xs font-bold">Ticket ({directPrint ? 'Directo' : 'Vista Previa'})</span>
                </button>
              </div>
              
@@ -730,8 +755,39 @@ export default function DocumentListTable({ data, type }: Props) {
              </div>
              
              <div className="flex-1 overflow-auto bg-slate-100 p-4 flex justify-center">
-                <div className="bg-white shadow-sm border border-slate-200" style={{ width: '80mm', minHeight: '100px' }}>
-                   <iframe src={`/facturas/ver/${ticketPreview.id}?print=ticket&silent=true`} className="w-full h-[600px] border-0" />
+                <div className="bg-white shadow-sm border border-slate-200 font-mono text-[11px] leading-tight text-black p-4" style={{ width: '80mm', minHeight: '100px' }}>
+                   <div className="text-center font-bold text-sm mb-2">Vortek POS</div>
+                   <div className="text-center mb-4">
+                       San Pedro Sula, Cortés<br/>
+                       RTN: 050190123456<br/>
+                       TEL: +504 94897451
+                   </div>
+                   <div className="mb-2">
+                       Factura: {ticketPreview.correlativo}<br/>
+                       Fecha: {new Date(ticketPreview.fechaEmision).toLocaleDateString()}<br/>
+                       Cliente: {ticketPreview.clienteNombre}<br/>
+                       RTN: {ticketPreview.clienteRtn || 'Consumidor Final'}
+                   </div>
+                   <div className="border-t border-b border-dashed border-black py-2 mb-2">
+                       <div className="flex justify-between font-bold mb-1">
+                           <span>DESCRIPCION</span>
+                           <span>TOTAL</span>
+                       </div>
+                       {ticketPreview.detalles?.map((d, i) => (
+                           <div key={i} className="mb-1 flex justify-between">
+                               <span className="pr-2">{d.cantidad}x {d.descripcion}</span>
+                               <span>L. {Number(d.totalLinea).toFixed(2)}</span>
+                           </div>
+                       ))}
+                   </div>
+                   <div className="flex justify-between font-bold text-sm mb-4">
+                       <span>TOTAL:</span>
+                       <span>L. {Number(ticketPreview.total).toFixed(2)}</span>
+                   </div>
+                   <div className="text-center">
+                       ¡GRACIAS POR SU COMPRA!<br/>
+                       <span className="text-[9px]">Desarrollado por Soluciones Tecnológicas HN<br/>+504 94897451</span>
+                   </div>
                 </div>
              </div>
 

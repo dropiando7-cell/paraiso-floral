@@ -69,26 +69,27 @@ def build_receipt(data):
     receipt.extend(CMD_CENTER)
     receipt.extend(CMD_BOLD_ON)
     receipt.extend(CMD_DOUBLE_HEIGHT)
-    receipt.extend(remove_accents(org.get('name', 'DISTRIBUIDORA')).encode('ascii', 'ignore') + LF)
+    org_name = remove_accents(org.get('name', 'DISTRIBUIDORA'))
+    receipt.extend(org_name.center(40).encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_NORMAL)
     receipt.extend(CMD_BOLD_OFF)
     
     rtn = org.get('rtn', '')
     if rtn:
-        receipt.extend(b"RTN: " + rtn.encode('ascii', 'ignore') + LF)
+        receipt.extend(b"  RTN: " + rtn.encode('ascii', 'ignore') + LF)
     
     direccion = org.get('direccion', '')
     if direccion:
         import textwrap
-        dir_lines = textwrap.wrap(remove_accents(direccion), width=42)
+        dir_lines = textwrap.wrap(remove_accents(direccion), width=38)
         for d_line in dir_lines:
-            receipt.extend(d_line.encode('ascii', 'ignore') + LF)
+            receipt.extend(b"  " + d_line.encode('ascii', 'ignore') + LF)
     
     receipt.extend(LF)
     
     # --- DATOS FACTURA ---
     receipt.extend(CMD_LEFT)
-    receipt.extend(b"FACTURA NO: " + str(doc.get('correlativo', '')).encode('ascii', 'ignore') + LF)
+    receipt.extend(b"  FACTURA NO: " + str(doc.get('correlativo', '')).encode('ascii', 'ignore') + LF)
     
     fecha = doc.get('fechaEmision', '')
     if fecha:
@@ -97,32 +98,42 @@ def build_receipt(data):
             fecha_str = d.strftime("%d/%m/%Y %H:%M")
         except:
             fecha_str = str(fecha)
-        receipt.extend(b"FECHA: " + fecha_str.encode('ascii', 'ignore') + LF)
+        receipt.extend(b"  FECHA: " + fecha_str.encode('ascii', 'ignore') + LF)
     
-    receipt.extend(b"CAI: " + str(doc.get('cai', 'N/A')).encode('ascii', 'ignore') + LF)
-    receipt.extend(b"CLIENTE: " + remove_accents(cliente.get('nombre', 'CONSUMIDOR FINAL')).encode('ascii', 'ignore') + LF)
+    receipt.extend(b"  CAI: " + str(doc.get('cai', 'N/A')).encode('ascii', 'ignore') + LF)
+    receipt.extend(b"  CLIENTE: " + remove_accents(cliente.get('nombre', 'CONSUMIDOR FINAL')).encode('ascii', 'ignore') + LF)
     if cliente.get('rtn'):
-        receipt.extend(b"RTN CLIENTE: " + str(cliente.get('rtn')).encode('ascii', 'ignore') + LF)
+        receipt.extend(b"  RTN CLIENTE: " + str(cliente.get('rtn')).encode('ascii', 'ignore') + LF)
     
-    receipt.extend(b"-" * 42 + LF)
+    receipt.extend(b"  " + b"-" * 38 + LF)
     
     # --- DETALLES ---
     # Formato: 42 columnas aprox en 80mm
     # CANT | DESCRIPCION | TOTAL
     receipt.extend(CMD_BOLD_ON)
-    receipt.extend(b"CANT DESCRIPCION                 TOTAL" + LF)
+    receipt.extend(b"  CANT DESCRIPCION               TOTAL" + LF)
     receipt.extend(CMD_BOLD_OFF)
-    receipt.extend(b"-" * 42 + LF)
+    receipt.extend(b"  " + b"-" * 38 + LF)
     
     import textwrap
     for item in items:
         cant = str(item.get('cantidad', 1))
-        # Quitar saltos de linea que puedan romper el formato
-        desc_raw = remove_accents(item.get('descripcion', '')).replace('\n', ' ').replace('\r', '').strip()
-        total = format_currency(item.get('total', 0))
         
-        # Envolver texto a un maximo de 25 caracteres por linea
-        wrapped = textwrap.wrap(desc_raw, width=25)
+        # Extract short description
+        desc_full = remove_accents(item.get('descripcion', '')).replace('\r', '')
+        desc_lines = desc_full.split('\n')
+        desc_raw = desc_lines[0].strip()
+        if "Producto registrado desde" in desc_raw:
+            desc_raw = desc_raw.split("Producto registrado desde")[0].strip()
+            
+        # Also check if it's named 'nombre' or 'productoNombre'
+        desc_raw = remove_accents(item.get('nombre') or item.get('productoNombre') or desc_raw).strip()
+        
+        total_val = item.get('totalLinea') or item.get('total') or 0
+        total = format_currency(total_val)
+        
+        # Envolver texto a un maximo de 23 caracteres por linea (38 col - 5 cant - 10 total)
+        wrapped = textwrap.wrap(desc_raw, width=23)
         if not wrapped:
             wrapped = [""]
             
@@ -130,13 +141,13 @@ def build_receipt(data):
             c_str = cant if i == 0 else ""
             if i == len(wrapped) - 1:
                 # Ultima linea, agregar el total
-                line_str = f"{c_str:<4} {line:<25} {total:>11}"
+                line_str = f"  {c_str:<4} {line:<23} {total:>9}"
             else:
-                line_str = f"{c_str:<4} {line:<25}"
+                line_str = f"  {c_str:<4} {line:<23}"
             
             receipt.extend(line_str.encode('ascii', 'ignore') + LF)
         
-    receipt.extend(b"-" * 42 + LF)
+    receipt.extend(b"  " + b"-" * 38 + LF)
     
     # --- TOTALES ---
     receipt.extend(CMD_RIGHT)
@@ -153,23 +164,21 @@ def build_receipt(data):
     impuesto = format_currency((t15 * 0.15) + (t18 * 0.18))
     total = format_currency(doc.get('total', 0))
     
-    receipt.extend(f"SUBTOTAL: {subtotal:>15}".encode('ascii', 'ignore') + LF)
-    # Mostramos el impuesto total (o puedes usar isv15 + isv18)
-    receipt.extend(f"IMPUESTO: {impuesto:>15}".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"  {'SUBTOTAL:':<16}{subtotal:>22}".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"  {'IMPUESTO:':<16}{impuesto:>22}".encode('ascii', 'ignore') + LF)
     
     receipt.extend(CMD_BOLD_ON)
     receipt.extend(CMD_DOUBLE_HEIGHT)
-    receipt.extend(f"TOTAL: {total:>15}".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"  {'TOTAL:':<10}{total:>15}".encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_NORMAL)
     receipt.extend(CMD_BOLD_OFF)
     
     receipt.extend(LF)
     
     # --- PIE DE PAGINA ---
-    receipt.extend(CMD_CENTER)
-    receipt.extend(b"*** GRACIAS POR SU COMPRA ***" + LF)
-    receipt.extend(b"Desarrollado por Soluciones Tecnologicas HN" + LF)
-    receipt.extend(b"+504 94897451" + LF)
+    receipt.extend(b"*** GRACIAS POR SU COMPRA ***".center(40).encode('ascii', 'ignore') + LF)
+    receipt.extend(b"Desarrollado por Soluciones Tecnologicas HN".center(40).encode('ascii', 'ignore') + LF)
+    receipt.extend(b"+504 94897451".center(40).encode('ascii', 'ignore') + LF)
     
     # Alimentar papel suficiente para que no se corte el texto
     receipt.extend(LF * 7)
