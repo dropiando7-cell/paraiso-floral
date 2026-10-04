@@ -775,13 +775,13 @@ export default function DocumentListTable({ data, type }: Props) {
                              <span>TOTAL</span>
                          </div>
                          {ticketPreview.detalles?.map((d, i) => {
-                             let n = d.nombre || d.productoNombre || d.descripcion || '';
+                             let n = (d as any).nombre || (d as any).productoNombre || d.descripcion || '';
                              n = n.split('\n')[0];
                              if (n.includes('Producto registrado')) n = n.split('Producto registrado')[0];
                              return (
                                  <div key={i} className="mb-1 flex justify-between">
                                      <span className="pr-2 w-[70%]">{d.cantidad} <span className="pl-1">{n.trim()}</span></span>
-                                     <span className="w-[30%] text-right">L {Number(d.totalLinea || d.total || 0).toFixed(2)}</span>
+                                     <span className="w-[30%] text-right">L {Number(d.totalLinea || (d as any).total || 0).toFixed(2)}</span>
                                  </div>
                              )
                          })}
@@ -789,7 +789,7 @@ export default function DocumentListTable({ data, type }: Props) {
                      <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
                          <div className="flex justify-between w-[70%]">
                              <span>SUBTOTAL:</span>
-                             <span>L {Number(ticketPreview.subTotal || 0).toFixed(2)}</span>
+                             <span>L {Number(((ticketPreview as any).subTotal || 0)).toFixed(2)}</span>
                          </div>
                          <div className="flex justify-between w-[70%]">
                              <span>IMPUESTO:</span>
