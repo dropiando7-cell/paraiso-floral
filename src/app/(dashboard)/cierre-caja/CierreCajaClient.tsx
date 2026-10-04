@@ -250,8 +250,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
             await registrarCorteMovimiento({
                 sessionId: activeSession.id,
                 tipo: 'EGRESO',
-                concepto: 'RETIRO_BANCARIO',
-                descripcion: descripcionRetiro || 'Retiro Bancario / Remesa',
+                concepto: destinoRetiro as any,
+                descripcion: descripcionRetiro || (destinoRetiro === 'TRASPASO_CAJA_CHICA' ? 'Fondeo a Caja Chica' : 'Retiro Bancario / Remesa'),
                 monto: amt,
                 metodoPago: metodoPagoRetiro,
                 referenciaId: referenciaRetiro || undefined
@@ -1406,6 +1406,20 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                             </button>
                         </div>
                         <form onSubmit={handleSaveRetiro} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Destino del Retiro
+                                </label>
+                                <select
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-4"
+                                    value={destinoRetiro}
+                                    onChange={(e) => setDestinoRetiro(e.target.value)}
+                                >
+                                    <option value="RETIRO_BANCARIO">Retiro a Banco / Remesa</option>
+                                    <option value="TRASPASO_CAJA_CHICA">Traslado a Caja Chica</option>
+                                </select>
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                                     Método de Retiro
