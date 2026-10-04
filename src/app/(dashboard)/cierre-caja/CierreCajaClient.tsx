@@ -80,6 +80,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [descripcionRetiro, setDescripcionRetiro] = useState('');
     const [referenciaRetiro, setReferenciaRetiro] = useState('');
     const [metodoPagoRetiro, setMetodoPagoRetiro] = useState('Efectivo');
+    const [destinoRetiro, setDestinoRetiro] = useState('RETIRO_BANCARIO');
     const [isSavingRetiro, setIsSavingRetiro] = useState(false);
 
     // States for manual cash register income/adjustment
