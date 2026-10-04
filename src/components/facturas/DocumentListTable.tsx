@@ -48,6 +48,23 @@ export default function DocumentListTable({ data, type }: Props) {
   const [ticketPreview, setTicketPreview] = useState<DocumentRecord | null>(null);
   const [directPrint, setDirectPrint] = useState(false);
   useEffect(() => { setDirectPrint(localStorage.getItem('pos_direct_print') === 'true'); }, []);
+
+  // Listener para presionar Enter e imprimir el ticket cuando el modal esté abierto
+  useEffect(() => {
+    if (!ticketPreview) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.getElementById('btn-imprimir-ticket') as HTMLButtonElement | null;
+        if (btn) btn.click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setTicketPreview(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [ticketPreview]);
   
   // Email modal states
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
@@ -789,11 +806,11 @@ export default function DocumentListTable({ data, type }: Props) {
                      <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
                          <div className="flex justify-between w-[70%]">
                              <span>SUBTOTAL:</span>
-                             <span>L {Number(((ticketPreview as any).subTotal || 0)).toFixed(2)}</span>
+                             <span>L {Number(((ticketPreview as any).subTotal || (ticketPreview as any).subtotal || ticketPreview.detalles?.reduce((acc: number, d: any) => acc + Number(d.totalLinea || d.total || 0), 0) || ticketPreview.total || 0)).toFixed(2)}</span>
                          </div>
                          <div className="flex justify-between w-[70%]">
                              <span>IMPUESTO:</span>
-                             <span>L {Number(((ticketPreview as any).totalGravado15 || 0) * 0.15 + ((ticketPreview as any).totalGravado18 || 0) * 0.18).toFixed(2)}</span>
+                             <span>L {Number(((ticketPreview as any).totalGravado15 || 0) * 0.15 + ((ticketPreview as any).totalGravado18 || 0) * 0.18 || (ticketPreview as any).isv || 0).toFixed(2)}</span>
                          </div>
                          <div className="flex justify-between w-[70%] font-bold text-base mt-2">
                              <span>TOTAL:</span>
@@ -807,8 +824,10 @@ export default function DocumentListTable({ data, type }: Props) {
                   </div>
                </div>
 
-             <div className="p-4 bg-white border-t border-slate-100">
+             <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-2">
                 <button
+                  id="btn-imprimir-ticket"
+                  autoFocus
                   onClick={async () => {
                     try {
                         const toastId = toast.loading('Enviando a cola de tickets...');
@@ -828,10 +847,10 @@ export default function DocumentListTable({ data, type }: Props) {
                         toast.error('Error de red al imprimir');
                     }
                   }}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-colors focus:ring-4 focus:ring-emerald-300"
                 >
                   <Printer size={18} />
-                  <span>Imprimir Ticket Ahora</span>
+                  <span>Imprimir Ticket Ahora (Enter)</span>
                 </button>
              </div>
           </div>
