@@ -776,8 +776,7 @@ export default function DocumentListTable({ data, type }: Props) {
                          </div>
                          {ticketPreview.detalles?.map((d, i) => {
                              let n = d.nombre || d.productoNombre || d.descripcion || '';
-                             n = n.split('
-')[0];
+                             n = n.split('\n')[0];
                              if (n.includes('Producto registrado')) n = n.split('Producto registrado')[0];
                              return (
                                  <div key={i} className="mb-1 flex justify-between">
