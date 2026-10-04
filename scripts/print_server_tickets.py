@@ -176,9 +176,9 @@ def build_receipt(data):
     receipt.extend(LF)
     
     # --- PIE DE PAGINA ---
-    receipt.extend(b"*** GRACIAS POR SU COMPRA ***".center(40).encode('ascii', 'ignore') + LF)
-    receipt.extend(b"Desarrollado por Soluciones Tecnologicas HN".center(40).encode('ascii', 'ignore') + LF)
-    receipt.extend(b"+504 94897451".center(40).encode('ascii', 'ignore') + LF)
+    receipt.extend(b"*** GRACIAS POR SU COMPRA ***".center(40) + LF)
+    receipt.extend(b"Desarrollado por Soluciones Tecnologicas HN".center(40) + LF)
+    receipt.extend(b"+504 94897451".center(40) + LF)
     
     # Alimentar papel suficiente para que no se corte el texto
     receipt.extend(LF * 7)
