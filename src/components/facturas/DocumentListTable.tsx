@@ -765,7 +765,7 @@ export default function DocumentListTable({ data, type }: Props) {
                      <div className="mb-2 uppercase">
                          FACTURA NO: {ticketPreview.correlativo}<br/>
                          FECHA: {new Date(ticketPreview.fechaEmision).toLocaleString('es-HN')}<br/>
-                         CAI: {ticketPreview.cai || 'N/A'}<br/>
+                         CAI: {(ticketPreview as any).cai || 'N/A'}<br/>
                          CLIENTE: {ticketPreview.clienteNombre || 'CONSUMIDOR FINAL'}<br/>
                          {ticketPreview.clienteRtn && <>RTN CLIENTE: {ticketPreview.clienteRtn}<br/></>}
                      </div>
@@ -793,7 +793,7 @@ export default function DocumentListTable({ data, type }: Props) {
                          </div>
                          <div className="flex justify-between w-[70%]">
                              <span>IMPUESTO:</span>
-                             <span>L {Number((ticketPreview.totalGravado15 || 0) * 0.15 + (ticketPreview.totalGravado18 || 0) * 0.18).toFixed(2)}</span>
+                             <span>L {Number(((ticketPreview as any).totalGravado15 || 0) * 0.15 + ((ticketPreview as any).totalGravado18 || 0) * 0.18).toFixed(2)}</span>
                          </div>
                          <div className="flex justify-between w-[70%] font-bold text-base mt-2">
                              <span>TOTAL:</span>
