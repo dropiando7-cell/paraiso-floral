@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
         const where: any = { 
             estado: 'PENDIENTE',
-            impresora: { not: 'Tickets' }
+            impresora: 'Tickets'
         };
         if (orgId) {
             where.organizationId = orgId;
@@ -44,3 +44,4 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+

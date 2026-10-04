@@ -77,10 +77,11 @@ export const printURLSilent = async (printerName: string, url: string) => {
 
     // Configurar e imprimir
     const config = qz.configs.create(targetPrinter, {
-       colorType: 'color',
+       colorType: 'blackwhite', // Las térmicas fallan si se envía explícitamente en color
        copies: 1,
        margins: 0,
-       spool: { end: '1' }
+       units: 'mm',
+       size: { width: 72 } // Ancho estándar de tickets (80mm con 72mm imprimibles)
     });
     
     const data = [{

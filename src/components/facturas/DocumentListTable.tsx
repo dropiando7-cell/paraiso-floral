@@ -696,15 +696,11 @@ export default function DocumentListTable({ data, type }: Props) {
                </button>
                
                <button
-                 onClick={async () => {
-                   const url = `${window.location.origin}/facturas/ver/${docToPrint.id}?print=ticket&silent=true`;
-                   const success = await printURLSilent('STAR', url);
-                   if (success) setDocToPrint(null);
-                 }}
+                 onClick={async () => { try { const toastId = toast.loading('Enviando a cola de tickets...'); const res = await fetch('/api/impresion/tickets/encolar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ docId: docToPrint.id }) }); const data = await res.json(); if (res.ok) { toast.success('Ticket en cola', { id: toastId }); setDocToPrint(null); } else { toast.error(data.error || 'Error', { id: toastId }); } } catch (e) { toast.error('Error de red al imprimir'); } }}
                  className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-xl text-slate-700 transition-colors"
                >
                  <div className="w-6 h-6 border-2 border-emerald-500 rounded-sm flex items-center justify-center"><span className="text-[8px] font-black text-emerald-500">POS</span></div>
-                 <span className="text-xs font-bold">Ticket (STAR)</span>
+                 <span className="text-xs font-bold">Ticket (Directo)</span>
                </button>
              </div>
              
@@ -728,3 +724,6 @@ export default function DocumentListTable({ data, type }: Props) {
     </div>
   );
 }
+
+
+
