@@ -79,7 +79,10 @@ def build_receipt(data):
     
     direccion = org.get('direccion', '')
     if direccion:
-        receipt.extend(remove_accents(direccion).encode('ascii', 'ignore') + LF)
+        import textwrap
+        dir_lines = textwrap.wrap(remove_accents(direccion), width=42)
+        for d_line in dir_lines:
+            receipt.extend(d_line.encode('ascii', 'ignore') + LF)
     
     receipt.extend(LF)
     
@@ -111,24 +114,47 @@ def build_receipt(data):
     receipt.extend(CMD_BOLD_OFF)
     receipt.extend(b"-" * 42 + LF)
     
+    import textwrap
     for item in items:
         cant = str(item.get('cantidad', 1))
-        desc = remove_accents(item.get('descripcion', ''))[:25] # truncar descripcion a 25 char
+        # Quitar saltos de linea que puedan romper el formato
+        desc_raw = remove_accents(item.get('descripcion', '')).replace('\n', ' ').replace('\r', '').strip()
         total = format_currency(item.get('total', 0))
         
-        # Alinear columnas
-        line = f"{cant:<4} {desc:<25} {total:>11}"
-        receipt.extend(line.encode('ascii', 'ignore') + LF)
+        # Envolver texto a un maximo de 25 caracteres por linea
+        wrapped = textwrap.wrap(desc_raw, width=25)
+        if not wrapped:
+            wrapped = [""]
+            
+        for i, line in enumerate(wrapped):
+            c_str = cant if i == 0 else ""
+            if i == len(wrapped) - 1:
+                # Ultima linea, agregar el total
+                line_str = f"{c_str:<4} {line:<25} {total:>11}"
+            else:
+                line_str = f"{c_str:<4} {line:<25}"
+            
+            receipt.extend(line_str.encode('ascii', 'ignore') + LF)
         
     receipt.extend(b"-" * 42 + LF)
     
     # --- TOTALES ---
     receipt.extend(CMD_RIGHT)
-    subtotal = format_currency(doc.get('subtotal', 0))
-    impuesto = format_currency(doc.get('totalImpuestos', 0))
+    subtotal = format_currency(doc.get('subTotal', 0))
+    try:
+        t15 = float(doc.get('totalGravado15', 0))
+    except:
+        t15 = 0.0
+    try:
+        t18 = float(doc.get('totalGravado18', 0))
+    except:
+        t18 = 0.0
+        
+    impuesto = format_currency((t15 * 0.15) + (t18 * 0.18))
     total = format_currency(doc.get('total', 0))
     
     receipt.extend(f"SUBTOTAL: {subtotal:>15}".encode('ascii', 'ignore') + LF)
+    # Mostramos el impuesto total (o puedes usar isv15 + isv18)
     receipt.extend(f"IMPUESTO: {impuesto:>15}".encode('ascii', 'ignore') + LF)
     
     receipt.extend(CMD_BOLD_ON)
@@ -142,10 +168,11 @@ def build_receipt(data):
     # --- PIE DE PAGINA ---
     receipt.extend(CMD_CENTER)
     receipt.extend(b"*** GRACIAS POR SU COMPRA ***" + LF)
-    receipt.extend(b"Desarrollado por Vorttek POS" + LF)
+    receipt.extend(b"Desarrollado por Soluciones Tecnologicas HN" + LF)
+    receipt.extend(b"+504 94897451" + LF)
     
-    # Alimentar papel y cortar
-    receipt.extend(LF * 4)
+    # Alimentar papel suficiente para que no se corte el texto
+    receipt.extend(LF * 7)
     receipt.extend(CMD_CUT)
     
     return bytes(receipt)
