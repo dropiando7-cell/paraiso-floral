@@ -806,7 +806,6 @@ export default function DocumentListTable({ data, type }: Props) {
                      </div>
                   </div>
                </div>
-            </div>
 
              <div className="p-4 bg-white border-t border-slate-100">
                 <button
