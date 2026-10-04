@@ -33,10 +33,10 @@ export async function POST(req: Request) {
         }
 
         // Fetch full document with items and client
-        const doc = await prisma.documento.findUnique({
+        const doc = await prisma.factura.findUnique({
             where: { id: docId, organizationId: orgId },
             include: {
-                items: true,
+                detalles: true,
                 cliente: true,
                 organization: true
             }
@@ -47,9 +47,9 @@ export async function POST(req: Request) {
         }
 
         const invoiceData = {
-            documento: doc,
+            documento: { ...doc, cai: doc.numeroCAI },
             organization: doc.organization,
-            items: doc.items,
+            items: doc.detalles,
             cliente: doc.cliente
         };
 
