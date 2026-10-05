@@ -9,7 +9,7 @@ import {
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
-  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
+  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, List, Pencil,
   Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
@@ -902,6 +902,32 @@ function LineItemRow({
   const [isSyncingCatalog, setIsSyncingCatalog] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [autocompleteViewMode, setAutocompleteViewMode] = useState<'inline' | 'cards'>('inline');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('facturas_autocomplete_view_mode');
+      if (saved === 'cards' || saved === 'inline') {
+        setAutocompleteViewMode(saved);
+      }
+    } catch (e) {}
+
+    const handleModeChange = (e: any) => {
+      if (e.detail === 'cards' || e.detail === 'inline') {
+        setAutocompleteViewMode(e.detail);
+      }
+    };
+    window.addEventListener('facturas-autocomplete-mode-changed', handleModeChange);
+    return () => window.removeEventListener('facturas-autocomplete-mode-changed', handleModeChange);
+  }, []);
+
+  const toggleAutocompleteViewMode = (mode: 'inline' | 'cards') => {
+    setAutocompleteViewMode(mode);
+    try {
+      localStorage.setItem('facturas_autocomplete_view_mode', mode);
+    } catch (e) {}
+    window.dispatchEvent(new CustomEvent('facturas-autocomplete-mode-changed', { detail: mode }));
+  };
 
 
   const handleSyncCatalogClick = () => {
@@ -1332,6 +1358,45 @@ function LineItemRow({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">↑↓ navegar · ↵ elegir</span>
+            
+            {/* Selector de Modo: Líneas vs Cards */}
+            <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300/40">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAutocompleteViewMode('inline');
+                }}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  autocompleteViewMode === 'inline'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Vista compacta en líneas (más rápida y muestra más productos a la vez)"
+              >
+                <List size={11} />
+                <span>Líneas</span>
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAutocompleteViewMode('cards');
+                }}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  autocompleteViewMode === 'cards'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Vista en tarjetas con detalles"
+              >
+                <LayoutGrid size={11} />
+                <span>Cards</span>
+              </button>
+            </div>
+
             <span className="text-[10px] font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
               {filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}
             </span>
@@ -1339,9 +1404,88 @@ function LineItemRow({
         </div>
 
         {/* Scrollable list of products */}
-        <div className="p-1.5 overflow-y-auto max-h-[300px] divide-y divide-slate-100/80">
+        <div className={`p-1.5 overflow-y-auto max-h-[340px] ${
+          autocompleteViewMode === 'inline' ? 'divide-y divide-slate-100' : 'divide-y divide-slate-100/80 space-y-1'
+        }`}>
           {filteredProducts.map((p, idx) => {
             const isHovered = idx === selectedIndex;
+
+            if (autocompleteViewMode === 'inline') {
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  onMouseDown={(e) => {
+                    // Evitar que el input pierda foco antes del click
+                    e.preventDefault();
+                  }}
+                  onClick={() => handleSelectProduct(p)}
+                  className={`group w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2.5 transition-colors cursor-pointer ${
+                    isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200' : 'hover:bg-slate-50 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-bold shrink-0 ${
+                      isHovered ? 'bg-blue-100 text-blue-800' : ''
+                    }`}>
+                      {p.code}
+                    </span>
+                    <span className={`text-xs font-bold truncate uppercase ${
+                      isHovered ? 'text-blue-700' : 'text-slate-900'
+                    }`}>
+                      {p.name ? p.name.toUpperCase() : ''}
+                    </span>
+                    {p.isOrdenTrabajo ? (
+                      <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded shrink-0">
+                        OT
+                      </span>
+                    ) : (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                        p.stock > 10
+                          ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
+                          : p.stock > 0
+                          ? 'text-amber-700 bg-amber-50 border border-amber-200/60'
+                          : 'text-rose-600 bg-rose-50 border border-rose-200/60'
+                      }`}>
+                        Stock: {p.stock}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                      {fmt(p.price)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const lineItemForEdit = {
+                          id: '',
+                          code: p.code,
+                          shortDesc: p.name,
+                          longDesc: p.description,
+                          unitPrice: p.price,
+                          productoId: p.type === 'producto' ? p.id : undefined,
+                          activoId: p.type === 'activo' ? p.id : undefined,
+                          serie: p.serie,
+                          marcaModelo: p.marcaModelo,
+                          imageUrl: p.imageUrl
+                        };
+                        window.dispatchEvent(new CustomEvent('open-edit-item-modal', { detail: { item: lineItemForEdit } }));
+                      }}
+                      title="Editar producto"
+                      className="p-1 text-slate-300 hover:text-blue-600 hover:bg-white rounded transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  </div>
+                </button>
+              );
+            }
+
             return (
               <button
                 key={p.id}
@@ -1364,8 +1508,6 @@ function LineItemRow({
                     <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
                   ) : p.isOrdenTrabajo ? (
                     <Wrench size={18} className="text-indigo-600" />
-                  ) : p.type === 'activo' ? (
-                    <Stethoscope size={18} className="text-indigo-500" />
                   ) : (
                     <Package size={18} className="text-slate-400" />
                   )}
@@ -1392,10 +1534,6 @@ function LineItemRow({
                     {p.isOrdenTrabajo ? (
                       <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
                         Orden de Trabajo
-                      </span>
-                    ) : p.type === 'activo' ? (
-                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                        Activo Fijo
                       </span>
                     ) : (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -1424,8 +1562,8 @@ function LineItemRow({
                     )}
                   </div>
 
-                  {p.type === 'activo' && p.description && (
-                    <p className="text-[10px] text-slate-400 truncate leading-tight uppercase">{p.description ? p.description.toUpperCase() : ''}</p>
+                  {p.description && (
+                    <p className="text-[10px] text-slate-400 truncate leading-tight uppercase">{p.description.toUpperCase()}</p>
                   )}
                 </div>
 
