@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 // html2canvas and jspdf are imported dynamically inside handleDownloadPDF to avoid SSR issues
 import {
@@ -1087,61 +1087,75 @@ function LineItemRow({
       } finally {
         setIsLoadingResults(false);
       }
-    }, 600); // Aumentado a 600ms para redes lentas
+    }, 200); // 200ms ultra reactivo para búsqueda rápida
 
     return () => clearTimeout(delayDebounce);
   }, [query, showAutocomplete]);
 
-  const queryWords = nQuery.split(/\s+/).filter(w => w.length > 0);
+  const filteredProducts = useMemo(() => {
+    if (!showAutocomplete || query.trim().length < 2) return [];
 
-  const localMatched = query.trim().length >= 2 
-    ? allProducts.filter(p => {
-        const searchableText = `${normalizeText(p.name)} ${normalizeText(p.code)} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
-        return queryWords.every(word => searchableText.includes(word));
-      })
-    : [];
+    const queryWords = nQuery.split(/\s+/).filter(w => w.length > 0);
+    if (queryWords.length === 0) return [];
 
-  const matchedProducts = query.trim().length >= 2 
-    ? (() => {
-        const map = new Map();
-        localMatched.forEach(p => map.set(p.id, p));
-        searchResults.forEach(p => {
-          if (isLoadingResults) {
-            const searchableText = `${normalizeText(p.name)} ${normalizeText(p.code)} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
-            if (queryWords.every(word => searchableText.includes(word))) {
-              map.set(p.id, p);
-            }
-          } else {
-            map.set(p.id, p);
-          }
-        });
-        return Array.from(map.values());
-      })()
-    : [];
-
-  const filteredProducts = matchedProducts.sort((a, b) => {
-    const aName = normalizeText(a.name);
-    const bName = normalizeText(b.name);
-    
-    // 1st Priority: Name starts with search query
-    const aStarts = aName.startsWith(nQuery);
-    const bStarts = bName.startsWith(nQuery);
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
-    
-    // 2nd Priority: Name has a word starting with query (word boundary matching)
-    const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(nQuery));
-    const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(nQuery));
-    if (aWordStarts && !bWordStarts) return -1;
-    if (!aWordStarts && bWordStarts) return 1;
-    
-    // 3rd Priority: Shorter names first (exact/closer match)
-    if (aName.includes(nQuery) && bName.includes(nQuery)) {
-      return aName.length - bName.length;
+    // Filtrar productos locales en memoria de forma instantánea
+    const localMatched: Product[] = [];
+    for (let i = 0; i < allProducts.length; i++) {
+      const p = allProducts[i];
+      const pNameNorm = normalizeText(p.name);
+      const pCodeNorm = normalizeText(p.code);
+      const searchable = `${pNameNorm} ${pCodeNorm} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
+      if (queryWords.every(word => searchable.includes(word))) {
+        localMatched.push(p);
+      }
     }
-    
-    return 0;
-  }).slice(0, 25);
+
+    // Combinar con resultados de búsqueda dinámica si los hay
+    const map = new Map<string, Product>();
+    for (const p of localMatched) map.set(p.id, p);
+    for (const p of searchResults) {
+      if (!map.has(p.id)) {
+        const pNameNorm = normalizeText(p.name);
+        const pCodeNorm = normalizeText(p.code);
+        const searchable = `${pNameNorm} ${pCodeNorm} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
+        if (queryWords.every(word => searchable.includes(word))) {
+          map.set(p.id, p);
+        }
+      }
+    }
+
+    const items = Array.from(map.values());
+
+    // Pre-cache de nombres normalizados O(N) para que el ordenamiento sea ultra veloz
+    const normNameMap = new Map<string, string>();
+    for (const it of items) {
+      normNameMap.set(it.id, normalizeText(it.name));
+    }
+
+    return items.sort((a, b) => {
+      const aName = normNameMap.get(a.id) || '';
+      const bName = normNameMap.get(b.id) || '';
+      
+      // 1st Priority: Name starts with search query
+      const aStarts = aName.startsWith(nQuery);
+      const bStarts = bName.startsWith(nQuery);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      
+      // 2nd Priority: Name has a word starting with query (word boundary matching)
+      const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(nQuery));
+      const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(nQuery));
+      if (aWordStarts && !bWordStarts) return -1;
+      if (!aWordStarts && bWordStarts) return 1;
+      
+      // 3rd Priority: Shorter names first (exact/closer match)
+      if (aName.includes(nQuery) && bName.includes(nQuery)) {
+        return aName.length - bName.length;
+      }
+      
+      return 0;
+    }).slice(0, 30);
+  }, [allProducts, searchResults, query, nQuery, showAutocomplete]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -1403,6 +1417,17 @@ function LineItemRow({
           </div>
         </div>
 
+        {/* Cabecera simétrica tipo Excel para modo Líneas */}
+        {autocompleteViewMode === 'inline' && filteredProducts.length > 0 && (
+          <div className="px-3 py-1.5 bg-slate-100/90 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider grid grid-cols-[88px_1fr_78px_86px_24px] gap-2 items-center shrink-0">
+            <span className="text-left font-mono pl-1">CÓDIGO</span>
+            <span className="text-left">DESCRIPCIÓN / FLOR</span>
+            <span className="text-center">STOCK</span>
+            <span className="text-right font-mono pr-1">PRECIO</span>
+            <span></span>
+          </div>
+        )}
+
         {/* Scrollable list of products */}
         <div className={`p-1.5 overflow-y-auto max-h-[340px] ${
           autocompleteViewMode === 'inline' ? 'divide-y divide-slate-100' : 'divide-y divide-slate-100/80 space-y-1'
@@ -1421,42 +1446,54 @@ function LineItemRow({
                     e.preventDefault();
                   }}
                   onClick={() => handleSelectProduct(p)}
-                  className={`group w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2.5 transition-colors cursor-pointer ${
-                    isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200' : 'hover:bg-slate-50 text-slate-800'
+                  className={`group w-full text-left px-3 py-1.5 rounded-md grid grid-cols-[88px_1fr_78px_86px_24px] gap-2 items-center transition-colors cursor-pointer ${
+                    isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200' : 'hover:bg-slate-50/80 text-slate-800'
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-bold shrink-0 ${
-                      isHovered ? 'bg-blue-100 text-blue-800' : ''
+                  {/* Columna 1: CÓDIGO */}
+                  <div className="truncate">
+                    <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 rounded font-bold inline-block truncate max-w-full ${
+                      isHovered ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'
                     }`}>
-                      {p.code}
+                      {p.code || '—'}
                     </span>
-                    <span className={`text-xs font-bold truncate uppercase ${
-                      isHovered ? 'text-blue-700' : 'text-slate-900'
-                    }`}>
-                      {p.name ? p.name.toUpperCase() : ''}
-                    </span>
+                  </div>
+
+                  {/* Columna 2: DESCRIPCIÓN */}
+                  <span className={`text-xs font-bold truncate uppercase ${
+                    isHovered ? 'text-blue-700' : 'text-slate-900'
+                  }`} title={p.name}>
+                    {p.name ? p.name.toUpperCase() : ''}
+                  </span>
+
+                  {/* Columna 3: STOCK */}
+                  <div className="flex justify-center items-center">
                     {p.isOrdenTrabajo ? (
-                      <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded shrink-0">
+                      <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.2 rounded">
                         OT
                       </span>
-                    ) : (
-                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                    ) : typeof p.stock === 'number' ? (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded w-full text-center truncate ${
                         p.stock > 10
                           ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'
                           : p.stock > 0
                           ? 'text-amber-700 bg-amber-50 border border-amber-200/60'
                           : 'text-rose-600 bg-rose-50 border border-rose-200/60'
                       }`}>
-                        Stock: {p.stock}
+                        {p.stock} {p.stock === 1 ? 'ud' : 'uds'}
                       </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-300 font-mono">—</span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                      {fmt(p.price)}
-                    </span>
+                  {/* Columna 4: PRECIO */}
+                  <span className="text-xs font-black text-blue-600 bg-blue-50/90 px-2 py-0.5 rounded-md border border-blue-100 text-right font-mono">
+                    {fmt(p.price)}
+                  </span>
+
+                  {/* Columna 5: EDITAR */}
+                  <div className="flex justify-center items-center">
                     <button
                       type="button"
                       onClick={(e) => {
