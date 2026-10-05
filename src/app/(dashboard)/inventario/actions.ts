@@ -368,19 +368,19 @@ function buildSearchOR(variants: string[], fields: string[]) {
 }
 
 // ─── Helpers de Relevancia de Búsqueda ───────────────────────────────────────
-export function normalizeSearchText(str: string | null | undefined): string {
+function normalizeSearchText(str: string | null | undefined): string {
     if (!str) return '';
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
 }
 
-export function getSearchWordStem(word: string): string {
+function getSearchWordStem(word: string): string {
     if (!word) return '';
     if (word.endsWith('ES') && word.length > 4) return word.slice(0, -2);
     if (word.endsWith('S') && word.length > 3) return word.slice(0, -1);
     return word;
 }
 
-export function computeSearchRelevance(item: any, query: string): number {
+function computeSearchRelevance(item: any, query: string): number {
     const qNorm = normalizeSearchText(query);
     if (!qNorm) return 0;
     const qStem = getSearchWordStem(qNorm);
