@@ -21,12 +21,20 @@ async function getOrgId(): Promise<string> {
     return dbUser.organizationId;
 }
 
-// ─── Helper: Get effective org IDs (including shared CEDI inventory) ─────────
+// In-memory cache for effective org IDs (60s TTL)
+const effectiveOrgIdsCache = new Map<string, { ids: string[]; expiresAt: number }>();
+
 export async function getEffectiveOrgIds(): Promise<string[]> {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return [];
+        if (!user || !user.email) return [];
+
+        const cached = effectiveOrgIdsCache.get(user.email);
+        const now = Date.now();
+        if (cached && cached.expiresAt > now) {
+            return cached.ids;
+        }
 
         const dbUser = await prisma.user.findUnique({
             where: { email: user.email },
@@ -46,11 +54,11 @@ export async function getEffectiveOrgIds(): Promise<string[]> {
             dbUser.accessibleModules?.includes('ver_inventario_cedi') ||
             dbUser.accessibleModules?.includes('inventario_compartido');
 
-        if (sharedOrgId && sharedOrgId !== dbUser.organizationId) {
-            return [dbUser.organizationId, sharedOrgId];
-        }
+        let result: string[] = [dbUser.organizationId];
 
-        if (shareCedi || org?.slug === 'honduflores' || hasRolePermission) {
+        if (sharedOrgId && sharedOrgId !== dbUser.organizationId) {
+            result = [dbUser.organizationId, sharedOrgId];
+        } else if (shareCedi || org?.slug === 'honduflores' || hasRolePermission) {
             const paraisoOrg = await prisma.organization.findFirst({
                 where: {
                     OR: [
@@ -61,11 +69,12 @@ export async function getEffectiveOrgIds(): Promise<string[]> {
                 select: { id: true }
             });
             if (paraisoOrg && paraisoOrg.id !== dbUser.organizationId) {
-                return [dbUser.organizationId, paraisoOrg.id];
+                result = [dbUser.organizationId, paraisoOrg.id];
             }
         }
 
-        return [dbUser.organizationId];
+        effectiveOrgIdsCache.set(user.email, { ids: result, expiresAt: now + 60_000 });
+        return result;
     } catch (e) {
         return [];
     }
@@ -751,15 +760,12 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     let total: number;
 
     if (cleanSearch) {
-        // Traer resultados coincidentes de forma ultra rápida (límite 120 para máxima velocidad y respuesta instantánea)
-        const [matchingActivos, count] = await Promise.all([
-            prisma.activoFijo.findMany({
-                where,
-                select: selectFields,
-                take: 120,
-            }),
-            prisma.activoFijo.count({ where })
-        ]);
+        // Traer resultados coincidentes de forma ultra rápida (límite 60 para respuesta inmediata)
+        const matchingActivos = await prisma.activoFijo.findMany({
+            where,
+            select: selectFields,
+            take: 60,
+        });
 
         const scoredActivos = matchingActivos.map(a => ({
             ...a,
@@ -775,7 +781,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
 
-        total = count;
+        total = scoredActivos.length;
         activos = scoredActivos.slice(skip, skip + PER_PAGE).map(({ _score, ...rest }) => rest);
     } else {
         const [activosDb, countDb] = await Promise.all([

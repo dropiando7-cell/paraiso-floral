@@ -44,10 +44,12 @@ interface DebouncedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEl
 function DebouncedInput({
     value: initialValue,
     onChange,
-    debounce = 120,
+    debounce = 200,
     ...props
 }: DebouncedInputProps) {
     const [value, setValue] = useState(initialValue);
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
 
     useEffect(() => {
         setValue(initialValue);
@@ -55,11 +57,11 @@ function DebouncedInput({
 
     useEffect(() => {
         const timeout = setTimeout(() => {
-            onChange(value);
+            onChangeRef.current(value);
         }, debounce);
 
         return () => clearTimeout(timeout);
-    }, [value, debounce, onChange]);
+    }, [value, debounce]);
 
     return (
         <input {...props} value={value} onChange={e => setValue(e.target.value)} />
