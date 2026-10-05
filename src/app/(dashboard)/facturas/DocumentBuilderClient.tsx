@@ -2246,6 +2246,7 @@ export default function DocumentBuilderClient({
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
   const [clientSearch, setClientSearch] = useState('');
+  const [selectedClientIndex, setSelectedClientIndex] = useState(0);
   const [productSearch, setProductSearch] = useState('');
   const [showProductModal, setShowProductModal] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
@@ -4209,14 +4210,53 @@ export default function DocumentBuilderClient({
   }, [viewMode, showProductModal, showClientModal, showNewClientModal, showSuccessModal, activeLineId, verificationMode, lineItems.length]);
 
   const nClientSearch = normalizeText(clientSearch);
-  const filteredClients = allClients.filter(c =>
-    normalizeText(c.name).includes(nClientSearch) ||
-    normalizeText(c.rtn).includes(nClientSearch) ||
-    normalizeText(c.phone || '').includes(nClientSearch) ||
-    normalizeText(c.nombreContacto || '').includes(nClientSearch) ||
-    normalizeText(c.address || '').includes(nClientSearch) ||
-    normalizeText(c.email || '').includes(nClientSearch)
-  );
+  const filteredClients = useMemo(() => {
+    return allClients.filter(c =>
+      normalizeText(c.name).includes(nClientSearch) ||
+      normalizeText(c.rtn).includes(nClientSearch) ||
+      normalizeText(c.phone || '').includes(nClientSearch) ||
+      normalizeText(c.nombreContacto || '').includes(nClientSearch) ||
+      normalizeText(c.address || '').includes(nClientSearch) ||
+      normalizeText(c.email || '').includes(nClientSearch)
+    ).sort((a, b) => {
+      if (!nClientSearch) return 0;
+      const aName = normalizeText(a.name);
+      const bName = normalizeText(b.name);
+      const aRtn = normalizeText(a.rtn);
+      const bRtn = normalizeText(b.rtn);
+
+      // Prioridad 1: Coincidencia exacta por nombre o RTN
+      const aExact = aName === nClientSearch || aRtn === nClientSearch;
+      const bExact = bName === nClientSearch || bRtn === nClientSearch;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      // Prioridad 2: Inicia con el texto buscado
+      const aStarts = aName.startsWith(nClientSearch) || aRtn.startsWith(nClientSearch);
+      const bStarts = bName.startsWith(nClientSearch) || bRtn.startsWith(nClientSearch);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
+      return 0;
+    });
+  }, [allClients, nClientSearch]);
+
+  useEffect(() => {
+    if (!showClientModal) return;
+    if (!clientSearch.trim()) {
+      setSelectedClientIndex(0);
+      return;
+    }
+    const exactIdx = filteredClients.findIndex(c => 
+      normalizeText(c.name) === nClientSearch || 
+      normalizeText(c.rtn) === nClientSearch
+    );
+    if (exactIdx !== -1) {
+      setSelectedClientIndex(exactIdx);
+    } else {
+      setSelectedClientIndex(0);
+    }
+  }, [clientSearch, filteredClients, nClientSearch, showClientModal]);
 
   const handleCreateClient = async () => {
     if (!newClientData.nombre.trim()) {
@@ -6141,6 +6181,24 @@ export default function DocumentBuilderClient({
                   autoFocus
                   value={clientSearch}
                   onChange={e => setClientSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSelectedClientIndex(prev => Math.min(prev + 1, Math.max(0, filteredClients.length - 1)));
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSelectedClientIndex(prev => Math.max(0, prev - 1));
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (filteredClients.length > 0 && filteredClients[selectedClientIndex]) {
+                        setSelectedClient(filteredClients[selectedClientIndex]);
+                        setShowClientModal(false);
+                      }
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowClientModal(false);
+                    }
+                  }}
                   placeholder="Buscar nombre o RTN..."
                   className="w-full pl-11 pr-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
                 />
@@ -6204,54 +6262,83 @@ export default function DocumentBuilderClient({
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {filteredClients.map(client => (
-                    <div
-                      key={client.id}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left group ${selectedClient?.id === client.id ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-white border border-slate-100 hover:bg-blue-50/30'}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setShowClientModal(false);
-                        }}
-                        className="flex-1 flex items-center gap-4 text-left min-w-0"
+                  {filteredClients.map((client, idx) => {
+                    const isSelected = selectedClientIndex === idx;
+                    const isCurrentClient = selectedClient?.id === client.id;
+                    const isExactMatch = !!clientSearch.trim() && (
+                      normalizeText(client.name) === nClientSearch || 
+                      normalizeText(client.rtn) === nClientSearch
+                    );
+
+                    return (
+                      <div
+                        key={client.id}
+                        onMouseEnter={() => setSelectedClientIndex(idx)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left cursor-pointer group ${
+                          isSelected
+                            ? 'bg-blue-50 ring-2 ring-blue-500 shadow-sm'
+                            : isCurrentClient
+                            ? 'bg-blue-50/60 ring-1 ring-blue-200'
+                            : 'bg-white border border-slate-100 hover:bg-blue-50/30'
+                        }`}
                       >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${selectedClient?.id === client.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
-                          <Building2 size={16} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-800 truncate">{client.name}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{client.rtn || 'Sin RTN'} • {client.category}</p>
-                        </div>
-                      </button>
-                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingClientId(client.id);
-                            setNewClientData({
-                              nombre: client.name,
-                              email: client.email || '',
-                              emailsCC: client.emailsCC || '',
-                              telefono: client.phone || '',
-                              rtn: client.rtn || '',
-                              direccion: client.address || '',
-                              nombreContacto: client.nombreContacto || '',
-                              telefonoContacto: client.telefonoContacto || ''
-                            });
-                            setShowNewClientModal(true);
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setShowClientModal(false);
                           }}
-                          className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
-                          title="Editar Contacto"
+                          className="flex-1 flex items-center gap-4 text-left min-w-0"
                         >
-                          <Pencil size={15} />
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${
+                            isSelected || isCurrentClient
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'
+                          }`}>
+                            <Building2 size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={`text-sm font-bold truncate ${isSelected ? 'text-blue-900 font-extrabold' : 'text-slate-800'}`}>
+                                {client.name}
+                              </p>
+                              {isExactMatch && (
+                                <span className="text-[10px] font-extrabold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 shadow-xs">
+                                  Coincidencia Exacta · Enter ↵
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">{client.rtn || 'Sin RTN'} • {client.category}</p>
+                          </div>
                         </button>
-                        {selectedClient?.id === client.id && <CheckCircle2 size={18} className="text-blue-600 shrink-0 mx-1" />}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingClientId(client.id);
+                              setNewClientData({
+                                nombre: client.name,
+                                email: client.email || '',
+                                emailsCC: client.emailsCC || '',
+                                telefono: client.phone || '',
+                                rtn: client.rtn || '',
+                                direccion: client.address || '',
+                                nombreContacto: client.nombreContacto || '',
+                                telefonoContacto: client.telefonoContacto || ''
+                              });
+                              setShowNewClientModal(true);
+                            }}
+                            className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Editar Contacto"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          {(isSelected || isCurrentClient) && <CheckCircle2 size={18} className="text-blue-600 shrink-0 mx-1" />}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
