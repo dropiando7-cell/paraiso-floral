@@ -91,12 +91,12 @@ import MinimalistTemplate from '@/components/facturas/templates/MinimalistTempla
 import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
 import TicketTemplate from '@/components/facturas/templates/TicketTemplate';
 import OrdenEntregaTemplate from '@/components/facturas/templates/OrdenEntregaTemplate';
-import { printURLSilent } from '@/lib/qzTray';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS, SignatureItem } from '@/types/invoice';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 import { convertirDocumento, crearServicioRapido } from './actions';
 import { ActivoModal } from '../inventario/InventarioClient';
 import { getAreas } from '../admin/areas/actions';
+import { getInvoicePDFFileName } from '@/utils/pdfName';
 
 
 
@@ -3488,7 +3488,7 @@ export default function DocumentBuilderClient({
 
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string} | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string, clienteNombre?: string} | null>(null);
 
   // Auto-print if requested via query param
   useEffect(() => {
@@ -3665,14 +3665,9 @@ export default function DocumentBuilderClient({
       }
       
       const blob = await res.blob();
-      const isRepair = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'REPARACION');
-      const isMaint = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'MANTENIMIENTO');
-      const typeLabel = isRepair ? 'PresupuestoReparacion' : 
-                        isMaint ? 'PresupuestoMantenimiento' :
-                        docType === 'cotizacion' ? 'Cotizacion' : 
-                        docType === 'proforma' ? 'ProForma' : 
-                        'Factura';
-      const fileName = `${typeLabel}-${docNumber || 'documento'}.pdf`;
+      const clientName = selectedClient?.name || initialData?.clienteNombre || (initialData as any)?.cliente?.nombre || showSuccessModal?.clienteNombre || '';
+      const correlativo = docNumber || initialData?.correlativo || showSuccessModal?.correlativo || 'documento';
+      const fileName = getInvoicePDFFileName(clientName, correlativo, docType);
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -3826,14 +3821,9 @@ export default function DocumentBuilderClient({
           heightLeft -= pageHeight;
         }
 
-        const isRepair = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'REPARACION');
-        const isMaint = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'MANTENIMIENTO');
-        const typeLabel = isRepair ? 'PresupuestoReparacion' : 
-                          isMaint ? 'PresupuestoMantenimiento' :
-                          docType === 'cotizacion' ? 'Cotizacion' : 
-                          docType === 'proforma' ? 'ProForma' : 
-                          'Factura';
-        const fileName = `${typeLabel}-${docNumber || 'documento'}(respaldo).pdf`;
+        const clientName = selectedClient?.name || initialData?.clienteNombre || (initialData as any)?.cliente?.nombre || showSuccessModal?.clienteNombre || '';
+        const correlativo = docNumber || initialData?.correlativo || showSuccessModal?.correlativo || 'documento';
+        const fileName = getInvoicePDFFileName(clientName, correlativo, docType);
         pdf.save(fileName);
         toast.dismiss(toastId);
         toast.success('PDF de Respaldo generado correctamente');
@@ -4577,7 +4567,8 @@ export default function DocumentBuilderClient({
           show: true, 
           docId: String(res.docId || (initialData?.id || '')), 
           correlativo: res.correlativo || '',
-          format: docType 
+          format: docType,
+          clienteNombre: selectedClient?.name || initialData?.clienteNombre || (initialData as any)?.cliente?.nombre || ''
         });
       } else {
         toast.error(res.error || 'Error al guardar el documento');
@@ -6552,100 +6543,188 @@ export default function DocumentBuilderClient({
           <>
             {showSuccessModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden">
+          <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full p-6 sm:p-8 md:p-9 text-center flex flex-col items-center gap-5 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden border border-slate-100">
             {/* Boton X para cerrar */}
             <button 
               onClick={handleExitAfterSave}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10 cursor-pointer"
             >
               <X size={20} />
             </button>
             {/* Confetti / Decorator */}
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+            <div className="absolute top-0 left-0 w-full h-2.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500"></div>
             
-            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center -mb-2 mt-2 ring-8 ring-emerald-50">
-              <CheckCircle2 size={40} className="text-emerald-500 stroke-[2.5]" />
+            <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center -mb-2 mt-1 ring-8 ring-emerald-500/10 shadow-inner">
+              <CheckCircle2 size={44} className="text-emerald-500 stroke-[2.5]" />
             </div>
             
-            <div className="space-y-1 mt-2">
-              <h2 className="text-2xl font-black text-slate-800 tracking-tight">¡Guardado Exitoso!</h2>
-              <p className="text-slate-500 font-medium">{showSuccessModal.format === 'factura' ? 'Factura emitida' : 'Documento guardado'} correctamente.</p>
+            <div className="space-y-1">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">¡Guardado Exitoso!</h2>
+              <p className="text-sm text-slate-500 font-medium">
+                {showSuccessModal.format === 'factura' ? 'Factura emitida y registrada en inventario' : 'Documento guardado y sincronizado'} correctamente.
+              </p>
             </div>
             
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 w-full mt-2">
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Correlativo</p>
-              <p className={`${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-lg font-bold text-slate-800`}>{showSuccessModal.correlativo}</p>
+            <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 sm:p-5 w-full flex flex-col sm:flex-row items-center justify-between gap-3 text-left shadow-inner">
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+                <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
+                  {showSuccessModal.format === 'factura' ? 'Factura Oficial SAR' : 'Correlativo Oficial'}
+                </span>
+                <span className={`${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-2xl sm:text-3xl font-black text-slate-800 tracking-tight`}>
+                  {showSuccessModal.correlativo}
+                </span>
+              </div>
+              {showSuccessModal.clienteNombre && (
+                <div className="flex flex-col items-center sm:items-end text-center sm:text-right max-w-full sm:max-w-[280px]">
+                  <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Cliente</span>
+                  <span className="text-sm font-black text-slate-800 truncate w-full" title={showSuccessModal.clienteNombre}>
+                    {showSuccessModal.clienteNombre}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-4 gap-2 w-full mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full mt-1">
+              {/* Imprimir Carta */}
               <button
-                onClick={async () => {
-                  const url = `${window.location.origin}/facturas/ver/${showSuccessModal.docId}?print=true&silent=true`;
-                  const success = await printURLSilent('EPSON', url);
-                  if (success) setShowSuccessModal(null);
-                }}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-700 transition-colors"
-              >
-                <Printer size={20} className="text-slate-500" />
-                <span className="text-xs font-bold text-center">Imprimir (Carta)</span>
-              </button>
-              
-              <button
-                onClick={async () => {
-                  const url = `${window.location.origin}/facturas/ver/${showSuccessModal.docId}?print=ticket&silent=true`;
-                  const success = await printURLSilent('STAR', url);
-                  if (success) setShowSuccessModal(null);
-                }}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-700 transition-colors"
-              >
-                <Printer size={20} className="text-slate-500" />
-                <span className="text-xs font-bold text-center">Imprimir (Ticket)</span>
-              </button>
-              
-              <button
+                type="button"
                 onClick={() => {
+                  window.open(`/facturas/ver/${showSuccessModal.docId}?print=true`, '_blank');
                   setShowSuccessModal(null);
-                  router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
                 }}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 border border-red-200 rounded-2xl text-red-700 transition-colors"
+                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-blue-50 to-blue-100/70 hover:from-blue-100 hover:to-blue-200/90 border border-blue-200 border-b-[5px] border-b-blue-500 hover:border-b-blue-600 rounded-2xl text-blue-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                title="Imprimir formato Carta"
               >
-                <Download size={20} className="text-red-500" />
-                <span className="text-xs font-bold">PDF</span>
+                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                  <Printer size={22} className="stroke-[2.2]" />
+                </div>
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">Carta</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 mt-0.5">Imprimir A4</span>
+                </div>
+              </button>
+              
+              {/* Imprimir Ticket */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const toastId = toast.loading('Enviando a cola de tickets...');
+                    const res = await fetch('/api/impresion/tickets/encolar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ docId: showSuccessModal.docId })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      toast.success('Ticket enviado a impresora exitosamente', { id: toastId });
+                      setShowSuccessModal(null);
+                    } else {
+                      toast.dismiss(toastId);
+                      window.open(`/facturas/ver/${showSuccessModal.docId}?print=ticket`, '_blank');
+                      setShowSuccessModal(null);
+                    }
+                  } catch (e) {
+                    window.open(`/facturas/ver/${showSuccessModal.docId}?print=ticket`, '_blank');
+                    setShowSuccessModal(null);
+                  }
+                }}
+                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-teal-50 to-teal-100/70 hover:from-teal-100 hover:to-teal-200/90 border border-teal-200 border-b-[5px] border-b-teal-500 hover:border-b-teal-600 rounded-2xl text-teal-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                title="Imprimir ticket térmico POS"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                  <Receipt size={22} className="stroke-[2.2]" />
+                </div>
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">Ticket</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-teal-600 mt-0.5">Térmico POS</span>
+                </div>
+              </button>
+              
+              {/* Descargar PDF */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const toastId = toast.loading('Descargando PDF...');
+                  try {
+                    const res = await fetch(`/api/pdf/${showSuccessModal.docId}`);
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const clientName = showSuccessModal.clienteNombre || selectedClient?.name || 'CLIENTE';
+                      const fileName = getInvoicePDFFileName(clientName, showSuccessModal.correlativo, showSuccessModal.format);
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = fileName;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      toast.success('PDF descargado exitosamente', { id: toastId });
+                    } else {
+                      toast.dismiss(toastId);
+                      router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
+                    }
+                  } catch (e) {
+                    toast.dismiss(toastId);
+                    router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
+                  }
+                }}
+                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-rose-50 to-rose-100/70 hover:from-rose-100 hover:to-rose-200/90 border border-rose-200 border-b-[5px] border-b-rose-500 hover:border-b-rose-600 rounded-2xl text-rose-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                title="Descargar archivo PDF"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-rose-500 text-white shadow-md shadow-rose-500/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                  <Download size={22} className="stroke-[2.2]" />
+                </div>
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">PDF</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-rose-600 mt-0.5">Descargar</span>
+                </div>
               </button>
 
+              {/* Compartir por WhatsApp */}
               <button
+                type="button"
                 onClick={() => {
-                  setWhatsappPhone(selectedClient?.telefonoContacto || '');
-                  setShowSuccessModal(null);
+                  const rawPhone = selectedClient?.telefonoContacto || selectedClient?.phone || (selectedClient as any)?.telefono || initialData?.cliente?.telefono || '';
+                  setWhatsappPhone(rawPhone);
                   setShowWhatsappModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 p-3 bg-green-50 hover:bg-green-100 border border-green-200 rounded-2xl text-green-700 transition-colors"
+                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-emerald-50 to-emerald-100/70 hover:from-emerald-100 hover:to-emerald-200/90 border border-emerald-200 border-b-[5px] border-b-emerald-600 hover:border-b-emerald-700 rounded-2xl text-emerald-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                title="Compartir por WhatsApp Web"
               >
-                <Phone size={20} className="text-green-500" />
-                <span className="text-xs font-bold">WhatsApp</span>
+                <div className="w-12 h-12 rounded-2xl bg-[#25D366] text-white shadow-md shadow-[#25D366]/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                  <Phone size={22} className="stroke-[2.2]" />
+                </div>
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">WhatsApp</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-600 mt-0.5">Enviar Web</span>
+                </div>
               </button>
             </div>
 
-            <div className="flex gap-3 w-full mt-2 pt-4 border-t border-slate-100">
+            <div className="flex gap-3 sm:gap-4 w-full mt-2 pt-4 border-t border-slate-100">
               {isPrintIframe ? (
                 <>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowSuccessModal(null);
                       if (window.parent) {
                         window.parent.postMessage({ type: 'close-modal-reload' }, '*');
                       }
                     }}
-                    className="flex-1 py-3 px-3 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-xs cursor-pointer"
+                    className="flex-1 py-3.5 sm:py-4 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-xs select-none"
                   >
                     Volver a la Orden
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowSuccessModal(null);
                       router.push(`/facturas/ver/${showSuccessModal.docId}`);
                     }}
-                    className="flex-[1.2] py-3 px-3 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all text-xs cursor-pointer"
+                    className="flex-[1.3] py-3.5 sm:py-4 px-4 bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 border-b-[4px] border-b-emerald-900 text-white rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-md shadow-emerald-600/30 select-none"
                   >
                     Ver Documento
                   </button>
@@ -6653,17 +6732,19 @@ export default function DocumentBuilderClient({
               ) : (
                 <>
                   <button
+                    type="button"
                     onClick={handleExitAfterSave}
-                    className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-xs sm:text-sm cursor-pointer"
+                    className="flex-1 py-3.5 sm:py-4 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-xs select-none"
                   >
                     {ordenTrabajoId ? 'Volver' : 'Hacer Nuevo'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowSuccessModal(null);
                       router.push(`/facturas/ver/${showSuccessModal.docId}`);
                     }}
-                    className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all text-xs sm:text-sm cursor-pointer"
+                    className="flex-[1.4] py-3.5 sm:py-4 px-4 bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 border-b-[4px] border-b-emerald-900 text-white rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-md shadow-emerald-600/30 select-none"
                   >
                     Ver Documento
                   </button>
@@ -6676,49 +6757,60 @@ export default function DocumentBuilderClient({
 
       {/* WhatsApp Modal */}
       {showWhatsappModal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 relative overflow-hidden">
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 relative overflow-hidden border border-slate-100">
             <button 
-              onClick={handleExitAfterSave}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
+              onClick={() => setShowWhatsappModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10 cursor-pointer"
             >
               <X size={20} />
             </button>
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+            <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-[#25D366] ring-8 ring-emerald-50 shadow-inner">
               <Phone size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-800">Enviar por WhatsApp</h3>
-            <p className="text-sm text-slate-500 px-2">
-              Verifica el número de {selectedClient?.name || 'Cliente'}. Si lo cambias, se actualizará en su perfil.
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Enviar por WhatsApp Web</h3>
+            <p className="text-sm text-slate-500 font-medium px-2">
+              Verifica el número de <span className="font-bold text-slate-700">{selectedClient?.name || showSuccessModal?.clienteNombre || 'Cliente'}</span>. Se abrirá WhatsApp Web con el enlace del documento y PDF directo.
             </p>
             
-            <div className="w-full text-left mt-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono Móvil</label>
+            <div className="w-full text-left mt-1">
+              <label className="block text-xs font-black text-slate-500 uppercase mb-1.5 tracking-wider">Teléfono Móvil (WhatsApp)</label>
               <input
                 type="text"
                 value={whatsappPhone}
                 onChange={(e) => setWhatsappPhone(e.target.value)}
                 placeholder="+504 0000-0000"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all font-semibold text-slate-800"
+                className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-semibold text-slate-800 text-sm outline-none"
               />
             </div>
             
             <button
-              onClick={async () => {
-                setIsSendingWhatsapp(true);
-                // Aquí iría la lógica de actualización en base de datos del cliente
-                // y la llamada a /api/twilio/send-invoice
-                setTimeout(() => {
-                  setIsSendingWhatsapp(false);
-                  toast.success('Factura enviada por WhatsApp correctamente');
-                  handleExitAfterSave();
-                }, 1500);
+              onClick={() => {
+                let cleanPhone = whatsappPhone.replace(/[^0-9]/g, '');
+                if (cleanPhone.length === 8) {
+                  cleanPhone = '504' + cleanPhone;
+                }
+                const docId = (showSuccessModal?.docId) || initialData?.id || '';
+                const correlativo = (showSuccessModal?.correlativo) || docNumber || initialData?.correlativo || 'DOCUMENTO';
+                const clienteNombre = selectedClient?.name || showSuccessModal?.clienteNombre || 'Estimado(a) cliente';
+                const docUrl = `${window.location.origin}/facturas/ver/${docId}`;
+                const pdfUrl = `${window.location.origin}/api/pdf/${docId}`;
+                
+                const docLabel = docType === 'factura' ? 'Factura Oficial' : docType === 'proforma' ? 'Factura Pro Forma' : docType === 'nota_credito' ? 'Nota de Crédito' : 'Cotización';
+                const mensaje = `Hola *${clienteNombre}*! 🌸\n\nLe compartimos su *${docLabel} No. ${correlativo}* de *Distribuidora Paraíso Floral*.\n\n📄 *Ver documento:* \n${docUrl}\n\n📥 *Descarga directa PDF:* \n${pdfUrl}\n\n¡Muchas gracias por su preferencia! ✨`;
+                
+                const waUrl = cleanPhone 
+                  ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(mensaje)}` 
+                  : `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+                
+                window.open(waUrl, '_blank');
+                setShowWhatsappModal(false);
+                toast.success('Abriendo WhatsApp...');
               }}
-              disabled={isSendingWhatsapp || !whatsappPhone.trim()}
-              className="w-full py-3 mt-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="w-full py-4 mt-2 bg-[#25D366] hover:bg-[#20ba59] border border-green-600 border-b-[4px] border-b-green-800 text-white rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-green-600/25 select-none"
             >
-              {isSendingWhatsapp ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-              {isSendingWhatsapp ? 'Enviando...' : 'Enviar Mensaje'}
+              <Send size={18} />
+              <span>Abrir WhatsApp Web</span>
             </button>
           </div>
         </div>

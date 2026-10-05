@@ -30,7 +30,6 @@ import { RestockModal } from './RestockModal';
 import BuscadorCatWeb, { WebProductAlertPanel } from './BuscadorCatWeb';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
-import { removeBackground } from '@imgly/background-removal';
 import { DateInput } from '@/components/ui/DateInput';
 import BuscadorOdoo, { OdooAlertPanel } from './BuscadorOdoo';
 
@@ -752,6 +751,7 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
         if (isBgRemoving) return;
         setIsBgRemoving(true);
         try {
+            const { removeBackground } = await import('@imgly/background-removal');
             const blob = await removeBackground(currentSrc);
             const newUrl = URL.createObjectURL(blob);
             setCurrentSrc(newUrl);

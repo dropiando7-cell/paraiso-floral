@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
-import { printURLSilent } from '@/lib/qzTray';
 
 export interface DocumentRecord {
   id: string;
@@ -391,9 +390,16 @@ export default function DocumentListTable({ data, type }: Props) {
                     <Download size={15} />
                   </Link>
                   <button 
-                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Aquí tienes tu documento: ${window.location.origin}/facturas/ver/${doc.id}`)}`, '_blank')} 
+                    onClick={() => {
+                      const clienteNombre = doc.clienteNombre || 'Estimado(a) cliente';
+                      const docUrl = `${window.location.origin}/facturas/ver/${doc.id}`;
+                      const pdfUrl = `${window.location.origin}/api/pdf/${doc.id}`;
+                      const docLabel = doc.tipoDocumento === 'FACTURA' ? 'Factura' : doc.tipoDocumento === 'PROFORMA' ? 'Factura Pro Forma' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'Nota de Crédito' : 'Cotización';
+                      const mensaje = `Hola *${clienteNombre}*! 🌸\n\nLe compartimos su *${docLabel} No. ${doc.correlativo}* de *Distribuidora Paraíso Floral*.\n\n📄 *Ver documento:* \n${docUrl}\n\n📥 *Descarga directa PDF:* \n${pdfUrl}\n\n¡Muchas gracias por su preferencia! ✨`;
+                      window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+                    }}
                     title="Enviar por WhatsApp" 
-                    className="p-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors"
+                    className="p-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
                   >
                     <MessageCircle size={15} />
                   </button>
@@ -521,9 +527,16 @@ export default function DocumentListTable({ data, type }: Props) {
                       <Pencil size={16} />
                     </Link>
                     <button 
-                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Aquí tienes tu documento: ${window.location.origin}/facturas/ver/${doc.id}`)}`, '_blank')} 
+                      onClick={() => {
+                        const clienteNombre = doc.clienteNombre || 'Estimado(a) cliente';
+                        const docUrl = `${window.location.origin}/facturas/ver/${doc.id}`;
+                        const pdfUrl = `${window.location.origin}/api/pdf/${doc.id}`;
+                        const docLabel = doc.tipoDocumento === 'FACTURA' ? 'Factura' : doc.tipoDocumento === 'PROFORMA' ? 'Factura Pro Forma' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'Nota de Crédito' : 'Cotización';
+                        const mensaje = `Hola *${clienteNombre}*! 🌸\n\nLe compartimos su *${docLabel} No. ${doc.correlativo}* de *Distribuidora Paraíso Floral*.\n\n📄 *Ver documento:* \n${docUrl}\n\n📥 *Descarga directa PDF:* \n${pdfUrl}\n\n¡Muchas gracias por su preferencia! ✨`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+                      }}
                       title="Enviar por WhatsApp" 
-                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
                     >
                       <MessageCircle size={16} />
                     </button>
@@ -692,30 +705,39 @@ export default function DocumentListTable({ data, type }: Props) {
         </div>
       )}
 
-      {/* Modal Opciones de Impresión QZ Tray */}
+      {/* Modal Opciones de Impresión */}
       {docToPrint && (
-        <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 text-center flex flex-col items-center">
-             <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-2">
-               <Printer size={24} />
+        <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 text-center flex flex-col items-center relative overflow-hidden">
+             <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-1 ring-8 ring-blue-50/50 shadow-inner">
+               <Printer size={28} className="stroke-[2.2]" />
              </div>
-             <h3 className="font-black text-slate-900 text-lg">Opciones de Impresión</h3>
-             <p className="text-xs text-slate-500 font-medium">¿Cómo deseas imprimir el documento <span className="font-mono text-slate-700 font-bold">{docToPrint.correlativo}</span>?</p>
+             <div className="space-y-1">
+               <h3 className="font-black text-slate-900 text-xl tracking-tight">Opciones de Impresión</h3>
+               <p className="text-xs text-slate-500 font-medium">¿Cómo deseas imprimir el documento <span className="font-mono text-slate-800 font-bold">{docToPrint.correlativo}</span>?</p>
+             </div>
              
-             <div className="grid grid-cols-2 gap-3 w-full mt-4">
+             <div className="grid grid-cols-2 gap-4 w-full mt-2">
                <button
-                 onClick={async () => {
-                   const url = `${window.location.origin}/facturas/ver/${docToPrint.id}?print=true&silent=true`;
-                   const success = await printURLSilent('EPSON', url);
-                   if (success) setDocToPrint(null);
+                 type="button"
+                 onClick={() => {
+                   window.open(`/facturas/ver/${docToPrint.id}?print=true`, '_blank');
+                   setDocToPrint(null);
                  }}
-                 className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-xl text-slate-700 transition-colors"
+                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-blue-50 to-blue-100/70 hover:from-blue-100 hover:to-blue-200/90 border border-blue-200 border-b-[5px] border-b-blue-500 hover:border-b-blue-600 rounded-2xl text-blue-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 title="Imprimir formato Carta"
                >
-                 <FileText size={24} className="text-blue-500" />
-                 <span className="text-xs font-bold">Carta (EPSON)</span>
+                 <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                   <Printer size={22} className="stroke-[2.2]" />
+                 </div>
+                 <div className="flex flex-col items-center leading-tight">
+                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Carta</span>
+                   <span className="text-[11px] font-bold text-blue-600 mt-0.5">Impresión Nativa</span>
+                 </div>
                </button>
                
                <button
+                 type="button"
                  onClick={async () => {
                     if (directPrint) {
                         try {
@@ -740,17 +762,23 @@ export default function DocumentListTable({ data, type }: Props) {
                         setDocToPrint(null); 
                     }
                   }}
-                 className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 rounded-xl text-slate-700 transition-colors"
+                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-teal-50 to-teal-100/70 hover:from-teal-100 hover:to-teal-200/90 border border-teal-200 border-b-[5px] border-b-teal-500 hover:border-b-teal-600 rounded-2xl text-teal-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 title="Imprimir ticket térmico POS"
                >
-                 <div className="w-6 h-6 border-2 border-emerald-500 rounded-sm flex items-center justify-center"><span className="text-[8px] font-black text-emerald-500">POS</span></div>
-                 <span className="text-xs font-bold">Ticket ({directPrint ? 'Directo' : 'Vista Previa'})</span>
+                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                   <FileText size={22} className="stroke-[2.2]" />
+                 </div>
+                 <div className="flex flex-col items-center leading-tight">
+                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Ticket</span>
+                   <span className="text-[11px] font-bold text-teal-600 mt-0.5">{directPrint ? 'Impresión Directa' : 'Vista Previa'}</span>
+                 </div>
                </button>
              </div>
              
              <button
                 type="button"
                 onClick={() => setDocToPrint(null)}
-                className="mt-4 px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl w-full transition-colors"
+                className="mt-3 py-3 px-6 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 text-xs font-black rounded-2xl w-full active:translate-y-[3px] active:border-b-[1px] transition-all cursor-pointer shadow-xs select-none"
              >
                 Cancelar
              </button>

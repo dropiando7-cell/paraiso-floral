@@ -5,7 +5,6 @@ import { getHistoricoPaginated, updateHistorico, splitHistorico } from './action
 import { uploadActivoImage } from '../actions';
 import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split, X, RotateCcw, RotateCw } from 'lucide-react';
 import { useLayoutControls } from '@/components/layout/MobileDashboardWrapper';
-import { removeBackground } from '@imgly/background-removal';
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -262,6 +261,7 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
         if (isBgRemoving) return;
         setIsBgRemoving(true);
         try {
+            const { removeBackground } = await import('@imgly/background-removal');
             const blob = await removeBackground(currentSrc);
             const newUrl = URL.createObjectURL(blob);
             setCurrentSrc(newUrl);

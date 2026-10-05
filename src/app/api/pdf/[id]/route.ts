@@ -7,6 +7,7 @@ import OrdenEntregaPDF from '@/components/pdf/OrdenEntregaPDF';
 import GarantiaLimitadaPDF from '@/components/pdf/GarantiaLimitadaPDF';
 import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import HistorialPDF from '@/components/pdf/HistorialPDF';
+import { getInvoicePDFFileName } from '@/utils/pdfName';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
@@ -1006,7 +1007,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     // Select Component to render
     let pdfTemplate = LegacyTemplatePDF;
-    let downloadFileName = `documento-${id}.pdf`;
+    const clientName = (doc as any).clienteNombre || doc.cliente?.nombre || '';
+    let downloadFileName = getInvoicePDFFileName(clientName, doc.correlativo || id, doc.tipoDocumento);
     if (type === 'entrega') {
       pdfTemplate = OrdenEntregaPDF;
       downloadFileName = `orden-entrega-${doc.ordenEntrega?.correlativo || id}.pdf`;
