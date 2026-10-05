@@ -1917,6 +1917,9 @@ model RegistroCompra {
   fecha          DateTime
   descripcion    String
   factura        String?
+  rtn            String?
+  categoria      String?      @default("GENERAL")
+  comprobanteUrl String?
   exenta         Decimal      @default(0) @db.Decimal(12, 2)
   gravada        Decimal      @default(0) @db.Decimal(12, 2)
   isv15          Decimal      @default(0) @db.Decimal(12, 2)
@@ -1933,3 +1936,4 @@ model RegistroCompra {
   @@index([fecha])
   @@map("registros_compras")
 }
+

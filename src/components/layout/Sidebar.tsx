@@ -29,7 +29,8 @@ import {
   Coins,
   Tv,
   Truck,
-  Clock
+  Clock,
+  FileSpreadsheet
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -116,6 +117,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         ]
       },
       { name: 'Cuentas por Cobrar', href: '/cxc', icon: Coins },
+      { name: 'Libro de Compras (Gastos)', href: '/compras', icon: FileSpreadsheet, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
       { name: 'Rutas y Auto-Venta', href: '/inventario-ventas/rutas', icon: Truck },
     ]
   },

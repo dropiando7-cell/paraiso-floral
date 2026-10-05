@@ -51,6 +51,7 @@ const searchItems: SearchItem[] = [
     { name: 'Órdenes de Entrega', category: 'Ventas y Servicios', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ordenes', 'entrega', 'delivery', 'shipping'] },
     { name: 'Cierre de Caja (Ventas)', category: 'Ventas y Servicios', href: '/cierre-caja', keywords: ['cierre', 'caja', 'cortes', 'arqueo', 'cash close'] },
     { name: 'Cuentas por Cobrar', category: 'Ventas y Servicios', href: '/cxc', keywords: ['cxc', 'cuentas', 'cobrar', 'abonos', 'pagos', 'clientes', 'saldos', 'credito', 'deuda', 'libro mayor'] },
+    { name: 'Libro de Compras y Gastos (IA/Excel)', category: 'Ventas y Servicios', href: '/compras', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'], keywords: ['compras', 'gastos', 'libro de compras', 'facturas compras', 'proveedores', 'isv', 'credito fiscal', 'excel', 'ocr', 'scanner'] },
     { name: 'Rutas y Auto-Venta', category: 'Ventas y Servicios', href: '/inventario-ventas/rutas', keywords: ['rutas', 'auto-venta', 'reparto', 'camiones', 'conductores', 'vendedores', 'auto venta'] },
     { name: 'Control de Horas Extras', category: 'Administración', href: '/control-horas', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'], keywords: ['horas', 'extras', 'control', 'zkteco', 'asistencia', 'marcas', 'reloj', 'asistencias', 'sobretiempo', 'planilla'] },
     { name: 'Usuarios y Roles', category: 'Administración', href: '/admin/users', roles: ['SUPER_ADMIN', 'CHECKIN_KIDS_ADMIN'], keywords: ['usuarios', 'roles', 'permisos', 'users', 'staff'] },

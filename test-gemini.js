@@ -5,10 +5,10 @@ const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 async function run() {
   try {
     const response = await genai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: 'tell me a joke'
+        model: 'gemini-2.5-flash-lite',
+        contents: 'Di "IA de Compras Lista" en espanol'
     });
-    console.log(response.text);
+    console.log("RESPUESTA:", response.text);
   } catch (err) {
     console.error(err);
   }
