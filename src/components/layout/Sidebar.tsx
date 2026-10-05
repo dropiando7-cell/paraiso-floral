@@ -62,12 +62,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     category: 'CORE',
     items: [
       { name: 'Portal Paraíso Floral', href: '/', icon: LayoutDashboard },
-      { name: 'Órdenes de Trabajo', href: '/kanban', icon: Trello },
+      { name: 'Órdenes de Trabajo', href: '/kanban', icon: Trello, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
       { name: 'Soporte Técnico', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-      { name: 'Marketing IA', href: '#', icon: Megaphone, badge: 'PLANIFICADO', badgeColor: 'bg-amber-500/10 text-amber-700' },
-      { name: 'Rentas de Equipos', href: '/rentas', icon: Box },
-      { name: 'Control de Caja Chica', href: '/caja-chica', icon: CircleDollarSign },
-      { name: 'Gráficas e Informes', href: '/graficas', icon: TrendingUp },
+      { name: 'Marketing IA', href: '#', icon: Megaphone, badge: 'PLANIFICADO', badgeColor: 'bg-amber-500/10 text-amber-700', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+      { name: 'Rentas de Equipos', href: '/rentas', icon: Box, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
+      { name: 'Control de Caja Chica', href: '/caja-chica', icon: CircleDollarSign, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
+      { name: 'Gráficas e Informes', href: '/graficas', icon: TrendingUp, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
       { name: 'Centro de Novedades', href: '/actualizaciones', icon: Tv, badge: 'NUEVO', badgeColor: 'bg-indigo-500/10 text-indigo-600 font-bold' },
     ]
   },
@@ -113,12 +113,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Pedidos y Picking', href: '/inventario-ventas/pedidos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'AUXILIAR_BODEGA', 'GERENTE'] },
           { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Garantías y Mantenimientos', href: '/mantenimientos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Cierre de Caja (Ventas)', href: '/cierre-caja' }
+          { name: 'Cierre de Caja (Ventas)', href: '/cierre-caja', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] }
         ]
       },
-      { name: 'Cuentas por Cobrar', href: '/cxc', icon: Coins },
+      { name: 'Cuentas por Cobrar', href: '/cxc', icon: Coins, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
       { name: 'Libro de Compras (Gastos)', href: '/compras', icon: FileSpreadsheet, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
-      { name: 'Rutas y Auto-Venta', href: '/inventario-ventas/rutas', icon: Truck },
+      { name: 'Rutas y Auto-Venta', href: '/inventario-ventas/rutas', icon: Truck, roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
     ]
   },
   {
@@ -258,8 +258,8 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
               const visibleSubs = item.subItems.filter(subItem => {
                 if (allowed.includes(subItem.href)) return true;
                 if (subItem.href === '/facturas' && allowed.includes('facturas_propias')) return true;
-                if (!subItem.roles) return true;
-                return subItem.roles.includes(dbUser?.role);
+                if (subItem.roles && subItem.roles.includes(dbUser?.role)) return true;
+                return false;
               });
               if (visibleSubs.length > 0) return true;
             }
@@ -286,8 +286,8 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                     const allowed = dbUser?.accessibleModules || [];
                     if (allowed.includes(subItem.href)) return true;
                     if (subItem.href === '/facturas' && allowed.includes('facturas_propias')) return true;
-                    if (!subItem.roles) return true;
-                    return subItem.roles.includes(dbUser?.role);
+                    if (subItem.roles && subItem.roles.includes(dbUser?.role)) return true;
+                    return false;
                   }) || [];
 
                   const hasSubMenu = visibleSubItems.length > 0;

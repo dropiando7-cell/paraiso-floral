@@ -1,13 +1,37 @@
-import React from 'react';
+import { createClient } from '@/utils/supabase/server';
+import { prisma } from '@/lib/prisma';
+import { redirect } from 'next/navigation';
 import { getActiveCajaSession, getHistorialCortes } from './actions';
 import CierreCajaClient from './CierreCajaClient';
 
 export const metadata = {
-    title: 'Cierre de Caja Diario (Ventas) | Bioelectrónica',
-    description: 'Módulo de arqueo y cierre diario de caja para ventas y rentas de equipos.',
+    title: 'Cierre de Caja Diario (Ventas) | Paraíso Floral',
+    description: 'Módulo de arqueo y cierre diario de caja para ventas.',
 };
 
 export default async function CierreCajaPage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user || !user.email) {
+        redirect('/login');
+    }
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { role: true, accessibleModules: true }
+    });
+
+    const isAllowed = 
+        dbUser?.role === 'SUPER_ADMIN' ||
+        dbUser?.role === 'ORG_ADMIN' ||
+        dbUser?.role === 'GERENTE' ||
+        (dbUser?.accessibleModules || []).includes('/cierre-caja');
+
+    if (!isAllowed) {
+        redirect('/');
+    }
+
     const activeSession = await getActiveCajaSession();
     const history = await getHistorialCortes();
 
