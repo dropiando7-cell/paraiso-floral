@@ -118,7 +118,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   const timePart = timeParts.join(' ');
 
  return (
- <div className={`flex flex-col min-h-[1056px] print:min-h-[26.2cm] space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`} style={templateStyles}>
+ <div className={`flex flex-col min-h-[1056px] print:min-h-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 print:overflow-hidden break-inside-avoid ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`} style={templateStyles}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0 text-gray-900">
  
  {/* Header Block */}
@@ -134,17 +134,12 @@ export default function LegacyTemplate(props: TemplateProps) {
  
  {/* Company Info */}
  <div className={`${settings.logoPosition === 'center' ? 'flex flex-col items-center text-center mt-4' : settings.logoPosition === 'right' ? 'flex-1 flex flex-col items-start text-left' : 'flex-1 text-right flex flex-col items-end'} text-sm`}>
- <h1 className={`font-bold text-lg ${theme.text}`}>{organization?.name || 'Distribuidora Paraíso Floral'}</h1>
- <div className="text-gray-700 leading-snug max-w-xs mt-1">
- {organization?.direccion ? (
- <p className="whitespace-pre-wrap">{organization.direccion}</p>
- ) : (
- <p>San Pedro Sula, Honduras</p>
- )}
- <div className="mt-1 space-y-0.5">
- {organization?.rtn && <p className="font-semibold text-slate-800 text-xs">RTN: {organization.rtn}</p>}
- {organization?.telefono && <p className="text-xs">Tel: {organization.telefono}</p>}
- {organization?.correoContacto && <p className="text-xs">{organization.correoContacto}</p>}
+ <h1 className={`font-bold text-base sm:text-lg ${theme.text}`}>Distribuidora Paraíso Floral, S. de R.L.</h1>
+ <div className="text-gray-700 leading-snug mt-0.5 text-xs">
+ <p className="whitespace-nowrap">8 Calle, 9 Avenida NO, Bo. Guamilito, San Pedro Sula, Cortés</p>
+ <div className="mt-0.5 space-y-0.5">
+ <p className="font-semibold text-slate-800">RTN: 05019023491749</p>
+ <p>Tel: +(504) 8854-2199 | +(504) 9645-3095</p>
  </div>
  </div>
 

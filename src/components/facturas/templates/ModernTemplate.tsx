@@ -101,7 +101,7 @@ export default function ModernTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} print:bg-white`} style={templateStyles}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 print:overflow-hidden break-inside-avoid ${fontClass} print:bg-white`} style={templateStyles}>
  {/* Document Card */}
  <div className="bg-white rounded-3xl border border-slate-100 shadow-xl print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
