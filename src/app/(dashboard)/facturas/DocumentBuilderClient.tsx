@@ -1135,7 +1135,7 @@ function LineItemRow({
     }
   }, [item.longDesc, item.showLongDesc]);
 
-  const handleSelectProduct = async (product: Product) => {
+  const handleSelectProduct = (product: Product) => {
     if ((product as any).isOrdenTrabajo) {
       setShowAutocomplete(false);
       window.dispatchEvent(new CustomEvent('extract-work-order-event', {
@@ -1144,20 +1144,23 @@ function LineItemRow({
       return;
     }
 
+    // Cerrar autocomplete de inmediato para respuesta visual instantánea
+    setShowAutocomplete(false);
+
+    // Asignar código y descripción inmediatamente
     onChange(item.id, 'code', product.code);
     onChange(item.id, 'shortDesc', (product.name || '').toUpperCase());
     
     // Si la imagen ya viene en la data cacheada
     if (product.imageUrl) {
       onChange(item.id, 'imageUrl', product.imageUrl);
-    } else {
-      // Forzar recarga por si el caché no trajo la imagen (ej: recién subida)
-      try {
-        const res = await buscarItemPorCodigo(product.code);
+    } else if (product.code) {
+      // Cargar imagen en segundo plano SIN bloquear la UI ni el foco
+      buscarItemPorCodigo(product.code).then(res => {
         if (res?.imageUrl) {
           onChange(item.id, 'imageUrl', res.imageUrl);
         }
-      } catch (e) {}
+      }).catch(() => {});
     }
     
     let targetDescription = product.description || '';
@@ -1201,16 +1204,15 @@ function LineItemRow({
     } else {
        onChange(item.id, 'marcaModelo', null);
     }
-    
-    setShowAutocomplete(false);
 
-    // Autofocus the price input
+    // Autofocus y selección instantánea al campo de precio
     setTimeout(() => {
-      const priceInput = document.getElementById(`unitPrice-desktop-${item.id}`);
+      const priceInput = document.getElementById(`unitPrice-desktop-${item.id}`) as HTMLInputElement | null;
       if (priceInput) {
         priceInput.focus();
+        priceInput.select();
       }
-    }, 100);
+    }, 10);
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1465,48 +1467,6 @@ function LineItemRow({
           )}
         </div>
 
-        {/* SECCIÓN: CREAR SERVICIO AL INSTANTE */}
-        <div className="border-t border-slate-100 bg-slate-50/70 p-2.5 shrink-0">
-          <div className="flex items-center gap-1.5 mb-2 px-1">
-            <Zap size={13} className="text-amber-500 fill-amber-500 shrink-0" />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Crear e Insertar Servicio Rápido</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {[
-              { label: 'Instalación (INS)', prefix: 'INS' },
-              { label: 'Reparación (REP)', prefix: 'REP' },
-              { label: 'Diagnóstico (DIAG)', prefix: 'DIAG' },
-              { label: 'Mant. Prev. (MPV)', prefix: 'MPV' },
-              { label: 'Mant. Corr. (MCO)', prefix: 'MCO' },
-              { label: 'Mano Obra (MO)', prefix: 'MO' },
-            ].map((s) => (
-              <button
-                key={s.prefix}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={async () => {
-                  const toastId = toast.loading(`Autogenerando código ${s.prefix} y registrando...`);
-                  try {
-                    const res = await crearServicioRapido(s.prefix);
-                    if (res.success && res.service) {
-                      toast.success(`Código ${res.service.code} reservado y asignado!`, { id: toastId });
-                      // Cerrar autocomplete y notificar al padre
-                      setShowAutocomplete(false);
-                      window.dispatchEvent(new CustomEvent('service-created', { detail: { service: res.service, lineId: item.id } }));
-                    } else {
-                      throw new Error(res.error || 'Error al generar el servicio');
-                    }
-                  } catch (e: any) {
-                    toast.error(e.message || 'Error al generar', { id: toastId });
-                  }
-                }}
-                className="flex items-center justify-center text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/20 py-2 px-1.5 rounded-lg transition-all text-center leading-tight active:scale-[0.98] cursor-pointer"
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <button
           type="button"
