@@ -8,7 +8,7 @@ import {
   Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye, Pencil, Star, Flame, Clock,
   Camera
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Html5Qrcode } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 import { searchClientes } from '@/app/(dashboard)/facturas/actions';
@@ -16,6 +16,8 @@ import { crearClienteAction } from '@/app/(dashboard)/soporte/actions';
 import { crearProducto } from '@/app/(dashboard)/precios/actions';
 import ContactoModal from '@/components/contactos/ContactoModal';
 import { PosCameraScannerModal } from './PosCameraScannerModal';
+import BandejaPedidosCediModal, { PedidoListoCedi } from './BandejaPedidosCediModal';
+import { marcarPedidoFacturado, getPedidosListosParaFacturar } from '@/app/(dashboard)/inventario-ventas/pedidos/actions';
 
 export interface POSProduct {
   id: string;
@@ -104,9 +106,11 @@ export const HONDURAS_BANKS = [
 
 export default function POSFacturacion({ productos, categorias, onEmitirFactura, cajeroNombre, modoKiosko = false, organization }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // State
   const [localProducts, setLocalProducts] = useState<POSProduct[]>(productos);
+  const [activePedidoCediId, setActivePedidoCediId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalProducts(productos);
@@ -178,6 +182,57 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isSearchingClients, setIsSearchingClients] = useState(false);
+
+  // Cargar pedido alistado desde Bodega (CEDI)
+  const handleCargarPedidoCedi = useCallback((pedido: PedidoListoCedi) => {
+    setActivePedidoCediId(pedido.id);
+
+    if (pedido.cliente) {
+      setSelectedClient({
+        id: pedido.cliente.id,
+        nombre: pedido.cliente.nombre,
+        rtn: pedido.cliente.rtn,
+        telefono: pedido.cliente.telefono,
+        email: pedido.cliente.email
+      });
+      setClientName(pedido.cliente.nombre);
+    }
+
+    const newCartItems: CartItem[] = pedido.items.map((it, idx) => {
+      const catalogProd = productos.find(p => p.id === it.productoId || (it.sku && p.sku.toLowerCase() === it.sku.toLowerCase()));
+
+      return {
+        id: it.productoId,
+        sku: it.sku || catalogProd?.sku || 'CEDI-ITEM',
+        nombre: it.nombreProducto,
+        precioVenta: it.precioVenta || catalogProd?.precioVenta || 0,
+        stockActual: catalogProd?.stockActual || 999,
+        isvAplicable: it.isvAplicable ?? 15,
+        esServicio: false,
+        qty: it.cantidadPreparada || 1,
+        discountPercentage: 0,
+        cartId: `cedi-${it.id || idx}-${Date.now()}`,
+        taxState: (it.isvAplicable === 0) ? 'exento' : 'isv15'
+      };
+    });
+
+    setCart(newCartItems);
+    setAliasVenta(`Pedido CEDI ${pedido.codigoPedido}`);
+    toast.success(`✓ Pedido ${pedido.codigoPedido} cargado con ${newCartItems.length} ítem(s) en caja`, { duration: 4000 });
+  }, [productos]);
+
+  // Auto-cargar si viene por URL ?cargarPedido=ID
+  useEffect(() => {
+    const pedidoParam = searchParams.get('cargarPedido');
+    if (pedidoParam) {
+      getPedidosListosParaFacturar().then(lista => {
+        const found = lista.find(p => p.id === pedidoParam);
+        if (found) {
+          handleCargarPedidoCedi(found as any);
+        }
+      });
+    }
+  }, [searchParams, handleCargarPedidoCedi]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
 
@@ -765,6 +820,12 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     setIsProcessing(false);
     
     if (res.success && res.correlativo) {
+      // Si este cobro correspondía a un pedido de CEDI, marcarlo como facturado en el ERP
+      if (activePedidoCediId) {
+        marcarPedidoFacturado(activePedidoCediId, res.facturaId || res.docId);
+        setActivePedidoCediId(null);
+      }
+
       setLastTicket(res.correlativo);
       setLastFacturaId(res.facturaId || res.docId || null);
       if (res.numeroCAI || res.rangoAutorizado || res.fechaLimiteEmision) {
@@ -1162,6 +1223,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
         {/* Desktop Header Right */}
         <div className="hidden md:flex items-center gap-2.5 shrink-0 justify-end">
+          <BandejaPedidosCediModal onSelectPedido={handleCargarPedidoCedi} />
           <div className="text-right pr-2.5 border-r border-gray-200">
             <p className="text-xs font-bold text-gray-900 leading-tight">{cajeroNombre}</p>
             <p className="text-[9px] text-gray-500 uppercase tracking-wider font-semibold">Cajero</p>

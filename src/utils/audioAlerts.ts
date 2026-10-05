@@ -109,3 +109,54 @@ export function playSuccessChime() {
     });
   } catch {}
 }
+
+// Bip agudo característico de escáner láser de código de barras (Landi / Zebra / Honeywell)
+export function playLaserBeep() {
+  triggerHaptic(50);
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    // Tono agudo y limpio de 2400Hz, duración corta 70ms
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(2400, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.07);
+  } catch {}
+}
+
+// Sonido grave de advertencia / código no encontrado
+export function playErrorBuzz() {
+  triggerHaptic([100, 50, 100]);
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    // Tono grave tipo buzz de 220Hz
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch {}
+}
+

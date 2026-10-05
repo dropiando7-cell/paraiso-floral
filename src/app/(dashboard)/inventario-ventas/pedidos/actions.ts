@@ -333,7 +333,7 @@ export async function actualizarItemPicking(
       where: { id: itemId },
       data: {
         recolectado,
-        cantidadPreparada: recolectado ? cantidadPreparada : 0
+        cantidadPreparada: Math.max(0, cantidadPreparada)
       }
     });
 
@@ -403,11 +403,11 @@ export async function completarPedidoBodega(pedidoId: string) {
 
     // Transaction for stock deduction and history creation
     await prisma.$transaction(async (tx) => {
-      // 1. Update order status
+      // 1. Update order status to listo_para_facturar (disponible en pantalla de cajera)
       await tx.pedido.update({
         where: { id: pedidoId },
         data: {
-          estado: 'completado'
+          estado: 'listo_para_facturar'
         }
       });
 
@@ -580,3 +580,124 @@ export async function getPedidoPickingItems(pedidoId: string) {
     return null;
   }
 }
+
+// Obtener pedidos alistados en CEDI listos para cobro y facturación en caja
+export async function getPedidosListosParaFacturar() {
+  try {
+    const dbUser = await getDbUser();
+    const pedidos = await prisma.pedido.findMany({
+      where: {
+        organizationId: dbUser.organizationId,
+        estado: { in: ['listo_para_facturar', 'completado'] }
+      },
+      include: {
+        cliente: true,
+        auxiliarAsignado: {
+          select: { id: true, nombre: true, apellido: true }
+        },
+        items: {
+          include: {
+            producto: {
+              select: {
+                id: true,
+                nombre: true,
+                sku: true,
+                precioVenta: true,
+                isvAplicable: true
+              }
+            },
+            sustituidoPor: {
+              select: {
+                id: true,
+                nombre: true,
+                sku: true,
+                precioVenta: true,
+                isvAplicable: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    return pedidos.map(p => {
+      const itemsListos = p.items.filter(i => i.cantidadPreparada > 0 || i.recolectado);
+      
+      const totalEstimado = itemsListos.reduce((acc, it) => {
+        const prod = it.sustituidoPor || it.producto;
+        const precio = Number(prod?.precioVenta || 0);
+        const qty = it.cantidadPreparada > 0 ? it.cantidadPreparada : it.cantidadSolicitada;
+        return acc + (precio * qty);
+      }, 0);
+
+      return {
+        id: p.id,
+        codigoPedido: p.codigoPedido,
+        estado: p.estado,
+        estadoPago: p.estadoPago,
+        destino: p.destino,
+        notas: p.notas,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+        totalEstimado,
+        cliente: {
+          id: p.cliente.id,
+          nombre: p.cliente.nombre,
+          rtn: p.cliente.rtn || '',
+          telefono: p.cliente.telefono || '',
+          direccion: p.cliente.direccion || '',
+          email: p.cliente.email || ''
+        },
+        auxiliarAsignado: p.auxiliarAsignado ? {
+          id: p.auxiliarAsignado.id,
+          nombre: `${p.auxiliarAsignado.nombre || ''} ${p.auxiliarAsignado.apellido || ''}`.trim()
+        } : undefined,
+        items: itemsListos.map(it => {
+          const prod = it.sustituidoPor || it.producto;
+          return {
+            id: it.id,
+            productoId: prod?.id || it.productoId,
+            nombreProducto: prod?.nombre || it.nombreProducto,
+            sku: prod?.sku || it.codigoBarras || '',
+            cantidadPreparada: it.cantidadPreparada > 0 ? it.cantidadPreparada : it.cantidadSolicitada,
+            cantidadSolicitada: it.cantidadSolicitada,
+            precioVenta: Number(prod?.precioVenta || 0),
+            isvAplicable: prod?.isvAplicable ?? 15,
+            esSustituido: !!it.sustituidoPorId,
+            nombreOriginal: it.nombreProducto
+          };
+        })
+      };
+    });
+  } catch (error) {
+    console.error('Error en getPedidosListosParaFacturar:', error);
+    return [];
+  }
+}
+
+// Marcar pedido como facturado cuando la cajera emite la factura formal
+export async function marcarPedidoFacturado(pedidoId: string, facturaId?: string) {
+  try {
+    const dbUser = await getDbUser();
+    await prisma.pedido.update({
+      where: {
+        id: pedidoId,
+        organizationId: dbUser.organizationId
+      },
+      data: {
+        estado: 'facturado',
+        notas: facturaId ? `Facturado bajo documento ID: ${facturaId}` : undefined
+      }
+    });
+
+    revalidatePath('/');
+    revalidatePath('/facturas');
+    revalidatePath('/inventario-ventas/pedidos');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error en marcarPedidoFacturado:', error);
+    return { success: false, error: error.message };
+  }
+}
+

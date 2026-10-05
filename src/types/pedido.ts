@@ -23,7 +23,7 @@ export interface Pedido {
     direccion?: string;
   };
   destino: string;
-  estado: 'pendiente' | 'en_preparacion' | 'completado' | 'despachado';
+  estado: 'pendiente' | 'en_preparacion' | 'completado' | 'listo_para_facturar' | 'facturado' | 'despachado';
   estadoPago: 'pagado' | 'contra_entrega' | 'credito';
   auxiliarAsignado?: {
     id: string;

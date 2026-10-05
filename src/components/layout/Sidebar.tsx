@@ -169,6 +169,14 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '/admin/logs-actividad',
         icon: FileText,
         roles: ['SUPER_ADMIN'],
+      },
+      {
+        name: 'Simulador de Etiquetas (Test)',
+        href: '/admin/simulador-etiquetas',
+        icon: QrCode,
+        badge: 'SUPERADMIN',
+        badgeColor: 'bg-purple-500/10 text-purple-700 font-bold',
+        roles: ['SUPER_ADMIN'],
       }
     ]
   }

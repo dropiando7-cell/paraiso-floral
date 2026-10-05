@@ -4,6 +4,7 @@ import React from 'react';
 import { LayoutDashboard, PlusCircle, CheckCircle2, Receipt, FileText, ArrowLeft, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import BandejaPedidosCediModal from '@/components/facturacion/BandejaPedidosCediModal';
 
 interface Props {
   activeTab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'ver' | 'editar';
@@ -128,6 +129,8 @@ export default function FacturacionHeader(props: Props) {
                   </Link>
                 )
               )}
+
+              <BandejaPedidosCediModal onSelectPedido={(pedido) => router.push(`/facturas/pos?cargarPedido=${pedido.id}`)} />
 
               <Link 
                 href="/facturas/pos" 

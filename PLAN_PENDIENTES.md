@@ -41,3 +41,18 @@ Unificar en una sola interfaz todos los saldos pendientes de pago por parte de c
   - `Factura` (filtrando por estado `PENDIENTE` o `PARCIAL`).
   - `Renta` (calculando las cuotas mensuales no saldadas).
   - `Contacto` (asociado al saldo acumulado del cliente).
+
+---
+
+## 3. Servidor de Impresión Híbrido CEDI (Tickets POS + Formato Carta Epson)
+Unificar en la estación de trabajo la capacidad de enviar impresiones tanto en formato Ticket (80mm térmica) como formato Carta (Epson) desde cualquier punto o dispositivo sin depender exclusivamente del diálogo de Chrome.
+
+### Objetivos Principales
+- **Convivencia / Servidor Unificado**:
+  - Ampliar el script de Python actual (`scripts/print_server_tickets.py` o renombrado a `print_server_unificado.py`) para que exponga endpoints separados:
+    - `/print/ticket`: Dirigido a la impresora térmica de recibos (Star BSC10 / 80mm).
+    - `/print/carta`: Dirigido a la impresora de hojas sueltas tamaño Carta (Epson) mediante `win32print` o spooler local de Windows.
+- **Modal de Impresión Dual y Amigable**:
+  - Mantener la opción clásica de "Vista Previa en Navegador (Chrome)" para contingencias o guardar como PDF.
+  - Ofrecer botones directos "Impresión Directa (Print Server)" para lanzar la impresión silenciosa e inmediata en la estación local.
+
