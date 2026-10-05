@@ -4858,14 +4858,20 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         type="text" 
                         placeholder="Buscar por descripción, flor, variedad, ID QR, código de barra, lote, marca..."
                         value={search} 
-                        onChange={setSearch}
+                        onChange={(val) => {
+                            if (sortField) setSortField(null);
+                            setSearch(val);
+                        }}
                         debounce={120}
                         className="w-full pl-10 pr-10 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-white font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs transition-all" 
                     />
                     {search && (
                         <button 
                             type="button"
-                            onClick={() => setSearch('')}
+                            onClick={() => {
+                                setSortField(null);
+                                setSearch('');
+                            }}
                             className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                             title="Limpiar búsqueda"
                         >

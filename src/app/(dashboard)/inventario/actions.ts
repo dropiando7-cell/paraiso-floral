@@ -367,6 +367,94 @@ function buildSearchOR(variants: string[], fields: string[]) {
     return conditions;
 }
 
+// ─── Helpers de Relevancia de Búsqueda ───────────────────────────────────────
+export function normalizeSearchText(str: string | null | undefined): string {
+    if (!str) return '';
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+}
+
+export function getSearchWordStem(word: string): string {
+    if (!word) return '';
+    if (word.endsWith('ES') && word.length > 4) return word.slice(0, -2);
+    if (word.endsWith('S') && word.length > 3) return word.slice(0, -1);
+    return word;
+}
+
+export function computeSearchRelevance(item: any, query: string): number {
+    const qNorm = normalizeSearchText(query);
+    if (!qNorm) return 0;
+    const qStem = getSearchWordStem(qNorm);
+
+    const desc = normalizeSearchText(item.descripcionCorta || item.nombre);
+    const qr = normalizeSearchText(item.idQr || item.sku);
+    const barcode = normalizeSearchText(item.codigoBarras);
+
+    // 1. Coincidencia exacta con ID QR o Código de Barra (prioridad absoluta en escaneos/códigos directos)
+    if (qr === qNorm || barcode === qNorm) return 10000;
+    if (qr.startsWith(qNorm) || barcode.startsWith(qNorm)) return 9000;
+    if (qr.includes(qNorm) || barcode.includes(qNorm)) return 8000;
+
+    // 2. Coincidencia exacta de descripción
+    if (desc === qNorm || desc === qStem) return 5000;
+
+    // 3. La descripción empieza exactamente con la búsqueda completa o su raíz
+    if (desc.startsWith(qNorm) || desc.startsWith(qStem)) return 4000;
+
+    const descWords = desc.split(/\s+/).filter(Boolean);
+    const firstWord = descWords[0] || '';
+    const firstWordStem = getSearchWordStem(firstWord);
+
+    // 4. La primera palabra coincide exactamente con la búsqueda (ej: 'GERBERAS NARANJA' cuando busca 'GERBERAS' o 'GERBERA')
+    if (firstWord === qNorm || firstWord === qStem || firstWordStem === qNorm || firstWordStem === qStem) {
+        return 3500;
+    }
+
+    // 5. La primera palabra comienza con la búsqueda o raíz
+    if (firstWord.startsWith(qNorm) || firstWord.startsWith(qStem)) {
+        return 3000;
+    }
+
+    // Búsqueda multi-palabra (ej: 'GERBERAS NARANJA')
+    const qWords = qNorm.split(/\s+/).filter(Boolean);
+    if (qWords.length > 1) {
+        const allWordsMatchPrefix = qWords.every(qw => {
+            const qwStem = getSearchWordStem(qw);
+            return descWords.some(dw => dw.startsWith(qw) || dw.startsWith(qwStem));
+        });
+        if (allWordsMatchPrefix) {
+            return 2800;
+        }
+    }
+
+    // 6. Contiene la búsqueda como palabra completa independiente en cualquier posición (ej: 'FLOR GERBERAS ROJA')
+    const hasStandaloneWord = descWords.some(w => {
+        const wStem = getSearchWordStem(w);
+        return w === qNorm || w === qStem || wStem === qNorm || wStem === qStem;
+    });
+    if (hasStandaloneWord) {
+        return 2000;
+    }
+
+    // 7. Cualquier palabra en la descripción comienza con la búsqueda
+    const hasWordStartingWith = descWords.some(w => w.startsWith(qNorm) || w.startsWith(qStem));
+    if (hasWordStartingWith) {
+        return 1500;
+    }
+
+    // 8. La descripción contiene el término como subcadena interna de otra palabra (ej: 'MINIGERBERAS' contiene 'GERBERAS')
+    if (desc.includes(qNorm) || desc.includes(qStem)) {
+        return 500;
+    }
+
+    // 9. Coincidencia en otros campos (referencia, marca, modelo, lote, área)
+    const otherFields = normalizeSearchText([item.referencia, item.marca, item.modelo, item.lote, item.area].filter(Boolean).join(' '));
+    if (otherFields.includes(qNorm) || otherFields.includes(qStem)) {
+        return 200;
+    }
+
+    return 50;
+}
+
 // ─── Search Activos Globally ─────────────────────────────────────────────────
 export async function searchActivosGlobal(query: string, includeSold: boolean = false) {
     if (!query) return [];
@@ -427,7 +515,6 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
 
         const activos = await prisma.activoFijo.findMany({
             where: whereClause,
-            orderBy: [{ descripcionCorta: 'asc' }, { area: 'asc' }],
             select: {
                 id: true,
                 idQr: true,
@@ -441,10 +528,21 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
                 lote: true,
                 createdBy: { select: { nombre: true, apellido: true, email: true } }
             },
-            take: 150
+            take: 200
         });
 
-        return activos;
+        // Ordenar por relevancia calculada para priorizar coincidencias exactas y de inicio
+        const scored = activos.map(a => ({
+            ...a,
+            _score: computeSearchRelevance(a, cleanQuery)
+        })).sort((a, b) => {
+            if (b._score !== a._score) return b._score - a._score;
+            const descA = a.descripcionCorta || '';
+            const descB = b.descripcionCorta || '';
+            return descA.localeCompare(descB, 'es', { sensitivity: 'base' });
+        });
+
+        return scored.map(({ _score, ...rest }) => rest);
     } catch (e) {
         console.error("searchActivosGlobal error:", e);
         return [];
@@ -607,56 +705,89 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
         });
     }
 
-    const [activos, total] = await Promise.all([
-        prisma.activoFijo.findMany({
+    const selectFields = {
+        id: true,
+        organizationId: true,
+        idQr: true,
+        descripcionCorta: true,
+        descripcionDetallada: true,
+        marca: true,
+        modelo: true,
+        serie: true,
+        referencia: true,
+        lote: true,
+        area: true,
+        codigoBarras: true,
+        stock: true,
+        cuentaAct: true,
+        estatusContable: true,
+        estadoDano: true,
+        costoAdq: true,
+        imagenUrl: true,
+        imagenPlacaUrl: true,
+        esConsumible: true,
+        fechaVencimiento: true,
+        origenActivo: true,
+        condicionActivo: true,
+        garantia: true,
+        esEquipoCliente: true,
+        cobertura: true,
+        vidaUtilOverride: true,
+        valResidual: true,
+        baseDeprec: true,
+        deprecMensual: true,
+        deprecAcum: true,
+        valorLibros: true,
+        integrado: true,
+        createdAt: true,
+        updatedAt: true,
+        categoria: { select: { id: true, nombre: true } },
+        createdBy: { select: { nombre: true, apellido: true, email: true } },
+        updatedBy: { select: { nombre: true, apellido: true, email: true } },
+        responsable: true,
+    };
+
+    let activos: any[];
+    let total: number;
+
+    if (cleanSearch) {
+        // Traer resultados coincidentes y aplicar clasificación por relevancia inteligente
+        const matchingActivos = await prisma.activoFijo.findMany({
             where,
-            orderBy: { createdAt: 'desc' },
-            skip,
-            take: PER_PAGE,
-            select: {
-                id: true,
-                organizationId: true,
-                idQr: true,
-                descripcionCorta: true,
-                descripcionDetallada: true,
-                marca: true,
-                modelo: true,
-                serie: true,
-                referencia: true,
-                lote: true,
-                area: true,
-                codigoBarras: true,
-                stock: true,
-                cuentaAct: true,
-                estatusContable: true,
-                estadoDano: true,
-                costoAdq: true,
-                imagenUrl: true,
-                imagenPlacaUrl: true,
-                esConsumible: true,
-                fechaVencimiento: true,
-                origenActivo: true,
-                condicionActivo: true,
-                garantia: true,
-                esEquipoCliente: true,
-                cobertura: true,
-                vidaUtilOverride: true,
-                valResidual: true,
-                baseDeprec: true,
-                deprecMensual: true,
-                deprecAcum: true,
-                valorLibros: true,
-                integrado: true,
-                createdAt: true,
-                updatedAt: true,
-                categoria: { select: { id: true, nombre: true } },
-                createdBy: { select: { nombre: true, apellido: true, email: true } },
-                updatedBy: { select: { nombre: true, apellido: true, email: true } },
-                responsable: true,
-            },
-        }),
-        prisma.activoFijo.count({ where })
-    ]);
+            select: selectFields,
+            take: 1500,
+        });
+
+        const scoredActivos = matchingActivos.map(a => ({
+            ...a,
+            _score: computeSearchRelevance(a, cleanSearch)
+        })).sort((a, b) => {
+            if (b._score !== a._score) {
+                return b._score - a._score;
+            }
+            const descA = a.descripcionCorta || '';
+            const descB = b.descripcionCorta || '';
+            const descCmp = descA.localeCompare(descB, 'es', { sensitivity: 'base' });
+            if (descCmp !== 0) return descCmp;
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        total = scoredActivos.length;
+        activos = scoredActivos.slice(skip, skip + PER_PAGE).map(({ _score, ...rest }) => rest);
+    } else {
+        const [activosDb, countDb] = await Promise.all([
+            prisma.activoFijo.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: PER_PAGE,
+                select: selectFields,
+            }),
+            prisma.activoFijo.count({ where })
+        ]);
+        activos = activosDb;
+        total = countDb;
+    }
 
     const plainActivos = activos.map(a => ({
         ...a,
@@ -724,6 +855,13 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
                 const brand = removeAccents(a.marca || '');
                 const resp = removeAccents(a.responsable || '');
                 return desc.includes(searchNorm) || qr.includes(searchNorm) || code.includes(searchNorm) || ser.includes(searchNorm) || mod.includes(searchNorm) || brand.includes(searchNorm) || resp.includes(searchNorm);
+            });
+
+            activos.sort((a, b) => {
+                const sA = computeSearchRelevance(a, search);
+                const sB = computeSearchRelevance(b, search);
+                if (sB !== sA) return sB - sA;
+                return (a.descripcionCorta || '').localeCompare(b.descripcionCorta || '', 'es', { sensitivity: 'base' });
             });
         }
 
@@ -940,10 +1078,18 @@ export async function searchActivosForAutocomplete(query: string) {
             imagenUrl: true
         },
         distinct: ['codigoBarras'],
-        take: 10,
+        take: 30,
         orderBy: { createdAt: 'desc' }
     });
-    return results;
+
+    const sorted = results.sort((a, b) => {
+        const sA = computeSearchRelevance(a, query);
+        const sB = computeSearchRelevance(b, query);
+        if (sB !== sA) return sB - sA;
+        return (a.descripcionCorta || '').localeCompare(b.descripcionCorta || '', 'es', { sensitivity: 'base' });
+    }).slice(0, 10);
+
+    return sorted;
 }
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
