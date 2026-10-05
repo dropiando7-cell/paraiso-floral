@@ -469,13 +469,8 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
         const isExactCode = /^[A-Z]{3,}-[0-9-]+$/i.test(cleanQuery) || /^[0-9]{5,}$/.test(cleanQuery);
 
         const rawWords = cleanQuery.split(/\s+/).filter(Boolean);
-        const words = rawWords.filter(w => w.length >= 3);
+        const words = rawWords.filter(w => w.length >= 2);
         const searchWords = words.length > 0 ? words : rawWords;
-
-        const isMultiWord = searchWords.length > 1;
-        const searchFields = isMultiWord 
-            ? ['descripcionCorta', 'modelo', 'referencia', 'marca']
-            : ['idQr', 'codigoBarras', 'descripcionCorta', 'modelo', 'area', 'marca', 'referencia', 'serie'];
 
         const baseWhere: any = {
             organizationId: orgId,
@@ -491,13 +486,21 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
 
         const andConditions: any[] = [];
         for (const word of searchWords) {
-            const wordVars = addAccentVariants(word);
+            const cleanW = removeAccents(word);
+            const searchTerms = cleanW !== word ? [word, cleanW] : [word];
             const wordOR: any[] = [];
-            for (const v of wordVars) {
-                for (const field of searchFields) {
-                    wordOR.push({ [field]: { contains: v, mode: 'insensitive' as const } });
-                }
+            for (const v of searchTerms) {
+                wordOR.push(
+                    { descripcionCorta: { contains: v, mode: 'insensitive' as const } },
+                    { marca: { contains: v, mode: 'insensitive' as const } },
+                    { referencia: { contains: v, mode: 'insensitive' as const } },
+                    { lote: { contains: v, mode: 'insensitive' as const } }
+                );
             }
+            wordOR.push(
+                { idQr: { contains: word, mode: 'insensitive' as const } },
+                { codigoBarras: { contains: word, mode: 'insensitive' as const } }
+            );
             andConditions.push({ OR: wordOR });
         }
 
@@ -528,7 +531,7 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
                 lote: true,
                 createdBy: { select: { nombre: true, apellido: true, email: true } }
             },
-            take: 200
+            take: 60
         });
 
         // Ordenar por relevancia calculada para priorizar coincidencias exactas y de inicio
@@ -685,21 +688,18 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     if (cleanSearch) {
         const words = cleanSearch.split(/\s+/).filter(Boolean);
         where.AND = words.map(w => {
-            const variants = addAccentVariants(w);
+            const cleanW = removeAccents(w);
+            const searchTerms = cleanW !== w ? [w, cleanW] : [w];
             return {
                 OR: [
-                    ...variants.flatMap(v => [
-                        { descripcionCorta: { contains: v, mode: 'insensitive' as const } },
-                        { marca: { contains: v, mode: 'insensitive' as const } },
-                        { modelo: { contains: v, mode: 'insensitive' as const } },
-                        { referencia: { contains: v, mode: 'insensitive' as const } },
-                        { lote: { contains: v, mode: 'insensitive' as const } },
-                        { area: { contains: v, mode: 'insensitive' as const } },
-                        { responsable: { contains: v, mode: 'insensitive' as const } }
+                    ...searchTerms.flatMap(term => [
+                        { descripcionCorta: { contains: term, mode: 'insensitive' as const } },
+                        { marca: { contains: term, mode: 'insensitive' as const } },
+                        { lote: { contains: term, mode: 'insensitive' as const } },
+                        { referencia: { contains: term, mode: 'insensitive' as const } }
                     ]),
                     { idQr: { contains: w, mode: 'insensitive' as const } },
-                    { codigoBarras: { contains: w, mode: 'insensitive' as const } },
-                    { serie: { contains: w, mode: 'insensitive' as const } }
+                    { codigoBarras: { contains: w, mode: 'insensitive' as const } }
                 ]
             };
         });
@@ -751,12 +751,15 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     let total: number;
 
     if (cleanSearch) {
-        // Traer resultados coincidentes y aplicar clasificación por relevancia inteligente
-        const matchingActivos = await prisma.activoFijo.findMany({
-            where,
-            select: selectFields,
-            take: 1500,
-        });
+        // Traer resultados coincidentes de forma ultra rápida (límite 120 para máxima velocidad y respuesta instantánea)
+        const [matchingActivos, count] = await Promise.all([
+            prisma.activoFijo.findMany({
+                where,
+                select: selectFields,
+                take: 120,
+            }),
+            prisma.activoFijo.count({ where })
+        ]);
 
         const scoredActivos = matchingActivos.map(a => ({
             ...a,
@@ -772,7 +775,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
 
-        total = scoredActivos.length;
+        total = count;
         activos = scoredActivos.slice(skip, skip + PER_PAGE).map(({ _score, ...rest }) => rest);
     } else {
         const [activosDb, countDb] = await Promise.all([

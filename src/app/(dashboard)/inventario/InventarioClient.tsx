@@ -3917,6 +3917,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [importSuccessData, setImportSuccessData] = useState<{ count: number; batchTag: string; createdIds: string[] } | null>(null);
     
     const hasMounted = useRef(false);
+    const refreshSeqRef = useRef(0);
 
     // Grupos autocompletables prefetch para el lote printer
     const [gruposDisponibles, setGruposDisponibles] = useState<any[]>([]);
@@ -4288,6 +4289,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     }
 
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion, refreshStats = false, tipoInv = tipoInventario, forceRouterRefresh = false) {
+        const currentSeq = ++refreshSeqRef.current;
         setIsRefetching(true);
         setLoading(false); // Make sure blocking loader is off
         try {
@@ -4301,12 +4303,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         ? getRentaStats(resolvedAreaFilter)
                         : getActivoStats(currentLockedArea || undefined, tipoInv)
                 ]);
+                if (currentSeq !== refreshSeqRef.current) return;
                 setActivos(data.activos as Activo[]);
                 setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
             } else {
                 const data = await (isRentaMode 
                     ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
                     : getActivos(p, s, resolvedAreaFilter, e, o, c, tipoInv));
+                if (currentSeq !== refreshSeqRef.current) return;
                 setActivos(data.activos as Activo[]);
                 setTotal(data.total); setTotalPages(data.totalPages);
             }
@@ -4316,7 +4320,9 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         } catch (error) {
             console.error('Error fetching inventory data on client: ', error);
         } finally {
-            setIsRefetching(false);
+            if (currentSeq === refreshSeqRef.current) {
+                setIsRefetching(false);
+            }
         }
     }
 
@@ -4862,7 +4868,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             if (sortField) setSortField(null);
                             setSearch(val);
                         }}
-                        debounce={120}
+                        debounce={250}
                         className="w-full pl-10 pr-10 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-white font-medium text-slate-800 placeholder:text-slate-400 shadow-2xs transition-all" 
                     />
                     {search && (
