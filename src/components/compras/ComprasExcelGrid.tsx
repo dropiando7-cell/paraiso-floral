@@ -76,7 +76,11 @@ export default function ComprasExcelGrid() {
   const [modalPegarAbierto, setModalPegarAbierto] = useState<boolean>(false);
 
   // Fila de Entrada Rápida estilo Excel
-  const [nuevaFecha, setNuevaFecha] = useState<string>(new Date().toISOString().split('T')[0]);
+  const getTodayDDMMYYYY = () => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+  const [nuevaFecha, setNuevaFecha] = useState<string>(getTodayDDMMYYYY());
   const [nuevaDesc, setNuevaDesc] = useState<string>('');
   const [nuevaFactura, setNuevaFactura] = useState<string>('');
   const [nuevoRtn, setNuevoRtn] = useState<string>('');
@@ -176,8 +180,17 @@ export default function ComprasExcelGrid() {
 
     try {
       setGuardandoFila(true);
+      // Parsear DD/MM/YYYY a YYYY-MM-DD para la API
+      let fechaIso = nuevaFecha;
+      if (nuevaFecha.includes('/')) {
+        const [d, m, y] = nuevaFecha.split('/');
+        if (d && m && y) {
+          fechaIso = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+      }
+
       const payload = {
-        fecha: nuevaFecha,
+        fecha: fechaIso,
         descripcion: nuevaDesc.trim(),
         factura: nuevaFactura.trim() || undefined,
         rtn: nuevoRtn.trim() || undefined,
@@ -209,7 +222,12 @@ export default function ComprasExcelGrid() {
       setNuevoTotal('');
       descInputRef.current?.focus();
 
-      cargarCompras();
+      // Añadir la compra a la lista directamente para actualización instantánea
+      if (json.compra) {
+        setCompras((prev) => [json.compra, ...prev]);
+      } else {
+        cargarCompras(); // Fallback si no viene en la respuesta
+      }
     } catch (err: any) {
       toast.error(err.message || 'Error al agregar registro');
     } finally {
@@ -224,6 +242,16 @@ export default function ComprasExcelGrid() {
 
       if (['exenta', 'gravada', 'isv15', 'total'].includes(field)) {
         payload[field] = parseFloat(editValue || '0');
+      } else if (field === 'fecha') {
+        // Transformar DD/MM/YYYY a YYYY-MM-DD para guardar
+        let fechaGuardar = editValue;
+        if (editValue.includes('/')) {
+          const [d, m, y] = editValue.split('/');
+          if (d && m && y) {
+            fechaGuardar = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+          }
+        }
+        payload[field] = fechaGuardar;
       } else {
         payload[field] = editValue;
       }
@@ -238,7 +266,17 @@ export default function ComprasExcelGrid() {
 
       // Actualizar estado local inmediatamente
       setCompras((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, [field]: payload[field] } : c))
+        prev.map((c) => {
+          if (c.id === id) {
+            // Si es fecha, asegurarnos que se guarde en formato ISO simulado para que la UI lo parsee
+            let newVal = payload[field];
+            if (field === 'fecha') {
+               newVal = payload[field] + "T12:00:00.000Z"; // Evitar shift de zona horaria local
+            }
+            return { ...c, [field]: newVal };
+          }
+          return c;
+        })
       );
       setEditingCell(null);
       toast.success('Celda actualizada');
@@ -274,9 +312,12 @@ export default function ComprasExcelGrid() {
       [`PERÍODO: ${mesSeleccionado || 'TODOS'} | FECHA EXPORTACIÓN: ${new Date().toLocaleDateString('es-HN')}`],
       [],
       ['#', 'FECHA', 'PROVEEDOR / DESCRIPCIÓN', 'N° FACTURA', 'RTN', 'CATEGORÍA', 'EXENTA', 'GRAVADA 15%', 'ISV 15%', 'TOTAL (HNL)'],
-      ...compras.map((c, i) => [
+      ...compras.map((c, i) => {
+        const f = c.fecha ? c.fecha.split('T')[0] : '';
+        const fechaFormat = f ? `${f.split('-')[2]}/${f.split('-')[1]}/${f.split('-')[0]}` : '';
+        return [
         i + 1,
-        new Date(c.fecha).toLocaleDateString('es-HN'),
+        fechaFormat,
         c.descripcion,
         c.factura || '',
         c.rtn || '',
@@ -447,45 +488,47 @@ export default function ComprasExcelGrid() {
           </div>
 
           {/* Botones de Acción */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Botón IA Destacado */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto mt-4 lg:mt-0">
+            {/* Botón IA Destacado - Ajustado para ser ancho completo en móvil y verde */}
             <button
               onClick={() => setModalEscanearAbierto(true)}
-              className="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white rounded-xl font-black text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95 border border-purple-400/40"
+              className="w-full sm:w-auto px-4 py-3.5 sm:px-3.5 sm:py-2 bg-gradient-to-r from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white rounded-2xl sm:rounded-xl font-black text-sm sm:text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95 border border-emerald-400/40"
             >
-              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-              <span>Escanear Factura (IA)</span>
-              <span className="px-1.5 py-0.2 bg-white/20 text-[9px] rounded-full uppercase">
+              <Sparkles className="w-5 h-5 sm:w-4 sm:h-4 text-amber-300 animate-pulse" />
+              <span className="tracking-wide">ESCANEAR FACTURA (IA)</span>
+              <span className="px-1.5 py-0.5 bg-white/20 text-[10px] sm:text-[9px] rounded-full uppercase">
                 Flash
               </span>
             </button>
 
-            {/* Pegar desde Excel */}
-            <button
-              onClick={() => setModalPegarAbierto(true)}
-              className="px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 border border-emerald-500/40"
-            >
-              <ClipboardPaste className="w-3.5 h-3.5" />
-              <span>Pegar de Excel</span>
-            </button>
+            <div className="grid grid-cols-3 sm:flex items-center gap-2 w-full sm:w-auto">
+              {/* Pegar desde Excel */}
+              <button
+                onClick={() => setModalPegarAbierto(true)}
+                className="w-full sm:w-auto px-2 py-2 sm:px-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl font-bold text-[10px] sm:text-xs transition-all shadow-xs flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 border border-emerald-500/40"
+              >
+                <ClipboardPaste className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                <span className="text-center">Pegar<br className="sm:hidden" />Excel</span>
+              </button>
 
-            {/* Exportar Excel */}
-            <button
-              onClick={handleExportarExcel}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold text-xs transition-all border border-slate-600 flex items-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <Download className="w-3.5 h-3.5 text-rose-400" />
-              <span>Exportar .xlsx</span>
-            </button>
+              {/* Exportar Excel */}
+              <button
+                onClick={handleExportarExcel}
+                className="w-full sm:w-auto px-2 py-2 sm:px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold text-[10px] sm:text-xs transition-all border border-slate-600 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-rose-400" />
+                <span className="text-center">Exportar<br className="sm:hidden" />.xlsx</span>
+              </button>
 
-            {/* Imprimir Reporte */}
-            <button
-              onClick={handleImprimir}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold text-xs transition-all border border-slate-600 flex items-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <Printer className="w-3.5 h-3.5 text-slate-300" />
-              <span>Imprimir</span>
-            </button>
+              {/* Imprimir Reporte */}
+              <button
+                onClick={handleImprimir}
+                className="w-full sm:w-auto px-2 py-2 sm:px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold text-[10px] sm:text-xs transition-all border border-slate-600 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Printer className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-slate-300" />
+                <span className="text-center">Imprimir</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -561,17 +604,30 @@ export default function ComprasExcelGrid() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 md:gap-2">
               {/* Fecha */}
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 relative">
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="DD/MM/YYYY"
                   value={nuevaFecha}
                   onChange={(e) => setNuevaFecha(e.target.value)}
-                  className="w-full px-2.5 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none"
-                  title="Fecha de Compra"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-white border border-slate-300 rounded-xl font-medium text-sm sm:text-xs text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none"
+                  title="Fecha de Compra (DD/MM/YYYY)"
                   required
                 />
+                <input
+                  type="date"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 cursor-pointer w-8 h-8"
+                  onChange={(e) => {
+                     const v = e.target.value;
+                     if(v) {
+                       const [y, m, d] = v.split('-');
+                       setNuevaFecha(`${d}/${m}/${y}`);
+                     }
+                  }}
+                />
+                <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
               {/* Proveedor / Descripción */}
@@ -582,7 +638,7 @@ export default function ComprasExcelGrid() {
                   value={nuevaDesc}
                   onChange={(e) => setNuevaDesc(e.target.value)}
                   placeholder="Proveedor / Descripción *"
-                  className="w-full px-2.5 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none uppercase"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-white border border-slate-300 rounded-xl font-medium text-sm sm:text-xs text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none uppercase"
                 />
               </div>
 
@@ -593,7 +649,7 @@ export default function ComprasExcelGrid() {
                   value={nuevaFactura}
                   onChange={(e) => setNuevaFactura(e.target.value)}
                   placeholder="N° Factura"
-                  className="w-full px-2 py-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none uppercase"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm sm:text-xs text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none uppercase"
                 />
               </div>
 
@@ -602,7 +658,7 @@ export default function ComprasExcelGrid() {
                 <select
                   value={nuevaCategoria}
                   onChange={(e) => setNuevaCategoria(e.target.value)}
-                  className="w-full px-1.5 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-rose-500 outline-none truncate"
+                  className="w-full px-2 py-3 sm:px-1.5 sm:py-2.5 bg-white border border-slate-300 rounded-xl font-bold text-sm sm:text-xs text-slate-700 focus:ring-2 focus:ring-rose-500 outline-none truncate"
                   title="Categoría"
                 >
                   {Object.entries(CATEGORIAS_CONFIG).map(([key, cfg]) => (
@@ -622,7 +678,7 @@ export default function ComprasExcelGrid() {
                   value={nuevaExenta}
                   onChange={(e) => setNuevaExenta(e.target.value)}
                   placeholder="Exenta L."
-                  className="w-full px-2 py-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none text-right"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm sm:text-xs text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none text-right"
                 />
               </div>
 
@@ -635,7 +691,7 @@ export default function ComprasExcelGrid() {
                   value={nuevaGravada}
                   onChange={(e) => setNuevaGravada(e.target.value)}
                   placeholder="Gravada L."
-                  className="w-full px-2 py-2 bg-white border border-slate-300 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none text-right"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm sm:text-xs text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none text-right"
                 />
               </div>
 
@@ -648,7 +704,7 @@ export default function ComprasExcelGrid() {
                   value={nuevoIsv15}
                   onChange={(e) => setNuevoIsv15(e.target.value)}
                   placeholder="ISV 15%"
-                  className="w-full px-2 py-2 bg-purple-50 border border-purple-300 rounded-xl font-mono font-bold text-purple-900 focus:ring-2 focus:ring-purple-500 outline-none text-right"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-purple-50 border border-purple-300 rounded-xl font-mono font-bold text-sm sm:text-xs text-purple-900 focus:ring-2 focus:ring-purple-500 outline-none text-right"
                 />
               </div>
 
@@ -661,7 +717,7 @@ export default function ComprasExcelGrid() {
                   value={nuevoTotal}
                   onChange={(e) => setNuevoTotal(e.target.value)}
                   placeholder="Total L."
-                  className="w-full px-2 py-2 bg-rose-100 border-2 border-rose-300 rounded-xl font-mono font-black text-rose-950 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-right"
+                  className="w-full px-3 py-3 sm:px-2.5 sm:py-2.5 bg-rose-100 border-2 border-rose-300 rounded-xl font-mono font-black text-sm sm:text-xs text-rose-950 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-right"
                 />
               </div>
 
@@ -670,14 +726,14 @@ export default function ComprasExcelGrid() {
                 <button
                   type="submit"
                   disabled={guardandoFila}
-                  className="w-full py-2 bg-rose-700 hover:bg-rose-800 active:scale-95 text-white font-extrabold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                  className="w-full h-full min-h-[44px] sm:min-h-[auto] py-3 sm:py-2.5 bg-rose-700 hover:bg-rose-800 active:scale-95 text-white font-extrabold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                 >
                   {guardandoFila ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <RefreshCw className="w-5 h-5 sm:w-4 sm:h-4 animate-spin" />
                   ) : (
                     <>
-                      <Plus className="w-4 h-4" />
-                      <span>Fila</span>
+                      <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
+                      <span className="text-sm sm:text-xs">Fila</span>
                     </>
                   )}
                 </button>
@@ -744,23 +800,42 @@ export default function ComprasExcelGrid() {
                       <td
                         onDoubleClick={() => {
                           setEditingCell({ id: c.id, field: 'fecha' });
-                          setEditValue(new Date(c.fecha).toISOString().split('T')[0]);
+                          const f = c.fecha ? c.fecha.split('T')[0] : '';
+                          if (f) {
+                             setEditValue(`${f.split('-')[2]}/${f.split('-')[1]}/${f.split('-')[0]}`);
+                          } else {
+                             setEditValue('');
+                          }
                         }}
-                        className="py-2 px-3 font-mono font-medium text-slate-800 border-r border-slate-200 cursor-pointer"
+                        className="py-2 px-3 font-mono font-medium text-slate-800 border-r border-slate-200 cursor-pointer relative"
                         title="Doble clic para editar fecha"
                       >
                         {editingCell?.id === c.id && editingCell?.field === 'fecha' ? (
-                          <input
-                            type="date"
-                            autoFocus
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onBlur={() => handleSaveInlineEdit(c.id, 'fecha')}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSaveInlineEdit(c.id, 'fecha')}
-                            className="w-full p-1 bg-white border border-rose-500 rounded text-xs font-mono outline-none"
-                          />
+                          <div className="flex items-center">
+                            <input
+                              type="text"
+                              autoFocus
+                              placeholder="DD/MM/YYYY"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleSaveInlineEdit(c.id, 'fecha')}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSaveInlineEdit(c.id, 'fecha')}
+                              className="w-full p-1.5 sm:p-1 bg-white border border-rose-500 rounded text-sm sm:text-xs font-mono outline-none"
+                            />
+                            <input
+                              type="date"
+                              className="absolute right-3 opacity-0 cursor-pointer w-6 h-full"
+                              onChange={(e) => {
+                                 const v = e.target.value;
+                                 if(v) {
+                                   const [y, m, d] = v.split('-');
+                                   setEditValue(`${d}/${m}/${y}`);
+                                 }
+                              }}
+                            />
+                          </div>
                         ) : (
-                          new Date(c.fecha).toLocaleDateString('es-HN')
+                          c.fecha ? `${c.fecha.split('T')[0].split('-')[2]}/${c.fecha.split('T')[0].split('-')[1]}/${c.fecha.split('T')[0].split('-')[0]}` : ''
                         )}
                       </td>
 
