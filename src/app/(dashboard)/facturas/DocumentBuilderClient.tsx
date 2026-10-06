@@ -13,6 +13,7 @@ import {
   Smartphone, MessageCircle, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
+import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SignatureCanvas from 'react-signature-canvas';
@@ -450,6 +451,7 @@ function MobileDocumentForm({
             >
               <option value="Efectivo">Efectivo</option>
               <option value="Transferencia Bancaria">Transferencia</option>
+              <option value="MIXTO">Pago Dividido / Mixto</option>
               <option value="Tarjeta de Crédito/Débito">Tarjeta</option>
               <option value="Cheque">Cheque</option>
             </select>
@@ -2244,6 +2246,14 @@ export default function DocumentBuilderClient({
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
   const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+  const [mixedPayments, setMixedPayments] = useState<any[]>([]);
+  const [showMixedPaymentsModal, setShowMixedPaymentsModal] = useState(false);
+  
+  useEffect(() => {
+    if (paymentMethod === 'MIXTO') {
+      setShowMixedPaymentsModal(true);
+    }
+  }, [paymentMethod]);
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
   const [clientSearch, setClientSearch] = useState('');
@@ -3870,6 +3880,15 @@ export default function DocumentBuilderClient({
       
       setPaymentTerms(initialData.terminosPago || 'Pago inmediato');
       setPaymentMethod(initialData.metodoPago || 'Efectivo');
+      if (initialData.pagosMixtos && Array.isArray(initialData.pagosMixtos)) {
+        setMixedPayments(initialData.pagosMixtos.map((p: any) => ({
+          id: p.id || Math.random().toString(36).substring(7),
+          metodo: p.metodoPago,
+          monto: Number(p.monto),
+          referencia: p.referencia || '',
+          banco: p.banco || ''
+        })));
+      }
       setValidityDays(initialData.validezDias || 30);
       // Extraemos totales manuales si la suma no cuaja, pero como no sabemos de donde vino, tomamos el valor guardado y restamos lo calculado por lineas.
       let lineBaseExento = 0;
@@ -4544,6 +4563,7 @@ export default function DocumentBuilderClient({
         notas: notes,
         terminosPago: paymentTerms,
         metodoPago: paymentMethod,
+        pagosMixtos: paymentMethod === 'MIXTO' ? mixedPayments : undefined,
         aliasVenta: aliasVenta,
         transferenciaConfirmada: transferenciaConfirmada,
         validezDias: validityDays,
@@ -4708,6 +4728,13 @@ export default function DocumentBuilderClient({
 
   return (
     <div className={`${isKioskMode ? 'fixed inset-0 z-[5000] bg-slate-50 overflow-y-auto' : (embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden')} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
+      <MixedPaymentsModal
+        isOpen={showMixedPaymentsModal}
+        onClose={() => setShowMixedPaymentsModal(false)}
+        totalAmount={totals.total}
+        payments={mixedPayments}
+        onSave={(payments) => setMixedPayments(payments)}
+      />
       {/* Top Bar (Visible solo en escritorio md:block cuando no está bloqueado) */}
       {!embedMode && !isLocked && (
       <div className={`hidden md:block bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
@@ -4808,7 +4835,7 @@ export default function DocumentBuilderClient({
             paymentTerms={paymentTerms}
             setPaymentTerms={setPaymentTerms}
             paymentMethod={paymentMethod}
-            setPaymentMethod={setPaymentMethod}
+            setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
             aliasVenta={aliasVenta}
             setAliasVenta={setAliasVenta}
             lineItems={lineItems}
@@ -4892,7 +4919,7 @@ export default function DocumentBuilderClient({
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                     setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} 
+                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments} 
                     validityDays={validityDays} setValidityDays={setValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
                     handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
                     emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
@@ -4906,7 +4933,7 @@ export default function DocumentBuilderClient({
                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                   setPaymentTerms={setPaymentTerms}
-                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                   transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                   validityDays={validityDays} setValidityDays={setValidityDays} 
@@ -4929,7 +4956,7 @@ export default function DocumentBuilderClient({
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                    aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                    transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
@@ -4952,7 +4979,7 @@ export default function DocumentBuilderClient({
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                    aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                    transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
@@ -4975,7 +5002,7 @@ export default function DocumentBuilderClient({
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                    aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
                    transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
@@ -6994,6 +7021,7 @@ export default function DocumentBuilderClient({
                   <option value="Efectivo">Efectivo</option>
                   <option value="Tarjeta">Tarjeta</option>
                   <option value="Transferencia">Transferencia</option>
+                  <option value="MIXTO">Pago Dividido / Mixto</option>
                   <option value="Cheque">Cheque</option>
                   <option value="Link de pago de Occidente">Link de pago de Occidente</option>
                 </select>
@@ -7566,7 +7594,7 @@ export default function DocumentBuilderClient({
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                     setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} 
+                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments} 
                     validityDays={validityDays} setValidityDays={setValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
                     handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
                     emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
@@ -7580,7 +7608,7 @@ export default function DocumentBuilderClient({
                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                   setPaymentTerms={setPaymentTerms}
-                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                   validityDays={validityDays} setValidityDays={setValidityDays} 
                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -7601,7 +7629,7 @@ export default function DocumentBuilderClient({
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -7622,7 +7650,7 @@ export default function DocumentBuilderClient({
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -7643,7 +7671,7 @@ export default function DocumentBuilderClient({
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
                    setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}

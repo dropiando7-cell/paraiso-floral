@@ -187,7 +187,7 @@ export default function ClassicTemplate(props: TemplateProps) {
   >
   <option value="Efectivo">Efectivo</option>
   <option value="Tarjeta">Tarjeta</option>
-  <option value="Transferencia">Transferencia</option>
+  <option value="Transferencia">Transferencia</option><option value="MIXTO">Pago Dividido / Mixto</option>
   <option value="Cheque">Cheque</option>
   <option value="Link de pago de Occidente">Link de pago de Occidente</option>
   </select>
@@ -226,6 +226,16 @@ export default function ClassicTemplate(props: TemplateProps) {
           </label>
         </div>
       )}
+    </div>
+  )}
+  {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
+    <div className="mt-1 flex flex-col gap-1">
+      {props.pagosMixtos.map((p, idx) => (
+        <div key={idx} className="flex items-center justify-between text-[10px] bg-slate-100 rounded px-1.5 py-0.5 border border-slate-200">
+          <span className="text-slate-600 truncate max-w-[90px]" title={p.metodoPago || p.metodo}>{p.metodoPago || p.metodo}</span>
+          <span className="text-slate-800 font-mono font-bold">L. {Number(p.monto).toFixed(2)}</span>
+        </div>
+      ))}
     </div>
   )}
   </div>

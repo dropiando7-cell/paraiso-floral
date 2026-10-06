@@ -753,6 +753,21 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 }
             });
 
+            if (data.metodoPago === 'MIXTO' && Array.isArray(data.pagosMixtos)) {
+                await tx.facturaMetodoPago.deleteMany({ where: { facturaId: id } });
+                await tx.facturaMetodoPago.createMany({
+                    data: data.pagosMixtos.map((p: any) => ({
+                        facturaId: id,
+                        metodoPago: p.metodo,
+                        monto: p.monto,
+                        referencia: p.referencia || null,
+                        banco: p.banco || null
+                    }))
+                });
+            } else {
+                await tx.facturaMetodoPago.deleteMany({ where: { facturaId: id } });
+            }
+
             // Descontar inventario (sólo si no lo estaba ya)
             if (docExistente.estado === 'BORRADOR' && (debeDescontarInventario || debeRestaurarInventario)) {
                 for (const item of lineItems) {
@@ -987,6 +1002,18 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     }
                 }
             });
+
+            if (data.metodoPago === 'MIXTO' && Array.isArray(data.pagosMixtos)) {
+                await tx.facturaMetodoPago.createMany({
+                    data: data.pagosMixtos.map((p: any) => ({
+                        facturaId: nuevoDoc.id,
+                        metodoPago: p.metodo,
+                        monto: p.monto,
+                        referencia: p.referencia || null,
+                        banco: p.banco || null
+                    }))
+                });
+            }
 
             // Asignación de Correlativo Oficial
             let correlativoFinal = '';
@@ -1465,6 +1492,7 @@ export async function getDocumentoById(id: string) {
                         activo: true
                     }
                 },
+                pagosMixtos: true,
                 ordenEntrega: true
             }
         });

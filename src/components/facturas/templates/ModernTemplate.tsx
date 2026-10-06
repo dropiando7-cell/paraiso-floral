@@ -230,6 +230,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <option value="Efectivo" className="bg-slate-800 text-white">Efectivo</option>
  <option value="Tarjeta" className="bg-slate-800 text-white">Tarjeta</option>
  <option value="Transferencia" className="bg-slate-800 text-white">Transferencia</option>
+ <option value="MIXTO" className="bg-slate-800 text-white">Pago Dividido / Mixto</option>
  <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
  <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>
  </select>
@@ -267,6 +268,16 @@ export default function ModernTemplate(props: TemplateProps) {
          </label>
        </div>
      )}
+   </div>
+ )}
+ {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
+   <div className="mt-2 flex flex-col gap-1">
+     {props.pagosMixtos.map((p, idx) => (
+       <div key={idx} className="flex items-center justify-between text-[9px] bg-white/10 rounded px-1.5 py-0.5 border border-white/10">
+         <span className="text-slate-300 truncate max-w-[70px]" title={p.metodoPago || p.metodo}>{p.metodoPago || p.metodo}</span>
+         <span className="text-white font-mono font-bold">L. {Number(p.monto).toFixed(2)}</span>
+       </div>
+     ))}
    </div>
  )}
  </div>

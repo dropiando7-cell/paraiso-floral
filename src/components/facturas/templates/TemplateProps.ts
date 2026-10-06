@@ -24,6 +24,7 @@ export interface TemplateProps {
   setPaymentTerms: (v: string) => void;
   paymentMethod: string;
   setPaymentMethod: (v: string) => void;
+  pagosMixtos?: any[];
   aliasVenta?: string;
   setAliasVenta?: (v: string) => void;
   transferenciaConfirmada?: boolean;
