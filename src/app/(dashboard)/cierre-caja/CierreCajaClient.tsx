@@ -413,8 +413,21 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
 
         // Add invoices
         const facturas = session.facturas || [];
-        facturas.filter((f: any) => (f.metodoPago || 'Efectivo') === metodo)
-            .forEach((f: any) => {
+        facturas.forEach((f: any) => {
+            if (f.metodoPago === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
+                f.pagosMixtos.forEach((p: any) => {
+                    if (p.metodoPago === metodo) {
+                        txList.push({
+                            id: `${f.id}-${p.id}`,
+                            fechaStr: f.fechaEmision,
+                            concepto: `Facturación POS (${f.correlativo}) - Pago Mixto`,
+                            cliente: f.clienteNombre || 'Cliente General',
+                            monto: p.monto,
+                            isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+                        });
+                    }
+                });
+            } else if ((f.metodoPago || 'Efectivo') === metodo) {
                 txList.push({
                     id: f.id,
                     fechaStr: f.fechaEmision,
@@ -423,7 +436,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                     monto: f.total,
                     isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
                 });
-            });
+            }
+        });
 
         // Add rent payments
         const rentasPagos = session.rentasPagos || [];

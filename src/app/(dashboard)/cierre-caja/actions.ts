@@ -329,7 +329,8 @@ export async function getCajaSessionSummary(sessionId: string) {
                     tipoDocumento: 'FACTURA'
                 },
                 include: {
-                    cliente: true
+                    cliente: true,
+                    pagosMixtos: true
                 }
             },
             rentasPagos: {
@@ -382,10 +383,28 @@ export async function getCajaSessionSummary(sessionId: string) {
             return;
         }
 
-        if (summary.ventas[metodo] !== undefined) {
-            summary.ventas[metodo] += total;
+        if (metodo === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
+            f.pagosMixtos.forEach((p: any) => {
+                const pMetodo = p.metodoPago;
+                const pTotal = Number(p.monto);
+                
+                // Exclude unconfirmed transfers inside mixed payments
+                if (pMetodo === 'Transferencia' && f.transferenciaConfirmada === false) {
+                    return;
+                }
+
+                if (summary.ventas[pMetodo] !== undefined) {
+                    summary.ventas[pMetodo] += pTotal;
+                } else {
+                    summary.ventas[pMetodo] = pTotal;
+                }
+            });
         } else {
-            summary.ventas[metodo] = total;
+            if (summary.ventas[metodo] !== undefined) {
+                summary.ventas[metodo] += total;
+            } else {
+                summary.ventas[metodo] = total;
+            }
         }
     });
 
@@ -471,7 +490,12 @@ export async function getCajaSessionSummary(sessionId: string) {
             metodoPago: f.metodoPago,
             fechaEmision: f.fechaEmision.toISOString(),
             clienteNombre: f.cliente?.nombre || 'Cliente General',
-            transferenciaConfirmada: f.transferenciaConfirmada
+            transferenciaConfirmada: f.transferenciaConfirmada,
+            pagosMixtos: f.pagosMixtos ? f.pagosMixtos.map((p: any) => ({
+                id: p.id,
+                metodoPago: p.metodoPago,
+                monto: Number(p.monto)
+            })) : []
         })),
         rentasPagos: session.rentasPagos.map(p => ({
             id: p.id,
