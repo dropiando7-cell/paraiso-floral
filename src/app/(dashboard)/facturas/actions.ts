@@ -468,6 +468,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     inventarioDescontado: true,
                     metodoPago: facturaData.metodoPago || 'Efectivo',
                     aliasVenta: facturaData.aliasVenta || 'Paraíso Floral',
+                    vendedorNombre: facturaData.vendedorNombre || null,
                     saldoPendiente: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? facturaData.total : 0,
                     estadoPago: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? 'PENDIENTE' : 'PAGADA',
 
@@ -706,6 +707,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
                     metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
                     aliasVenta: data.aliasVenta !== undefined ? data.aliasVenta : docExistente.aliasVenta,
+                    vendedorNombre: data.vendedorNombre !== undefined ? data.vendedorNombre : docExistente.vendedorNombre,
                     transferenciaConfirmada: data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada,
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
@@ -957,6 +959,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     ordenTrabajoId: data.ordenTrabajoId || null,
                     metodoPago: data.metodoPago || 'Efectivo',
                     aliasVenta: data.aliasVenta || null,
+                    vendedorNombre: data.vendedorNombre || null,
                     transferenciaConfirmada: data.transferenciaConfirmada || false,
                     cajaSessionId,
                     detalles: {
@@ -1383,6 +1386,7 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 total: true,
                 metodoPago: true,
                 aliasVenta: true,
+                vendedorNombre: true,
                 transferenciaConfirmada: true,
                 cliente: {
                     select: {
@@ -1419,6 +1423,7 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
             total: Number(doc.total),
             metodoPago: doc.metodoPago,
             aliasVenta: doc.aliasVenta,
+            vendedorNombre: doc.vendedorNombre,
             transferenciaConfirmada: doc.transferenciaConfirmada,
             detalles: doc.detalles.map(d => ({
                descripcion: d.descripcion,

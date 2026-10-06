@@ -805,6 +805,7 @@ model Factura {
   firmaClienteAt           DateTime?
   transferenciaConfirmada  Boolean          @default(false)
   aliasVenta               String           @default("Paraíso Floral")
+  vendedorNombre           String?
   ordenEntrega             OrdenEntrega?
   equiposCliente           EquipoCliente[]
   detallesPago             PagoDetalleFactura[]

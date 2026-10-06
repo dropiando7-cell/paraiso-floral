@@ -2275,6 +2275,7 @@ export default function DocumentBuilderClient({
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [aliasVenta, setAliasVenta] = useState(initialData?.aliasVenta || 'Paraíso Floral');
+  const [vendedorNombre, setVendedorNombre] = useState(initialData?.vendedorNombre || '');
   const [transferenciaConfirmada, setTransferenciaConfirmada] = useState<boolean>(initialData ? (initialData.transferenciaConfirmada ?? false) : true);
   const lastRowActionTimeRef = useRef<number>(0);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -4565,6 +4566,7 @@ export default function DocumentBuilderClient({
         metodoPago: paymentMethod,
         pagosMixtos: paymentMethod === 'MIXTO' ? mixedPayments : undefined,
         aliasVenta: aliasVenta,
+        vendedorNombre: vendedorNombre,
         transferenciaConfirmada: transferenciaConfirmada,
         validezDias: validityDays,
         subTotal: totals.subtotal,
@@ -4760,6 +4762,21 @@ export default function DocumentBuilderClient({
              >
                <option value="Paraíso Floral">Paraíso Floral</option>
                <option value="HonduFlores">HonduFlores (HF)</option>
+             </select>
+
+             {/* Selector de Vendedor */}
+             <select
+               value={vendedorNombre}
+               onChange={(e) => setVendedorNombre(e.target.value)}
+               className={`bg-white border text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${!vendedorNombre ? 'border-amber-400 text-amber-700 bg-amber-50' : 'border-slate-200 text-slate-700'}`}
+               title="Vendedor asignado a esta factura"
+             >
+               <option value="" disabled>Seleccionar Vendedor...</option>
+               <option value="Jose Mendez">Jose Mendez</option>
+               <option value="Isamara Vigil">Isamara Vigil</option>
+               <option value="Erick Saavedra">Erick Saavedra</option>
+               <option value="Lucio Barahona">Lucio Barahona</option>
+               <option value="Francis Carias">Francis Carias</option>
              </select>
           </div>
 
