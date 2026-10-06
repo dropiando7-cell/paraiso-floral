@@ -648,7 +648,7 @@ export default function DocumentListTable({ data, type }: Props) {
                         <Undo size={16} />
                       </Link>
                     )}
-                    {doc.metodoPago === 'Transferencia' && !doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
+                    {doc.metodoPago === 'Transferencia' && !isCredito(doc.terminosPago) && !doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
                       <button 
                         onClick={() => setDocToConfirmTransfer(doc)} 
                         title="Confirmar Transferencia" 
@@ -657,7 +657,7 @@ export default function DocumentListTable({ data, type }: Props) {
                         <Clock size={16} />
                       </button>
                     )}
-                    {doc.metodoPago === 'Transferencia' && doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
+                    {doc.metodoPago === 'Transferencia' && !isCredito(doc.terminosPago) && doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
                       <span title="Transferencia Confirmada" className="p-2 text-emerald-600 flex items-center gap-1">
                         <CheckCircle2 size={16} />
                       </span>
