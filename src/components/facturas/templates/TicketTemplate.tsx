@@ -83,6 +83,18 @@ export default function TicketTemplate(props: TemplateProps) {
         <div className="flex w-full justify-between font-black text-sm uppercase mt-1 border-t border-black pt-1">
           <span>TOTAL:</span><span>{fmt(totals.total)}</span>
         </div>
+        
+        {props.paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
+          <div className="w-full mt-2 pt-2 border-t border-dashed border-gray-400">
+            <p className="font-bold text-center mb-1 uppercase text-[9px]">Desglose de Pago Mixto</p>
+            {props.pagosMixtos.map((p, idx) => (
+              <div key={idx} className="flex justify-between w-full text-[9px] mb-0.5">
+                <span className="uppercase">{p.metodoPago || p.metodo}:</span>
+                <span className="font-mono">L. {Number(p.monto).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="text-center mt-3 text-[9.5px] leading-tight text-slate-600 border-t border-dashed border-black pt-2 space-y-0.5 font-sans">
