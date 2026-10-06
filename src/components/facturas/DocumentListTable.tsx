@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
+import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
 
 export interface DocumentRecord {
   id: string;
@@ -14,6 +15,10 @@ export interface DocumentRecord {
   tipoDocumento: string;
   estado: string;
   fechaEmision: string;
+  fechaVencimiento?: string | null;
+  terminosPago?: string | null;
+  saldoPendiente?: number | null;
+  estadoPago?: string | null;
   validezDias: number | null;
   clienteNombre: string;
   clienteRtn: string;
@@ -85,6 +90,8 @@ export default function DocumentListTable({ data, type }: Props) {
   const [isCleaningDrafts, setIsCleaningDrafts] = useState(false);
   const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
+  const [showCredito, setShowCredito] = useState(false);
+  const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
 
   // Auto-clean legacy empty "Borrador Temporal" records on mount
   useEffect(() => {
@@ -208,7 +215,7 @@ export default function DocumentListTable({ data, type }: Props) {
     }
 
     return filtered;
-  }, [data, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans]);
+  }, [data, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -504,7 +511,13 @@ export default function DocumentListTable({ data, type }: Props) {
                 </td>
                 <td className="p-4 align-middle">
                   <p className="font-medium text-slate-600">{new Date(doc.fechaEmision).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Vence en {doc.validezDias || 30} d</p>
+                  {isCredito(doc.terminosPago) ? (
+                    <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">Crédito {getDiasCredito(doc.terminosPago, doc.validezDias || 30)} d</p>
+                  ) : doc.tipoDocumento === 'COTIZACION' || doc.tipoDocumento === 'PROFORMA' ? (
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Validez: {doc.validezDias || 30} d</p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Contado</p>
+                  )}
                 </td>
                 <td className="p-4 align-middle text-right">
                   <p className="font-bold text-slate-800 tracking-tight text-base">{fmt(doc.total)}</p>

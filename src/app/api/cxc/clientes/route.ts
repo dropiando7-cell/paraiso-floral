@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { isCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
 
 export async function GET(request: Request) {
   try {
@@ -129,7 +130,9 @@ export async function GET(request: Request) {
             saldoPendiente: true,
             estadoPago: true,
             fechaEmision: true,
-            fechaVencimiento: true
+            fechaVencimiento: true,
+            terminosPago: true,
+            validezDias: true
           },
           orderBy: { fechaEmision: 'desc' }
         },
@@ -163,14 +166,21 @@ export async function GET(request: Request) {
 
         if (f.estadoPago === 'PAGADA' || saldo <= 0) return;
 
-        const diffTime = Math.abs(now.getTime() - new Date(f.fechaEmision).getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays > maxDiasMora) {
-          maxDiasMora = diffDays;
+        let fechaVenc: Date | null = f.fechaVencimiento ? new Date(f.fechaVencimiento) : null;
+        if (!fechaVenc && isCredito(f.terminosPago)) {
+          fechaVenc = calcularFechaVencimiento(f.fechaEmision, f.terminosPago, f.validezDias || c.diasCredito || 30);
+        }
+        if (!fechaVenc) {
+          const dias = c.diasCredito || 15;
+          fechaVenc = new Date(new Date(f.fechaEmision).getTime() + dias * 24 * 60 * 60 * 1000);
         }
 
-        if (diffDays > 15) {
+        const diffTime = now.getTime() - fechaVenc.getTime();
+        if (diffTime > 0) {
+          const diasMora = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diasMora > maxDiasMora) {
+            maxDiasMora = diasMora;
+          }
           saldoVencido += saldo;
         }
       });

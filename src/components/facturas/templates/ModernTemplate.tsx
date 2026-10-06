@@ -4,6 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
+import { isCredito } from '@/utils/facturaUtils';
 
 export default function ModernTemplate(props: TemplateProps) {
   const {
@@ -232,24 +233,39 @@ export default function ModernTemplate(props: TemplateProps) {
  <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
  <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>
  </select>
- {paymentMethod === 'Transferencia' && (
-   <div className="mt-2">
+ {paymentMethod === 'Transferencia' && !isCredito(paymentTerms) && (
+   <div className="mt-2 print:hidden" data-pdf-hide>
      {viewMode ? (
        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${props.transferenciaConfirmada ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
-         {props.transferenciaConfirmada ? 'Confirmada' : 'Pendiente'}
+         {props.transferenciaConfirmada ? '✓ Confirmada' : '⏳ Pend. Confirmación'}
        </span>
      ) : (
-       <label className="flex items-center gap-1.5 cursor-pointer">
-         <input 
-           type="checkbox" 
-           className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 print:hidden"
-           checked={props.transferenciaConfirmada}
-           onChange={(e) => props.setTransferenciaConfirmada?.(e.target.checked)}
-         />
-         <span className={`text-xs font-bold ${props.transferenciaConfirmada ? 'text-emerald-400' : 'text-amber-400'} print:text-slate-800`}>
-           {props.transferenciaConfirmada ? 'Confirmada' : 'Pendiente'}
-         </span>
-       </label>
+       <div className="flex flex-col gap-1 bg-slate-800/80 p-1.5 rounded-md border border-slate-700/60">
+         <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-300 hover:text-emerald-400 select-none">
+           <input
+             type="radio"
+             name={`transf_status_modern_${docNumber}`}
+             checked={props.transferenciaConfirmada !== false}
+             onChange={() => props.setTransferenciaConfirmada?.(true)}
+             className="w-3 h-3 text-emerald-500 focus:ring-emerald-400 bg-slate-700 border-slate-600"
+           />
+           <span className={props.transferenciaConfirmada !== false ? 'text-emerald-400 font-extrabold' : 'text-slate-400'}>
+             ✓ Ya se confirmó
+           </span>
+         </label>
+         <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-300 hover:text-amber-400 select-none">
+           <input
+             type="radio"
+             name={`transf_status_modern_${docNumber}`}
+             checked={props.transferenciaConfirmada === false}
+             onChange={() => props.setTransferenciaConfirmada?.(false)}
+             className="w-3 h-3 text-amber-500 focus:ring-amber-400 bg-slate-700 border-slate-600"
+           />
+           <span className={props.transferenciaConfirmada === false ? 'text-amber-400 font-extrabold' : 'text-slate-400'}>
+             ⏳ Pend. Confirmación
+           </span>
+         </label>
+       </div>
      )}
    </div>
  )}

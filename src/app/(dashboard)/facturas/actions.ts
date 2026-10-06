@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/activity-logger';
 import crypto from 'crypto';
+import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
 
 // Helper for Auth — returns full user object with nombre+apellido
 export async function getAuthenticatedUser() {
@@ -682,6 +683,15 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
+                    fechaVencimiento: isCredito(data.terminosPago)
+                        ? calcularFechaVencimiento(docExistente.fechaEmision, data.terminosPago, Number(data.validezDias) || 30)
+                        : null,
+                    saldoPendiente: isCredito(data.terminosPago)
+                        ? (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) < Number(data.total) ? docExistente.saldoPendiente : data.total)
+                        : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? data.total : 0),
+                    estadoPago: isCredito(data.terminosPago)
+                        ? (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' ? 'PAGADA' : 'PENDIENTE'))
+                        : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? 'PENDIENTE' : 'PAGADA'),
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -905,6 +915,15 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     notas: data.notas || null,
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
+                    fechaVencimiento: isCredito(data.terminosPago)
+                        ? calcularFechaVencimiento(new Date(), data.terminosPago, Number(data.validezDias) || 30)
+                        : null,
+                    saldoPendiente: data.tipoDocumento === 'FACTURA'
+                        ? (isCredito(data.terminosPago) ? data.total : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? data.total : 0))
+                        : (Number(data.total) || 0),
+                    estadoPago: data.tipoDocumento === 'FACTURA'
+                        ? (isCredito(data.terminosPago) ? 'PENDIENTE' : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'))
+                        : 'PENDIENTE',
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -1329,6 +1348,10 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 tipoDocumento: true,
                 estado: true,
                 fechaEmision: true,
+                fechaVencimiento: true,
+                terminosPago: true,
+                saldoPendiente: true,
+                estadoPago: true,
                 validezDias: true,
                 total: true,
                 metodoPago: true,
@@ -1359,6 +1382,10 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
             tipoDocumento: doc.tipoDocumento,
             estado: doc.estado,
             fechaEmision: doc.fechaEmision.toISOString(),
+            fechaVencimiento: doc.fechaVencimiento ? doc.fechaVencimiento.toISOString() : null,
+            terminosPago: doc.terminosPago,
+            saldoPendiente: doc.saldoPendiente !== null ? Number(doc.saldoPendiente) : null,
+            estadoPago: doc.estadoPago,
             validezDias: doc.validezDias,
             clienteNombre: doc.cliente?.nombre || 'Desconocido',
             clienteRtn: doc.cliente?.rtn || '',
@@ -1388,9 +1415,17 @@ export async function confirmarTransferencia(id: string) {
             throw new Error('Documento no encontrado.');
         }
 
+        const esCred = isCredito(doc.terminosPago);
+
         await prisma.factura.update({
             where: { id },
-            data: { transferenciaConfirmada: true }
+            data: { 
+                transferenciaConfirmada: true,
+                ...(!esCred ? {
+                    estadoPago: 'PAGADA',
+                    saldoPendiente: 0
+                } : {})
+            }
         });
 
         await logActivity({
@@ -1403,6 +1438,7 @@ export async function confirmarTransferencia(id: string) {
         });
 
         revalidatePath('/facturas');
+        revalidatePath('/cxc');
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };

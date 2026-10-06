@@ -4,6 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
+import { isCredito } from '@/utils/facturaUtils';
 
 export default function LegacyTemplate(props: TemplateProps) {
   const {
@@ -197,6 +198,43 @@ export default function LegacyTemplate(props: TemplateProps) {
   <option value="Link de pago de Occidente">Link de pago</option>
   </select>
   <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentMethod}</span>
+
+  {paymentMethod === 'Transferencia' && !isCredito(paymentTerms) && (
+    <div className="mt-1.5 print:hidden flex flex-col gap-1" data-pdf-hide>
+      {viewMode ? (
+        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${props.transferenciaConfirmada ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+          {props.transferenciaConfirmada ? '✓ Confirmada' : '⏳ Pend. Confirmación'}
+        </span>
+      ) : (
+        <div className="flex flex-col gap-1 bg-slate-50 p-1.5 rounded-md border border-slate-200/80">
+          <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-700 hover:text-emerald-700 select-none">
+            <input
+              type="radio"
+              name={`transf_status_${docNumber}`}
+              checked={props.transferenciaConfirmada !== false}
+              onChange={() => props.setTransferenciaConfirmada?.(true)}
+              className="w-3 h-3 text-emerald-600 focus:ring-emerald-500"
+            />
+            <span className={props.transferenciaConfirmada !== false ? 'text-emerald-700 font-extrabold' : 'text-slate-500'}>
+              ✓ Ya se confirmó
+            </span>
+          </label>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-slate-700 hover:text-amber-700 select-none">
+            <input
+              type="radio"
+              name={`transf_status_${docNumber}`}
+              checked={props.transferenciaConfirmada === false}
+              onChange={() => props.setTransferenciaConfirmada?.(false)}
+              className="w-3 h-3 text-amber-600 focus:ring-amber-500"
+            />
+            <span className={props.transferenciaConfirmada === false ? 'text-amber-700 font-extrabold' : 'text-slate-500'}>
+              ⏳ Pend. Confirmación
+            </span>
+          </label>
+        </div>
+      )}
+    </div>
+  )}
   </div>
   )}
 

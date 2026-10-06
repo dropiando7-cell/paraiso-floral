@@ -2255,7 +2255,7 @@ export default function DocumentBuilderClient({
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [aliasVenta, setAliasVenta] = useState(initialData?.aliasVenta || 'Paraíso Floral');
-  const [transferenciaConfirmada, setTransferenciaConfirmada] = useState<boolean>(initialData?.transferenciaConfirmada ?? false);
+  const [transferenciaConfirmada, setTransferenciaConfirmada] = useState<boolean>(initialData ? (initialData.transferenciaConfirmada ?? false) : true);
   const lastRowActionTimeRef = useRef<number>(0);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
@@ -4914,6 +4914,7 @@ export default function DocumentBuilderClient({
                    setPaymentTerms={setPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
                    aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                   transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -4936,6 +4937,7 @@ export default function DocumentBuilderClient({
                    setPaymentTerms={setPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
                    aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                   transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -4958,6 +4960,7 @@ export default function DocumentBuilderClient({
                    setPaymentTerms={setPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
                    aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                   transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
                    validityDays={validityDays} setValidityDays={setValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
