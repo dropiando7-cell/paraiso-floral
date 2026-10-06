@@ -708,7 +708,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
                     aliasVenta: data.aliasVenta !== undefined ? data.aliasVenta : docExistente.aliasVenta,
                     vendedorNombre: data.vendedorNombre !== undefined ? data.vendedorNombre : docExistente.vendedorNombre,
-                    transferenciaConfirmada: data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada,
+                    transferenciaConfirmada: isCredito(data.terminosPago) ? false : (data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada),
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
                     detalles: {
@@ -960,7 +960,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     metodoPago: data.metodoPago || 'Efectivo',
                     aliasVenta: data.aliasVenta || null,
                     vendedorNombre: data.vendedorNombre || null,
-                    transferenciaConfirmada: data.transferenciaConfirmada || false,
+                    transferenciaConfirmada: isCredito(data.terminosPago) ? false : (data.transferenciaConfirmada || false),
                     cajaSessionId,
                     detalles: {
                         create: lineItems.map((item) => {
