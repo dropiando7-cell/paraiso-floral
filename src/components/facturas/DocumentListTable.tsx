@@ -592,7 +592,7 @@ export default function DocumentListTable({ data, type }: Props) {
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
                 </td>
                 <td className="p-4 align-middle whitespace-nowrap min-w-[160px]">
-                  <p className="font-black text-slate-900 text-base whitespace-nowrap leading-tight tracking-tight">
+                  <p className="font-medium text-slate-700 text-base whitespace-nowrap leading-tight">
                     {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   {isCredito(doc.terminosPago) ? (
