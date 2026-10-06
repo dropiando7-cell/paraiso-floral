@@ -153,7 +153,7 @@ export default function DocumentActionsModal({
 
           {/* Section: Compartir (Pronto) */}
           <div>
-            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Compartir (Muy Pronto)</h4>
+            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Compartir</h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               
               {/* Email */}
@@ -178,16 +178,16 @@ export default function DocumentActionsModal({
               {/* WhatsApp */}
               <button 
                 onClick={() => onSendWhatsApp && handleAction(onSendWhatsApp)}
-                disabled={!onSendWhatsApp || !isSaved}
+                disabled={!onSendWhatsApp}
                 className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all relative ${
-                  (onSendWhatsApp && isSaved)
-                    ? 'border-green-100 hover:border-green-500 hover:shadow-lg cursor-pointer'
+                  onSendWhatsApp
+                    ? 'border-emerald-200 hover:border-emerald-500 hover:shadow-lg cursor-pointer ring-2 ring-emerald-500/10'
                     : 'border-slate-100 opacity-50 cursor-not-allowed'
                 }`}
               >
-                {(!isSaved && onSendWhatsApp) ? <div className="absolute top-2 right-2 bg-slate-100 text-slate-400 text-[9px] font-black uppercase px-2 py-1 rounded-md">Guardar Primero</div> : (!onSendWhatsApp && <div className="absolute top-2 right-2 bg-slate-200 text-slate-500 text-[9px] font-black uppercase px-2 py-1 rounded-md">Pronto</div>)}
+                <div className="absolute top-2 right-2 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-md">Imagen HD</div>
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform ${
-                  onSendWhatsApp ? 'bg-green-50 text-green-600 group-hover:scale-110' : 'bg-slate-50 text-slate-400'
+                  onSendWhatsApp ? 'bg-emerald-50 text-emerald-600 group-hover:scale-110' : 'bg-slate-50 text-slate-400'
                 }`}>
                   <MessageSquare size={28} />
                 </div>

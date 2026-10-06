@@ -629,20 +629,13 @@ export default function DocumentListTable({ data, type }: Props) {
                     <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
                       <Pencil size={16} />
                     </Link>
-                    <button 
-                      onClick={() => {
-                        const clienteNombre = doc.clienteNombre || 'Estimado(a) cliente';
-                        const docUrl = `${window.location.origin}/facturas/ver/${doc.id}`;
-                        const pdfUrl = `${window.location.origin}/api/pdf/${doc.id}`;
-                        const docLabel = doc.tipoDocumento === 'FACTURA' ? 'Factura' : doc.tipoDocumento === 'PROFORMA' ? 'Factura Pro Forma' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'Nota de Crédito' : 'Cotización';
-                        const mensaje = `Hola *${clienteNombre}*! 🌸\n\nLe compartimos su *${docLabel} No. ${doc.correlativo}* de *Distribuidora Paraíso Floral*.\n\n📄 *Ver documento:* \n${docUrl}\n\n📥 *Descarga directa PDF:* \n${pdfUrl}\n\n¡Muchas gracias por su preferencia! ✨`;
-                        window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
-                      }}
-                      title="Enviar por WhatsApp" 
+                    <Link
+                      href={`/facturas/ver/${doc.id}?whatsapp=true`}
+                      title="Copiar Imagen para WhatsApp"
                       className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
                     >
                       <MessageCircle size={16} />
-                    </button>
+                    </Link>
                     <button 
                       onClick={() => handleSendEmail(doc.id)} 
                       title="Enviar por Correo" 

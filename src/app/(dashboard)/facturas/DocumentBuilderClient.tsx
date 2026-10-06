@@ -10,10 +10,11 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, List, Pencil,
-  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot
+  Smartphone, MessageCircle, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
+import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SignatureCanvas from 'react-signature-canvas';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
@@ -2251,6 +2252,15 @@ export default function DocumentBuilderClient({
   const [showProductModal, setShowProductModal] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('whatsapp') === 'true') {
+        setShowWhatsAppModal(true);
+      }
+    }
+  }, []);
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
@@ -4743,6 +4753,13 @@ export default function DocumentBuilderClient({
               {isKioskMode ? <Minimize size={15} /> : <Maximize size={15} />}
             </button>
             <button
+              onClick={() => setShowWhatsAppModal(true)}
+              title="Copiar Factura como Imagen para WhatsApp"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-bold transition-all shadow-xs whitespace-nowrap shrink-0 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 cursor-pointer"
+            >
+              <MessageCircle size={16} className="text-emerald-600" /> WhatsApp (Imagen)
+            </button>
+            <button
               onClick={() => setShowActionsModal(true)}
               title="Más Acciones"
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 hover:border-slate-300`}
@@ -6903,25 +6920,10 @@ export default function DocumentBuilderClient({
             setSendEmailDocId(initialData.id);
             setSendEmailModalOpen(true);
           } : undefined}
-          onSendWhatsApp={initialData?.id ? async () => {
-            await handleSilentSave();
-            const defaultPhone = selectedClient?.phone || initialData?.cliente?.telefono || '';
-            const phone = window.prompt("Confirme o ingrese el número de teléfono para enviar por WhatsApp (Ej: 9900-0000):", defaultPhone);
-            if (phone !== null) {
-              let cleanPhone = phone.replace(/[^0-9]/g, '');
-              if (cleanPhone.length === 8) {
-                cleanPhone = '504' + cleanPhone;
-              }
-              if (!cleanPhone) {
-                toast.error("Número de teléfono inválido.");
-                return;
-              }
-              const docName = docType === 'factura' ? 'la Factura Oficial' : docType === 'proforma' ? 'la Factura Pro Forma' : docType === 'nota_credito' ? 'la Nota de Crédito' : 'la Cotización';
-              const docUrl = `${window.location.origin}/c/${initialData.id}/doc`;
-              const mensaje = `Hola! Adjunto ${docName} de *Paraíso Floral*.\n\nPuedes verla y descargarla en el siguiente enlace seguro:\n${docUrl}`;
-              window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(mensaje)}`, '_blank');
-            }
-          } : undefined}
+          onSendWhatsApp={() => {
+            setShowActionsModal(false);
+            setShowWhatsAppModal(true);
+          }}
           isDownloadingPDF={isDownloadingPDF}
           isConverting={isConverting}
           docType={
@@ -6943,6 +6945,18 @@ export default function DocumentBuilderClient({
             setSendEmailDocId('');
           }}
           documentoId={sendEmailDocId}
+        />
+      )}
+
+      {showWhatsAppModal && (
+        <WhatsAppShareModal
+          isOpen={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+          containerRef={templateContainerRef}
+          defaultPhone={selectedClient?.phone || initialData?.cliente?.telefono || '88542199'}
+          clientName={selectedClient?.name || initialData?.clienteNombre || initialData?.cliente?.nombre}
+          correlativo={docNumber || initialData?.correlativo}
+          docType={docType === 'factura' ? 'Factura' : docType === 'proforma' ? 'Factura Pro Forma' : docType === 'nota_credito' ? 'Nota de Crédito' : 'Cotización'}
         />
       )}
 
