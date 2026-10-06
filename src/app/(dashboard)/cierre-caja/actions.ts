@@ -375,7 +375,9 @@ export async function getCajaSessionSummary(sessionId: string) {
 
     // Classify Facturas
     session.facturas.forEach(f => {
-        const metodo = f.metodoPago || 'Efectivo';
+        let metodo = f.metodoPago || 'Efectivo';
+        if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
+        
         const total = Number(f.total);
         
         // Exclude unconfirmed transfers from totals
@@ -385,7 +387,8 @@ export async function getCajaSessionSummary(sessionId: string) {
 
         if (metodo === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
             f.pagosMixtos.forEach((p: any) => {
-                const pMetodo = p.metodoPago;
+                let pMetodo = p.metodoPago;
+                if (pMetodo === 'Tarjeta de Crédito/Débito') pMetodo = 'Tarjeta';
                 const pTotal = Number(p.monto);
                 
                 // Exclude unconfirmed transfers inside mixed payments
@@ -410,7 +413,8 @@ export async function getCajaSessionSummary(sessionId: string) {
 
     // Classify RentaPagos
     session.rentasPagos.forEach(p => {
-        const metodo = p.metodoPago || 'Efectivo';
+        let metodo = p.metodoPago || 'Efectivo';
+        if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
         const total = Number(p.monto);
         if (summary.rentas[metodo] !== undefined) {
             summary.rentas[metodo] += total;
@@ -421,7 +425,8 @@ export async function getCajaSessionSummary(sessionId: string) {
 
     // Classify OrdenTrabajo (Revisiones/Diagnostico)
     session.ordenesTrabajo.forEach(o => {
-        const metodo = o.metodoPagoRevision || 'Efectivo';
+        let metodo = o.metodoPagoRevision || 'Efectivo';
+        if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
         const total = Number(o.costoRevision);
         if (summary.soporte[metodo] !== undefined) {
             summary.soporte[metodo] += total;
@@ -487,20 +492,20 @@ export async function getCajaSessionSummary(sessionId: string) {
             id: f.id,
             correlativo: f.correlativo,
             total: Number(f.total),
-            metodoPago: f.metodoPago,
+            metodoPago: f.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : f.metodoPago,
             fechaEmision: f.fechaEmision.toISOString(),
             clienteNombre: f.cliente?.nombre || 'Cliente General',
             transferenciaConfirmada: f.transferenciaConfirmada,
             pagosMixtos: f.pagosMixtos ? f.pagosMixtos.map((p: any) => ({
                 id: p.id,
-                metodoPago: p.metodoPago,
+                metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago,
                 monto: Number(p.monto)
             })) : []
         })),
         rentasPagos: session.rentasPagos.map(p => ({
             id: p.id,
             monto: Number(p.monto),
-            metodoPago: p.metodoPago,
+            metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago,
             fechaPago: p.fechaPago.toISOString(),
             clienteNombre: p.renta?.cliente?.nombre || 'Cliente General',
             equipoNombre: p.renta?.activoFijo?.descripcionCorta || 'Equipo',
@@ -510,7 +515,7 @@ export async function getCajaSessionSummary(sessionId: string) {
             id: o.id,
             codigoSeguridad: o.codigoSeguridad,
             total: Number(o.costoRevision),
-            metodoPago: o.metodoPagoRevision,
+            metodoPago: o.metodoPagoRevision === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : o.metodoPagoRevision,
             fechaRecibido: o.fechaRecibido.toISOString(),
             clienteNombre: o.cliente?.nombre || 'Cliente General',
             equipoDano: o.equipoDano || 'Equipo'
@@ -521,7 +526,7 @@ export async function getCajaSessionSummary(sessionId: string) {
             concepto: m.concepto,
             descripcion: m.descripcion,
             monto: Number(m.monto),
-            metodoPago: m.metodoPago,
+            metodoPago: m.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : m.metodoPago,
             referenciaId: m.referenciaId,
             createdAt: m.createdAt.toISOString(),
             anuladaAt: m.anuladaAt ? m.anuladaAt.toISOString() : null,
