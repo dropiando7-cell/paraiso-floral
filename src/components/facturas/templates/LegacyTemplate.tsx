@@ -234,6 +234,7 @@ export default function LegacyTemplate(props: TemplateProps) {
         </div>
       )}
     </div>
+  )}
   </div>
   )}
 
