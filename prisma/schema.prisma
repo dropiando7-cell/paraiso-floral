@@ -809,6 +809,7 @@ model Factura {
   equiposCliente           EquipoCliente[]
   detallesPago             PagoDetalleFactura[]
   notasCredito             NotaCreditoCliente[]
+  pagosMixtos              FacturaMetodoPago[] @relation("FacturaPagosMixtos")
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])
@@ -1937,3 +1938,18 @@ model RegistroCompra {
   @@map("registros_compras")
 }
 
+
+model FacturaMetodoPago {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facturaId      String   @db.Uuid
+  metodoPago     String   // "Efectivo", "Transferencia", "Tarjeta", "Cheque"
+  monto          Decimal  @db.Decimal(12, 2)
+  referencia     String?
+  banco          String?
+  createdAt      DateTime @default(now())
+
+  factura        Factura  @relation("FacturaPagosMixtos", fields: [facturaId], references: [id], onDelete: Cascade)
+
+  @@index([facturaId])
+  @@map("factura_metodos_pago")
+}
