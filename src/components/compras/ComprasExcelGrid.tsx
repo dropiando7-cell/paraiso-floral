@@ -326,7 +326,8 @@ export default function ComprasExcelGrid() {
         Number(c.gravada),
         Number(c.isv15),
         Number(c.total)
-      ]),
+        ];
+      }),
       [],
       [
         '',
