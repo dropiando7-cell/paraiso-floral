@@ -270,16 +270,7 @@ export default function ModernTemplate(props: TemplateProps) {
      )}
    </div>
  )}
- {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
-   <div className="mt-2 flex flex-col gap-1">
-     {props.pagosMixtos.map((p, idx) => (
-       <div key={idx} className="flex items-center justify-between text-[9px] bg-white/10 rounded px-1.5 py-0.5 border border-white/10">
-         <span className="text-slate-300 truncate max-w-[70px]" title={p.metodoPago || p.metodo}>{p.metodoPago || p.metodo}</span>
-         <span className="text-white font-mono font-bold">L. {Number(p.monto).toFixed(2)}</span>
-       </div>
-     ))}
-   </div>
- )}
+
  </div>
  )}
  </div>
@@ -397,6 +388,19 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="hidden print:block text-sm text-slate-800 whitespace-pre-wrap break-words w-full" data-pdf-show>
  {notes || " "}
  </div>
+ {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
+   <div className="mt-4 border-t border-slate-100 pt-3">
+     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Desglose de Pago Mixto</p>
+     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+       {props.pagosMixtos.map((p, idx) => (
+         <div key={idx} className="flex justify-between text-[11px] bg-slate-50 px-2 py-1 rounded border border-slate-100">
+           <span className="text-slate-500">{p.metodoPago || p.metodo}</span>
+           <span className="font-mono font-bold text-slate-700">L. {Number(p.monto).toFixed(2)}</span>
+         </div>
+       ))}
+     </div>
+   </div>
+ )}
  </div>
 
  {/* Totals Section */}

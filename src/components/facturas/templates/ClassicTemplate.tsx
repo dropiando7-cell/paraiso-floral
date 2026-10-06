@@ -228,16 +228,6 @@ export default function ClassicTemplate(props: TemplateProps) {
       )}
     </div>
   )}
-  {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
-    <div className="mt-1 flex flex-col gap-1">
-      {props.pagosMixtos.map((p, idx) => (
-        <div key={idx} className="flex items-center justify-between text-[10px] bg-slate-100 rounded px-1.5 py-0.5 border border-slate-200">
-          <span className="text-slate-600 truncate max-w-[90px]" title={p.metodoPago || p.metodo}>{p.metodoPago || p.metodo}</span>
-          <span className="text-slate-800 font-mono font-bold">L. {Number(p.monto).toFixed(2)}</span>
-        </div>
-      ))}
-    </div>
-  )}
   </div>
   )}
  </div>
@@ -374,6 +364,19 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="hidden print:block text-xs text-slate-700 whitespace-pre-wrap break-words w-full mt-1" data-pdf-show>
  {notes}
  </div>
+ {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
+   <div className="mt-3 border-t border-slate-200 pt-2">
+     <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-1">Desglose de Pago Mixto</h4>
+     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+       {props.pagosMixtos.map((p, idx) => (
+         <div key={idx} className="flex justify-between text-[10px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+           <span className="text-slate-600">{p.metodoPago || p.metodo}</span>
+           <span className="font-mono font-bold text-slate-800">L. {Number(p.monto).toFixed(2)}</span>
+         </div>
+       ))}
+     </div>
+   </div>
+ )}
  </div>
 
  {/* Totals */}
