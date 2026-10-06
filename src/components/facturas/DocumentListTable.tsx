@@ -184,7 +184,17 @@ export default function DocumentListTable({ data, type }: Props) {
       if (filterOrigen === 'HF' && doc.aliasVenta !== 'HonduFlores') return false;
       
       if (showPendientesTrans) {
-        if (doc.metodoPago !== 'Transferencia' || doc.transferenciaConfirmada) return false;
+        if (doc.metodoPago !== 'Transferencia' || doc.transferenciaConfirmada || isCredito(doc.terminosPago)) return false;
+      }
+
+      if (showCredito) {
+        if (!isCredito(doc.terminosPago)) return false;
+      }
+
+      if (showCreditosVencidos) {
+        if (!isCredito(doc.terminosPago)) return false;
+        const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
+        if (!fVenc || fVenc.getTime() >= new Date().getTime() || doc.estadoPago === 'PAGADA') return false;
       }
       
       const q = search.toLowerCase();
@@ -235,23 +245,77 @@ export default function DocumentListTable({ data, type }: Props) {
       default: badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">{doc.estado}</span>; break;
     }
     
-    if (doc.metodoPago === 'Transferencia' && doc.estado !== 'ANULADA') {
+    if (doc.estado === 'ANULADA') return badge;
+
+    // 1. SI ES UNA TRANSACCIÓN AL CRÉDITO:
+    // Nunca debe decir "Pend. Transferencia". Debe decir CLARAMENTE "Crédito"
+    if (isCredito(doc.terminosPago)) {
+      const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
+      const hoy = new Date();
+      const diasCred = getDiasCredito(doc.terminosPago, doc.validezDias || 30);
+      const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
+      const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const estaVencida = diasRestantes < 0 && doc.estadoPago !== 'PAGADA';
+
+      if (doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0)) {
+        return (
+          <div className="flex flex-col items-center gap-1">
+            {badge}
+            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-emerald-700 bg-emerald-100 border border-emerald-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
+              <CheckCircle2 size={10} /> Crédito Pagado
+            </span>
+          </div>
+        );
+      }
+
+      if (estaVencida) {
+        return (
+          <div className="flex flex-col items-center gap-1">
+            {badge}
+            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-rose-700 bg-rose-100 border border-rose-300 flex items-center gap-1 shadow-2xs animate-pulse whitespace-nowrap" title={`Venció hace ${Math.abs(diasRestantes)} días`}>
+              <AlertTriangle size={10} /> Crédito Vencido ({Math.abs(diasRestantes)}d)
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col items-center gap-1">
+          {badge}
+          <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-indigo-700 bg-indigo-50 border border-indigo-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
+            <Clock size={10} /> Crédito {diasCred}D ({diasRestantes}d)
+          </span>
+        </div>
+      );
+    }
+
+    // 2. SI ES CONTADO CON TRANSFERENCIA BANCARIA:
+    if (doc.metodoPago === 'Transferencia') {
       if (doc.transferenciaConfirmada) {
         return (
           <div className="flex flex-col items-center gap-1">
             {badge}
-            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-emerald-700 bg-emerald-100 border border-emerald-200 flex items-center gap-1">
+            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-emerald-700 bg-emerald-100 border border-emerald-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
               <CheckCircle2 size={10} /> Tr. Confirmada
             </span>
           </div>
         );
       } else {
+        const horas = (new Date().getTime() - new Date(doc.fechaEmision).getTime()) / (1000 * 60 * 60);
+        const esDemorada = horas > 24;
+
         return (
           <div className="flex flex-col items-center gap-1">
             {badge}
-            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-amber-700 bg-amber-100 border border-amber-200">
-              Pend. Transferencia
-            </span>
+            {esDemorada ? (
+              <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-rose-700 bg-rose-100 border border-rose-300 flex items-center gap-1 shadow-2xs animate-pulse whitespace-nowrap" title="Más de 24 horas sin confirmarse comprobante">
+                <AlertTriangle size={10} /> Transf. Demorada (+24h)
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-amber-700 bg-amber-100 border border-amber-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
+                <Clock size={10} /> Pend. Transferencia
+              </span>
+            )}
           </div>
         );
       }
@@ -299,6 +363,24 @@ export default function DocumentListTable({ data, type }: Props) {
               className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
             />
             <span className="text-xs font-bold text-slate-700 select-none">Pend. Transferencia</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
+            <input 
+              type="checkbox" 
+              checked={showCredito}
+              onChange={e => setShowCredito(e.target.checked)}
+              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+            />
+            <span className="text-xs font-bold text-slate-700 select-none">Ventas a Crédito</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
+            <input 
+              type="checkbox" 
+              checked={showCreditosVencidos}
+              onChange={e => setShowCreditosVencidos(e.target.checked)}
+              className="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500"
+            />
+            <span className="text-xs font-bold text-slate-700 select-none">Créditos Vencidos</span>
           </label>
 
           {type === 'FACTURA' && (
@@ -509,14 +591,22 @@ export default function DocumentListTable({ data, type }: Props) {
                   </div>
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
                 </td>
-                <td className="p-4 align-middle">
-                  <p className="font-medium text-slate-600">{new Date(doc.fechaEmision).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                <td className="p-4 align-middle whitespace-nowrap min-w-[130px]">
+                  <p className="font-semibold text-slate-800 text-xs whitespace-nowrap">
+                    {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                   {isCredito(doc.terminosPago) ? (
-                    <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-0.5">Crédito {getDiasCredito(doc.terminosPago, doc.validezDias || 30)} d</p>
+                    <p className="text-[10px] text-indigo-700 font-extrabold uppercase tracking-wider mt-0.5 whitespace-nowrap">
+                      Crédito {getDiasCredito(doc.terminosPago, doc.validezDias || 30)} días
+                    </p>
                   ) : doc.tipoDocumento === 'COTIZACION' || doc.tipoDocumento === 'PROFORMA' ? (
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Validez: {doc.validezDias || 30} d</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 whitespace-nowrap">
+                      Validez {doc.validezDias || 30} días
+                    </p>
                   ) : (
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Contado</p>
+                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5 whitespace-nowrap">
+                      Contado
+                    </p>
                   )}
                 </td>
                 <td className="p-4 align-middle text-right">
