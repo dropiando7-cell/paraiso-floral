@@ -591,20 +591,20 @@ export default function DocumentListTable({ data, type }: Props) {
                   </div>
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
                 </td>
-                <td className="p-4 align-middle whitespace-nowrap min-w-[145px]">
-                  <p className="font-bold text-slate-900 text-sm whitespace-nowrap leading-tight">
+                <td className="p-4 align-middle whitespace-nowrap min-w-[160px]">
+                  <p className="font-black text-slate-900 text-base whitespace-nowrap leading-tight tracking-tight">
                     {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   {isCredito(doc.terminosPago) ? (
-                    <p className="text-[11px] text-indigo-700 font-extrabold uppercase tracking-wide mt-0.5 whitespace-nowrap">
+                    <p className="text-xs text-indigo-700 font-extrabold uppercase tracking-wide mt-0.5 whitespace-nowrap">
                       Crédito {getDiasCredito(doc.terminosPago, doc.validezDias || 30)} días
                     </p>
                   ) : doc.tipoDocumento === 'COTIZACION' || doc.tipoDocumento === 'PROFORMA' ? (
-                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap">
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap">
                       Validez {doc.validezDias || 30} días
                     </p>
                   ) : (
-                    <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide mt-0.5 whitespace-nowrap">
+                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mt-0.5 whitespace-nowrap">
                       Contado
                     </p>
                   )}
