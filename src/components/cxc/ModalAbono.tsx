@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, DollarSign, AlertCircle, Loader2, CheckCircle2, ChevronDown, Building2 } from 'lucide-react';
+import { X, DollarSign, AlertCircle, Loader2, CheckCircle, ChevronDown, Building2 } from 'lucide-react';
 
 export const HONDURAS_BANKS = [
   { id: 'ficohsa', name: 'Ficohsa', logo: '/logos_bancos/ficohsa.png' },
@@ -343,7 +343,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                           </div>
                           <span className="truncate">{b.name}</span>
                           {banco.toLowerCase() === b.name.toLowerCase() && (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 ml-auto shrink-0" />
+                            <CheckCircle className="w-4 h-4 text-emerald-600 ml-auto shrink-0" />
                           )}
                         </button>
                       ))
@@ -402,7 +402,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4" />
                   <span>Confirmar Abono</span>
                 </>
               )}
