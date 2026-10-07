@@ -89,7 +89,8 @@ export async function GET(request: Request) {
         { telefono: { contains: query.trim(), mode: 'insensitive' } },
         { rtn: { contains: query.trim(), mode: 'insensitive' } },
         { departamento: { contains: query.trim(), mode: 'insensitive' } },
-        { ruta: { contains: query.trim(), mode: 'insensitive' } }
+        { ruta: { contains: query.trim(), mode: 'insensitive' } },
+        { facturas: { some: { correlativo: { contains: query.trim(), mode: 'insensitive' } } } }
       ];
     }
 

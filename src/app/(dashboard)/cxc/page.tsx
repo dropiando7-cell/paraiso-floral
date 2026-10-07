@@ -380,7 +380,7 @@ ${publicUrl}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar cliente por nombre, teléfono, RTN o ubicación..."
+              placeholder="Buscar cliente, número de factura, teléfono o RTN..."
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all font-medium"
             />
           </div>
