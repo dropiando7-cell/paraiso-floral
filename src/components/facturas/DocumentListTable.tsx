@@ -1202,7 +1202,7 @@ export default function DocumentListTable({ data, type }: Props) {
                    <Printer size={28} />
                  </div>
                  <div className="flex flex-col items-center leading-tight">
-                   <span className="font-bold text-slate-800 text-sm text-center">Carta</span>
+                   <span className="font-bold text-slate-700 text-sm text-center">Carta</span>
                    <span className="text-xs text-blue-600 font-semibold mt-0.5">Impresión Nativa</span>
                  </div>
                </button>
@@ -1233,15 +1233,15 @@ export default function DocumentListTable({ data, type }: Props) {
                         setDocToPrint(null); 
                     }
                  }}
-                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-teal-100 hover:border-teal-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
+                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                  title="Imprimir ticket térmico POS"
                >
-                 <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                    <FileText size={28} />
                  </div>
                  <div className="flex flex-col items-center leading-tight">
-                   <span className="font-bold text-slate-800 text-sm text-center">Ticket</span>
-                   <span className="text-xs text-teal-600 font-semibold mt-0.5">{directPrint ? 'Impresión Directa' : 'Vista Previa'}</span>
+                   <span className="font-bold text-slate-700 text-sm text-center">Ticket</span>
+                   <span className="text-xs text-emerald-600 font-semibold mt-0.5">{directPrint ? 'Impresión Directa' : 'Vista Previa'}</span>
                  </div>
                </button>
              </div>
