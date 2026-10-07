@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia } from '@/app/(dashboard)/facturas/actions';
+import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia, buscarHistorialDocumentos } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
 
@@ -83,9 +83,50 @@ export default function DocumentListTable({ data, type }: Props) {
   const [sortField, setSortField] = useState<'fechaEmision' | 'total' | 'correlativo' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  // Pagination state
+  // Remote search for comprehensive history (beyond initial 200)
+  const [remoteResults, setRemoteResults] = useState<DocumentRecord[]>([]);
+  const [isSearchingRemote, setIsSearchingRemote] = useState(false);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setRemoteResults([]);
+      setIsSearchingRemote(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingRemote(true);
+      try {
+        const extraDocs = await buscarHistorialDocumentos(q);
+        if (extraDocs && extraDocs.length > 0) {
+          setRemoteResults(extraDocs as DocumentRecord[]);
+        }
+      } catch (err) {
+        console.error("Error buscando documentos remotos:", err);
+      } finally {
+        setIsSearchingRemote(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Combine initial data with remote search results (deduplicating by ID)
+  const allDocs = useMemo(() => {
+    if (remoteResults.length === 0) return data;
+    const existingIds = new Set(data.map(d => d.id));
+    const newItems = remoteResults.filter(r => !existingIds.has(r.id));
+    return [...data, ...newItems];
+  }, [data, remoteResults]);
+
+  // Pagination state for main invoice table
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Pagination state for product breakdown table
+  const [productPage, setProductPage] = useState(1);
+  const itemsPerPageProduct = 5;
 
   const [isCleaningDrafts, setIsCleaningDrafts] = useState(false);
   const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
@@ -118,9 +159,10 @@ export default function DocumentListTable({ data, type }: Props) {
     }
   };
 
-  // Reset page when criteria changes
+  // Reset pages when criteria changes
   useEffect(() => {
     setCurrentPage(1);
+    setProductPage(1);
   }, [search, showAnuladas, type]);
 
   const confirmAnular = async () => {
@@ -171,7 +213,7 @@ export default function DocumentListTable({ data, type }: Props) {
   };
 
   const filteredData = useMemo(() => {
-    const filtered = data.filter(doc => {
+    const filtered = allDocs.filter(doc => {
       if (!showAnuladas && doc.estado === 'ANULADA') return false;
       
       if (type === 'FACTURA') {
@@ -197,10 +239,20 @@ export default function DocumentListTable({ data, type }: Props) {
         if (!fVenc || fVenc.getTime() >= new Date().getTime() || doc.estadoPago === 'PAGADA') return false;
       }
       
-      const q = search.toLowerCase();
-      return doc.correlativo.toLowerCase().includes(q) || 
-             doc.clienteNombre.toLowerCase().includes(q) ||
-             (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q));
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+
+      // 1. Correlativo (soporta búsqueda exacta o últimos dígitos como "3354")
+      if (doc.correlativo.toLowerCase().includes(q)) return true;
+
+      // 2. Cliente y RTN
+      if (doc.clienteNombre.toLowerCase().includes(q)) return true;
+      if (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q)) return true;
+
+      // 3. Productos / Detalles de la factura
+      if (doc.detalles && doc.detalles.some(d => d.descripcion.toLowerCase().includes(q))) return true;
+
+      return false;
     });
 
     if (sortField) {
@@ -225,7 +277,78 @@ export default function DocumentListTable({ data, type }: Props) {
     }
 
     return filtered;
-  }, [data, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos]);
+  }, [allDocs, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos]);
+
+  // Resumen de productos facturados (cuando la búsqueda coincide con líneas de detalle)
+  const productSummary = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q.length < 2) return null;
+
+    const matchedItems: {
+      facturaId: string;
+      correlativo: string;
+      tipoDocumento: string;
+      fechaEmision: string;
+      clienteNombre: string;
+      clienteRtn: string;
+      estado: string;
+      descripcion: string;
+      cantidad: number;
+      precioUnitario: number;
+      totalLinea: number;
+      totalFactura: number;
+    }[] = [];
+
+    let totalUnidades = 0;
+    let totalMonto = 0;
+    const facturasSet = new Set<string>();
+
+    for (const doc of filteredData) {
+      if (!doc.detalles) continue;
+      for (const d of doc.detalles) {
+        if (d.descripcion.toLowerCase().includes(q)) {
+          const cleanDesc = d.descripcion.split('\n')[0].replace(/__METADATA__.*$/, '').trim();
+          matchedItems.push({
+            facturaId: doc.id,
+            correlativo: doc.correlativo,
+            tipoDocumento: doc.tipoDocumento,
+            fechaEmision: doc.fechaEmision,
+            clienteNombre: doc.clienteNombre,
+            clienteRtn: doc.clienteRtn,
+            estado: doc.estado,
+            descripcion: cleanDesc,
+            cantidad: Number(d.cantidad) || 0,
+            precioUnitario: Number(d.precioUnitario) || 0,
+            totalLinea: Number(d.totalLinea) || 0,
+            totalFactura: Number(doc.total) || 0,
+          });
+          totalUnidades += Number(d.cantidad) || 0;
+          totalMonto += Number(d.totalLinea) || 0;
+          facturasSet.add(doc.id);
+        }
+      }
+    }
+
+    if (matchedItems.length === 0) return null;
+
+    // Ordenar de más reciente a más antiguo
+    matchedItems.sort((a, b) => new Date(b.fechaEmision).getTime() - new Date(a.fechaEmision).getTime());
+
+    return {
+      query: search.trim(),
+      items: matchedItems,
+      totalUnidades,
+      totalMonto,
+      totalFacturas: facturasSet.size
+    };
+  }, [filteredData, search]);
+
+  const productTotalPages = Math.ceil((productSummary?.items.length || 0) / itemsPerPageProduct);
+  const paginatedProductItems = useMemo(() => {
+    if (!productSummary) return [];
+    const start = (productPage - 1) * itemsPerPageProduct;
+    return productSummary.items.slice(start, start + itemsPerPageProduct);
+  }, [productSummary, productPage, itemsPerPageProduct]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -326,15 +449,44 @@ export default function DocumentListTable({ data, type }: Props) {
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in">
       {/* Header & Controls */}
-      <div className="p-3.5 sm:p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-50/50">
-        <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900">
-            {type === 'FACTURA' ? 'Historial de Facturas' : type === 'COTIZACION' ? 'Historial de Cotizaciones' : 'Documentos Recientes'}
-          </h2>
-          <p className="text-xs text-slate-500 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
+      <div className="p-3.5 sm:p-5 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3.5 bg-slate-50/50">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 w-full xl:w-auto">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 whitespace-nowrap">
+              {type === 'FACTURA' ? 'Historial de Facturas' : type === 'COTIZACION' ? 'Historial de Cotizaciones' : 'Documentos Recientes'}
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
+          </div>
+
+          {/* 🔍 Buscador cambiado al LADO IZQUIERDO */}
+          <div className="relative w-full sm:w-80">
+            {isSearchingRemote ? (
+              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" size={16} />
+            ) : (
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            )}
+            <input
+              type="text"
+              placeholder="Buscar factura, cliente o producto..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs placeholder:text-slate-400"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full transition-colors cursor-pointer"
+                title="Limpiar búsqueda"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="relative w-full lg:w-auto flex flex-col sm:flex-row items-center gap-2">
+        {/* Filtros a la derecha */}
+        <div className="relative w-full xl:w-auto flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleCleanDrafts}
@@ -387,26 +539,202 @@ export default function DocumentListTable({ data, type }: Props) {
             <select
               value={filterOrigen}
               onChange={(e) => setFilterOrigen(e.target.value as any)}
-              className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
             >
               <option value="TODOS">Todas las Ventas</option>
               <option value="PARAISO">Solo Paraíso Floral</option>
               <option value="HF">Solo HonduFlores</option>
             </select>
           )}
-
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Buscar correlativo o cliente..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            />
-          </div>
         </div>
       </div>
+
+      {/* 🌸 RESUMEN Y DESGLOSE DE PRODUCTO (TIPO HISTORIAL CIERRE DE CAJA) */}
+      {productSummary && (
+        <div className="p-3.5 sm:p-5 border-b border-slate-200 bg-slate-50/70 space-y-3.5 animate-in fade-in duration-200">
+          {/* Tarjetas Superiores de Métricas (Igual que Cierre de Caja) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Producto Coincidente</span>
+              <p className="text-xs sm:text-sm font-black text-slate-900 truncate mt-1" title={productSummary.query}>
+                🌸 &ldquo;{productSummary.query.toUpperCase()}&rdquo;
+              </p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unidades Facturadas</span>
+              <p className="text-sm sm:text-base font-black text-blue-600 mt-1 tabular-nums">
+                {productSummary.totalUnidades} <span className="text-xs font-bold text-slate-500">unid.</span>
+              </p>
+            </div>
+            <div className="bg-emerald-50/40 rounded-xl border border-emerald-200 p-3 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Monto Total Producto</span>
+              <p className="text-sm sm:text-base font-black text-emerald-700 mt-1 tabular-nums">
+                {fmt(productSummary.totalMonto)}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Facturas Encontradas</span>
+              <p className="text-sm sm:text-base font-black text-slate-800 mt-1 tabular-nums">
+                {productSummary.totalFacturas} <span className="text-xs font-bold text-slate-500">doc{productSummary.totalFacturas !== 1 ? 's' : ''}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Cuadro de Desglose de Transacciones (Idéntico a Cierre de Caja) */}
+          <div className="bg-white/95 rounded-xl border border-slate-200 shadow-inner p-3.5 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <Package size={14} className="text-slate-400" />
+                  <span>Desglose de Facturas con este Producto</span>
+                </span>
+                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 rounded-full">
+                  {productSummary.items.length} registro{productSummary.items.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Página {productPage} de {productTotalPages || 1}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px] text-slate-600">
+                <thead>
+                  <tr className="text-slate-400 font-bold uppercase border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-2.5 py-1.5">Hora / Emisión</th>
+                    <th className="px-2.5 py-1.5">Concepto / Documento</th>
+                    <th className="px-2.5 py-1.5">Cliente</th>
+                    <th className="px-2.5 py-1.5 text-center">Cant. × Precio</th>
+                    <th className="px-2.5 py-1.5 text-right">Monto Línea</th>
+                    <th className="px-2.5 py-1.5 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 font-medium">
+                  {paginatedProductItems.map((item, idx) => (
+                    <tr key={`${item.facturaId}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-2.5 py-2 text-slate-500 font-normal whitespace-nowrap">
+                        <div>
+                          <span className="font-semibold text-slate-700">
+                            {new Date(item.fechaEmision).toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">
+                            {new Date(item.fechaEmision).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-2">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 tabular-nums">
+                              Facturación POS ({item.correlativo})
+                            </span>
+                            <span className={`px-1.5 py-0.2 text-[9px] font-black uppercase rounded ${
+                              item.estado === 'EMITIDA' 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                : item.estado === 'ANULADA'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {item.estado}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-blue-700 font-bold truncate max-w-sm" title={item.descripcion}>
+                            🌸 {item.descripcion}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-2">
+                        <p className="font-semibold text-slate-800 truncate max-w-[180px]">{item.clienteNombre}</p>
+                        {item.clienteRtn && <p className="text-[10px] text-slate-400 font-mono">RTN: {item.clienteRtn}</p>}
+                      </td>
+                      <td className="px-2.5 py-2 text-center whitespace-nowrap font-mono text-[11px] text-slate-700">
+                        <span className="font-bold text-slate-900">{item.cantidad}</span> unid. × <span className="text-slate-500">{fmt(item.precioUnitario)}</span>
+                      </td>
+                      <td className="px-2.5 py-2 text-right whitespace-nowrap">
+                        <span className="text-emerald-700 font-black font-mono text-xs">
+                          + {fmt(item.totalLinea)}
+                        </span>
+                        <span className="block text-[9px] text-slate-400 font-medium">
+                          Fac: {fmt(item.totalFactura)}
+                        </span>
+                      </td>
+                      <td className="px-2.5 py-2 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          <Link
+                            href={`/facturas/ver/${item.facturaId}`}
+                            title="Ver Factura"
+                            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Eye size={15} />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const doc = allDocs.find(d => d.id === item.facturaId);
+                              if (doc) setDocToPrint(doc);
+                            }}
+                            title="Imprimir Factura"
+                            className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Printer size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Paginación del Desglose de Productos */}
+            {productTotalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px]">
+                <p className="text-slate-500 font-medium">
+                  Mostrando <span className="font-bold text-slate-700">{((productPage - 1) * itemsPerPageProduct) + 1}</span> a{' '}
+                  <span className="font-bold text-slate-700">
+                    {Math.min(productPage * itemsPerPageProduct, productSummary.items.length)}
+                  </span>{' '}
+                  de <span className="font-bold text-slate-700">{productSummary.items.length}</span> registros de este producto
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                    disabled={productPage === 1}
+                    className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold transition shadow-2xs cursor-pointer"
+                  >
+                    Anterior
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: productTotalPages }, (_, i) => i + 1).map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setProductPage(p)}
+                        className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold rounded-lg transition cursor-pointer ${
+                          productPage === p
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProductPage(p => Math.min(productTotalPages, p + 1))}
+                    disabled={productPage === productTotalPages}
+                    className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold transition shadow-2xs cursor-pointer"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 📱 VISTA MÓVIL EN CARDS (< md) */}
       <div className="block md:hidden p-2 space-y-2.5 flex-1 overflow-y-auto">
@@ -448,6 +776,19 @@ export default function DocumentListTable({ data, type }: Props) {
                   <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
                     Emisión: {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </p>
+                  {productSummary && doc.detalles && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {doc.detalles
+                        .filter(d => d.descripcion.toLowerCase().includes(productSummary.query.toLowerCase()))
+                        .slice(0, 2)
+                        .map((d, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200/80 px-1.5 py-0.5 rounded">
+                            <span>🌸</span>
+                            <span>{d.cantidad}x {d.descripcion.split('\n')[0].replace(/__METADATA__.*$/, '').trim()}</span>
+                          </span>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Monto Total</span>
@@ -590,6 +931,19 @@ export default function DocumentListTable({ data, type }: Props) {
                     )}
                   </div>
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
+                  {productSummary && doc.detalles && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {doc.detalles
+                        .filter(d => d.descripcion.toLowerCase().includes(productSummary.query.toLowerCase()))
+                        .slice(0, 2)
+                        .map((d, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/80 px-1.5 py-0.5 rounded-md">
+                            <span>🌸</span>
+                            <span>{d.cantidad}x {d.descripcion.split('\n')[0].replace(/__METADATA__.*$/, '').trim()}</span>
+                          </span>
+                        ))}
+                    </div>
+                  )}
                 </td>
                 <td className="p-4 align-middle whitespace-nowrap min-w-[160px]">
                   <p className="font-medium text-slate-700 text-base whitespace-nowrap leading-tight">

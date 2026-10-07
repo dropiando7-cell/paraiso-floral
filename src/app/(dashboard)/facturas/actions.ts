@@ -1438,6 +1438,99 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
     }
 }
 
+export async function buscarHistorialDocumentos(query: string, soloPropiosUserId?: string) {
+    try {
+        const organizationId = await getOrganizationId();
+        const q = query.trim();
+        if (!q || q.length < 2) return [];
+
+        const whereClause: any = {
+            organizationId,
+            correlativo: {
+                not: {
+                    startsWith: 'FAC-OCC'
+                }
+            },
+            OR: [
+                { correlativo: { contains: q, mode: 'insensitive' } },
+                { cliente: { nombre: { contains: q, mode: 'insensitive' } } },
+                { cliente: { rtn: { contains: q, mode: 'insensitive' } } },
+                { detalles: { some: { descripcion: { contains: q, mode: 'insensitive' } } } }
+            ]
+        };
+
+        if (soloPropiosUserId) {
+            whereClause.creadoPorId = soloPropiosUserId;
+        }
+
+        const docs = await prisma.factura.findMany({
+            where: whereClause,
+            select: {
+                id: true,
+                correlativo: true,
+                tipoDocumento: true,
+                estado: true,
+                fechaEmision: true,
+                fechaVencimiento: true,
+                terminosPago: true,
+                saldoPendiente: true,
+                estadoPago: true,
+                validezDias: true,
+                total: true,
+                metodoPago: true,
+                aliasVenta: true,
+                vendedorNombre: true,
+                transferenciaConfirmada: true,
+                cliente: {
+                    select: {
+                        nombre: true,
+                        rtn: true
+                    }
+                },
+                detalles: {
+                    select: {
+                        descripcion: true,
+                        cantidad: true,
+                        precioUnitario: true,
+                        totalLinea: true
+                    }
+                }
+            },
+            orderBy: { fechaEmision: 'desc' },
+            take: 200
+        });
+
+        return docs.map(doc => ({
+            id: doc.id,
+            correlativo: doc.correlativo,
+            tipoDocumento: doc.tipoDocumento,
+            estado: doc.estado,
+            fechaEmision: doc.fechaEmision.toISOString(),
+            fechaVencimiento: doc.fechaVencimiento ? doc.fechaVencimiento.toISOString() : null,
+            terminosPago: doc.terminosPago,
+            saldoPendiente: doc.saldoPendiente !== null ? Number(doc.saldoPendiente) : null,
+            estadoPago: doc.estadoPago,
+            validezDias: doc.validezDias,
+            clienteNombre: doc.cliente?.nombre || 'Desconocido',
+            clienteRtn: doc.cliente?.rtn || '',
+            total: Number(doc.total),
+            metodoPago: doc.metodoPago,
+            aliasVenta: doc.aliasVenta,
+            vendedorNombre: doc.vendedorNombre,
+            transferenciaConfirmada: doc.transferenciaConfirmada,
+            detalles: doc.detalles.map(d => ({
+               descripcion: d.descripcion,
+               cantidad: d.cantidad,
+               precioUnitario: Number(d.precioUnitario),
+               totalLinea: Number(d.totalLinea)
+            }))
+        }));
+    } catch (e) {
+        console.error("Error buscando en historial:", e);
+        return [];
+    }
+}
+
 // --- CONFIRMAR TRANSFERENCIA ---
 export async function confirmarTransferencia(id: string) {
     try {
