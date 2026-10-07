@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, FileSpreadsheet, FileText, Printer, Calendar, 
   Users, CreditCard, ShoppingBag, 
@@ -28,6 +29,11 @@ interface Props {
 export default function ReportesContablesModal({ isOpen, onClose, organizationName = 'Paraíso Floral' }: Props) {
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>('VENTAS_SAR');
   const [isPending, startTransition] = useTransition();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Presets de fecha
   const getInitialDates = () => {
@@ -143,7 +149,7 @@ export default function ReportesContablesModal({ isOpen, onClose, organizationNa
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const currentFiltros: ReporteFiltros = {
     fechaInicio,
@@ -208,8 +214,8 @@ export default function ReportesContablesModal({ isOpen, onClose, organizationNa
     return `L. ${Number(val || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-2 sm:p-4 print:hidden">
+  const modalContent = (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center animate-in fade-in p-2 sm:p-4 print:hidden">
       <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden">
         
         {/* Header */}
@@ -628,4 +634,6 @@ export default function ReportesContablesModal({ isOpen, onClose, organizationNa
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }
