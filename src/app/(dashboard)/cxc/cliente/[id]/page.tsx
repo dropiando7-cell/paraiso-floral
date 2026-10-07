@@ -1058,6 +1058,7 @@ ${publicUrl}
             ? {
                 ...data.cliente,
                 saldoTotal: data.resumen.saldoTotal,
+                facturas: data.facturas,
               }
             : null
         }

@@ -51,6 +51,35 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
   const bankDropdownRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [localFacturas, setLocalFacturas] = useState<any[] | null>(null);
+  const [loadingFacturas, setLoadingFacturas] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen && cliente) {
+      if (cliente.facturas) {
+        setLocalFacturas(cliente.facturas);
+      } else {
+        const fetchFacturas = async () => {
+          setLoadingFacturas(true);
+          try {
+            const res = await fetch(`/api/cxc/clientes/${cliente.id}`);
+            if (res.ok) {
+              const data = await res.json();
+              setLocalFacturas(data.facturas || []);
+            }
+          } catch (e) {
+            console.error('Error fetching facturas:', e);
+          } finally {
+            setLoadingFacturas(false);
+          }
+        };
+        fetchFacturas();
+      }
+    } else {
+      setLocalFacturas(null);
+      setFacturaSeleccionadaId('');
+    }
+  }, [isOpen, cliente]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -129,7 +158,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
     b.name.toLowerCase().includes(bankSearchQuery.toLowerCase())
   );
 
-  const facturasPendientes = cliente.facturas?.filter(f => f.saldoPendiente > 0) || [];
+  const facturasPendientes = localFacturas?.filter(f => f.saldoPendiente > 0) || [];
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
@@ -174,7 +203,9 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
           </div>
 
           {/* Selector de Factura Específica */}
-          {facturasPendientes.length > 0 && (
+          {loadingFacturas ? (
+            <div className="text-xs text-emerald-600 animate-pulse font-semibold">Cargando facturas pendientes...</div>
+          ) : facturasPendientes.length > 0 ? (
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                 <span>Aplicar a Factura Específica</span>
@@ -204,7 +235,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
 
           {/* Botones de Abono Rápido */}
           <div>
