@@ -29,6 +29,7 @@ import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface ClienteDetalle {
   cliente: {
@@ -1053,7 +1054,14 @@ ${publicUrl}
         isOpen={modalAbonoOpen}
         onClose={() => setModalAbonoOpen(false)}
         onSuccess={cargarEstadoCuenta}
-        cliente={data?.cliente as any}
+        cliente={
+          data?.cliente
+            ? {
+                ...data.cliente,
+                saldoTotal: data.resumen.saldoTotal,
+              }
+            : null
+        }
       />
 
       <ModalNotaCredito
