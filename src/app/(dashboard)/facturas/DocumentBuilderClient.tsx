@@ -746,7 +746,7 @@ function MobileDocumentForm({
   );
 }
 
-function MobilePrintPreviewModal({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
+function MobilePrintPreviewModal({ isOpen, onClose, onPrint, children }: { isOpen: boolean; onClose: () => void; onPrint?: () => void; children: React.ReactNode }) {
   if (!isOpen) return null;
 
   return (
@@ -760,8 +760,8 @@ function MobilePrintPreviewModal({ isOpen, onClose, children }: { isOpen: boolea
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => window.print()}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+            onClick={onPrint || (() => window.print())}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
           >
             <Printer size={14} /> Imprimir
           </button>
@@ -3510,6 +3510,78 @@ export default function DocumentBuilderClient({
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string, clienteNombre?: string} | null>(null);
+  const [showPrintChoiceModal, setShowPrintChoiceModal] = useState(false);
+  const [showTicketPreviewModal, setShowTicketPreviewModal] = useState(false);
+  const [directPrint, setDirectPrint] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDirectPrint(localStorage.getItem('pos_direct_print') === 'true');
+    }
+  }, []);
+
+  // Listener para presionar Enter e imprimir el ticket cuando el modal de preview esté abierto
+  useEffect(() => {
+    if (!showTicketPreviewModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.getElementById('btn-imprimir-ticket-builder') as HTMLButtonElement | null;
+        if (btn) btn.click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowTicketPreviewModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTicketPreviewModal]);
+
+  const handlePrintCarta = () => {
+    setShowPrintChoiceModal(false);
+    const docId = initialData?.id || reservedDocId;
+    if (searchParams.get('print') === 'ticket' && docId) {
+      window.open(`/facturas/ver/${docId}?print=true`, '_blank');
+      return;
+    }
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintTicket = async () => {
+    const docId = initialData?.id || reservedDocId;
+    if (!docId) {
+      toast.error('No se encontró el documento para imprimir ticket');
+      return;
+    }
+
+    if (directPrint) {
+      try {
+        const toastId = toast.loading('Enviando a cola de tickets...');
+        const res = await fetch('/api/impresion/tickets/encolar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          toast.success('Ticket enviado exitosamente', { id: toastId });
+          setShowPrintChoiceModal(false);
+        } else {
+          toast.error(data.error || 'Error al encolar ticket', { id: toastId });
+          window.open(`/facturas/ver/${docId}?print=ticket`, '_blank');
+          setShowPrintChoiceModal(false);
+        }
+      } catch (e) {
+        window.open(`/facturas/ver/${docId}?print=ticket`, '_blank');
+        setShowPrintChoiceModal(false);
+      }
+    } else {
+      setShowPrintChoiceModal(false);
+      setShowTicketPreviewModal(true);
+    }
+  };
 
   // Auto-print if requested via query param
   useEffect(() => {
@@ -4811,10 +4883,10 @@ export default function DocumentBuilderClient({
               <LayoutGrid size={15} /> Más Acciones
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={() => setShowPrintChoiceModal(true)}
               disabled={!viewMode}
               title={!viewMode ? "Debe guardar el documento primero" : "Imprimir Documento"}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${!viewMode ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed opacity-70' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${!viewMode ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed opacity-70' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer'}`}
             >
               <Printer size={15} /> Imprimir
             </button>
@@ -7004,6 +7076,195 @@ export default function DocumentBuilderClient({
         />
       )}
 
+      {/* Modal Selección de Impresión: Carta o Ticket */}
+      {showPrintChoiceModal && (
+        <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 print:hidden animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 text-center flex flex-col items-center relative overflow-hidden">
+             <button
+               type="button"
+               onClick={() => setShowPrintChoiceModal(false)}
+               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+             >
+               <X size={18} />
+             </button>
+
+             <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-1 ring-8 ring-blue-50/50 shadow-inner">
+               <Printer size={28} className="stroke-[2.2]" />
+             </div>
+             <div className="space-y-1">
+               <h3 className="font-black text-slate-900 text-xl tracking-tight">Opciones de Impresión</h3>
+               <p className="text-xs text-slate-500 font-medium">¿Cómo deseas imprimir el documento <span className="font-mono text-slate-800 font-bold">{docNumber || initialData?.correlativo || ''}</span>?</p>
+             </div>
+             
+             <div className="grid grid-cols-2 gap-4 w-full mt-2">
+               {/* Opción Carta */}
+               <button
+                 type="button"
+                 onClick={handlePrintCarta}
+                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-blue-50 to-blue-100/70 hover:from-blue-100 hover:to-blue-200/90 border border-blue-200 border-b-[5px] border-b-blue-500 hover:border-b-blue-600 rounded-2xl text-blue-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 title="Imprimir formato Carta"
+               >
+                 <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                   <Printer size={22} className="stroke-[2.2]" />
+                 </div>
+                 <div className="flex flex-col items-center leading-tight">
+                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Carta</span>
+                   <span className="text-[11px] font-bold text-blue-600 mt-0.5">Factura Tamaño Carta</span>
+                 </div>
+               </button>
+               
+               {/* Opción Ticket */}
+               <button
+                 type="button"
+                 onClick={handlePrintTicket}
+                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-teal-50 to-teal-100/70 hover:from-teal-100 hover:to-teal-200/90 border border-teal-200 border-b-[5px] border-b-teal-500 hover:border-b-teal-600 rounded-2xl text-teal-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 title="Imprimir ticket térmico POS"
+               >
+                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
+                   <Receipt size={22} className="stroke-[2.2]" />
+                 </div>
+                 <div className="flex flex-col items-center leading-tight">
+                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Ticket</span>
+                   <span className="text-[11px] font-bold text-teal-600 mt-0.5">{directPrint ? 'Impresión Directa' : 'Ticket Térmico'}</span>
+                 </div>
+               </button>
+             </div>
+             
+             <button
+                type="button"
+                onClick={() => setShowPrintChoiceModal(false)}
+                className="mt-3 py-3 px-6 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 text-xs font-black rounded-2xl w-full active:translate-y-[3px] active:border-b-[1px] transition-all cursor-pointer shadow-xs select-none"
+             >
+                Cancelar
+             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Preview Ticket */}
+      {showTicketPreviewModal && (
+        <div className="fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center p-4 print:hidden animate-in fade-in">
+          <div className="bg-white rounded-2xl w-[380px] flex flex-col shadow-2xl overflow-hidden max-h-[90vh] border border-slate-100">
+             <div className="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-100">
+               <div className="flex items-center gap-2 text-slate-800 font-bold">
+                 <Receipt size={18} className="text-emerald-500" />
+                 <span>Vista Previa del Ticket</span>
+               </div>
+               <button onClick={() => setShowTicketPreviewModal(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors cursor-pointer">
+                 <X size={20}/>
+               </button>
+             </div>
+             
+             <div className="flex-1 overflow-auto bg-slate-100 p-4 flex justify-center">
+                <div className="bg-white shadow-sm border border-slate-200 font-mono text-[11px] leading-tight text-black p-4" style={{ width: '80mm', minHeight: '100px' }}>
+                     <div className="text-center font-bold text-sm mb-2 uppercase">{organization?.name || 'Distribuidora Paraíso Floral, S. de R.L.'}</div>
+                     <div className="text-center mb-4 uppercase">
+                         RTN: {organization?.rtn || '05019023491749'}<br/>
+                         {organization?.direccion || '8 Calle, 9 Avenida NO, Barrio Guamilito,'}<br/>
+                         San Pedro Sula, Cortés<br/>
+                         {organization?.telefono && <>Tel: {organization.telefono}<br/></>}
+                     </div>
+                     <div className="mb-2 uppercase">
+                         FACTURA NO: {docNumber || initialData?.correlativo}<br/>
+                         FECHA: {resolvedFechaEmision ? new Date(resolvedFechaEmision).toLocaleString('es-HN') : (today || new Date().toLocaleString('es-HN'))}<br/>
+                         CAI: {initialData?.cai || (initialData as any)?.numeroCAI || (settings as any)?.cai || 'N/A'}<br/>
+                         CLIENTE: {selectedClient?.name || initialData?.clienteNombre || (initialData as any)?.cliente?.nombre || 'CONSUMIDOR FINAL'}<br/>
+                         {(selectedClient?.rtn || initialData?.clienteRtn || (initialData as any)?.cliente?.rtn) && (
+                           <>RTN CLIENTE: {selectedClient?.rtn || initialData?.clienteRtn || (initialData as any)?.cliente?.rtn}<br/></>
+                         )}
+                     </div>
+                     <div className="border-t border-b border-dashed border-black py-2 mb-2 uppercase">
+                         <div className="flex justify-between font-bold mb-1">
+                             <span>CANT DESCRIPCION</span>
+                             <span>TOTAL</span>
+                         </div>
+                         {lineItems.map((item, i) => {
+                             let n = item.shortDesc || (item as any).nombre || '';
+                             n = n.split('\n')[0];
+                             if (n.includes('Producto registrado')) n = n.split('Producto registrado')[0];
+                             const calc = calcLine(item, settings?.pricesIncludeTax);
+                             const qtyNum = Number(item.qty || 0);
+                             return (
+                                 <div key={i} className="mb-1 flex justify-between">
+                                     <span className="pr-2 w-[70%]">{qtyNum} <span className="pl-1">{n.trim()}</span></span>
+                                     <span className="w-[30%] text-right">L {Number(calc.total || 0).toFixed(2)}</span>
+                                 </div>
+                             );
+                         })}
+                     </div>
+                     <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
+                         <div className="flex justify-between w-[70%]">
+                             <span>SUBTOTAL:</span>
+                             <span>L {Number(totals.subtotal || (initialData as any)?.subTotal || 0).toFixed(2)}</span>
+                         </div>
+                         <div className="flex justify-between w-[70%]">
+                             <span>IMPUESTO:</span>
+                             <span>L {Number((totals.isv15 + totals.isv18) || (initialData as any)?.totalImpuesto || 0).toFixed(2)}</span>
+                         </div>
+                         <div className="flex justify-between w-[70%] font-bold text-base mt-2">
+                             <span>TOTAL:</span>
+                             <span>L {Number(totals.total || initialData?.total || 0).toFixed(2)}</span>
+                         </div>
+                     </div>
+                     <div className="text-center">
+                         *** GRACIAS POR SU COMPRA ***<br/>
+                         <span className="text-[9px]">Desarrollado por Soluciones Tecnológicas HN<br/>+504 94897451</span>
+                     </div>
+                  </div>
+               </div>
+
+             <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-2">
+                <button
+                  id="btn-imprimir-ticket-builder"
+                  autoFocus
+                  onClick={async () => {
+                    const docId = initialData?.id || reservedDocId;
+                    if (!docId) {
+                      toast.error('No se encontró el documento para imprimir');
+                      return;
+                    }
+                    try {
+                        const toastId = toast.loading('Enviando a cola de tickets...');
+                        const res = await fetch('/api/impresion/tickets/encolar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ docId })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            toast.success('Ticket enviado exitosamente', { id: toastId });
+                            setShowTicketPreviewModal(false);
+                        } else {
+                            toast.error(data.error || 'Error al encolar ticket', { id: toastId });
+                        }
+                    } catch (e) {
+                        toast.error('Error de red al imprimir');
+                    }
+                  }}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-colors focus:ring-4 focus:ring-emerald-300 cursor-pointer"
+                >
+                  <Printer size={18} />
+                  <span>Imprimir Ticket Ahora (Enter)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const docId = initialData?.id || reservedDocId;
+                    if (docId) {
+                      window.open(`/facturas/ver/${docId}?print=ticket`, '_blank');
+                    }
+                    setShowTicketPreviewModal(false);
+                  }}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Receipt size={14} />
+                  <span>Imprimir con Diálogo del Navegador</span>
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
       {showConvertModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
           <div className="bg-white rounded-[2rem] p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col">
@@ -7570,6 +7831,7 @@ export default function DocumentBuilderClient({
       <MobilePrintPreviewModal
         isOpen={showMobilePreviewModal}
         onClose={() => setShowMobilePreviewModal(false)}
+        onPrint={() => setShowPrintChoiceModal(true)}
       >
         <div className="relative bg-white min-h-[600px] p-2 sm:p-4">
           {isAnulada && (
