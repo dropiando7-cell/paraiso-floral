@@ -54,6 +54,15 @@ export async function POST(request: Request) {
     });
     const correlativo = `AB-${String(countPagos + 1).padStart(5, '0')}`;
 
+    // Buscar sesión activa de caja para este abono
+    const activeSession = await prisma.corteCajaSession.findFirst({
+      where: {
+        organizationId: orgId,
+        estado: 'ABIERTA'
+      },
+      select: { id: true }
+    });
+
     // Crear el registro del Pago
     const nuevoPago = await prisma.pagoCliente.create({
       data: {
@@ -66,7 +75,8 @@ export async function POST(request: Request) {
         referencia,
         notas,
         comprobanteUrl,
-        creadoPorId: dbUser.id
+        creadoPorId: dbUser.id,
+        cajaSessionId: activeSession?.id
       }
     });
 

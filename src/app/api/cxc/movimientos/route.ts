@@ -323,6 +323,14 @@ export async function POST(request: Request) {
       const correlativo = documento || `AB-${String(count + 1).padStart(5, '0')}`;
       const metodo = tipo === 'PAGO_EFECTIVO' ? 'EFECTIVO' : (tipo === 'TRANSFERENCIA' ? 'TRANSFERENCIA' : 'EFECTIVO');
 
+      const activeSession = await prisma.corteCajaSession.findFirst({
+        where: {
+          organizationId: orgId,
+          estado: 'ABIERTA'
+        },
+        select: { id: true }
+      });
+
       const pago = await prisma.pagoCliente.create({
         data: {
           organizationId: orgId,
@@ -334,7 +342,8 @@ export async function POST(request: Request) {
           banco: banco || null,
           referencia: referencia || null,
           notas: detalles || null,
-          creadoPorId: dbUser.id
+          creadoPorId: dbUser.id,
+          cajaSessionId: activeSession?.id
         }
       });
 

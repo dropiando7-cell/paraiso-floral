@@ -41,7 +41,7 @@ TIEMPO_ESPERA_INACTIVO = 3.0  # 3s cuando la cola está vacía
 # Dimensiones y coordenadas de lienzo (en px)
 TAMANOS = {
     "50x25": {
-        "ANCHO_FIJO": 399,
+        "ANCHO_FIJO": 400,
         "ALTO_MAXIMO": 198,
         "QR_SIZE": 85,
         "QR_X": 302,
@@ -58,7 +58,7 @@ TAMANOS = {
         "BC_TEXT_Y": 170,
     },
     "50x30": {
-        "ANCHO_FIJO": 399,
+        "ANCHO_FIJO": 400,
         "ALTO_MAXIMO": 240,
         "QR_SIZE": 90,
         "QR_X": 298,
@@ -75,7 +75,7 @@ TAMANOS = {
         "BC_TEXT_Y": 210,
     },
     "50x33": {
-        "ANCHO_FIJO": 399,
+        "ANCHO_FIJO": 400,
         "ALTO_MAXIMO": 245,
         "QR_SIZE": 90,
         "QR_X": 298,
@@ -92,7 +92,7 @@ TAMANOS = {
         "BC_TEXT_Y": 214,
     },
     "70x40": {
-        "ANCHO_FIJO": 559,
+        "ANCHO_FIJO": 560,
         "ALTO_MAXIMO": 310,
         "QR_SIZE": 100,
         "QR_X": 440,
@@ -218,9 +218,13 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
 
     is_70 = (size_name == "70x40")
 
+    # --- DESPLAZAMIENTO GLOBAL ---
+    OFFSET_X = 12
+
     # 1. ID QR
     fuente_id = obtener_fuente(cfg['ID_SIZE'])
-    draw.text((cfg['ID_X'], cfg['ID_Y']), id_qr, fill="black", font=fuente_id)
+    draw.text((cfg['ID_X'] + OFFSET_X, cfg['ID_Y']), id_qr, fill="black", font=fuente_id)
+    draw.text((cfg['ID_X'] + OFFSET_X + 1, cfg['ID_Y']), id_qr, fill="black", font=fuente_id) # Bold
 
     # 2. QR Code
     qr_url = f"{HOST}/f/{id_qr}"
@@ -229,7 +233,7 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     qr.make(fit=True)
     img_qr = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     img_qr = img_qr.resize((cfg['QR_SIZE'], cfg['QR_SIZE']), Image.NEAREST)
-    img.paste(img_qr, (cfg['QR_X'], cfg['QR_Y']))
+    img.paste(img_qr, (cfg['QR_X'] + OFFSET_X, cfg['QR_Y']))
 
     # 3. Descripción de la flor
     font_size_desc, lineas = calcular_tamano_optimo(descripcion, cfg['TEXT_MAX_W'], is_70=is_70)
@@ -238,7 +242,8 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     y_curr = cfg['DESC_Y']
     line_h = font_size_desc + 3
     for linea in lineas[:2]:
-        draw.text((cfg['ID_X'], y_curr), linea, fill="black", font=fuente_desc)
+        draw.text((cfg['ID_X'] + OFFSET_X, y_curr), linea, fill="black", font=fuente_desc)
+        draw.text((cfg['ID_X'] + OFFSET_X + 1, y_curr), linea, fill="black", font=fuente_desc) # Bold
         y_curr += line_h
 
     # 4. Código de Barras 1D Code128
@@ -264,7 +269,7 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     alto_bar = cfg['BC_HEIGHT']
     img_barcode = img_barcode.resize((ancho_bar, alto_bar), Image.NEAREST)
 
-    x_bar = (W - ancho_bar) // 2
+    x_bar = (W - ancho_bar) // 2 + OFFSET_X
     y_bar = cfg['BC_Y']
     img.paste(img_barcode, (x_bar, y_bar))
 
@@ -276,16 +281,17 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     except:
         w_texto = len(texto_bar) * 8.5
 
-    x_texto = (W - w_texto) // 2
+    x_texto = int((W - w_texto) // 2) + OFFSET_X
     y_texto = cfg['BC_TEXT_Y']
     draw.text((x_texto, y_texto), texto_bar, fill="black", font=fuente_bar)
+    draw.text((x_texto + 1, y_texto), texto_bar, fill="black", font=fuente_bar) # Bold
 
     # Convertir a Blanco y Negro de alto contraste para térmica
     img_gris = img.convert("L")
     img_final = img_gris.point(lambda x: 0 if x < 190 else 255, "1")
     return img_final
 
-def generar_tspl_raw(img, size_name="50x25"):
+def generar_tspl_raw(img, size_name="50x25", copias=1):
     """
     Convierte la imagen procesada de la etiqueta en comandos nativos binarios TSPL
     para impresoras térmicas (Vorttek, Niimbot, TSC, Xprinter, etc.)
@@ -301,8 +307,9 @@ def generar_tspl_raw(img, size_name="50x25"):
     w_px, h_px = img_mono.size
     w_bytes = (w_px + 7) // 8
 
-    # Inversión de bits para impresoras térmicas TSPL (0x00 PIL negro -> 0xFF TSPL encendido térmico)
-    tspl_bitmap = bytearray(b ^ 0xFF for b in img_mono.tobytes())
+    # Generar bitmap. Si la impresora saca el fondo negro y letras blancas, no se deben invertir los bits (o viceversa).
+    # Como estaba imprimiendo en negativo con b ^ 0xFF, ahora pasamos los bytes directos.
+    tspl_bitmap = bytearray(img_mono.tobytes())
 
     tspl = bytearray()
     tspl.extend(f"SIZE {w_mm} mm, {h_mm} mm\r\n".encode("latin1"))
@@ -310,10 +317,11 @@ def generar_tspl_raw(img, size_name="50x25"):
     tspl.extend(b"CLS\r\n")
     tspl.extend(f"BITMAP 0,0,{w_bytes},{h_px},0,".encode("latin1"))
     tspl.extend(tspl_bitmap)
-    tspl.extend(b"\r\nPRINT 1,1\r\n")
+    tspl.extend(f"\r\nPRINT 1,{copias}\r\n".encode("latin1"))
     return tspl
 
-def imprimir_etiqueta_macos(url_imagen, tamano_solicitado=None, datos_activo=None, impresora_solicitada=None):
+def generar_datos_impresion_macos(url_imagen, tamano_solicitado=None, datos_activo=None, impresora_solicitada=None, copias=1):
+    """Retorna (tspl_data, matched_printer) o (None, None) en caso de error"""
     try:
         parsed_url = urllib.parse.urlparse(url_imagen)
         query_params = urllib.parse.parse_qs(parsed_url.query)
@@ -364,11 +372,10 @@ def imprimir_etiqueta_macos(url_imagen, tamano_solicitado=None, datos_activo=Non
             img_gris = img_scaled.convert("L")
             img_final = img_gris.point(lambda x: 0 if x < 190 else 255, "1")
 
-        # 3. Guardar comando TSPL binario para envío directo a la impresora térmica
-        tspl_data = generar_tspl_raw(img_final, size_name=size_param)
-        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as tmp:
-            tmp_filename = tmp.name
-            tmp.write(tspl_data)
+        # 3. Guardar comando TSPL binario
+        # Rotar la imagen 180 grados para que salga orientada hacia arriba y sea fácil de leer sin rotar la cabeza
+        img_final = img_final.rotate(180)
+        tspl_data = generar_tspl_raw(img_final, size_name=size_param, copias=copias)
 
         # 4. Determinar impresora de destino en macOS CUPS
         detalles = obtener_impresoras_macos_detalles()
@@ -391,38 +398,51 @@ def imprimir_etiqueta_macos(url_imagen, tamano_solicitado=None, datos_activo=Non
                 if any(k in comb for k in ["etiqueta", "tally", "dascom", "dl_210", "vorttek", "niimbot", "tsc"]):
                     matched_printer = q_name
                     break
+        
+        if not matched_printer and detalles:
+            matched_printer = detalles[0][0]
+
+        return tspl_data, matched_printer
+
+    except Exception as e:
+        print(f"[-] Error durante generación de etiqueta: {e}")
+        return None, None
+
+def enviar_tspl_lpr(tspl_data, printer_name):
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as tmp:
+            tmp_filename = tmp.name
+            tmp.write(tspl_data)
 
         cmd = ["lpr", "-o", "raw"]
-        if matched_printer:
-            cmd.extend(["-P", matched_printer])
-            print(f"[*] Enviando etiqueta binaria TSPL a la impresora en macOS: '{matched_printer}'")
+        if printer_name:
+            cmd.extend(["-P", printer_name])
+            print(f"[*] Enviando lote binario TSPL a la impresora macOS: '{printer_name}'")
         else:
-            print(f"[*] Enviando etiqueta binaria TSPL a impresora predeterminada de macOS...")
+            print(f"[*] Enviando lote binario TSPL a impresora predeterminada de macOS...")
 
         cmd.append(tmp_filename)
-
         res = subprocess.run(cmd, capture_output=True, text=True)
 
-        # Limpiar archivo temporal
         try:
             os.remove(tmp_filename)
         except:
             pass
 
         if res.returncode == 0:
-            print(f"[+] ¡Impresión enviada con éxito a CUPS/macOS!")
+            print(f"[+] ¡Lote de impresión enviado con éxito a CUPS!")
             return True
         else:
             print(f"[-] Error enviando impresión vía lpr: {res.stderr}")
             return False
-
     except Exception as e:
-        print(f"[-] Error durante el proceso de impresión: {e}")
+        print(f"[-] Error crítico en lpr: {e}")
         return False
 
 def iniciar():
     print("\n========================================================")
     print("      SERVIDOR DE IMPRESIÓN MACOS - PARAÍSO FLORAL      ")
+    print("                 (Lotes Ultrarrápidos)                  ")
     print(f" ERP URL          : {HOST}")
     print(f" Impresora Target : {IMPRESORA_PREDETERMINADA or 'Auto-detectar / Sistema Predeterminada'}")
     print(f" Impresoras macOS : {', '.join(obtener_impresoras_macos()) or 'Ninguna detectada'}")
@@ -445,24 +465,55 @@ def iniciar():
                 trabajos = res.json().get('trabajos', [])
                 if trabajos:
                     print(f"\n[+] Se encontraron {len(trabajos)} trabajos pendientes...")
-                    for trabajo in trabajos:
-                        id_trabajo = trabajo['id']
-                        url_img = trabajo.get('urlImagen') or trabajo.get('url_imagen')
-                        tam_req = trabajo.get('tamano') or trabajo.get('size')
-                        imp_req = trabajo.get('impresora')
-                        activo_data = trabajo.get('activo')
+                    
+                    # Agrupar trabajos por urlImagen para procesarlos juntos (PRINT 1, copias)
+                    grupos_por_url = {}
+                    for t in trabajos:
+                        url_img = t.get('urlImagen') or t.get('url_imagen')
+                        if not url_img: continue
+                        if url_img not in grupos_por_url:
+                            grupos_por_url[url_img] = []
+                        grupos_por_url[url_img].append(t)
+                    
+                    # Agrupar datos TSPL generados por impresora destino
+                    lotes_por_impresora = {}
 
-                        print(f"\n[+] --> PROCESANDO TRABAJO ID #{id_trabajo}")
-                        if not url_img:
-                            print("[-] Error: Trabajo sin URL de imagen.")
-                            continue
-
-                        if imprimir_etiqueta_macos(url_img, tam_req, activo_data, imp_req):
-                            requests.post(API_COMPLETAR, json={"id": id_trabajo})
-                            print(f"[+] Trabajo #{id_trabajo} COMPLETADO exitosamente.")
+                    for url_img, jobs in grupos_por_url.items():
+                        primer = jobs[0]
+                        copias = len(jobs)
+                        id_trabajo = primer['id']
+                        tam_req = primer.get('tamano') or primer.get('size')
+                        imp_req = primer.get('impresora')
+                        activo_data = primer.get('activo')
+                        
+                        print(f"[*] Procesando imagen para lote de {copias} copias (Ref: #{id_trabajo})...")
+                        tspl_data, matched_printer = generar_datos_impresion_macos(url_img, tam_req, activo_data, imp_req, copias)
+                        
+                        if tspl_data:
+                            prn = matched_printer or "default"
+                            if prn not in lotes_por_impresora:
+                                lotes_por_impresora[prn] = {"tspl": bytearray(), "jobs": []}
+                            lotes_por_impresora[prn]["tspl"].extend(tspl_data)
+                            lotes_por_impresora[prn]["jobs"].extend(jobs)
                         else:
-                            requests.post(API_COMPLETAR, json={"id": id_trabajo, "error": True})
-                            print(f"[-] Trabajo #{id_trabajo} marcado como fallido.")
+                            # Marcar como error si falló la generación
+                            for j in jobs:
+                                requests.post(API_COMPLETAR, json={"id": j['id'], "error": True})
+                            print(f"[-] Error al procesar imagen para {copias} copias.")
+
+                    # Enviar cada lote consolidado a su impresora correspondiente (Un solo lpr call por impresora!)
+                    for prn, lote in lotes_por_impresora.items():
+                        printer_name = None if prn == "default" else prn
+                        success = enviar_tspl_lpr(lote["tspl"], printer_name)
+                        
+                        if success:
+                            for j in lote["jobs"]:
+                                requests.post(API_COMPLETAR, json={"id": j['id']})
+                            print(f"[+] Lote enviado a la impresora y {len(lote['jobs'])} trabajos marcados como completados.")
+                        else:
+                            for j in lote["jobs"]:
+                                requests.post(API_COMPLETAR, json={"id": j['id'], "error": True})
+                            print(f"[-] Error enviando lote a la impresora. {len(lote['jobs'])} trabajos marcados con error.")
 
                     tiempo_espera = TIEMPO_ESPERA_ACTIVO
 

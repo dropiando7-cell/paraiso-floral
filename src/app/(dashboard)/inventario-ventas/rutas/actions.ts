@@ -689,6 +689,14 @@ export async function registrarAbonoCxC(rutaId: string, data: {
   try {
     const user = await getUserOrg();
     if (user) {
+      const activeSession = await prisma.corteCajaSession.findFirst({
+        where: {
+          organizationId: user.organizationId,
+          estado: 'ABIERTA'
+        },
+        select: { id: true }
+      });
+
       await prisma.pagoCliente.create({
         data: {
           organizationId: user.organizationId,
@@ -697,7 +705,8 @@ export async function registrarAbonoCxC(rutaId: string, data: {
           metodoPago: data.formaPago,
           referencia: data.referencia || `ABONO-RUT-${rutaId.slice(0, 6)}`,
           fecha: new Date(),
-          notas: `Cobrado por ${ruta.conductorNombre} en ruta ${ruta.rutaNombre}`
+          notas: `Cobrado por ${ruta.conductorNombre} en ruta ${ruta.rutaNombre}`,
+          cajaSessionId: activeSession?.id
         }
       });
     }

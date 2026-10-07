@@ -1118,6 +1118,7 @@ model CorteCajaSession {
   rentasPagos        RentaPago[]
   ordenesTrabajo     OrdenTrabajo[]
   movimientos        CorteCajaMovimiento[]
+  pagosCliente       PagoCliente[]
   
   @@map("cortes_caja_sessions")
 }
@@ -1653,12 +1654,14 @@ model PagoCliente {
   anulado        Boolean              @default(false)
   anuladoAt      DateTime?
   creadoPorId    String?              @db.Uuid
+  cajaSessionId  String?              @db.Uuid
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cliente        Cliente              @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   creadoPor      User?                @relation("PagoClienteCreado", fields: [creadoPorId], references: [id])
+  cajaSession    CorteCajaSession?    @relation(fields: [cajaSessionId], references: [id])
   detalles       PagoDetalleFactura[]
 
   @@index([organizationId])

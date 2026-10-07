@@ -151,7 +151,8 @@ export async function getActiveCajaSession() {
                 modificadoPor: true,
                 facturas: true,
                 rentasPagos: true,
-                ordenesTrabajo: true
+                ordenesTrabajo: true,
+                pagosCliente: true
             }
         });
         
@@ -259,6 +260,17 @@ export async function abrirCaja(saldoInicial: number) {
         }
     });
 
+    await prisma.pagoCliente.updateMany({
+        where: {
+            organizationId: user.organizationId,
+            cajaSessionId: null,
+            fecha: { gte: startOfTodayUtc }
+        },
+        data: {
+            cajaSessionId: nuevaSesion.id
+        }
+    });
+
     revalidatePath('/cierre-caja');
     revalidatePath('/facturas/pos');
 
@@ -356,6 +368,11 @@ export async function getCajaSessionSummary(sessionId: string) {
                 orderBy: {
                     createdAt: 'desc'
                 }
+            },
+            pagosCliente: {
+                include: {
+                    cliente: true
+                }
             }
         }
     });
@@ -370,6 +387,7 @@ export async function getCajaSessionSummary(sessionId: string) {
         ventas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         rentas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         soporte: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
+        abonos: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         egresos: 0
     };
 
@@ -435,14 +453,29 @@ export async function getCajaSessionSummary(sessionId: string) {
         }
     });
 
+    // Classify PagosCliente (Abonos Cuentas por Cobrar)
+    session.pagosCliente.forEach(p => {
+        if (p.anulado) return;
+        let metodo = p.metodoPago || 'Efectivo';
+        if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
+        const total = Number(p.monto);
+        if (summary.abonos[metodo] !== undefined) {
+            summary.abonos[metodo] += total;
+        } else {
+            summary.abonos[metodo] = total;
+        }
+    });
+
     const totalVentas = Object.values(summary.ventas).reduce((sum, v) => sum + v, 0);
     const totalRentas = Object.values(summary.rentas).reduce((sum, r) => sum + r, 0);
     const totalSoporte = Object.values(summary.soporte).reduce((sum, s) => sum + s, 0);
+    const totalAbonos = Object.values(summary.abonos).reduce((sum, a) => sum + a, 0);
 
     const saldoInicial = Number(session.saldoInicial);
     const ventasEfectivo = summary.ventas['Efectivo'] || 0;
     const rentasEfectivo = summary.rentas['Efectivo'] || 0;
     const soporteEfectivo = summary.soporte['Efectivo'] || 0;
+    const abonosEfectivo = summary.abonos['Efectivo'] || 0;
 
     let ingresosMovimientosEfectivo = 0;
     let egresosMovimientosEfectivo = 0;
@@ -460,7 +493,7 @@ export async function getCajaSessionSummary(sessionId: string) {
     });
 
     // Expected cash in register (adjusted for bank drops/withdrawals)
-    const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo + ingresosMovimientosEfectivo - egresosMovimientosEfectivo;
+    const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo + abonosEfectivo + ingresosMovimientosEfectivo - egresosMovimientosEfectivo;
 
     const serializedSession = {
         id: session.id,
@@ -532,6 +565,15 @@ export async function getCajaSessionSummary(sessionId: string) {
             anuladaAt: m.anuladaAt ? m.anuladaAt.toISOString() : null,
             creadoPor: m.creadoPor ? { nombre: m.creadoPor.nombre, email: m.creadoPor.email } : null,
             anuladaPor: m.anuladaPor ? { nombre: m.anuladaPor.nombre, email: m.anuladaPor.email } : null
+        })),
+        pagosCliente: session.pagosCliente.map(p => ({
+            id: p.id,
+            monto: Number(p.monto),
+            metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago,
+            fecha: p.fecha.toISOString(),
+            clienteNombre: p.cliente?.nombre || 'Cliente General',
+            notas: p.notas || '',
+            anulado: p.anulado
         }))
     };
 
@@ -546,8 +588,9 @@ export async function getCajaSessionSummary(sessionId: string) {
             ventasEfectivo,
             rentasEfectivo,
             soporteEfectivo,
+            abonosEfectivo,
             esperadoEfectivo,
-            totalIngresos: totalVentas + totalRentas + totalSoporte
+            totalIngresos: totalVentas + totalRentas + totalSoporte + totalAbonos
         }
     };
 }
