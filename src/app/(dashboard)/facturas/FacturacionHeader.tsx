@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
-import { LayoutDashboard, PlusCircle, CheckCircle2, Receipt, FileText, ArrowLeft, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, PlusCircle, CheckCircle2, Receipt, FileText, ArrowLeft, Zap, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BandejaPedidosCediModal from '@/components/facturacion/BandejaPedidosCediModal';
+import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 
 interface Props {
   activeTab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'ver' | 'editar';
@@ -14,6 +15,7 @@ interface Props {
 
 export default function FacturacionHeader(props: Props) {
   const router = useRouter();
+  const [showReportesModal, setShowReportesModal] = useState(false);
   
   const handleVolver = () => {
     if (typeof window !== 'undefined' && document.referrer.includes(window.location.host)) {
@@ -130,6 +132,18 @@ export default function FacturacionHeader(props: Props) {
                 )
               )}
 
+              {/* Botón de Reportes para Contabilidad */}
+              <button
+                type="button"
+                onClick={() => setShowReportesModal(true)}
+                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-2xs hover:shadow-xs transition-all group shrink-0 cursor-pointer"
+                title="Generar Reportes para Contabilidad y SAR (Excel / PDF)"
+              >
+                <FileSpreadsheet size={15} className="text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline">Reportes Contables</span>
+                <span className="sm:hidden">Reportes</span>
+              </button>
+
               <BandejaPedidosCediModal onSelectPedido={(pedido) => router.push(`/facturas/pos?cargarPedido=${pedido.id}`)} />
 
               <Link 
@@ -146,6 +160,12 @@ export default function FacturacionHeader(props: Props) {
         </div>
 
       </div>
+
+      {/* Modal interactivo de Reportes Contables */}
+      <ReportesContablesModal
+        isOpen={showReportesModal}
+        onClose={() => setShowReportesModal(false)}
+      />
     </div>
   );
 }
