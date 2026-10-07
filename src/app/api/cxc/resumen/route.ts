@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       dbUser.puedeVerTodasCxC === true ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('ADMIN')) ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('GERENTE')) ||
+      Boolean(dbUser.customRoleName?.toUpperCase().includes('GERENCIA')) ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('DUEÑ')) ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('PROPIETARIO')) ||
       dbUser.email === 'dropiando7@gmail.com' ||
