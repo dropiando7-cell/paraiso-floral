@@ -479,6 +479,19 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                 });
             });
 
+        // Add payments to CxC (Abonos)
+        const pagosCliente = session.pagosCliente || [];
+        pagosCliente.filter((p: any) => p.metodoPago === metodo && !p.anulado)
+            .forEach((p: any) => {
+                txList.push({
+                    id: p.id,
+                    fechaStr: p.fecha,
+                    concepto: `Abono CxC (${p.correlativo || 'PAGO'})`,
+                    cliente: p.cliente?.nombre || 'Cliente General',
+                    monto: p.monto
+                });
+            });
+
         // Sort by date descending
         return txList.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
     };
@@ -787,6 +800,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                 <tr>
                                                     <th className="px-6 py-3">Método de Pago</th>
                                                     <th className="px-6 py-3 text-right">Ventas POS / Facturación</th>
+                                                    <th className="px-6 py-3 text-right">Abonos CxC</th>
                                                     <th className="px-6 py-3 text-right">Cobros de Rentas</th>
                                                     <th className="px-6 py-3 text-right">Cobros de Soporte</th>
                                                     <th className="px-6 py-3 text-right">Total Acumulado</th>
@@ -795,9 +809,10 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                             <tbody className="divide-y divide-slate-100 font-medium">
                                                 {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'].map((metodo) => {
                                                     const v = summaryData?.summary?.ventas?.[metodo] || 0;
+                                                    const a = summaryData?.summary?.abonos?.[metodo] || 0;
                                                     const r = summaryData?.summary?.rentas?.[metodo] || 0;
                                                     const s = summaryData?.summary?.soporte?.[metodo] || 0;
-                                                    const total = v + r + s;
+                                                    const total = v + a + r + s;
                                                     const isExpanded = !!expandedMethods[metodo];
                                                     return (
                                                         <React.Fragment key={metodo}>
@@ -812,17 +827,19 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(v)}</td>
+                                                                <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(a)}</td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(r)}</td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(s)}</td>
                                                                 <td className={`px-6 py-3.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/40' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
                                                             </tr>
-                                                            {renderBreakdownRow(metodo, summaryData?.session, isExpanded, 5)}
+                                                            {renderBreakdownRow(metodo, summaryData?.session, isExpanded, 6)}
                                                         </React.Fragment>
                                                     );
                                                 })}
                                                 <tr className="bg-slate-900 text-white font-bold text-sm">
                                                     <td className="px-6 py-4">TOTALES DEL TURNO</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalVentas || 0)}</td>
+                                                    <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalAbonos || 0)}</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalRentas || 0)}</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalSoporte || 0)}</td>
                                                     <td className="px-6 py-4 text-right text-emerald-400">{formatCurrency(summaryData?.totals?.totalIngresos || 0)}</td>
