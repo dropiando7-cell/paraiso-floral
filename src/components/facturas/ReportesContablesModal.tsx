@@ -588,23 +588,25 @@ export default function ReportesContablesModal({ isOpen, onClose, organizationNa
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Imprimir Vista Contable */}
+            {/* Guardar PDF / Imprimir (Formato CXC) */}
             <button
               type="button"
               onClick={handleImprimir}
               disabled={data.length === 0 || isPending}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 rounded-xl border-2 border-emerald-200 hover:border-emerald-500 bg-emerald-50/50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              title="Abrir vista de impresión formal (Guardar como PDF o Imprimir en papel blanco)"
             >
-              <Printer size={15} />
-              <span>Imprimir</span>
+              <Printer size={15} className="text-emerald-700" />
+              <span>Guardar PDF / Imprimir</span>
             </button>
 
-            {/* Descargar PDF */}
+            {/* Descargar Archivo PDF Directo */}
             <button
               type="button"
               onClick={handleDescargarPDF}
               disabled={data.length === 0 || isPending}
               className="px-4 py-2 rounded-xl border-2 border-blue-100 hover:border-blue-500 bg-white text-blue-700 text-xs font-bold transition-all shadow-xs hover:shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              title="Descargar archivo .pdf directamente sin fondos oscuros (ahorro de tinta)"
             >
               <FileText size={16} className="text-blue-600" />
               <span>Descargar PDF</span>
