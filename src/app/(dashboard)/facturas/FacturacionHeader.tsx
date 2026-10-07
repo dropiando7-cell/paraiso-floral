@@ -89,6 +89,17 @@ export default function FacturacionHeader(props: Props) {
                   </Link>
                 )
               )}
+
+              {/* Botón de Reportes para Contabilidad (después de Nuevo Documento) */}
+              <button
+                type="button"
+                onClick={() => setShowReportesModal(true)}
+                className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/70 transition-all ml-1 shadow-2xs cursor-pointer shrink-0"
+                title="Generar Reportes para Contabilidad y SAR (Excel / PDF)"
+              >
+                <FileSpreadsheet size={13} className="text-emerald-600 shrink-0" />
+                <span>Reportes Contables</span>
+              </button>
             </div>
           )}
         </div>
@@ -131,18 +142,6 @@ export default function FacturacionHeader(props: Props) {
                   </Link>
                 )
               )}
-
-              {/* Botón de Reportes para Contabilidad */}
-              <button
-                type="button"
-                onClick={() => setShowReportesModal(true)}
-                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-2xs hover:shadow-xs transition-all group shrink-0 cursor-pointer"
-                title="Generar Reportes para Contabilidad y SAR (Excel / PDF)"
-              >
-                <FileSpreadsheet size={15} className="text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span className="hidden sm:inline">Reportes Contables</span>
-                <span className="sm:hidden">Reportes</span>
-              </button>
 
               <BandejaPedidosCediModal onSelectPedido={(pedido) => router.push(`/facturas/pos?cargarPedido=${pedido.id}`)} />
 

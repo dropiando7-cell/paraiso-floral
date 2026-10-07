@@ -135,7 +135,6 @@ export default function DocumentListTable({ data, type }: Props) {
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
   const [showCredito, setShowCredito] = useState(false);
   const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
-  const [showReportesModal, setShowReportesModal] = useState(false);
 
   // Lista dinámica de vendedores para el selector
   const availableVendedores = useMemo(() => {
@@ -559,17 +558,6 @@ export default function DocumentListTable({ data, type }: Props) {
               <option value="HF">Solo HonduFlores</option>
             </select>
           )}
-
-          {/* Botón Acceso Rápido a Reportes Contables */}
-          <button
-            type="button"
-            onClick={() => setShowReportesModal(true)}
-            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer ml-auto sm:ml-0"
-            title="Generar y descargar reportes para contabilidad en Excel o PDF"
-          >
-            <FileSpreadsheet size={15} className="text-emerald-700" />
-            <span>Reportes Contables</span>
-          </button>
         </div>
       </div>
 
@@ -1374,12 +1362,6 @@ export default function DocumentListTable({ data, type }: Props) {
         isOpen={sendEmailModalOpen}
         onClose={() => setSendEmailModalOpen(false)}
         documentoId={sendEmailDocId}
-      />
-
-      {/* Modal Reportes Contables */}
-      <ReportesContablesModal
-        isOpen={showReportesModal}
-        onClose={() => setShowReportesModal(false)}
       />
     </div>
   );
