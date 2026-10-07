@@ -29,7 +29,6 @@ import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface ClienteDetalle {
   cliente: {
