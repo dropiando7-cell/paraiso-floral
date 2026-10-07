@@ -6728,15 +6728,15 @@ export default function DocumentBuilderClient({
                   window.open(`/facturas/ver/${showSuccessModal.docId}?print=true`, '_blank');
                   setShowSuccessModal(null);
                 }}
-                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-blue-50 to-blue-100/70 hover:from-blue-100 hover:to-blue-200/90 border border-blue-200 border-b-[5px] border-b-blue-500 hover:border-b-blue-600 rounded-2xl text-blue-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Imprimir formato Carta"
               >
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                  <Printer size={22} className="stroke-[2.2]" />
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Printer size={28} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">Carta</span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-blue-600 mt-0.5">Imprimir A4</span>
+                  <span className="font-bold text-slate-800 text-sm text-center">Carta</span>
+                  <span className="text-xs text-blue-600 font-semibold mt-0.5">Imprimir A4</span>
                 </div>
               </button>
               
@@ -6765,15 +6765,15 @@ export default function DocumentBuilderClient({
                     setShowSuccessModal(null);
                   }
                 }}
-                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-teal-50 to-teal-100/70 hover:from-teal-100 hover:to-teal-200/90 border border-teal-200 border-b-[5px] border-b-teal-500 hover:border-b-teal-600 rounded-2xl text-teal-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-teal-100 hover:border-teal-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Imprimir ticket térmico POS"
               >
-                <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                  <Receipt size={22} className="stroke-[2.2]" />
+                <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Receipt size={28} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">Ticket</span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-teal-600 mt-0.5">Térmico POS</span>
+                  <span className="font-bold text-slate-800 text-sm text-center">Ticket</span>
+                  <span className="text-xs text-teal-600 font-semibold mt-0.5">Térmico POS</span>
                 </div>
               </button>
               
@@ -6806,15 +6806,15 @@ export default function DocumentBuilderClient({
                     router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
                   }
                 }}
-                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-rose-50 to-rose-100/70 hover:from-rose-100 hover:to-rose-200/90 border border-rose-200 border-b-[5px] border-b-rose-500 hover:border-b-rose-600 rounded-2xl text-rose-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-rose-100 hover:border-rose-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Descargar archivo PDF"
               >
-                <div className="w-12 h-12 rounded-2xl bg-rose-500 text-white shadow-md shadow-rose-500/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                  <Download size={22} className="stroke-[2.2]" />
+                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Download size={28} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">PDF</span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-rose-600 mt-0.5">Descargar</span>
+                  <span className="font-bold text-slate-800 text-sm text-center">PDF</span>
+                  <span className="text-xs text-rose-600 font-semibold mt-0.5">Descargar</span>
                 </div>
               </button>
 
@@ -6826,15 +6826,15 @@ export default function DocumentBuilderClient({
                   setWhatsappPhone(rawPhone);
                   setShowWhatsappModal(true);
                 }}
-                className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 sm:py-5 sm:px-4 bg-gradient-to-b from-emerald-50 to-emerald-100/70 hover:from-emerald-100 hover:to-emerald-200/90 border border-emerald-200 border-b-[5px] border-b-emerald-600 hover:border-b-emerald-700 rounded-2xl text-emerald-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Compartir por WhatsApp Web"
               >
-                <div className="w-12 h-12 rounded-2xl bg-[#25D366] text-white shadow-md shadow-[#25D366]/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                  <Phone size={22} className="stroke-[2.2]" />
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Phone size={28} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="text-xs sm:text-sm uppercase tracking-wider font-black text-slate-800">WhatsApp</span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-600 mt-0.5">Enviar Web</span>
+                  <span className="font-bold text-slate-800 text-sm text-center">WhatsApp</span>
+                  <span className="text-xs text-emerald-600 font-semibold mt-0.5">Enviar Web</span>
                 </div>
               </button>
             </div>
@@ -6850,7 +6850,7 @@ export default function DocumentBuilderClient({
                         window.parent.postMessage({ type: 'close-modal-reload' }, '*');
                       }
                     }}
-                    className="flex-1 py-3.5 sm:py-4 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-xs select-none"
+                    className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-xs"
                   >
                     Volver a la Orden
                   </button>
@@ -6860,7 +6860,7 @@ export default function DocumentBuilderClient({
                       setShowSuccessModal(null);
                       router.push(`/facturas/ver/${showSuccessModal.docId}`);
                     }}
-                    className="flex-[1.3] py-3.5 sm:py-4 px-4 bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 border-b-[4px] border-b-emerald-900 text-white rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-md shadow-emerald-600/30 select-none"
+                    className="flex-[1.3] py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-md shadow-emerald-600/20"
                   >
                     Ver Documento
                   </button>
@@ -6870,7 +6870,7 @@ export default function DocumentBuilderClient({
                   <button
                     type="button"
                     onClick={handleExitAfterSave}
-                    className="flex-1 py-3.5 sm:py-4 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-xs select-none"
+                    className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-xs"
                   >
                     {ordenTrabajoId ? 'Volver' : 'Hacer Nuevo'}
                   </button>
@@ -6880,7 +6880,7 @@ export default function DocumentBuilderClient({
                       setShowSuccessModal(null);
                       router.push(`/facturas/ver/${showSuccessModal.docId}`);
                     }}
-                    className="flex-[1.4] py-3.5 sm:py-4 px-4 bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 border-b-[4px] border-b-emerald-900 text-white rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all text-xs sm:text-sm cursor-pointer shadow-md shadow-emerald-600/30 select-none"
+                    className="flex-[1.4] py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-md shadow-emerald-600/20"
                   >
                     Ver Documento
                   </button>
@@ -6943,7 +6943,7 @@ export default function DocumentBuilderClient({
                 setShowWhatsappModal(false);
                 toast.success('Abriendo WhatsApp...');
               }}
-              className="w-full py-4 mt-2 bg-[#25D366] hover:bg-[#20ba59] border border-green-600 border-b-[4px] border-b-green-800 text-white rounded-2xl font-black active:translate-y-[3px] active:border-b-[1px] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-green-600/25 select-none"
+              className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-green-600/20"
             >
               <Send size={18} />
               <span>Abrir WhatsApp Web</span>
@@ -7101,15 +7101,15 @@ export default function DocumentBuilderClient({
                <button
                  type="button"
                  onClick={handlePrintCarta}
-                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-blue-50 to-blue-100/70 hover:from-blue-100 hover:to-blue-200/90 border border-blue-200 border-b-[5px] border-b-blue-500 hover:border-b-blue-600 rounded-2xl text-blue-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                  title="Imprimir formato Carta"
                >
-                 <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                   <Printer size={22} className="stroke-[2.2]" />
+                 <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <Printer size={28} />
                  </div>
                  <div className="flex flex-col items-center leading-tight">
-                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Carta</span>
-                   <span className="text-[11px] font-bold text-blue-600 mt-0.5">Factura Tamaño Carta</span>
+                   <span className="font-bold text-slate-800 text-sm text-center">Carta</span>
+                   <span className="text-xs text-blue-600 font-semibold mt-0.5">Factura Tamaño Carta</span>
                  </div>
                </button>
                
@@ -7117,15 +7117,15 @@ export default function DocumentBuilderClient({
                <button
                  type="button"
                  onClick={handlePrintTicket}
-                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-teal-50 to-teal-100/70 hover:from-teal-100 hover:to-teal-200/90 border border-teal-200 border-b-[5px] border-b-teal-500 hover:border-b-teal-600 rounded-2xl text-teal-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-teal-100 hover:border-teal-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                  title="Imprimir ticket térmico POS"
                >
-                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                   <Receipt size={22} className="stroke-[2.2]" />
+                 <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <Receipt size={28} />
                  </div>
                  <div className="flex flex-col items-center leading-tight">
-                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Ticket</span>
-                   <span className="text-[11px] font-bold text-teal-600 mt-0.5">{directPrint ? 'Impresión Directa' : 'Ticket Térmico'}</span>
+                   <span className="font-bold text-slate-800 text-sm text-center">Ticket</span>
+                   <span className="text-xs text-teal-600 font-semibold mt-0.5">{directPrint ? 'Impresión Directa' : 'Ticket Térmico'}</span>
                  </div>
                </button>
              </div>
@@ -7133,7 +7133,7 @@ export default function DocumentBuilderClient({
              <button
                 type="button"
                 onClick={() => setShowPrintChoiceModal(false)}
-                className="mt-3 py-3 px-6 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 text-xs font-black rounded-2xl w-full active:translate-y-[3px] active:border-b-[1px] transition-all cursor-pointer shadow-xs select-none"
+                className="mt-3 py-3 px-6 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-sm font-bold rounded-2xl w-full transition-all cursor-pointer shadow-xs"
              >
                 Cancelar
              </button>

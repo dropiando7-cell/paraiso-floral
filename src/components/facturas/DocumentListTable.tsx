@@ -1195,15 +1195,15 @@ export default function DocumentListTable({ data, type }: Props) {
                    window.open(`/facturas/ver/${docToPrint.id}?print=true`, '_blank');
                    setDocToPrint(null);
                  }}
-                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-blue-50 to-blue-100/70 hover:from-blue-100 hover:to-blue-200/90 border border-blue-200 border-b-[5px] border-b-blue-500 hover:border-b-blue-600 rounded-2xl text-blue-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                  title="Imprimir formato Carta"
                >
-                 <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                   <Printer size={22} className="stroke-[2.2]" />
+                 <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <Printer size={28} />
                  </div>
                  <div className="flex flex-col items-center leading-tight">
-                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Carta</span>
-                   <span className="text-[11px] font-bold text-blue-600 mt-0.5">Impresión Nativa</span>
+                   <span className="font-bold text-slate-800 text-sm text-center">Carta</span>
+                   <span className="text-xs text-blue-600 font-semibold mt-0.5">Impresión Nativa</span>
                  </div>
                </button>
                
@@ -1232,16 +1232,16 @@ export default function DocumentListTable({ data, type }: Props) {
                         setTicketPreview(docToPrint); 
                         setDocToPrint(null); 
                     }
-                  }}
-                 className="group relative flex flex-col items-center justify-center gap-2.5 py-4 px-3 bg-gradient-to-b from-teal-50 to-teal-100/70 hover:from-teal-100 hover:to-teal-200/90 border border-teal-200 border-b-[5px] border-b-teal-500 hover:border-b-teal-600 rounded-2xl text-teal-950 shadow-sm hover:shadow-md active:translate-y-[4px] active:border-b-[1px] active:shadow-none transition-all duration-150 cursor-pointer select-none"
+                 }}
+                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-teal-100 hover:border-teal-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                  title="Imprimir ticket térmico POS"
                >
-                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white shadow-md shadow-teal-600/30 flex items-center justify-center group-hover:scale-105 group-active:scale-95 transition-transform duration-150">
-                   <FileText size={22} className="stroke-[2.2]" />
+                 <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                   <FileText size={28} />
                  </div>
                  <div className="flex flex-col items-center leading-tight">
-                   <span className="text-xs uppercase tracking-wider font-black text-slate-800">Ticket</span>
-                   <span className="text-[11px] font-bold text-teal-600 mt-0.5">{directPrint ? 'Impresión Directa' : 'Vista Previa'}</span>
+                   <span className="font-bold text-slate-800 text-sm text-center">Ticket</span>
+                   <span className="text-xs text-teal-600 font-semibold mt-0.5">{directPrint ? 'Impresión Directa' : 'Vista Previa'}</span>
                  </div>
                </button>
              </div>
@@ -1249,7 +1249,7 @@ export default function DocumentListTable({ data, type }: Props) {
              <button
                 type="button"
                 onClick={() => setDocToPrint(null)}
-                className="mt-3 py-3 px-6 bg-slate-100 hover:bg-slate-200 border border-slate-300 border-b-[4px] border-b-slate-400 text-slate-700 text-xs font-black rounded-2xl w-full active:translate-y-[3px] active:border-b-[1px] transition-all cursor-pointer shadow-xs select-none"
+                className="mt-3 py-3 px-6 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-sm font-bold rounded-2xl w-full transition-all cursor-pointer shadow-xs"
              >
                 Cancelar
              </button>
