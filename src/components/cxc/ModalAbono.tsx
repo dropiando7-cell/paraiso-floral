@@ -45,6 +45,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
   const [referencia, setReferencia] = useState<string>('');
   const [notas, setNotas] = useState<string>('');
   const [fechaPago, setFechaPago] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [facturaSeleccionadaId, setFacturaSeleccionadaId] = useState<string>('');
   const [bankDropdownOpen, setBankDropdownOpen] = useState<boolean>(false);
   const [bankSearchQuery, setBankSearchQuery] = useState<string>('');
   const bankDropdownRef = useRef<HTMLDivElement>(null);
@@ -100,7 +101,8 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
           banco: banco.trim() || undefined,
           referencia: referencia.trim() || undefined,
           notas: notas.trim() || undefined,
-          fecha: fechaPago || undefined
+          fecha: fechaPago || undefined,
+          facturas: facturaSeleccionadaId ? [{ facturaId: facturaSeleccionadaId, montoAplicado: valMonto }] : undefined
         })
       });
 
@@ -113,6 +115,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
       setBanco('');
       setReferencia('');
       setNotas('');
+      setFacturaSeleccionadaId('');
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -125,6 +128,8 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
   const filteredBanks = HONDURAS_BANKS.filter(b =>
     b.name.toLowerCase().includes(bankSearchQuery.toLowerCase())
   );
+
+  const facturasPendientes = cliente.facturas?.filter(f => f.saldoPendiente > 0) || [];
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
@@ -167,6 +172,39 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
               L. {cliente.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
             </span>
           </div>
+
+          {/* Selector de Factura Específica */}
+          {facturasPendientes.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>Aplicar a Factura Específica</span>
+                <span className="text-[9px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 uppercase">Opcional</span>
+              </label>
+              <select
+                value={facturaSeleccionadaId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFacturaSeleccionadaId(val);
+                  if (val) {
+                    const fac = facturasPendientes.find(f => f.id === val);
+                    if (fac) {
+                      setMonto(fac.saldoPendiente.toString());
+                    }
+                  } else {
+                    setMonto('');
+                  }
+                }}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+              >
+                <option value="">-- Abono General (se aplica a saldo más antiguo) --</option>
+                {facturasPendientes.map(f => (
+                  <option key={f.id} value={f.id}>
+                    Factura #{f.correlativo} (Pendiente: L. {f.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Botones de Abono Rápido */}
           <div>
