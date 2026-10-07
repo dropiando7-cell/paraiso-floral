@@ -1455,6 +1455,7 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 { correlativo: { contains: q, mode: 'insensitive' } },
                 { cliente: { nombre: { contains: q, mode: 'insensitive' } } },
                 { cliente: { rtn: { contains: q, mode: 'insensitive' } } },
+                { vendedorNombre: { contains: q, mode: 'insensitive' } },
                 { detalles: { some: { descripcion: { contains: q, mode: 'insensitive' } } } }
             ]
         };

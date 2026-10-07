@@ -25,6 +25,7 @@ export interface DocumentRecord {
   total: number;
   metodoPago?: string | null;
   aliasVenta?: string;
+  vendedorNombre?: string | null;
   transferenciaConfirmada?: boolean;
   detalles?: {
     descripcion: string;
@@ -128,42 +129,34 @@ export default function DocumentListTable({ data, type }: Props) {
   const [productPage, setProductPage] = useState(1);
   const itemsPerPageProduct = 5;
 
-  const [isCleaningDrafts, setIsCleaningDrafts] = useState(false);
+  const [filterVendedor, setFilterVendedor] = useState<string>('TODOS');
   const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
   const [showCredito, setShowCredito] = useState(false);
   const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
+
+  // Lista dinámica de vendedores para el selector
+  const availableVendedores = useMemo(() => {
+    const baseList = ["Jose Mendez", "Isamara Vigil", "Erick Saavedra", "Lucio Barahona", "Francis Carias"];
+    const dynamicSet = new Set(baseList);
+    for (const doc of allDocs) {
+      if (doc.vendedorNombre && doc.vendedorNombre.trim()) {
+        dynamicSet.add(doc.vendedorNombre.trim());
+      }
+    }
+    return Array.from(dynamicSet).sort();
+  }, [allDocs]);
 
   // Auto-clean legacy empty "Borrador Temporal" records on mount
   useEffect(() => {
     limpiarBorradoresTemporalesHuecos().catch(err => console.error("Auto-clean error:", err));
   }, []);
 
-  const handleCleanDrafts = async () => {
-    setIsCleaningDrafts(true);
-    try {
-      const res = await limpiarBorradoresTemporalesHuecos();
-      if (res.success) {
-        if (res.count && res.count > 0) {
-          toast.success(`Se depuraron ${res.count} borradores en cero del historial`);
-        } else {
-          toast.success('No hay borradores en cero por depurar');
-        }
-      } else {
-        toast.error(res.error || 'Error al depurar borradores');
-      }
-    } catch (e: any) {
-      toast.error(e.message || 'Error al depurar borradores');
-    } finally {
-      setIsCleaningDrafts(false);
-    }
-  };
-
   // Reset pages when criteria changes
   useEffect(() => {
     setCurrentPage(1);
     setProductPage(1);
-  }, [search, showAnuladas, type]);
+  }, [search, showAnuladas, type, filterVendedor, filterOrigen]);
 
   const confirmAnular = async () => {
     if (!docToAnul) return;
@@ -225,6 +218,15 @@ export default function DocumentListTable({ data, type }: Props) {
       if (filterOrigen === 'PARAISO' && doc.aliasVenta === 'HonduFlores') return false;
       if (filterOrigen === 'HF' && doc.aliasVenta !== 'HonduFlores') return false;
       
+      // Filtro por Vendedor
+      if (filterVendedor === 'CON_VENDEDOR') {
+        if (!doc.vendedorNombre || !doc.vendedorNombre.trim()) return false;
+      } else if (filterVendedor === 'SIN_VENDEDOR') {
+        if (doc.vendedorNombre && doc.vendedorNombre.trim()) return false;
+      } else if (filterVendedor !== 'TODOS') {
+        if (doc.vendedorNombre !== filterVendedor) return false;
+      }
+
       if (showPendientesTrans) {
         if (doc.metodoPago !== 'Transferencia' || doc.transferenciaConfirmada || isCredito(doc.terminosPago)) return false;
       }
@@ -249,7 +251,10 @@ export default function DocumentListTable({ data, type }: Props) {
       if (doc.clienteNombre.toLowerCase().includes(q)) return true;
       if (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q)) return true;
 
-      // 3. Productos / Detalles de la factura
+      // 3. Vendedor asignado (ej. "erick", "saavedra")
+      if (doc.vendedorNombre && doc.vendedorNombre.toLowerCase().includes(q)) return true;
+
+      // 4. Productos / Detalles de la factura
       if (doc.detalles && doc.detalles.some(d => d.descripcion.toLowerCase().includes(q))) return true;
 
       return false;
@@ -487,16 +492,22 @@ export default function DocumentListTable({ data, type }: Props) {
 
         {/* Filtros a la derecha */}
         <div className="relative w-full xl:w-auto flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleCleanDrafts}
-            disabled={isCleaningDrafts}
-            className="flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50 w-full sm:w-auto"
-            title="Limpiar registros de Borrador Temporal en L 0.00 del historial"
+          {/* Selector de Filtro por Vendedor (Reemplaza Depurar Borradores) */}
+          <select
+            value={filterVendedor}
+            onChange={(e) => setFilterVendedor(e.target.value)}
+            className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
+            title="Filtrar por vendedor asignado"
           >
-            <span>🧹</span>
-            <span>{isCleaningDrafts ? 'Depurando...' : 'Depurar Borradores'}</span>
-          </button>
+            <option value="TODOS">Todos los Vendedores</option>
+            <option value="CON_VENDEDOR">Con Vendedor Asignado</option>
+            <option value="SIN_VENDEDOR">Sin Vendedor Asignado</option>
+            <optgroup label="Vendedores Registrados">
+              {availableVendedores.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </optgroup>
+          </select>
 
           <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
             <input 
@@ -766,10 +777,15 @@ export default function DocumentListTable({ data, type }: Props) {
               {/* Información de Cliente y Fecha */}
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs font-bold text-slate-900 truncate">{doc.clienteNombre}</p>
                     {doc.aliasVenta === 'HonduFlores' && (
                       <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title="Venta externa de HonduFlores">HF</span>
+                    )}
+                    {doc.vendedorNombre && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title={`Vendedor: ${doc.vendedorNombre}`}>
+                        👤 {doc.vendedorNombre}
+                      </span>
                     )}
                   </div>
                   {doc.clienteRtn && <p className="text-[11px] text-slate-500 font-mono">RTN: {doc.clienteRtn}</p>}
@@ -924,10 +940,15 @@ export default function DocumentListTable({ data, type }: Props) {
                    </div>
                 </td>
                 <td className="p-4 align-middle max-w-[250px]">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-slate-800 truncate">{doc.clienteNombre}</p>
                     {doc.aliasVenta === 'HonduFlores' && (
                       <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title="Venta externa de HonduFlores">HF</span>
+                    )}
+                    {doc.vendedorNombre && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title={`Vendedor: ${doc.vendedorNombre}`}>
+                        👤 {doc.vendedorNombre}
+                      </span>
                     )}
                   </div>
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
