@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  Printer, CheckCircle2, Lock, MessageCircle, DollarSign, Activity, FileText
+  Printer, CheckCircle2, Lock, MessageCircle, DollarSign, Activity, FileText, Copy, Check
 } from 'lucide-react';
 
 interface PublicCierreClientProps {
@@ -17,7 +17,9 @@ interface PublicCierreClientProps {
 export default function PublicCierreClient({ initialData }: PublicCierreClientProps) {
   const { organization, session, totals, summary } = initialData;
 
-  const fmt = (val: number) => `L. ${val.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const [copied, setCopied] = useState(false);
+
+  const fmt = (val: number) => `L. ${(val || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fechaFmt = (dStr?: string | null) => dStr ? new Date(dStr).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
 
   const fechaHoy = new Date().toLocaleDateString('es-HN', {
@@ -30,14 +32,89 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
     window.print();
   };
 
+  const buildWhatsAppReportText = () => {
+    const diffText = session.diferencia === 0 
+      ? "✅ Cuadrada (L. 0.00)" 
+      : session.diferencia < 0 
+      ? `⚠️ Faltante: ${fmt(Math.abs(session.diferencia))}` 
+      : `🔵 Sobrante: ${fmt(session.diferencia)}`;
+
+    const metodos = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'];
+    let desgloseMetodos = '';
+    metodos.forEach(m => {
+      const v = summary?.ventas?.[m] || 0;
+      const a = summary?.abonos?.[m] || 0;
+      const r = summary?.rentas?.[m] || 0;
+      const s = summary?.soporte?.[m] || 0;
+      const tot = v + a + r + s;
+      const count = summary?.transaccionesPorMetodo?.[m] || 0;
+      if (tot > 0 || count > 0) {
+        desgloseMetodos += `• *${m}* (${count} transacciones): *${fmt(tot)}*\n`;
+        if (v > 0) desgloseMetodos += `   └ POS / Facturación: ${fmt(v)}\n`;
+        if (a > 0) desgloseMetodos += `   └ Abonos CxC: ${fmt(a)}\n`;
+        if (r > 0) desgloseMetodos += `   └ Rentas: ${fmt(r)}\n`;
+        if (s > 0) desgloseMetodos += `   └ Soporte: ${fmt(s)}\n`;
+      }
+    });
+
+    const movimientos = session.movimientos || [];
+    let desgloseMovimientos = '';
+    const movsValidos = movimientos.filter((m: any) => !m.anuladaAt);
+    if (movsValidos.length > 0) {
+      desgloseMovimientos += `\n*📦 Movimientos Extraordinarios / Rutas / Remesas:*\n`;
+      movsValidos.forEach((m: any) => {
+        const signo = m.tipo === 'INGRESO' ? '(+) Entró' : '(-) Salió';
+        const desc = m.descripcion || (m.concepto === 'RETIRO_BANCARIO' ? 'Retiro / Remesa' : 'Movimiento');
+        desgloseMovimientos += `• ${signo} ${fmt(m.monto)} [${m.metodoPago}]: ${desc}\n`;
+      });
+    }
+
+    const totalFacturadoCredito = totals.totalVentasCredito || 0;
+    const totalFacturadoTotal = totals.totalFacturado || (totals.totalVentas + totalFacturadoCredito);
+
+    const efectivoRecaudadoTotal = (totals.ventasEfectivo || 0) + (totals.abonosEfectivo || 0) + (totals.rentasEfectivo || 0) + (totals.soporteEfectivo || 0);
+
+    return `📊 *REPORTE DE CIERRE DE CAJA DIARIO*
+🏢 *${organization?.name || 'Distribuidora Paraíso Floral'}*
+📅 *Fecha:* ${fechaHoy}
+👤 *Operador:* ${session.cerradoPor ? `${session.cerradoPor.nombre || ''} ${session.cerradoPor.apellido || ''}`.trim() : (session.creadoPor ? `${session.creadoPor.nombre || ''} ${session.creadoPor.apellido || ''}`.trim() : 'Operador de Turno')}
+⏰ *Horario:* ${fechaFmt(session.aperturaAt)} - ${fechaFmt(session.cierreAt)}
+
+━━━━━━━━━━━━━━━━━━━━
+💰 *TOTAL INGRESOS RECAUDADOS HOY:*
+*${fmt(totals.totalIngresos)}*
+• Ventas POS (Contado): ${fmt(totals.totalVentas)}
+• Abonos CxC (Cobranza): ${fmt(totals.totalAbonos || 0)}
+• Cobros de Rentas: ${fmt(totals.totalRentas)}
+• Cobros de Soporte Técnico: ${fmt(totals.totalSoporte)}
+
+💳 *DESGLOSE POR MÉTODO DE PAGO:*
+${desgloseMetodos || '• Sin ingresos registrados'}
+${totalFacturadoCredito > 0 ? `\n📑 *VENTAS AL CRÉDITO DEL DÍA (Por Cobrar):* ${fmt(totalFacturadoCredito)}\n📈 *TOTAL FACTURADO DEL DÍA (Contado + Crédito):* ${fmt(totalFacturadoTotal)}\n` : ''}${desgloseMovimientos}
+━━━━━━━━━━━━━━━━━━━━
+💵 *ARQUEO DE EFECTIVO EN CAJA:*
+• Fondo Inicial de Gaveta: ${fmt(session.saldoInicial)}
+• (+) Efectivo Recaudado: ${fmt(efectivoRecaudadoTotal)}
+${(totals.ingresosMovimientosEfectivo || 0) > 0 ? `• (+) Ingresos Extraordinarios/Ruteros: ${fmt(totals.ingresosMovimientosEfectivo)}\n` : ''}${(totals.egresosMovimientosEfectivo || 0) > 0 ? `• (-) Remesas / Retiros / Gastos Caja: ${fmt(totals.egresosMovimientosEfectivo)}\n` : ''}• *Efectivo Esperado en Gaveta:* ${fmt(totals.esperadoEfectivo)}
+• *Efectivo Físico Contado:* ${fmt(session.saldoFinalEfectivo || 0)}
+• *Reconciliación / Diferencia:* ${diffText}
+${session.observaciones ? `\n📝 *Observaciones:* "${session.observaciones}"\n` : ''}
+🔗 *Ver Reporte Oficial y Auditoría:*
+${typeof window !== 'undefined' ? window.location.href : ''}`;
+  };
+
   const handleSendProofWA = () => {
     const orgPhone = (organization?.telefono || '+50431782368').replace(/\D/g, '');
     const phoneWithCountry = orgPhone.length === 8 ? `504${orgPhone}` : orgPhone;
-    
-    const diffText = session.diferencia === 0 ? "Cuadrada (Exacto)" : session.diferencia < 0 ? `Faltante de ${fmt(Math.abs(session.diferencia))}` : `Sobrante de ${fmt(session.diferencia)}`;
-    
-    const msg = `*Reporte de Cierre de Caja*\n\nHola Gerencia, envío el resumen del cierre de turno:\n\n*Apertura:* ${fechaFmt(session.aperturaAt)}\n*Cierre:* ${fechaFmt(session.cierreAt)}\n\n*Total Recaudado:* ${fmt(totals.totalIngresos)}\n*Efectivo Esperado:* ${fmt(totals.esperadoEfectivo)}\n*Efectivo Contado:* ${fmt(session.saldoFinalEfectivo || 0)}\n*Reconciliación:* ${diffText}\n\nPara ver el reporte completo y oficial: ${window.location.href}`;
+    const msg = buildWhatsAppReportText();
     window.open(`https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const handleCopyReport = () => {
+    const msg = buildWhatsAppReportText();
+    navigator.clipboard.writeText(msg);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   const getMethodTransactions = (metodo: string) => {
@@ -58,9 +135,21 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                 id: f.id,
                 fechaStr: f.fechaEmision,
                 concepto: `Facturación POS (${f.correlativo})`,
-                cliente: f.cliente?.nombre || 'Cliente General',
+                cliente: f.cliente?.nombre || f.clienteNombre || 'Cliente General',
                 monto: Number(f.total),
                 isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+            });
+        });
+
+    const pagosCliente = session.pagosCliente || [];
+    pagosCliente.filter((p: any) => p.metodoPago === metodo && !p.anulado)
+        .forEach((p: any) => {
+            txList.push({
+                id: p.id,
+                fechaStr: p.fecha,
+                concepto: `Abono CxC (${p.correlativo || 'PAGO'})`,
+                cliente: p.cliente?.nombre || 'Cliente General',
+                monto: Number(p.monto)
             });
         });
 
@@ -152,6 +241,14 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleCopyReport}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+              title="Copiar texto formateado para WhatsApp"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'Copiado' : 'Copiar'}</span>
+            </button>
+            <button
               onClick={handleSendProofWA}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
@@ -211,7 +308,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                 </div>
                 <div>
                   <span className="text-slate-500 block">Operador:</span>
-                  <span className="font-bold text-slate-900">{session.creadoPor ? `${session.creadoPor.nombre} ${session.creadoPor.apellido}` : 'N/A'}</span>
+                  <span className="font-bold text-slate-900">{session.creadoPor ? `${session.creadoPor.nombre || ''} ${session.creadoPor.apellido || ''}`.trim() : 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Apertura:</span>
@@ -240,6 +337,12 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                   <span className="text-slate-600">Ventas en Efectivo:</span>
                   <span className="font-bold text-emerald-700">(+) {fmt(totals.ventasEfectivo)}</span>
                 </div>
+                {totals.abonosEfectivo > 0 && (
+                  <div className="flex justify-between text-xs py-0.5">
+                    <span className="text-slate-600">Abonos CxC Efectivo:</span>
+                    <span className="font-bold text-emerald-700">(+) {fmt(totals.abonosEfectivo)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xs py-0.5">
                   <span className="text-slate-600">Rentas en Efectivo:</span>
                   <span className="font-bold text-emerald-700">(+) {fmt(totals.rentasEfectivo)}</span>
@@ -248,7 +351,18 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                   <span className="text-slate-600">Soporte en Efectivo:</span>
                   <span className="font-bold text-emerald-700">(+) {fmt(totals.soporteEfectivo)}</span>
                 </div>
-                {/* Egresos should be here if any, but kept simple as per original */}
+                {totals.ingresosMovimientosEfectivo > 0 && (
+                  <div className="flex justify-between text-xs py-0.5">
+                    <span className="text-slate-600">Ingresos Ruteros / Ajustes (+):</span>
+                    <span className="font-bold text-emerald-700">(+) {fmt(totals.ingresosMovimientosEfectivo)}</span>
+                  </div>
+                )}
+                {totals.egresosMovimientosEfectivo > 0 && (
+                  <div className="flex justify-between text-xs py-0.5">
+                    <span className="text-slate-600">Remesas / Retiros de Caja (-):</span>
+                    <span className="font-bold text-rose-700">(-) {fmt(totals.egresosMovimientosEfectivo)}</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-300">
@@ -279,6 +393,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                   <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase">
                     <th className="py-2.5 px-3">Método de Pago</th>
                     <th className="py-2.5 px-3 text-right">Facturación</th>
+                    <th className="py-2.5 px-3 text-right">Abonos CxC</th>
                     <th className="py-2.5 px-3 text-right">Rentas</th>
                     <th className="py-2.5 px-3 text-right">Soporte</th>
                     <th className="py-2.5 px-3 text-right text-emerald-800">Total Recaudado</th>
@@ -286,23 +401,25 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'].map(m => {
-                    const v = summary.ventas[m] || 0;
-                    const r = summary.rentas[m] || 0;
-                    const s = summary.soporte[m] || 0;
-                    const tot = v + r + s;
+                    const v = summary.ventas?.[m] || 0;
+                    const a = summary.abonos?.[m] || 0;
+                    const r = summary.rentas?.[m] || 0;
+                    const s = summary.soporte?.[m] || 0;
+                    const tot = v + a + r + s;
                     const txs = getMethodTransactions(m);
                     return (
                       <React.Fragment key={m}>
                         <tr className="hover:bg-slate-50">
                           <td className="py-2.5 px-3 font-bold text-slate-800">{m}</td>
                           <td className="py-2.5 px-3 text-right text-slate-600">{fmt(v)}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{fmt(a)}</td>
                           <td className="py-2.5 px-3 text-right text-slate-600">{fmt(r)}</td>
                           <td className="py-2.5 px-3 text-right text-slate-600">{fmt(s)}</td>
                           <td className="py-2.5 px-3 text-right font-black text-slate-900">{fmt(tot)}</td>
                         </tr>
                         {txs.length > 0 && (
                           <tr className="bg-slate-50/50">
-                            <td colSpan={5} className="px-3 py-2 border-b border-slate-100">
+                            <td colSpan={6} className="px-3 py-2 border-b border-slate-100">
                               <div className="bg-white rounded-lg border border-slate-200 p-2 ml-4">
                                 <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">
                                   Desglose de Transacciones ({txs.length})
@@ -348,6 +465,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                   <tr className="bg-slate-800 text-white font-black">
                     <td className="py-3 px-3 uppercase text-[11px]">Total General Ingresos</td>
                     <td className="py-3 px-3 text-right">{fmt(totals.totalVentas)}</td>
+                    <td className="py-3 px-3 text-right">{fmt(totals.totalAbonos || 0)}</td>
                     <td className="py-3 px-3 text-right">{fmt(totals.totalRentas)}</td>
                     <td className="py-3 px-3 text-right">{fmt(totals.totalSoporte)}</td>
                     <td className="py-3 px-3 text-right text-emerald-400 text-sm">{fmt(totals.totalIngresos)}</td>
@@ -355,12 +473,24 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
                 </tbody>
               </table>
             </div>
+
+            {/* Total Facturado Global and Credits indicator */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-xs">
+                <span className="text-slate-600 font-semibold">Ventas al Crédito Emitidas (Por Cobrar):</span>
+                <span className="font-black text-slate-900">{fmt(totals.totalVentasCredito || 0)}</span>
+              </div>
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">
+                <span className="text-emerald-900 font-bold">TOTAL FACTURADO DEL DÍA (Contado + Crédito):</span>
+                <span className="font-black text-emerald-800 text-sm">{fmt(totals.totalFacturado || (totals.totalVentas + (totals.totalVentasCredito || 0)))}</span>
+              </div>
+            </div>
           </div>
 
           {/* Firmas */}
           <div className="pt-12 grid grid-cols-2 gap-8 text-center text-[11px] text-slate-600">
             <div className="border-t border-slate-400 pt-1">
-              <p className="font-bold text-slate-800">{session.cerradoPor ? `${session.cerradoPor.nombre} ${session.cerradoPor.apellido}` : 'Operador de Caja'}</p>
+              <p className="font-bold text-slate-800">{session.cerradoPor ? `${session.cerradoPor.nombre || ''} ${session.cerradoPor.apellido || ''}`.trim() : 'Operador de Caja'}</p>
               <p className="text-[10px] text-slate-400">Entregado por (Operador de Turno)</p>
             </div>
             <div className="border-t border-slate-400 pt-1">
@@ -373,14 +503,23 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
 
         {/* Footer WhatsApp Notifier CTA (Hidden in Print) */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200 text-center space-y-3 print:hidden shadow-xs">
-          <p className="text-xs font-bold text-slate-700">¿Deseas compartir este cierre directamente por WhatsApp?</p>
-          <button
-            onClick={handleSendProofWA}
-            className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-2xl inline-flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span>Notificar a Gerencia (+504 3178-2368)</span>
-          </button>
+          <p className="text-xs font-bold text-slate-700">¿Deseas compartir este cierre detallado con Gerencia?</p>
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3">
+            <button
+              onClick={handleCopyReport}
+              className="w-full sm:w-auto px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-2xl inline-flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              <span>{copied ? '¡Reporte Copiado al Portapapeles!' : 'Copiar Resumen para WhatsApp'}</span>
+            </button>
+            <button
+              onClick={handleSendProofWA}
+              className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-2xl inline-flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Enviar a WhatsApp Gerencia (+504 3178-2368)</span>
+            </button>
+          </div>
         </div>
       </main>
     </div>

@@ -25,7 +25,10 @@ import {
     Trash2,
     Search,
     ArrowUpCircle,
-    ArrowDownCircle
+    ArrowDownCircle,
+    MessageCircle,
+    Copy,
+    Check
 } from 'lucide-react';
 import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession, getPendingDeposits, registrarCorteMovimiento, anularCorteMovimiento } from './actions';
 
@@ -39,6 +42,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [activeSession, setActiveSession] = useState<any>(initialActiveSession);
     const [history, setHistory] = useState<any[]>(initialHistory);
     const [isMounted, setIsMounted] = useState(false);
+    const [copiedActive, setCopiedActive] = useState(false);
+    const [copiedPast, setCopiedPast] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -397,6 +402,122 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
             minute: '2-digit'
         });
         return formatted.replace(/\s+/g, ' ');
+    };
+
+    const buildWhatsAppReportText = (targetSession: any, targetSummary: any) => {
+        if (!targetSession || !targetSummary) return '';
+        const totals = targetSummary.totals || {};
+        const sum = targetSummary.summary || {};
+        const session = targetSession;
+
+        const realFinal = session.saldoFinalEfectivo !== null && session.saldoFinalEfectivo !== undefined 
+            ? session.saldoFinalEfectivo 
+            : (parseFloat(saldoReal) || 0);
+
+        const diffVal = session.diferencia !== null && session.diferencia !== undefined 
+            ? session.diferencia 
+            : (realFinal - (totals.esperadoEfectivo || 0));
+
+        const diffText = diffVal === 0 
+            ? "✅ Cuadrada (L. 0.00)" 
+            : diffVal < 0 
+            ? `⚠️ Faltante: ${formatCurrency(Math.abs(diffVal))}` 
+            : `🔵 Sobrante: ${formatCurrency(diffVal)}`;
+
+        const metodos = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'];
+        let desgloseMetodos = '';
+        metodos.forEach(m => {
+            const v = sum.ventas?.[m] || 0;
+            const a = sum.abonos?.[m] || 0;
+            const r = sum.rentas?.[m] || 0;
+            const s = sum.soporte?.[m] || 0;
+            const tot = v + a + r + s;
+            const count = sum.transaccionesPorMetodo?.[m] || 0;
+            if (tot > 0 || count > 0) {
+                desgloseMetodos += `• *${m}* (${count} transacciones): *${formatCurrency(tot)}*\n`;
+                if (v > 0) desgloseMetodos += `   └ POS / Facturación: ${formatCurrency(v)}\n`;
+                if (a > 0) desgloseMetodos += `   └ Abonos CxC: ${formatCurrency(a)}\n`;
+                if (r > 0) desgloseMetodos += `   └ Rentas: ${formatCurrency(r)}\n`;
+                if (s > 0) desgloseMetodos += `   └ Soporte: ${formatCurrency(s)}\n`;
+            }
+        });
+
+        const movimientos = session.movimientos || targetSummary.session?.movimientos || [];
+        let desgloseMovimientos = '';
+        const movsValidos = movimientos.filter((m: any) => !m.anuladaAt);
+        if (movsValidos.length > 0) {
+            desgloseMovimientos += `\n*📦 Movimientos Extraordinarios / Rutas / Remesas:*\n`;
+            movsValidos.forEach((m: any) => {
+                const signo = m.tipo === 'INGRESO' ? '(+) Entró' : '(-) Salió';
+                const desc = m.descripcion || (m.concepto === 'RETIRO_BANCARIO' ? 'Retiro / Remesa' : 'Movimiento');
+                desgloseMovimientos += `• ${signo} ${formatCurrency(m.monto)} [${m.metodoPago}]: ${desc}\n`;
+            });
+        }
+
+        const totalFacturadoCredito = totals.totalVentasCredito || 0;
+        const totalFacturadoTotal = totals.totalFacturado || ((totals.totalVentas || 0) + totalFacturadoCredito);
+
+        const fechaApertura = session.aperturaAt ? formatDate(session.aperturaAt) : 'N/A';
+        const fechaCierre = session.cierreAt ? formatDate(session.cierreAt) : 'En curso (Turno Abierto)';
+        const operadorNombre = session.cerradoPor ? `${session.cerradoPor.nombre || ''} ${session.cerradoPor.apellido || ''}`.trim() : (session.creadoPor ? `${session.creadoPor.nombre || ''} ${session.creadoPor.apellido || ''}`.trim() : 'Operador de Turno');
+
+        const efectivoRecaudadoTotal = (totals.ventasEfectivo || 0) + (totals.abonosEfectivo || 0) + (totals.rentasEfectivo || 0) + (totals.soporteEfectivo || 0);
+
+        return `📊 *REPORTE DE CIERRE DE CAJA DIARIO*
+🏢 *Distribuidora Paraíso Floral*
+📅 *Fecha:* ${new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })}
+👤 *Operador:* ${operadorNombre}
+⏰ *Apertura:* ${fechaApertura}
+⏰ *Cierre:* ${fechaCierre}
+
+━━━━━━━━━━━━━━━━━━━━
+💰 *TOTAL INGRESOS RECAUDADOS HOY:*
+*${formatCurrency(totals.totalIngresos || 0)}*
+• Ventas POS (Contado): ${formatCurrency(totals.totalVentas || 0)}
+• Abonos CxC (Cobranza): ${formatCurrency(totals.totalAbonos || 0)}
+• Cobros de Rentas: ${formatCurrency(totals.totalRentas || 0)}
+• Cobros de Soporte Técnico: ${formatCurrency(totals.totalSoporte || 0)}
+
+💳 *DESGLOSE POR MÉTODO DE PAGO:*
+${desgloseMetodos || '• Sin ingresos registrados'}
+${totalFacturadoCredito > 0 ? `\n📑 *VENTAS AL CRÉDITO DEL DÍA (Por Cobrar):* ${formatCurrency(totalFacturadoCredito)}\n📈 *TOTAL FACTURADO DEL DÍA (Contado + Crédito):* ${formatCurrency(totalFacturadoTotal)}\n` : ''}${desgloseMovimientos}
+━━━━━━━━━━━━━━━━━━━━
+💵 *ARQUEO DE EFECTIVO EN CAJA:*
+• Fondo Inicial de Gaveta: ${formatCurrency(session.saldoInicial || 0)}
+• (+) Efectivo Recaudado: ${formatCurrency(efectivoRecaudadoTotal)}
+${(totals.ingresosMovimientosEfectivo || 0) > 0 ? `• (+) Ingresos Extraordinarios/Ruteros: ${formatCurrency(totals.ingresosMovimientosEfectivo)}\n` : ''}${(totals.egresosMovimientosEfectivo || 0) > 0 ? `• (-) Remesas / Retiros / Gastos Caja: ${formatCurrency(totals.egresosMovimientosEfectivo)}\n` : ''}• *Efectivo Esperado en Gaveta:* ${formatCurrency(totals.esperadoEfectivo || 0)}
+• *Efectivo Físico Contado:* ${formatCurrency(realFinal)}
+• *Reconciliación / Diferencia:* ${diffText}
+${session.observaciones || observaciones ? `\n📝 *Observaciones:* "${session.observaciones || observaciones}"\n` : ''}
+🔗 *Ver Reporte Oficial y Auditoría:*
+${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.id}` : ''}`;
+    };
+
+    const handleSendReporteGerenciaWA = (targetSession: any, targetSummary: any) => {
+        if (!targetSession || !targetSummary) {
+            toast.error("No hay datos de resumen cargados");
+            return;
+        }
+        const phoneWithCountry = "50431782368";
+        const msg = buildWhatsAppReportText(targetSession, targetSummary);
+        window.open(`https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`, '_blank');
+    };
+
+    const handleCopyResumenTexto = (targetSession: any, targetSummary: any, isPast = false) => {
+        if (!targetSession || !targetSummary) {
+            toast.error("No hay datos de resumen cargados");
+            return;
+        }
+        const msg = buildWhatsAppReportText(targetSession, targetSummary);
+        navigator.clipboard.writeText(msg);
+        if (isPast) {
+            setCopiedPast(true);
+            setTimeout(() => setCopiedPast(false), 2500);
+        } else {
+            setCopiedActive(true);
+            setTimeout(() => setCopiedActive(false), 2500);
+        }
+        toast.success("¡Resumen de cierre copiado al portapapeles!");
     };
 
     // Unified transactional history search for a payment method
@@ -790,9 +911,29 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
 
                                 {/* TABLE BY PAYMENT METHOD */}
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-slate-200">
-                                        <h3 className="text-base font-bold text-slate-950">Desglose por Métodos de Pago</h3>
-                                        <p className="text-xs text-slate-500">Montos clasificados recaudados en el turno de caja</p>
+                                    <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div>
+                                            <h3 className="text-base font-bold text-slate-950">Desglose por Métodos de Pago</h3>
+                                            <p className="text-xs text-slate-500">Montos clasificados recaudados en el turno de caja</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleCopyResumenTexto(activeSession, summaryData, false)}
+                                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg flex items-center gap-1.5 border border-slate-200 transition cursor-pointer"
+                                                title="Copiar desglose para WhatsApp"
+                                            >
+                                                {copiedActive ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                                <span>{copiedActive ? 'Copiado' : 'Copiar Resumen'}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleSendReporteGerenciaWA(activeSession, summaryData)}
+                                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                                                title="Enviar reporte formateado por WhatsApp a Gerencia"
+                                            >
+                                                <MessageCircle className="w-3.5 h-3.5" />
+                                                <span>Enviar a Gerencia</span>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-sm text-slate-600">
@@ -846,6 +987,18 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+
+                                    {/* Total Facturado Global and Credits indicator */}
+                                    <div className="p-4 bg-slate-50 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="p-3 bg-white border border-slate-200 rounded-xl flex justify-between items-center text-xs shadow-xs">
+                                            <span className="text-slate-600 font-semibold">Ventas al Crédito Emitidas (Por Cobrar):</span>
+                                            <span className="font-black text-slate-900">{formatCurrency(summaryData?.totals?.totalVentasCredito || 0)}</span>
+                                        </div>
+                                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs shadow-xs">
+                                            <span className="text-emerald-900 font-bold">TOTAL FACTURADO DEL DÍA (Contado + Crédito):</span>
+                                            <span className="font-black text-emerald-800 text-sm">{formatCurrency(summaryData?.totals?.totalFacturado || ((summaryData?.totals?.totalVentas || 0) + (summaryData?.totals?.totalVentasCredito || 0)))}</span>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1132,6 +1285,26 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                     )}
                                     Cerrar Turno de Caja
                                 </button>
+
+                                <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Reporte para Gerencia</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSendReporteGerenciaWA(activeSession, summaryData)}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                        <span>Enviar Reporte a WhatsApp</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCopyResumenTexto(activeSession, summaryData, false)}
+                                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 transition cursor-pointer border border-slate-200"
+                                    >
+                                        {copiedActive ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                                        <span>{copiedActive ? '¡Resumen Copiado!' : 'Copiar Resumen Gerencia'}</span>
+                                    </button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -1237,12 +1410,28 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                 <h3 className="font-bold text-lg">Detalles del Cierre de Caja</h3>
                                 <p className="text-xs text-slate-400">ID del Turno: {selectedPastSession.id.substring(0, 8)}...</p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleCopyResumenTexto(selectedPastSession, pastSummaryData, true)}
+                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-lg transition border border-slate-700 flex items-center gap-1 cursor-pointer"
+                                    title="Copiar resumen para WhatsApp"
+                                >
+                                    {copiedPast ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                    <span>{copiedPast ? 'Copiado' : 'Copiar'}</span>
+                                </button>
+                                <button
+                                    onClick={() => handleSendReporteGerenciaWA(selectedPastSession, pastSummaryData)}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 cursor-pointer"
+                                    title="Enviar a WhatsApp Gerencia"
+                                >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <span>WhatsApp</span>
+                                </button>
                                 <a
                                     href={`/c/cierre/${selectedPastSession.id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-lg transition shadow-sm"
+                                    className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-lg transition shadow-sm"
                                 >
                                     Ver Reporte PDF
                                 </a>
@@ -1251,7 +1440,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                         setSelectedPastSession(null);
                                         setPastSummaryData(null);
                                     }}
-                                    className="text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800"
+                                    className="text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                                 </button>
@@ -1312,6 +1501,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                 <tr>
                                                     <th className="px-4 py-2">Método de Pago</th>
                                                     <th className="px-4 py-2 text-right">Facturación</th>
+                                                    <th className="px-4 py-2 text-right">Abonos CxC</th>
                                                     <th className="px-4 py-2 text-right">Rentas</th>
                                                     <th className="px-4 py-2 text-right">Soporte</th>
                                                     <th className="px-4 py-2 text-right">Total</th>
@@ -1320,9 +1510,10 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                             <tbody className="divide-y divide-slate-100 font-medium">
                                                 {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'].map((metodo) => {
                                                     const v = pastSummaryData?.summary?.ventas?.[metodo] || 0;
+                                                    const a = pastSummaryData?.summary?.abonos?.[metodo] || 0;
                                                     const r = pastSummaryData?.summary?.rentas?.[metodo] || 0;
                                                     const s = pastSummaryData?.summary?.soporte?.[metodo] || 0;
-                                                    const total = v + r + s;
+                                                    const total = v + a + r + s;
                                                     const isExpanded = !!expandedPastMethods[metodo];
                                                     return (
                                                         <React.Fragment key={metodo}>
@@ -1337,23 +1528,37 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(v)}</td>
+                                                                <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(a)}</td>
                                                                 <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(r)}</td>
                                                                 <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(s)}</td>
                                                                 <td className={`px-4 py-2.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/20' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
                                                             </tr>
-                                                            {renderBreakdownRow(metodo, pastSummaryData?.session, isExpanded, 5)}
+                                                            {renderBreakdownRow(metodo, pastSummaryData?.session, isExpanded, 6)}
                                                         </React.Fragment>
                                                     );
                                                 })}
                                                 <tr className="bg-slate-900 text-white font-bold">
                                                     <td className="px-4 py-3">TOTALES</td>
                                                     <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalVentas || 0)}</td>
+                                                    <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalAbonos || 0)}</td>
                                                     <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalRentas || 0)}</td>
                                                     <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalSoporte || 0)}</td>
                                                     <td className="px-4 py-3 text-right text-emerald-400">{formatCurrency(pastSummaryData?.totals?.totalIngresos || 0)}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+
+                                    {/* Total Facturado Global and Credits indicator */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                                        <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-xs">
+                                            <span className="text-slate-600 font-semibold">Ventas al Crédito (Por Cobrar):</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(pastSummaryData?.totals?.totalVentasCredito || 0)}</span>
+                                        </div>
+                                        <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">
+                                            <span className="text-emerald-900 font-bold">TOTAL FACTURADO DEL DÍA:</span>
+                                            <span className="font-black text-emerald-800">{formatCurrency(pastSummaryData?.totals?.totalFacturado || ((pastSummaryData?.totals?.totalVentas || 0) + (pastSummaryData?.totals?.totalVentasCredito || 0)))}</span>
+                                        </div>
                                     </div>
                                     {/* MOVIMIENTOS REGISTRADOS EN ESTA SESION PASADA */}
                                     {pastSummaryData?.session?.movimientos?.length > 0 && (

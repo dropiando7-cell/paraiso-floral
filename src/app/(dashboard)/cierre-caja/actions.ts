@@ -420,6 +420,8 @@ export async function getCajaSessionSummary(sessionId: string) {
         rentas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         soporte: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         abonos: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
+        ventasCredito: 0,
+        transaccionesPorMetodo: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         egresos: 0
     };
 
@@ -430,6 +432,12 @@ export async function getCajaSessionSummary(sessionId: string) {
         
         const total = Number(f.total);
         
+        // Check if it is a credit sale
+        if (metodo === 'Crédito' || metodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO')) {
+            summary.ventasCredito += total;
+            return;
+        }
+
         // Exclude unconfirmed transfers from totals
         if (metodo === 'Transferencia' && f.transferenciaConfirmada === false) {
             return;
@@ -448,15 +456,19 @@ export async function getCajaSessionSummary(sessionId: string) {
 
                 if (summary.ventas[pMetodo] !== undefined) {
                     summary.ventas[pMetodo] += pTotal;
+                    summary.transaccionesPorMetodo[pMetodo] = (summary.transaccionesPorMetodo[pMetodo] || 0) + 1;
                 } else {
                     summary.ventas[pMetodo] = pTotal;
+                    summary.transaccionesPorMetodo[pMetodo] = (summary.transaccionesPorMetodo[pMetodo] || 0) + 1;
                 }
             });
         } else {
             if (summary.ventas[metodo] !== undefined) {
                 summary.ventas[metodo] += total;
+                summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
             } else {
                 summary.ventas[metodo] = total;
+                summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
             }
         }
     });
@@ -468,8 +480,10 @@ export async function getCajaSessionSummary(sessionId: string) {
         const total = Number(p.monto);
         if (summary.rentas[metodo] !== undefined) {
             summary.rentas[metodo] += total;
+            summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
         } else {
             summary.rentas[metodo] = total;
+            summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
         }
     });
 
@@ -480,8 +494,10 @@ export async function getCajaSessionSummary(sessionId: string) {
         const total = Number(o.costoRevision);
         if (summary.soporte[metodo] !== undefined) {
             summary.soporte[metodo] += total;
+            summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
         } else {
             summary.soporte[metodo] = total;
+            summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
         }
     });
 
@@ -499,12 +515,16 @@ export async function getCajaSessionSummary(sessionId: string) {
         const total = Number(p.monto);
         if (summary.abonos[metodo] !== undefined) {
             summary.abonos[metodo] += total;
+            summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
         } else {
             summary.abonos[metodo] = total;
+            summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
         }
     });
 
     const totalVentas = Object.values(summary.ventas).reduce((sum, v) => sum + v, 0);
+    const totalVentasCredito = summary.ventasCredito || 0;
+    const totalFacturado = totalVentas + totalVentasCredito;
     const totalRentas = Object.values(summary.rentas).reduce((sum, r) => sum + r, 0);
     const totalSoporte = Object.values(summary.soporte).reduce((sum, s) => sum + s, 0);
     const totalAbonos = Object.values(summary.abonos).reduce((sum, a) => sum + a, 0);
@@ -517,18 +537,30 @@ export async function getCajaSessionSummary(sessionId: string) {
 
     let ingresosMovimientosEfectivo = 0;
     let egresosMovimientosEfectivo = 0;
+    let ingresosMovimientosOtros = 0;
+    let egresosMovimientosOtros = 0;
     session.movimientos.forEach(m => {
         if (m.anuladaAt) return;
+        const amt = Number(m.monto);
         if (m.metodoPago === 'Efectivo') {
             if (m.tipo === 'INGRESO') {
-                ingresosMovimientosEfectivo += Number(m.monto);
+                ingresosMovimientosEfectivo += amt;
             } else if (m.tipo === 'EGRESO') {
                 if (m.concepto !== 'REEMBOLSO_GARANTIA') {
-                    egresosMovimientosEfectivo += Number(m.monto);
+                    egresosMovimientosEfectivo += amt;
                 }
+            }
+        } else {
+            if (m.tipo === 'INGRESO') {
+                ingresosMovimientosOtros += amt;
+            } else if (m.tipo === 'EGRESO') {
+                egresosMovimientosOtros += amt;
             }
         }
     });
+
+    // Total recaudado (entradas efectivas de dinero en todos los métodos)
+    const totalIngresos = totalVentas + totalRentas + totalSoporte + totalAbonos + ingresosMovimientosEfectivo + ingresosMovimientosOtros;
 
     // Expected cash in register (adjusted for bank drops/withdrawals)
     const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo + abonosEfectivo + ingresosMovimientosEfectivo - egresosMovimientosEfectivo;
@@ -621,14 +653,19 @@ export async function getCajaSessionSummary(sessionId: string) {
         totals: {
             saldoInicial,
             totalVentas,
+            totalVentasCredito,
+            totalFacturado,
             totalRentas,
             totalSoporte,
+            totalAbonos,
             ventasEfectivo,
             rentasEfectivo,
             soporteEfectivo,
             abonosEfectivo,
+            ingresosMovimientosEfectivo,
+            egresosMovimientosEfectivo,
             esperadoEfectivo,
-            totalIngresos: totalVentas + totalRentas + totalSoporte + totalAbonos
+            totalIngresos
         }
     };
 }

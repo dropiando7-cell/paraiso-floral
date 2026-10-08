@@ -45,7 +45,8 @@ export default async function PublicCierrePage({ params }: PageProps) {
             tipoDocumento: 'FACTURA'
         },
         include: {
-            cliente: true
+            cliente: true,
+            pagosMixtos: true
         }
       },
       rentasPagos: {
@@ -63,7 +64,12 @@ export default async function PublicCierrePage({ params }: PageProps) {
             cliente: true
         }
       },
-      movimientos: true
+      movimientos: true,
+      pagosCliente: {
+        include: {
+            cliente: true
+        }
+      }
     }
   });
 
@@ -77,42 +83,99 @@ export default async function PublicCierrePage({ params }: PageProps) {
       ventas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
       rentas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
       soporte: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
+      abonos: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
+      ventasCredito: 0,
+      transaccionesPorMetodo: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
       egresos: 0
   };
 
   session.facturas.forEach(f => {
-      const metodo = f.metodoPago || 'Efectivo';
+      let metodo = f.metodoPago || 'Efectivo';
+      if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
       const total = Number(f.total);
       
+      // Credit sale
+      if (metodo === 'Crédito' || metodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO')) {
+          summary.ventasCredito += total;
+          return;
+      }
+
       // Exclude unconfirmed transfers from totals
       if (metodo === 'Transferencia' && f.transferenciaConfirmada === false) {
           return;
       }
 
-      if (summary.ventas[metodo] !== undefined) {
-          summary.ventas[metodo] += total;
+      if (metodo === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
+          f.pagosMixtos.forEach((p: any) => {
+              let pMetodo = p.metodoPago;
+              if (pMetodo === 'Tarjeta de Crédito/Débito') pMetodo = 'Tarjeta';
+              const pTotal = Number(p.monto);
+              
+              if (pMetodo === 'Transferencia' && f.transferenciaConfirmada === false) {
+                  return;
+              }
+
+              if (summary.ventas[pMetodo] !== undefined) {
+                  summary.ventas[pMetodo] += pTotal;
+                  summary.transaccionesPorMetodo[pMetodo] = (summary.transaccionesPorMetodo[pMetodo] || 0) + 1;
+              } else {
+                  summary.ventas[pMetodo] = pTotal;
+                  summary.transaccionesPorMetodo[pMetodo] = (summary.transaccionesPorMetodo[pMetodo] || 0) + 1;
+              }
+          });
       } else {
-          summary.ventas[metodo] = total;
+          if (summary.ventas[metodo] !== undefined) {
+              summary.ventas[metodo] += total;
+              summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
+          } else {
+              summary.ventas[metodo] = total;
+              summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
+          }
       }
   });
 
   session.rentasPagos.forEach(p => {
-      const metodo = p.metodoPago || 'Efectivo';
+      let metodo = p.metodoPago || 'Efectivo';
+      if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
       const total = Number(p.monto);
       if (summary.rentas[metodo] !== undefined) {
           summary.rentas[metodo] += total;
+          summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
       } else {
           summary.rentas[metodo] = total;
+          summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
       }
   });
 
   session.ordenesTrabajo.forEach(o => {
-      const metodo = o.metodoPagoRevision || 'Efectivo';
+      let metodo = o.metodoPagoRevision || 'Efectivo';
+      if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
       const total = Number(o.costoRevision);
       if (summary.soporte[metodo] !== undefined) {
           summary.soporte[metodo] += total;
+          summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
       } else {
           summary.soporte[metodo] = total;
+          summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
+      }
+  });
+
+  (session.pagosCliente || []).forEach(p => {
+      if (p.anulado) return;
+      let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
+      let metodo = 'Efectivo';
+      if (rawMetodo.includes('TARJETA')) metodo = 'Tarjeta';
+      else if (rawMetodo.includes('TRANSFERENCIA')) metodo = 'Transferencia';
+      else if (rawMetodo.includes('CHEQUE')) metodo = 'Cheque';
+      else if (rawMetodo.includes('OCCIDENTE') || rawMetodo.includes('LINK')) metodo = 'Link de pago de Occidente';
+      
+      const total = Number(p.monto);
+      if (summary.abonos[metodo] !== undefined) {
+          summary.abonos[metodo] += total;
+          summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
+      } else {
+          summary.abonos[metodo] = total;
+          summary.transaccionesPorMetodo[metodo] = (summary.transaccionesPorMetodo[metodo] || 0) + 1;
       }
   });
 
@@ -127,24 +190,36 @@ export default async function PublicCierrePage({ params }: PageProps) {
   session.movimientos.forEach(m => {
       if (m.anuladaAt) return;
       const amount = Number(m.monto);
-      if (m.tipo === 'INGRESO') {
-          if (m.metodoPago === 'Efectivo') movimientosResumen.ingresosEfec += amount;
-          else movimientosResumen.ingresosOtros += amount;
+      if (m.metodoPago === 'Efectivo') {
+          if (m.tipo === 'INGRESO') {
+              movimientosResumen.ingresosEfec += amount;
+          } else if (m.tipo === 'EGRESO') {
+              if (m.concepto !== 'REEMBOLSO_GARANTIA') {
+                  movimientosResumen.egresosEfec += amount;
+              }
+          }
       } else {
-          if (m.metodoPago === 'Efectivo') movimientosResumen.egresosEfec += amount;
-          else movimientosResumen.egresosOtros += amount;
+          if (m.tipo === 'INGRESO') {
+              movimientosResumen.ingresosOtros += amount;
+          } else if (m.tipo === 'EGRESO') {
+              movimientosResumen.egresosOtros += amount;
+          }
       }
   });
 
-  const totalVentas = metodos.reduce((sum, m) => sum + (summary.ventas[m] || 0), 0);
-  const totalRentas = metodos.reduce((sum, m) => sum + (summary.rentas[m] || 0), 0);
-  const totalSoporte = metodos.reduce((sum, m) => sum + (summary.soporte[m] || 0), 0);
-  const totalIngresos = totalVentas + totalRentas + totalSoporte + movimientosResumen.ingresosEfec + movimientosResumen.ingresosOtros;
+  const totalVentas = Object.values(summary.ventas).reduce((sum, v) => sum + v, 0);
+  const totalVentasCredito = summary.ventasCredito || 0;
+  const totalFacturado = totalVentas + totalVentasCredito;
+  const totalRentas = Object.values(summary.rentas).reduce((sum, r) => sum + r, 0);
+  const totalSoporte = Object.values(summary.soporte).reduce((sum, s) => sum + s, 0);
+  const totalAbonos = Object.values(summary.abonos).reduce((sum, a) => sum + a, 0);
+  const totalIngresos = totalVentas + totalRentas + totalSoporte + totalAbonos + movimientosResumen.ingresosEfec + movimientosResumen.ingresosOtros;
   
   const ventasEfectivo = summary.ventas['Efectivo'] || 0;
   const rentasEfectivo = summary.rentas['Efectivo'] || 0;
   const soporteEfectivo = summary.soporte['Efectivo'] || 0;
-  const totalEfectivoIngresado = ventasEfectivo + rentasEfectivo + soporteEfectivo + movimientosResumen.ingresosEfec;
+  const abonosEfectivo = summary.abonos['Efectivo'] || 0;
+  const totalEfectivoIngresado = ventasEfectivo + rentasEfectivo + soporteEfectivo + abonosEfectivo + movimientosResumen.ingresosEfec;
 
   const esperadoEfectivo = Number(session.saldoInicial) + totalEfectivoIngresado - movimientosResumen.egresosEfec;
 
@@ -198,16 +273,31 @@ export default async function PublicCierrePage({ params }: PageProps) {
             anuladaAt: m.anuladaAt ? m.anuladaAt.toISOString() : null,
             descripcion: m.descripcion,
             monto: Number(m.monto)
+        })),
+        pagosCliente: (session.pagosCliente || []).map(p => ({
+            id: p.id,
+            monto: Number(p.monto),
+            metodoPago: p.metodoPago,
+            fecha: p.fecha.toISOString(),
+            clienteNombre: p.cliente?.nombre || 'Cliente General',
+            notas: p.notas || '',
+            anulado: p.anulado
         }))
     },
     totals: {
         totalVentas,
+        totalVentasCredito,
+        totalFacturado,
         totalRentas,
         totalSoporte,
+        totalAbonos,
         totalIngresos,
         ventasEfectivo,
         rentasEfectivo,
         soporteEfectivo,
+        abonosEfectivo,
+        ingresosMovimientosEfectivo: movimientosResumen.ingresosEfec,
+        egresosMovimientosEfectivo: movimientosResumen.egresosEfec,
         esperadoEfectivo,
     },
     summary
