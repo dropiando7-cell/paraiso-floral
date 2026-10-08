@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { SignatureItem } from '@/types/invoice';
+import { isCredito } from '@/utils/facturaUtils';
 
 // Register Inter font
 Font.register({
@@ -476,7 +477,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         <View style={styles.metadataGrid}>
           {(() => {
             const hasPaymentMethod = docType === 'factura' || docType === 'cotizacion' || docType === 'proforma';
-            const method = paymentMethod || 'Efectivo';
+            const method = isCredito(paymentTerms) ? 'Al Crédito' : (paymentMethod || 'Efectivo');
             return (
               <>
                 <View style={[styles.metaColumnFirst, { flex: hasPaymentMethod ? 0.8 : 0.9 }]}>

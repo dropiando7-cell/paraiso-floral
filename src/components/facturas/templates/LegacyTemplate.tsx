@@ -190,19 +190,29 @@ export default function LegacyTemplate(props: TemplateProps) {
   {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
   <div className="flex flex-col pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Método de pago:</span>
-  <select
-  value={paymentMethod}
-  onChange={e => setPaymentMethod(e.target.value)}
-  disabled={viewMode}
-  className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
-  >
-  <option value="Efectivo">Efectivo</option>
-  <option value="Tarjeta">Tarjeta</option>
-  <option value="Transferencia">Transferencia</option><option value="MIXTO">Pago Dividido / Mixto</option>
-  <option value="Cheque">Cheque</option>
-  <option value="Link de pago de Occidente">Link de pago</option>
-  </select>
-  <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentMethod}</span>
+  {isCredito(paymentTerms) ? (
+    <>
+      <span className="text-indigo-700 font-bold mt-1 print:hidden text-xs">Al Crédito</span>
+      <span className="hidden print:flex text-gray-600 mt-1 font-semibold" data-pdf-show>Al Crédito</span>
+    </>
+  ) : (
+    <>
+      <select
+        value={paymentMethod}
+        onChange={e => setPaymentMethod(e.target.value)}
+        disabled={viewMode}
+        className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
+      >
+        <option value="Efectivo">Efectivo</option>
+        <option value="Tarjeta">Tarjeta</option>
+        <option value="Transferencia">Transferencia</option>
+        <option value="MIXTO">Pago Dividido / Mixto</option>
+        <option value="Cheque">Cheque</option>
+        <option value="Link de pago de Occidente">Link de pago</option>
+      </select>
+      <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentMethod}</span>
+    </>
+  )}
 
   {paymentMethod === 'Transferencia' && !isCredito(paymentTerms) && (
     <div className="mt-1.5 print:hidden flex flex-col gap-1" data-pdf-hide>

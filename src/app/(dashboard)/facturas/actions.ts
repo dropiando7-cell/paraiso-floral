@@ -500,7 +500,9 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
             }
             
             // 1. Guardar la Factura
-            const nuevaFactura = await tx.factura.create({
+                    const esCreditoFactura = isCredito(facturaData.terminosPago) || facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO';
+                    
+                    const nuevaFactura = await tx.factura.create({
                 data: {
                     organizationId,
                     clienteId,
@@ -522,13 +524,14 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     
                     estado: 'EMITIDA',
                     inventarioDescontado: true,
-                    metodoPago: facturaData.metodoPago || 'Efectivo',
+                    metodoPago: esCreditoFactura ? 'Crédito' : (facturaData.metodoPago || 'Efectivo'),
                     aliasVenta: facturaData.aliasVenta || 'Paraíso Floral',
                     vendedorNombre: facturaData.vendedorNombre || null,
-                    saldoPendiente: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? facturaData.total : 0,
-                    estadoPago: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? 'PENDIENTE' : 'PAGADA',
+                    saldoPendiente: esCreditoFactura ? facturaData.total : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? facturaData.total : 0),
+                    estadoPago: esCreditoFactura ? 'PENDIENTE' : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'),
+                    transferenciaConfirmada: esCreditoFactura ? false : (facturaData.transferenciaConfirmada ?? true),
 
-                    fechaVencimiento: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') 
+                    fechaVencimiento: esCreditoFactura 
                         ? new Date(Date.now() + (Number(facturaData.diasCredito) || 15) * 24 * 60 * 60 * 1000) 
                         : null,
                     cajaSessionId,
@@ -733,8 +736,9 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             // Eliminar los detalles anteriores
             await tx.detalleFactura.deleteMany({ where: { facturaId: id } });
 
-            // Actualizar la factura principal
-            const docActualizado = await tx.factura.update({
+                    const esCreditoUpdate = isCredito(data.terminosPago);
+
+                    const docActualizado = await tx.factura.update({
                 where: { id },
                 data: {
                     clienteId,
@@ -744,14 +748,14 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
-                    fechaVencimiento: isCredito(data.terminosPago)
+                    fechaVencimiento: esCreditoUpdate
                         ? calcularFechaVencimiento(docExistente.fechaEmision, data.terminosPago, Number(data.validezDias) || 30)
                         : null,
-                    saldoPendiente: isCredito(data.terminosPago)
-                        ? (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) < Number(data.total) ? docExistente.saldoPendiente : data.total)
+                    saldoPendiente: esCreditoUpdate
+                        ? (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) > 0 && Number(docExistente.saldoPendiente) <= Number(data.total) ? docExistente.saldoPendiente : data.total)
                         : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? data.total : 0),
-                    estadoPago: isCredito(data.terminosPago)
-                        ? (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' ? 'PAGADA' : 'PENDIENTE'))
+                    estadoPago: esCreditoUpdate
+                        ? (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' && Number(docExistente.saldoPendiente) === 0 && Number(data.total) === 0 ? 'PAGADA' : 'PENDIENTE'))
                         : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? 'PENDIENTE' : 'PAGADA'),
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
@@ -765,10 +769,10 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     estado: nuevoEstado, 
                     tipoDocumento: nuevoTipo,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
-                    metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
+                    metodoPago: esCreditoUpdate ? 'Crédito' : (data.metodoPago || docExistente.metodoPago || 'Efectivo'),
                     aliasVenta: data.aliasVenta !== undefined ? data.aliasVenta : docExistente.aliasVenta,
                     vendedorNombre: data.vendedorNombre !== undefined ? data.vendedorNombre : docExistente.vendedorNombre,
-                    transferenciaConfirmada: isCredito(data.terminosPago) ? false : (data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada),
+                    transferenciaConfirmada: esCreditoUpdate ? false : (data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada),
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
                     detalles: {
@@ -1033,6 +1037,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
 
         const result = await prisma.$transaction(async (tx) => {
             // Crear el documento — el correlativo se genera DESPUÉS del create (usa numeroInterno auto)
+            const esCreditoNuevo = isCredito(data.terminosPago);
             const nuevoDoc = await tx.factura.create({
                 data: {
                     organizationId,
@@ -1043,14 +1048,14 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     notas: data.notas || null,
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
-                    fechaVencimiento: isCredito(data.terminosPago)
+                    fechaVencimiento: esCreditoNuevo
                         ? calcularFechaVencimiento(new Date(), data.terminosPago, Number(data.validezDias) || 30)
                         : null,
                     saldoPendiente: data.tipoDocumento === 'FACTURA'
-                        ? (isCredito(data.terminosPago) ? data.total : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? data.total : 0))
+                        ? (esCreditoNuevo ? data.total : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? data.total : 0))
                         : (Number(data.total) || 0),
                     estadoPago: data.tipoDocumento === 'FACTURA'
-                        ? (isCredito(data.terminosPago) ? 'PENDIENTE' : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'))
+                        ? (esCreditoNuevo ? 'PENDIENTE' : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'))
                         : 'PENDIENTE',
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
@@ -1068,10 +1073,10 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     documentoOrigenId: data.documentoOrigenId || null,
                     referenciaOriginalId: data.referenciaOriginalId || null,
                     ordenTrabajoId: data.ordenTrabajoId || null,
-                    metodoPago: data.metodoPago || 'Efectivo',
+                    metodoPago: esCreditoNuevo ? 'Crédito' : (data.metodoPago || 'Efectivo'),
                     aliasVenta: data.aliasVenta || null,
                     vendedorNombre: data.vendedorNombre || null,
-                    transferenciaConfirmada: isCredito(data.terminosPago) ? false : (data.transferenciaConfirmada || false),
+                    transferenciaConfirmada: esCreditoNuevo ? false : (data.transferenciaConfirmada || false),
                     cajaSessionId,
                     detalles: {
                         create: lineItems.map((item) => {

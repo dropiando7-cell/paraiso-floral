@@ -226,19 +226,23 @@ export default function ModernTemplate(props: TemplateProps) {
  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
  <div className="w-36">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Método de Pago</p>
- <select
- value={paymentMethod}
- onChange={e => setPaymentMethod(e.target.value)}
- disabled={viewMode}
- className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
- >
- <option value="Efectivo" className="bg-slate-800 text-white">Efectivo</option>
- <option value="Tarjeta" className="bg-slate-800 text-white">Tarjeta</option>
- <option value="Transferencia" className="bg-slate-800 text-white">Transferencia</option>
- <option value="MIXTO" className="bg-slate-800 text-white">Pago Dividido / Mixto</option>
- <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
- <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>
- </select>
+ {isCredito(paymentTerms) ? (
+   <span className={`bg-transparent ${theme.headerText} text-sm font-bold p-0 block`}>Al Crédito</span>
+ ) : (
+   <select
+     value={paymentMethod}
+     onChange={e => setPaymentMethod(e.target.value)}
+     disabled={viewMode}
+     className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
+   >
+     <option value="Efectivo" className="bg-slate-800 text-white">Efectivo</option>
+     <option value="Tarjeta" className="bg-slate-800 text-white">Tarjeta</option>
+     <option value="Transferencia" className="bg-slate-800 text-white">Transferencia</option>
+     <option value="MIXTO" className="bg-slate-800 text-white">Pago Dividido / Mixto</option>
+     <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
+     <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>
+   </select>
+ )}
  {paymentMethod === 'Transferencia' && !isCredito(paymentTerms) && (
    <div className="mt-2 print:hidden" data-pdf-hide>
      {viewMode ? (

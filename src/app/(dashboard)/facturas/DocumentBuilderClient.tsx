@@ -17,6 +17,7 @@ import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SignatureCanvas from 'react-signature-canvas';
+import { isCredito } from '@/utils/facturaUtils';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
@@ -2254,6 +2255,19 @@ export default function DocumentBuilderClient({
       setShowMixedPaymentsModal(true);
     }
   }, [paymentMethod]);
+
+  // Sincronizar automáticamente el método de pago con los términos de pago al crédito
+  useEffect(() => {
+    if (isCredito(paymentTerms)) {
+      if (paymentMethod !== 'Crédito') {
+        setPaymentMethod('Crédito');
+      }
+    } else {
+      if (paymentMethod === 'Crédito') {
+        setPaymentMethod('Efectivo');
+      }
+    }
+  }, [paymentTerms, paymentMethod]);
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
   const [clientSearch, setClientSearch] = useState('');
@@ -4651,11 +4665,11 @@ export default function DocumentBuilderClient({
                        'FACTURA',
         notas: notes,
         terminosPago: paymentTerms,
-        metodoPago: paymentMethod,
-        pagosMixtos: paymentMethod === 'MIXTO' ? mixedPayments : undefined,
+        metodoPago: isCredito(paymentTerms) ? 'Crédito' : paymentMethod,
+        pagosMixtos: (!isCredito(paymentTerms) && paymentMethod === 'MIXTO') ? mixedPayments : undefined,
         aliasVenta: aliasVenta,
         vendedorNombre: vendedorNombre,
-        transferenciaConfirmada: transferenciaConfirmada,
+        transferenciaConfirmada: isCredito(paymentTerms) ? false : transferenciaConfirmada,
         validezDias: validityDays,
         subTotal: totals.subtotal,
         descuentos: totals.descuentos,

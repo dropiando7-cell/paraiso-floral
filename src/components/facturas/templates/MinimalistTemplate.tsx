@@ -4,6 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
+import { isCredito } from '@/utils/facturaUtils';
 
 export default function MinimalistTemplate(props: TemplateProps) {
   const {
@@ -174,18 +175,23 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
   <div className="mt-2">
   <p className="text-[10px] text-slate-400 uppercase mb-1">Método de Pago</p>
-  <select
-  value={paymentMethod}
-  onChange={e => setPaymentMethod(e.target.value)}
-  disabled={viewMode}
-  className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium"
-  >
-  <option value="Efectivo">Efectivo</option>
-  <option value="Tarjeta">Tarjeta</option>
-  <option value="Transferencia">Transferencia</option><option value="MIXTO">Pago Dividido / Mixto</option>
-  <option value="Cheque">Cheque</option>
-  <option value="Link de pago de Occidente">Link de pago</option>
-  </select>
+  {isCredito(paymentTerms) ? (
+    <span className="w-full sm:text-right print:text-right text-indigo-700 text-sm font-bold block">Al Crédito</span>
+  ) : (
+    <select
+      value={paymentMethod}
+      onChange={e => setPaymentMethod(e.target.value)}
+      disabled={viewMode}
+      className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium"
+    >
+      <option value="Efectivo">Efectivo</option>
+      <option value="Tarjeta">Tarjeta</option>
+      <option value="Transferencia">Transferencia</option>
+      <option value="MIXTO">Pago Dividido / Mixto</option>
+      <option value="Cheque">Cheque</option>
+      <option value="Link de pago de Occidente">Link de pago</option>
+    </select>
+  )}
   </div>
   )}
  </div>

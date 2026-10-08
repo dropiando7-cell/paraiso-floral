@@ -233,11 +233,11 @@ export default function DocumentListTable({ data, type }: Props) {
       }
 
       if (showCredito) {
-        if (!isCredito(doc.terminosPago)) return false;
+        if (!isCredito(doc.terminosPago) && doc.metodoPago !== 'Crédito' && doc.metodoPago !== 'CREDITO') return false;
       }
 
       if (showCreditosVencidos) {
-        if (!isCredito(doc.terminosPago)) return false;
+        if (!isCredito(doc.terminosPago) && doc.metodoPago !== 'Crédito' && doc.metodoPago !== 'CREDITO') return false;
         const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
         if (!fVenc || fVenc.getTime() >= new Date().getTime() || doc.estadoPago === 'PAGADA') return false;
       }
@@ -378,7 +378,7 @@ export default function DocumentListTable({ data, type }: Props) {
 
     // 1. SI ES UNA TRANSACCIÓN AL CRÉDITO:
     // Nunca debe decir "Pend. Transferencia". Debe decir CLARAMENTE "Crédito"
-    if (isCredito(doc.terminosPago)) {
+    if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
       const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
       const hoy = new Date();
       const diasCred = getDiasCredito(doc.terminosPago, doc.validezDias || 30);
@@ -386,7 +386,7 @@ export default function DocumentListTable({ data, type }: Props) {
       const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       const estaVencida = diasRestantes < 0 && doc.estadoPago !== 'PAGADA';
 
-      if (doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0)) {
+      if (doc.estadoPago === 'PAGADA' && (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0)) {
         return (
           <div className="flex flex-col items-center gap-1">
             {badge}
