@@ -2243,6 +2243,23 @@ export default function DocumentBuilderClient({
   }, [docDate]);
 
   const [docNumber, setDocNumber] = useState('');
+
+  // Obtener vista previa del próximo correlativo oficial automáticamente para documentos nuevos o clones
+  useEffect(() => {
+    if (!editMode && !viewMode) {
+      let tipoParaCorrelativo = docType.toUpperCase();
+      if (tipoParaCorrelativo === 'PRESUPUESTO_REPARACION' || tipoParaCorrelativo === 'PRESUPUESTO_MANTENIMIENTO') {
+        tipoParaCorrelativo = 'COTIZACION';
+      }
+      getProximoCorrelativoPreview(tipoParaCorrelativo).then((res) => {
+        if (res.success && res.correlativo) {
+          setDocNumber(res.correlativo);
+        }
+      }).catch(err => {
+        console.error("Error al obtener preview de correlativo:", err);
+      });
+    }
+  }, [docType, editMode, viewMode]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
   const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
