@@ -471,6 +471,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
  </div>
 
+ {!viewMode && (
  <div className="mt-6 print:hidden">
  <button 
  onClick={handleSave}
@@ -480,6 +481,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  {isSaving ? 'Guardando...' : `Guardar ${currentDocType.label}`}
  </button>
  </div>
+ )}
  </div>
  <div className="clear-both print:flex"></div>
  </div>

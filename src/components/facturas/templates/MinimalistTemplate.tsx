@@ -352,6 +352,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
  </div>
 
+ {!viewMode && (
  <div className="mt-8 print:hidden">
  <button 
  onClick={handleSave}
@@ -361,6 +362,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {isSaving ? '...' : 'Generar'}
  </button>
  </div>
+ )}
  </div>
  <div className="clear-both print:flex"></div>
  </div>

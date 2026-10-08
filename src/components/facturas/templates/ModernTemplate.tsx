@@ -507,6 +507,7 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
 
  {/* CTA */}
+ {!viewMode && (
  <div className="pt-2 print:hidden">
  <button 
  onClick={handleSave}
@@ -522,6 +523,7 @@ export default function ModernTemplate(props: TemplateProps) {
  )}
  </button>
  </div>
+ )}
  </div>
  </div>
  </div>

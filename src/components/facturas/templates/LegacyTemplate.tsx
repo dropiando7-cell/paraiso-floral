@@ -486,6 +486,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
 
  {/* Actions (Non-printable) */}
+ {!viewMode && (
  <div className="mt-8 mb-4 flex justify-end print:hidden">
  <button 
  onClick={handleSave}
@@ -495,6 +496,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  {isSaving ? 'Guardando...' : `Guardar ${currentDocType.label}`}
  </button>
  </div>
+ )}
 
   {/* Spacer to push the footer naturally in flex views if needed */}
   <div className="flex-1" />
