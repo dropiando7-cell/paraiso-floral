@@ -2294,14 +2294,30 @@ export default function DocumentBuilderClient({
   const [showClientModal, setShowClientModal] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showUnsavedWhatsAppWarning, setShowUnsavedWhatsAppWarning] = useState(false);
+
+  const isDocumentoGuardado = Boolean(viewMode || (initialData?.id && initialData?.estado !== 'BORRADOR'));
+
+  const handleOpenWhatsAppImage = () => {
+    if (!isDocumentoGuardado) {
+      setShowUnsavedWhatsAppWarning(true);
+      return;
+    }
+    setShowWhatsAppModal(true);
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       if (sp.get('whatsapp') === 'true') {
-        setShowWhatsAppModal(true);
+        if (isDocumentoGuardado) {
+          setShowWhatsAppModal(true);
+        } else {
+          setShowUnsavedWhatsAppWarning(true);
+        }
       }
     }
-  }, []);
+  }, [isDocumentoGuardado]);
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
@@ -4923,7 +4939,7 @@ export default function DocumentBuilderClient({
               {isKioskMode ? <Minimize size={15} /> : <Maximize size={15} />}
             </button>
             <button
-              onClick={() => setShowWhatsAppModal(true)}
+              onClick={handleOpenWhatsAppImage}
               title="Copiar Factura como Imagen para WhatsApp"
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-bold transition-all shadow-xs whitespace-nowrap shrink-0 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 cursor-pointer"
             >
@@ -6775,22 +6791,22 @@ export default function DocumentBuilderClient({
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full mt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3 w-full mt-1">
               {/* Imprimir Carta */}
               <button
                 type="button"
                 onClick={() => {
                   window.open(`/facturas/ver/${showSuccessModal.docId}?print=true`, '_blank');
                 }}
-                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
+                className="group flex flex-col items-center justify-center gap-2.5 p-3 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Imprimir formato Carta"
               >
-                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Printer size={28} />
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Printer size={24} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="font-bold text-slate-700 text-sm text-center">Carta</span>
-                  <span className="text-xs text-blue-600 font-semibold mt-0.5">Imprimir A4</span>
+                  <span className="font-bold text-slate-700 text-xs sm:text-sm text-center">Carta</span>
+                  <span className="text-[10px] sm:text-xs text-blue-600 font-semibold mt-0.5">Imprimir A4</span>
                 </div>
               </button>
               
@@ -6816,15 +6832,15 @@ export default function DocumentBuilderClient({
                     window.open(`/facturas/ver/${showSuccessModal.docId}?print=ticket`, '_blank');
                   }
                 }}
-                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
+                className="group flex flex-col items-center justify-center gap-2.5 p-3 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Imprimir ticket térmico POS"
               >
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Receipt size={28} />
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Receipt size={24} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="font-bold text-slate-700 text-sm text-center">Ticket</span>
-                  <span className="text-xs text-emerald-600 font-semibold mt-0.5">Térmico POS</span>
+                  <span className="font-bold text-slate-700 text-xs sm:text-sm text-center">Ticket</span>
+                  <span className="text-[10px] sm:text-xs text-emerald-600 font-semibold mt-0.5">Térmico POS</span>
                 </div>
               </button>
               
@@ -6857,19 +6873,37 @@ export default function DocumentBuilderClient({
                     window.open(`/facturas/ver/${showSuccessModal.docId}?download=true`, '_blank');
                   }
                 }}
-                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-rose-100 hover:border-rose-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
+                className="group flex flex-col items-center justify-center gap-2.5 p-3 bg-white border-2 border-rose-100 hover:border-rose-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Descargar archivo PDF"
               >
-                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Download size={28} />
+                <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Download size={24} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="font-bold text-slate-700 text-sm text-center">PDF</span>
-                  <span className="text-xs text-rose-600 font-semibold mt-0.5">Descargar</span>
+                  <span className="font-bold text-slate-700 text-xs sm:text-sm text-center">PDF</span>
+                  <span className="text-[10px] sm:text-xs text-rose-600 font-semibold mt-0.5">Descargar</span>
                 </div>
               </button>
 
-              {/* Compartir por WhatsApp */}
+              {/* WhatsApp (Captura de Imagen HD) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWhatsAppModal(true);
+                }}
+                className="group flex flex-col items-center justify-center gap-2.5 p-3 bg-emerald-50/70 border-2 border-emerald-300 hover:border-emerald-600 rounded-2xl transition-all hover:shadow-lg cursor-pointer ring-2 ring-emerald-500/15"
+                title="Generar y copiar captura de imagen para WhatsApp"
+              >
+                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-md shadow-emerald-600/20">
+                  <MessageCircle size={24} />
+                </div>
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="font-black text-slate-900 text-xs sm:text-sm text-center">WhatsApp</span>
+                  <span className="text-[10px] sm:text-xs text-emerald-700 font-black mt-0.5">Imagen HD</span>
+                </div>
+              </button>
+
+              {/* Compartir por WhatsApp (Enlace Web) */}
               <button
                 type="button"
                 onClick={() => {
@@ -6877,15 +6911,15 @@ export default function DocumentBuilderClient({
                   setWhatsappPhone(rawPhone);
                   setShowWhatsappModal(true);
                 }}
-                className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
-                title="Compartir por WhatsApp Web"
+                className="group flex flex-col items-center justify-center gap-2.5 p-3 bg-white border-2 border-slate-200 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
+                title="Compartir enlace por WhatsApp Web"
               >
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Phone size={28} />
+                <div className="w-12 h-12 bg-slate-50 text-slate-600 group-hover:text-emerald-600 group-hover:bg-emerald-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Phone size={24} />
                 </div>
                 <div className="flex flex-col items-center leading-tight">
-                  <span className="font-bold text-slate-700 text-sm text-center">WhatsApp</span>
-                  <span className="text-xs text-emerald-600 font-semibold mt-0.5">Enviar Web</span>
+                  <span className="font-bold text-slate-700 text-xs sm:text-sm text-center">WhatsApp</span>
+                  <span className="text-[10px] sm:text-xs text-slate-500 font-semibold mt-0.5">Enviar Enlace</span>
                 </div>
               </button>
             </div>
@@ -7074,9 +7108,49 @@ export default function DocumentBuilderClient({
         </div>
       )}
 
+      {showUnsavedWhatsAppWarning && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3200] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+          <div className="bg-white rounded-[2rem] p-7 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mb-4 shadow-inner ring-8 ring-amber-50/60">
+              <AlertCircle size={38} className="stroke-[2.5]" />
+            </div>
+            
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-100/80 px-3 py-1 rounded-full mb-2">
+              Bloqueo de Seguridad
+            </span>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
+              Factura No Guardada
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium px-2 leading-relaxed mb-6">
+              Esta factura aún no ha sido guardada ni emitida en el sistema. Para garantizar la validez fiscal y evitar que el cliente reciba un borrador incompleto sin su correlativo definitivo, debes <strong>guardar o emitir la factura</strong> primero.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowUnsavedWhatsAppWarning(false)}
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-colors text-sm cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedWhatsAppWarning(false);
+                  handleSave();
+                }}
+                className="flex-[1.4] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/25 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Send size={16} /> {docType === 'factura' ? 'Emitir Factura' : 'Guardar Documento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showActionsModal && (
         <DocumentActionsModal
-          isSaved={!!initialData?.id || !!lastSaved}
+          isSaved={isDocumentoGuardado}
           onClose={() => setShowActionsModal(false)}
           onDownloadPDF={handleDownloadPDF}
           onToggleCustomizer={() => setShowCustomizer(!showCustomizer)}
@@ -7087,10 +7161,7 @@ export default function DocumentBuilderClient({
             setSendEmailDocId(initialData.id);
             setSendEmailModalOpen(true);
           } : undefined}
-          onSendWhatsApp={() => {
-            setShowActionsModal(false);
-            setShowWhatsAppModal(true);
-          }}
+          onSendWhatsApp={handleOpenWhatsAppImage}
           isDownloadingPDF={isDownloadingPDF}
           isConverting={isConverting}
           docType={
@@ -7120,9 +7191,9 @@ export default function DocumentBuilderClient({
           isOpen={showWhatsAppModal}
           onClose={() => setShowWhatsAppModal(false)}
           containerRef={templateContainerRef}
-          defaultPhone={selectedClient?.phone || initialData?.cliente?.telefono || '88542199'}
-          clientName={selectedClient?.name || initialData?.clienteNombre || initialData?.cliente?.nombre}
-          correlativo={docNumber || initialData?.correlativo}
+          defaultPhone={selectedClient?.telefonoContacto || selectedClient?.phone || (selectedClient as any)?.telefono || initialData?.cliente?.telefono || '88542199'}
+          clientName={showSuccessModal?.clienteNombre || selectedClient?.name || initialData?.clienteNombre || initialData?.cliente?.nombre}
+          correlativo={showSuccessModal?.correlativo || docNumber || initialData?.correlativo}
           docType={docType === 'factura' ? 'Factura' : docType === 'proforma' ? 'Factura Pro Forma' : docType === 'nota_credito' ? 'Nota de Crédito' : 'Cotización'}
         />
       )}
