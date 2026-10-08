@@ -18,12 +18,19 @@ import {
 // Fuente: Inter (Google Fonts)
 // ============================================================
 
+export const normalizeCatName = (name: string): string => {
+  return (name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
 export const DEFAULT_CATEGORIAS_GASTO: { nombre: string; cuenta: string }[] = [
   { nombre: 'Papelería', cuenta: '5102-001' },
   { nombre: 'Impresiones y copias', cuenta: '5102-002' },
   { nombre: 'Transporte', cuenta: '5103-001' },
-  { nombre: 'Envios', cuenta: '5109-001' },
-  { nombre: 'Mensajería y envíos', cuenta: '5109-001' },
+  { nombre: 'Envíos', cuenta: '5109-001' },
   { nombre: 'Combustible', cuenta: '5103-002' },
   { nombre: 'REEMBOLSO COMBUSTIBLE', cuenta: '5103-002' },
   { nombre: 'Peajes y parqueos', cuenta: '5103-003' },
@@ -67,21 +74,24 @@ export const mergeCategorias = (
   // 1. Categorías base
   baseList.forEach(c => {
     if (c.nombre && c.nombre.trim()) {
-      map.set(c.nombre.trim().toLowerCase(), { nombre: c.nombre.trim(), cuenta: c.cuenta?.trim() || '5199-001' });
+      map.set(normalizeCatName(c.nombre), { nombre: c.nombre.trim(), cuenta: c.cuenta?.trim() || '5199-001' });
     }
   });
 
   // 2. Categorías guardadas en localStorage
   storedList.forEach(c => {
     if (c && c.nombre && c.nombre.trim()) {
-      map.set(c.nombre.trim().toLowerCase(), { nombre: c.nombre.trim(), cuenta: c.cuenta?.trim() || '5199-001' });
+      const key = normalizeCatName(c.nombre);
+      if (!map.has(key)) {
+        map.set(key, { nombre: c.nombre.trim(), cuenta: c.cuenta?.trim() || '5199-001' });
+      }
     }
   });
 
   // 3. Movimientos de la sesión activa
   dbMovimientos.forEach(m => {
     if (m && m.categoria && typeof m.categoria === 'string' && m.categoria.trim()) {
-      const key = m.categoria.trim().toLowerCase();
+      const key = normalizeCatName(m.categoria);
       if (!map.has(key)) {
         let cuenta = m.cuentaContable?.trim() || '5199-001';
         if (key.includes('envio') || key.includes('flete') || key.includes('mensaj')) cuenta = '5109-001';
@@ -96,7 +106,7 @@ export const mergeCategorias = (
   dbSesionesCerradas.forEach(s => {
     (s.movimientos || []).forEach((m: any) => {
       if (m && m.categoria && typeof m.categoria === 'string' && m.categoria.trim()) {
-        const key = m.categoria.trim().toLowerCase();
+        const key = normalizeCatName(m.categoria);
         if (!map.has(key)) {
           let cuenta = m.cuentaContable?.trim() || '5199-001';
           if (key.includes('envio') || key.includes('flete') || key.includes('mensaj')) cuenta = '5109-001';
@@ -1498,7 +1508,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                       <select
                         value={form.categoria}
                         onChange={(e) => {
-                          const cat = categoriasGasto.find(c => c.nombre === e.target.value);
+                          const cat = categoriasGasto.find(c => normalizeCatName(c.nombre) === normalizeCatName(e.target.value));
                           setForm({
                             ...form,
                             categoria: e.target.value,
@@ -1508,7 +1518,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                         className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
                       >
                         <option value="">Selecciona una categoría...</option>
-                        {form.categoria && !categoriasGasto.some(c => c.nombre.toLowerCase() === form.categoria.toLowerCase()) && (
+                        {form.categoria && !categoriasGasto.some(c => normalizeCatName(c.nombre) === normalizeCatName(form.categoria)) && (
                           <option value={form.categoria}>{form.categoria}</option>
                         )}
                         {categoriasGasto.map((cat) => (
@@ -2259,14 +2269,15 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                         type="button"
                         onClick={() => {
                           if (confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) {
-                            const nuevaLista = categoriasGasto.filter(c => c.nombre.toLowerCase() !== cat.nombre.toLowerCase());
+                            const targetKey = normalizeCatName(cat.nombre);
+                            const nuevaLista = categoriasGasto.filter(c => normalizeCatName(c.nombre) !== targetKey);
                             setCategoriasGasto(nuevaLista);
                             if (typeof window !== 'undefined') {
                               try {
                                 const raw = localStorage.getItem(LOCAL_STORAGE_KEY_CATEGORIAS);
                                 if (raw) {
                                   const parsed: { nombre: string; cuenta: string }[] = JSON.parse(raw);
-                                  const filtered = parsed.filter(c => c.nombre.toLowerCase() !== cat.nombre.toLowerCase());
+                                  const filtered = parsed.filter(c => normalizeCatName(c.nombre) !== targetKey);
                                   localStorage.setItem(LOCAL_STORAGE_KEY_CATEGORIAS, JSON.stringify(filtered));
                                 }
                               } catch (err) {
@@ -2306,7 +2317,8 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     toast.error('Ingresa la cuenta contable correspondiente');
                     return;
                   }
-                  const yaExiste = categoriasGasto.find(c => c.nombre.toLowerCase() === limpiaNombre.toLowerCase());
+                  const targetKey = normalizeCatName(limpiaNombre);
+                  const yaExiste = categoriasGasto.find(c => normalizeCatName(c.nombre) === targetKey);
                   if (yaExiste) {
                     toast.success(`La categoría "${yaExiste.nombre}" ya existe y fue seleccionada`);
                     setForm((prev: any) => ({ ...prev, categoria: yaExiste.nombre, cuentaContable: yaExiste.cuenta }));
@@ -2324,7 +2336,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     try {
                       const raw = localStorage.getItem(LOCAL_STORAGE_KEY_CATEGORIAS);
                       const parsed: { nombre: string; cuenta: string }[] = raw ? JSON.parse(raw) : [];
-                      if (!parsed.some(c => c.nombre.toLowerCase() === limpiaNombre.toLowerCase())) {
+                      if (!parsed.some(c => normalizeCatName(c.nombre) === targetKey)) {
                         parsed.push(nueva);
                         localStorage.setItem(LOCAL_STORAGE_KEY_CATEGORIAS, JSON.stringify(parsed));
                       }
