@@ -3237,6 +3237,14 @@ export default function DocumentBuilderClient({
   const clearLocalDraft = () => {
     try {
       window.localStorage.removeItem(draftKey);
+      window.localStorage.removeItem('bea_factura_draft_v2_new');
+      if (typeof window !== 'undefined') {
+        Object.keys(window.localStorage).forEach(key => {
+          if (key.startsWith('bea_factura_draft_')) {
+            window.localStorage.removeItem(key);
+          }
+        });
+      }
       setLastSaved(null);
     } catch (e) {}
   };
@@ -7063,19 +7071,16 @@ export default function DocumentBuilderClient({
               <button
                 onClick={async () => {
                   if (initialData?.id && initialData?.estado === 'BORRADOR') {
-                    const res = await eliminarDocumentoBorrador(initialData.id);
-                    if (res.success) {
-                      toast.success("Borrador eliminado");
-                      router.push('/facturas?tab=creador');
-                      return;
-                    } else {
-                      toast.error("Error al eliminar borrador: " + res.error);
-                    }
+                    try {
+                      await eliminarDocumentoBorrador(initialData.id);
+                    } catch (e) {}
                   }
                   clearLocalDraft();
-                  window.location.href = window.location.pathname;
+                  setShowDiscardModal(false);
+                  toast.success("Borrador descartado");
+                  window.location.href = '/facturas?tab=creador';
                 }}
-                className="flex-[1.5] py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 shadow-lg shadow-red-500/30 transition-all"
+                className="flex-[1.5] py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 shadow-lg shadow-red-500/30 transition-all cursor-pointer"
               >
                 Sí, Descartar
               </button>
