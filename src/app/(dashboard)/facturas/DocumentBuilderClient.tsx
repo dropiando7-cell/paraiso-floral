@@ -6708,34 +6708,8 @@ export default function DocumentBuilderClient({
           setShowWhatsappModal(false);
           if (ordenTrabajoId) {
             router.push(`/soporte/${ordenTrabajoId}`);
-          } else if (editMode && initialData?.id) {
-            window.location.href = '/facturas?tab=creador';
           } else {
-            setReservedDocId(null);
-            setDocNumber('');
-            setSelectedClient(null);
-            setLineItems([{
-              id: uid(),
-              code: '',
-              shortDesc: '',
-              longDesc: '',
-              richDesc: '',
-              showLongDesc: false,
-              qty: 1,
-              unitPrice: '',
-              tax: 'isv15',
-              discount: 0,
-              discountType: 'percentage',
-              _isNew: true
-            }]);
-            setNotes('');
-            setPaymentTerms('Contado');
-            setPaymentMethod('Efectivo');
-            setMixedPayments([]);
-            setValidityDays(30);
-            setIsSaving(false);
-            isSavingRef.current = false;
-            toast.success('Formulario listo para nuevo documento');
+            window.location.href = '/facturas?tab=creador';
           }
         };
 
