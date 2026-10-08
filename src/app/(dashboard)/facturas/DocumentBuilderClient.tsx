@@ -3081,7 +3081,7 @@ export default function DocumentBuilderClient({
     }
   }, [viewMode, initialData?.id, docType]);
 
-  // 1. Hydrate from localStorage on mount (ONLY if it's a new document and not in viewMode)
+  // 1. Hydrate from localStorage on mount (ONLY if it's not in viewMode)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (effectiveViewMode) {
@@ -3093,7 +3093,11 @@ export default function DocumentBuilderClient({
       const stored = window.localStorage.getItem(draftKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.reservedDocId) setReservedDocId(parsed.reservedDocId);
+        if (editMode && parsed.reservedDocId) {
+          setReservedDocId(parsed.reservedDocId);
+        } else if (!editMode) {
+          setReservedDocId(null);
+        }
         if (parsed.docType) {
           let restoredType = parsed.docType;
           if (restoredType === 'presupuesto_reparacion' || restoredType === 'presupuesto_mantenimiento') {
@@ -3101,7 +3105,7 @@ export default function DocumentBuilderClient({
           }
           setDocType(restoredType);
         }
-        if (parsed.docNumber) setDocNumber(parsed.docNumber);
+        if (editMode && parsed.docNumber) setDocNumber(parsed.docNumber);
         if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
         if (parsed.lineItems && parsed.lineItems.length > 0) {
           const mergedLineItems = parsed.lineItems.map((item: any) => {
@@ -3140,22 +3144,22 @@ export default function DocumentBuilderClient({
         if (parsed.settings && typeof parsed.settings === 'object') {
           setSettings(prev => ({ ...prev, ...parsed.settings }));
         }
-        if (parsed.docNumber) {
+        if (parsed.docNumber && editMode) {
           setIsLocked(false);
-        } else if (!parsed.reservedDocId) {
-          setIsLocked(true); // Must reserve first 
+        } else if (!parsed.reservedDocId && !editMode) {
+          setIsLocked(false);
         }
         draftLoadedRef.current = true;
         toast('Borrador restaurado', { icon: '📝' });
       } else {
-        if (!initialData) setIsLocked(true); // Locked if completely blank session
+        if (!initialData) setIsLocked(false);
       }
     } catch (e) {
       console.warn("Failed to parse draft", e);
-      if (!initialData) setIsLocked(true);
+      if (!initialData) setIsLocked(false);
     }
     setIsHydrated(true);
-  }, [draftKey, effectiveViewMode, initialData]);
+  }, [draftKey, effectiveViewMode, initialData, editMode]);
 
   // 2. Auto-save to localStorage with debounce
   useEffect(() => {
@@ -3164,7 +3168,16 @@ export default function DocumentBuilderClient({
     const handler = setTimeout(() => {
       try {
         const draft = {
-          reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, settings
+          reservedDocId: editMode ? reservedDocId : null,
+          docType,
+          docNumber: editMode ? docNumber : '',
+          selectedClient,
+          lineItems,
+          notes,
+          paymentTerms,
+          paymentMethod,
+          validityDays,
+          settings
         };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
         setLastSaved(new Date());
@@ -3172,7 +3185,7 @@ export default function DocumentBuilderClient({
     }, 1500);
 
     return () => clearTimeout(handler);
-  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, settings, effectiveViewMode, draftKey]);
+  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, settings, effectiveViewMode, draftKey, editMode]);
 
   const clearLocalDraft = () => {
     try {
@@ -3489,6 +3502,7 @@ export default function DocumentBuilderClient({
 
   const isPrintIframe = typeof window !== 'undefined' && window.location.pathname.startsWith('/print');
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
   const [isConverting, setIsConverting] = useState(false);
   const [showAdminWarningModal, setShowAdminWarningModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState<{ nuevoTipo: 'PROFORMA' | 'FACTURA' } | null>(null);
@@ -4550,6 +4564,7 @@ export default function DocumentBuilderClient({
   }, [activeLineId]);
 
   const handleSave = async () => {
+    if (isSavingRef.current || isSaving) return;
     if (isAnulada) { toast.error('No se puede modificar un documento anulado'); return; }
     if (!selectedClient) {
       toast.error('Debe seleccionar un cliente');
@@ -4623,6 +4638,7 @@ export default function DocumentBuilderClient({
       return;
     }
 
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
       const data = {
@@ -4662,15 +4678,20 @@ export default function DocumentBuilderClient({
       if (targetId) {
         res = await actualizarDocumentoBuilder(targetId, data, validItems);
       } else {
-        // Fallback for safety, though reservedDocId should always exist now before saving
         res = await guardarDocumentoBuilder(data, validItems);
       }
       if (res.success) {
         clearLocalDraft();
+        const savedDocId = String(res.docId || targetId || (initialData?.id || ''));
+        if (editMode && savedDocId) {
+          setReservedDocId(savedDocId);
+        } else {
+          setReservedDocId(null);
+        }
         setShowSuccessModal({ 
           show: true, 
-          docId: String(res.docId || (initialData?.id || '')), 
-          correlativo: res.correlativo || '',
+          docId: savedDocId, 
+          correlativo: res.correlativo || docNumber || '',
           format: docType,
           clienteNombre: selectedClient?.name || initialData?.clienteNombre || (initialData as any)?.cliente?.nombre || ''
         });
@@ -4678,9 +4699,11 @@ export default function DocumentBuilderClient({
         toast.error(res.error || 'Error al guardar el documento');
       }
     } catch(e: any) {
+      console.error(e);
       toast.error(e.message || 'Error desconocido al guardar');
     } finally {
       setIsSaving(false);
+      isSavingRef.current = false;
     }
   };
 
@@ -6666,12 +6689,39 @@ export default function DocumentBuilderClient({
 
       {(() => {
         const handleExitAfterSave = () => {
+          clearLocalDraft();
           setShowSuccessModal(null);
           setShowWhatsappModal(false);
           if (ordenTrabajoId) {
             router.push(`/soporte/${ordenTrabajoId}`);
+          } else if (editMode && initialData?.id) {
+            window.location.href = '/facturas?tab=creador';
           } else {
-            window.location.href = '/facturas/nuevo';
+            setReservedDocId(null);
+            setDocNumber('');
+            setSelectedClient(null);
+            setLineItems([{
+              id: uid(),
+              code: '',
+              shortDesc: '',
+              longDesc: '',
+              richDesc: '',
+              showLongDesc: false,
+              qty: 1,
+              unitPrice: '',
+              tax: 'isv15',
+              discount: 0,
+              discountType: 'percentage',
+              _isNew: true
+            }]);
+            setNotes('');
+            setPaymentTerms('Contado');
+            setPaymentMethod('Efectivo');
+            setMixedPayments([]);
+            setValidityDays(30);
+            setIsSaving(false);
+            isSavingRef.current = false;
+            toast.success('Formulario listo para nuevo documento');
           }
         };
 
@@ -6726,7 +6776,6 @@ export default function DocumentBuilderClient({
                 type="button"
                 onClick={() => {
                   window.open(`/facturas/ver/${showSuccessModal.docId}?print=true`, '_blank');
-                  setShowSuccessModal(null);
                 }}
                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-blue-100 hover:border-blue-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
                 title="Imprimir formato Carta"
@@ -6754,15 +6803,12 @@ export default function DocumentBuilderClient({
                     const data = await res.json();
                     if (res.ok) {
                       toast.success('Ticket enviado a impresora exitosamente', { id: toastId });
-                      setShowSuccessModal(null);
                     } else {
                       toast.dismiss(toastId);
                       window.open(`/facturas/ver/${showSuccessModal.docId}?print=ticket`, '_blank');
-                      setShowSuccessModal(null);
                     }
                   } catch (e) {
                     window.open(`/facturas/ver/${showSuccessModal.docId}?print=ticket`, '_blank');
-                    setShowSuccessModal(null);
                   }
                 }}
                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-emerald-100 hover:border-emerald-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
@@ -6799,11 +6845,11 @@ export default function DocumentBuilderClient({
                       toast.success('PDF descargado exitosamente', { id: toastId });
                     } else {
                       toast.dismiss(toastId);
-                      router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
+                      window.open(`/facturas/ver/${showSuccessModal.docId}?download=true`, '_blank');
                     }
                   } catch (e) {
                     toast.dismiss(toastId);
-                    router.push(`/facturas/ver/${showSuccessModal.docId}?download=true`);
+                    window.open(`/facturas/ver/${showSuccessModal.docId}?download=true`, '_blank');
                   }
                 }}
                 className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-rose-100 hover:border-rose-500 rounded-2xl transition-all hover:shadow-lg cursor-pointer"
@@ -7191,8 +7237,32 @@ export default function DocumentBuilderClient({
                                  </div>
                              );
                          })}
+                         {(() => {
+                             const tQty = (lineItems || [])
+                                 .filter((it: any) => !it.isSection && it.itemType !== 'section')
+                                 .reduce((sum: number, it: any) => sum + (Number(it.qty || it.cantidad) || 0), 0);
+                             const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
+                             return (
+                                 <div className="border-t border-dashed border-black pt-1 mt-1 font-bold flex justify-between text-[11px]">
+                                     <span>{fQty} TOTAL ÍTEMS / PAQUETES</span>
+                                     <span></span>
+                                 </div>
+                             );
+                         })()}
                      </div>
                      <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
+                         {(() => {
+                             const tQty = (lineItems || [])
+                                 .filter((it: any) => !it.isSection && it.itemType !== 'section')
+                                 .reduce((sum: number, it: any) => sum + (Number(it.qty || it.cantidad) || 0), 0);
+                             const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
+                             return (
+                                 <div className="flex justify-between w-[70%] text-[11px] font-bold border-b border-dashed border-slate-300 pb-0.5 mb-0.5">
+                                     <span>TOTAL ÍTEMS:</span>
+                                     <span>{fQty}</span>
+                                 </div>
+                             );
+                         })()}
                          <div className="flex justify-between w-[70%]">
                              <span>SUBTOTAL:</span>
                              <span>L {Number(totals.subtotal || (initialData as any)?.subTotal || 0).toFixed(2)}</span>

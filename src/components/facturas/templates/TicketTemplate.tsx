@@ -18,6 +18,11 @@ export default function TicketTemplate(props: TemplateProps) {
 
   const fechaLimiteFormatted = fechaLimiteEmision ? (typeof fechaLimiteEmision === 'string' ? fechaLimiteEmision.split('T')[0] : new Date(fechaLimiteEmision).toLocaleDateString('es-HN')) : null;
 
+  const totalItemsQty = (lineItems || [])
+    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
+  const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
+
   return (
     <div className={`w-[80mm] p-2 text-black mx-auto text-[10px] bg-white print:m-0 print:p-0 ${fontClass}`}>
       <div className="text-center mb-3">
@@ -70,9 +75,21 @@ export default function TicketTemplate(props: TemplateProps) {
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t border-dashed border-black font-bold text-[10px]">
+            <td className="pt-1.5 font-mono">{formattedTotalQty}</td>
+            <td className="pt-1.5 px-1 text-left uppercase" colSpan={2}>
+              TOTAL ÍTEMS / PAQUETES
+            </td>
+          </tr>
+        </tfoot>
       </table>
 
       <div className="text-[10px] border-t border-dashed border-black pt-1.5 flex flex-col gap-0.5 w-full items-end pb-3 border-b">
+        <div className="flex w-[85%] justify-between text-slate-800 font-semibold mb-0.5 pb-0.5 border-b border-dashed border-gray-300">
+          <span className="uppercase">Total Ítems:</span>
+          <span className="font-mono font-bold">{formattedTotalQty}</span>
+        </div>
         <div className="flex w-[85%] justify-between"><span className="uppercase">Sub Total:</span><span>{fmt(totals.subtotal)}</span></div>
         {totals.descuentos > 0 && <div className="flex w-[85%] justify-between text-gray-700"><span>Descuentos:</span><span>-{fmt(totals.descuentos)}</span></div>}
         {totals.exento > 0 && <div className="flex w-[85%] justify-between text-gray-700"><span>Exento:</span><span>{fmt(totals.exento)}</span></div>}

@@ -238,6 +238,21 @@ export default function OrdenEntregaTemplate({
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-black bg-slate-50 font-bold">
+              <td className="border-r border-black py-2 px-2 print:hidden"></td>
+              <td className="border-r border-black py-2 px-2"></td>
+              <td className="border-r border-black py-2 px-2"></td>
+              <td className="border-r border-black py-2 px-3 text-right uppercase tracking-wider text-xs">
+                TOTAL ARTÍCULOS / BULTOS:
+              </td>
+              <td className="py-2 px-2 text-center text-xs font-black">
+                {items
+                  .filter(it => !excludedIds.includes(it.id))
+                  .reduce((acc, it) => acc + (Number(it.qty) || 0), 0)}
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 

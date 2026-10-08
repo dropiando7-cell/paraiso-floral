@@ -94,6 +94,11 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
  );
 
+  const totalItemsQty = (lineItems || [])
+    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
+  const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
+
  return (
  <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 print:overflow-hidden break-inside-avoid ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`} style={templateStyles}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0">
@@ -382,6 +387,14 @@ export default function ClassicTemplate(props: TemplateProps) {
  {/* Totals */}
  <div className="w-full md:w-72 print:float-right print:w-[40%]">
  <div className={`text-sm ${settings?.subtotalsBorder ? 'border border-b-0' : 'space-y-2'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex items-stretch text-slate-700 font-semibold ${settings?.subtotalsBorder ? 'border-b' : 'justify-between'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span>Total Ítems / Paquetes</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} ${monoClass} font-extrabold text-slate-900`} style={subtotalStyle}>{formattedTotalQty}</span>
+ </div>
+ </div>
  <div className={`flex items-stretch text-slate-600 ${settings?.subtotalsBorder ? 'border-b' : 'justify-between'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
  <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
  <span>Subtotal L.</span>

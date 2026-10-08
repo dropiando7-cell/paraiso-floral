@@ -531,6 +531,23 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
               </View>
             </View>
           ))}
+
+          {validItems.length > 0 && (
+            <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]} wrap={false}>
+              <View style={[styles.tableCell, styles.colNo]} />
+              <View style={[styles.tableCell, styles.colSerie]} />
+              <View style={[styles.tableCell, styles.colDesc]}>
+                <Text style={[styles.tdText, { textAlign: 'right', fontWeight: 700, textTransform: 'uppercase' }]}>
+                  TOTAL ARTÍCULOS / BULTOS:
+                </Text>
+              </View>
+              <View style={[styles.tableCell, styles.colQty]}>
+                <Text style={[styles.tdText, { fontWeight: 700 }]}>
+                  {validItems.reduce((acc: number, it: any) => acc + (Number(it.qty) || 0), 0)}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Technical Diagnosis section if linked to SUPPORT ticket */}

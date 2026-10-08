@@ -1292,20 +1292,42 @@ export default function DocumentListTable({ data, type }: Props) {
                              <span>TOTAL</span>
                          </div>
                          {ticketPreview.detalles?.map((d, i) => {
-                             let n = (d as any).nombre || (d as any).productoNombre || d.descripcion || '';
-                             n = n.split('\n')[0];
-                             if (n.includes('Producto registrado')) n = n.split('Producto registrado')[0];
-                             return (
-                                 <div key={i} className="mb-1 flex justify-between">
-                                     <span className="pr-2 w-[70%]">{d.cantidad} <span className="pl-1">{n.trim()}</span></span>
-                                     <span className="w-[30%] text-right">L {Number(d.totalLinea || (d as any).total || 0).toFixed(2)}</span>
-                                 </div>
-                             )
-                         })}
-                     </div>
-                     <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
-                         <div className="flex justify-between w-[70%]">
-                             <span>SUBTOTAL:</span>
+                              let n = (d as any).nombre || (d as any).productoNombre || d.descripcion || '';
+                              n = n.split('\n')[0];
+                              if (n.includes('Producto registrado')) n = n.split('Producto registrado')[0];
+                              return (
+                                  <div key={i} className="mb-1 flex justify-between">
+                                      <span className="pr-2 w-[70%]">{d.cantidad} <span className="pl-1">{n.trim()}</span></span>
+                                      <span className="w-[30%] text-right">L {Number(d.totalLinea || (d as any).total || 0).toFixed(2)}</span>
+                                  </div>
+                              )
+                          })}
+                          {(() => {
+                              const tQty = (ticketPreview.detalles || [])
+                                  .reduce((sum: number, it: any) => sum + (Number(it.cantidad || it.qty) || 0), 0);
+                              const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
+                              return (
+                                  <div className="border-t border-dashed border-black pt-1 mt-1 font-bold flex justify-between text-[11px]">
+                                      <span>{fQty} TOTAL ÍTEMS / PAQUETES</span>
+                                      <span></span>
+                                  </div>
+                              );
+                          })()}
+                      </div>
+                      <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
+                          {(() => {
+                              const tQty = (ticketPreview.detalles || [])
+                                  .reduce((sum: number, it: any) => sum + (Number(it.cantidad || it.qty) || 0), 0);
+                              const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
+                              return (
+                                  <div className="flex justify-between w-[70%] text-[11px] font-bold border-b border-dashed border-slate-300 pb-0.5 mb-0.5">
+                                      <span>TOTAL ÍTEMS:</span>
+                                      <span>{fQty}</span>
+                                  </div>
+                              );
+                          })()}
+                          <div className="flex justify-between w-[70%]">
+                              <span>SUBTOTAL:</span>
                              <span>L {Number(((ticketPreview as any).subTotal || (ticketPreview as any).subtotal || ticketPreview.detalles?.reduce((acc: number, d: any) => acc + Number(d.totalLinea || d.total || 0), 0) || ticketPreview.total || 0)).toFixed(2)}</span>
                          </div>
                          <div className="flex justify-between w-[70%]">

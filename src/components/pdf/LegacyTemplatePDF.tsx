@@ -273,6 +273,11 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
     selectedClient, paymentTerms, paymentMethod, docType, lineItems, notes, totals, today, fmt
   } = data;
 
+  const totalItemsQty = (lineItems || [])
+    .filter((item: any) => !item.isSection && !item.itemType?.includes('section'))
+    .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
+  const formattedTotalQty = Number.isInteger(totalItemsQty) ? String(totalItemsQty) : totalItemsQty.toFixed(2);
+
   const lastNonSectionIndex = lineItems ? lineItems.reduceRight((acc: number, it: any, idx: number) => acc !== -1 ? acc : (!it.isSection ? idx : -1), -1) : -1;
 
   const colorMap: Record<string, string> = {
@@ -810,7 +815,8 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               paddingTop: 0, 
             } : {}
           ]}>
-            {renderSubtotalRow("Sub-Total", fmt ? fmt(totals?.subtotal || 0) : String(totals?.subtotal || 0), "first")}
+            {renderSubtotalRow("Total Ítems / Paquetes", formattedTotalQty, "first")}
+            {renderSubtotalRow("Sub-Total", fmt ? fmt(totals?.subtotal || 0) : String(totals?.subtotal || 0), "middle")}
             {(totals?.descuentos || 0) > 0 && renderSubtotalRow("Total Descuento", `-${fmt ? fmt(totals.descuentos) : String(totals.descuentos)}`, "middle", true)}
             {renderSubtotalRow("Total Exento", fmt ? fmt(totals?.exento || 0) : String(totals?.exento || 0), "middle")}
             {renderSubtotalRow("Total Exonerado", fmt ? fmt(totals?.exonerado || 0) : String(totals?.exonerado || 0), "middle")}

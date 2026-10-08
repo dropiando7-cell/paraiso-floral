@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession, getClosedSessions } from './actions';
+import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession, getClosedSessions, getCajaVentasStatus } from './actions';
 import toast from 'react-hot-toast';
 import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
@@ -41,6 +41,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
   const [busqueda, setBusqueda] = useState('');
   const [tipoMovimiento, setTipoMovimiento] = useState<'INGRESO' | 'SALIDA' | 'APERTURA'>('SALIDA');
+  const [cajaVentasInfo, setCajaVentasInfo] = useState<{
+    abierta: boolean;
+    disponibleEfectivo: number;
+    cargando: boolean;
+  }>({ abierta: false, disponibleEfectivo: 0, cargando: true });
   const [editandoMovimientoId, setEditandoMovimientoId] = useState<string | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [modalEliminar, setModalEliminar] = useState<{show: boolean, id: string | null}>({show: false, id: null});
@@ -106,7 +111,26 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       setSesionesCerradas(resCerradas.sessions || []);
     }
 
+    await cargarEstadoCajaVentas();
+
     setCargando(false);
+  };
+
+  const cargarEstadoCajaVentas = async () => {
+    try {
+      const res = await getCajaVentasStatus(organization?.id || dbUser?.organizationId);
+      if (res.success) {
+        setCajaVentasInfo({
+          abierta: !!res.abierta,
+          disponibleEfectivo: res.session ? res.session.disponibleEfectivo : 0,
+          cargando: false
+        });
+      } else {
+        setCajaVentasInfo({ abierta: false, disponibleEfectivo: 0, cargando: false });
+      }
+    } catch {
+      setCajaVentasInfo({ abierta: false, disponibleEfectivo: 0, cargando: false });
+    }
   };
 
   useEffect(() => {
@@ -229,9 +253,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     setEditandoMovimientoId(null);
     setTipoMovimiento(tipo);
     if (tipo === 'INGRESO') {
+      cargarEstadoCajaVentas();
       setForm({
         ...formVacio,
         categoria: 'Reposición de fondos',
+        importe: montoARecargar > 0 ? montoARecargar.toString() : '',
         origenFondos: '',
         autorizadoPor: ''
       });
@@ -278,32 +304,45 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     }).format(valor);
 
   const handleAgregarMovimiento = async () => {
-    // Validación contextual
-    const importeNum = (editandoMovimientoId)
-      ? parseFloat(form.importe)
-      : ((tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos') ? montoARecargar : parseFloat(form.importe));
+    const importeNum = parseFloat(form.importe);
 
-    if (!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos' && importeNum <= 0) {
-      alert('La caja ya se encuentra en su saldo máximo inicial, no requiere recarga.');
+    if (isNaN(importeNum) || importeNum <= 0) {
+      toast.error('Debes ingresar un monto válido mayor a 0');
       return;
     }
 
-    if (tipoMovimiento !== 'INGRESO' && !form.importe) {
-      alert('Debes ingresar el monto');
-      return;
-    }
     if (tipoMovimiento === 'INGRESO') {
       if (!editandoMovimientoId && (!form.categoria || !form.origenFondos || !form.autorizadoPor)) {
-        alert('Por favor completa: tipo de recarga, origen de fondos y autorización');
+        toast.error('Por favor completa: tipo de recarga, origen de fondos y autorización');
         return;
       }
       if (!editandoMovimientoId && form.metodoPago !== 'EFECTIVO' && !form.referenciaTransferencia) {
-        alert('Debes ingresar el número de referencia o cheque');
+        toast.error('Debes ingresar el número de referencia o cheque');
         return;
+      }
+
+      // Validar si el origen es Caja de Ventas
+      const esDeCajaVentas =
+        form.categoria === 'Cobro de venta' ||
+        (form.origenFondos && (
+          form.origenFondos.toLowerCase().includes('caja de ventas') ||
+          form.origenFondos.toLowerCase().includes('cobro') ||
+          form.origenFondos.toLowerCase().includes('ventas')
+        ));
+
+      if (esDeCajaVentas) {
+        if (!cajaVentasInfo.abierta) {
+          toast.error('No se puede recargar: La Caja de Ventas está cerrada. Abre el turno de ventas primero.');
+          return;
+        }
+        if (importeNum > cajaVentasInfo.disponibleEfectivo) {
+          toast.error(`Fondos insuficientes en Caja de Ventas. Efectivo disponible: L. ${formatMoneda(cajaVentasInfo.disponibleEfectivo)}`);
+          return;
+        }
       }
     } else {
       if (!form.categoria || !form.descripcion) {
-        alert('Por favor completa la categoría y descripción del gasto');
+        toast.error('Por favor completa la categoría y descripción del gasto');
         return;
       }
     }
@@ -357,11 +396,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
     if (res.success) {
       await cargarSesion();
+      toast.success(editandoMovimientoId ? 'Movimiento actualizado' : (tipoMovimiento === 'APERTURA' ? 'Caja abierta con fondo inicial' : 'Movimiento registrado correctamente'));
+      cerrarModalNuevo();
     } else {
       toast.error(res.error || 'Error al guardar el movimiento');
     }
-    toast.success(editandoMovimientoId ? 'Movimiento actualizado' : (tipoMovimiento === 'APERTURA' ? 'Caja abierta con fondo inicial' : 'Movimiento registrado'));
-    cerrarModalNuevo();
   };
 
   const eliminarMovimiento = async (id: string) => {
@@ -757,7 +796,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                       )}
                     </td>
                     <td className="px-3 py-3 text-sm text-gray-700 whitespace-nowrap font-medium">
-                      <div>{m.categoria}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span>{m.categoria}</span>
+                        {(m.categoria === 'Cobro de venta' || (m.descripcion && m.descripcion.includes('Caja de Ventas'))) && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            Caja de Ventas
+                          </span>
+                        )}
+                      </div>
                       {m.cuentaContable && m.cuentaContable !== '—' && (
                         <div className="text-[10px] text-gray-400 font-mono mt-0.5">
                           {m.cuentaContable}
@@ -767,7 +813,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     <td className="px-3 py-3 text-sm text-gray-600 max-w-[220px] truncate" title={m.descripcion}>
                       {m.descripcion}
                       <div className="text-[10px] text-gray-400 mt-0.5">
-                        Beneficiario: {m.beneficiario}
+                        Beneficiario: {m.beneficiario || '—'}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">
@@ -1067,7 +1113,15 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                         <button
                           key={opt.val}
                           type="button"
-                          onClick={() => setForm({ ...form, categoria: opt.val })}
+                          onClick={() => {
+                            const newCat = opt.val;
+                            setForm((f: any) => ({
+                              ...f,
+                              categoria: newCat,
+                              origenFondos: newCat === 'Cobro de venta' ? 'Caja de ventas (Cobros / Turno del día)' : f.origenFondos,
+                              importe: (newCat === 'Reposición de fondos' && !f.importe && montoARecargar > 0) ? montoARecargar.toString() : f.importe
+                            }));
+                          }}
                           className={`text-left p-3 rounded-lg border transition-all ${
                             selected
                               ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
@@ -1094,9 +1148,21 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               {/* CAMPO DE MONTO                               */}
               {/* ============================================ */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Monto a {tipoMovimiento === 'INGRESO' ? 'Recargar' : 'Gastar'} <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Monto a {tipoMovimiento === 'INGRESO' ? 'Recargar' : 'Gastar'} <span className="text-red-500">*</span>
+                  </label>
+                  {tipoMovimiento === 'INGRESO' && montoARecargar > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((f: any) => ({ ...f, importe: montoARecargar.toString() }))}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      Ajustar al fondo total: L. {formatMoneda(montoARecargar)}
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-bold text-gray-400">
                     L.
@@ -1104,15 +1170,10 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   <input
                     type="number"
                     step="0.01"
-                    value={(!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos') ? montoARecargar : form.importe}
+                    value={form.importe}
                     onChange={(e) => setForm((f: any) => ({ ...f, importe: e.target.value }))}
-                    disabled={!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos'}
                     placeholder="0.00"
-                    className={`w-full pl-11 pr-3 py-3 text-lg font-bold border rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 ${
-                      (!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos')
-                        ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
-                        : 'bg-white text-gray-900 border-gray-200'
-                    }`}
+                    className="w-full pl-11 pr-3 py-3 text-lg font-bold border rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white text-gray-900 border-gray-200"
                   />
                 </div>
               </div>
@@ -1122,7 +1183,6 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               {/* ============================================ */}
               {tipoMovimiento === 'INGRESO' && (
                 <>
-
                   {/* Origen de los fondos */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -1131,18 +1191,60 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     <select
                       value={form.origenFondos}
                       onChange={(e) => setForm({ ...form, origenFondos: e.target.value })}
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white font-medium"
                     >
                       <option value="">Selecciona el origen...</option>
-                      <option>Cuenta bancaria principal - BAC</option>
-                      <option>Cuenta bancaria principal - Banco Atlántida</option>
-                      <option>Cuenta operativa - Ficohsa</option>
-                      <option>Caja general de la empresa</option>
-                      <option>Aporte de socio</option>
-                      <option>Cobro a cliente en efectivo</option>
-                      <option>Otro origen</option>
+                      <option value="Caja de ventas (Cobros / Turno del día)">Caja de ventas (Cobros / Turno del día)</option>
+                      <option value="Cuenta bancaria principal - BAC">Cuenta bancaria principal - BAC</option>
+                      <option value="Cuenta bancaria principal - Banco Atlántida">Cuenta bancaria principal - Banco Atlántida</option>
+                      <option value="Cuenta operativa - Ficohsa">Cuenta operativa - Ficohsa</option>
+                      <option value="Caja general de la empresa">Caja general de la empresa</option>
+                      <option value="Aporte de socio">Aporte de socio</option>
+                      <option value="Cobro a cliente en efectivo">Cobro a cliente en efectivo</option>
+                      <option value="Otro origen">Otro origen</option>
                     </select>
                   </div>
+
+                  {/* Panel interactivo de Estado de Caja de Ventas */}
+                  {(form.categoria === 'Cobro de venta' || (form.origenFondos && (form.origenFondos.toLowerCase().includes('caja de ventas') || form.origenFondos.toLowerCase().includes('cobro') || form.origenFondos.toLowerCase().includes('ventas')))) && (
+                    <div className="animate-in fade-in duration-200">
+                      {cajaVentasInfo.abierta ? (
+                        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-xs">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                              <Coins className="w-5 h-5 text-emerald-700" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <p className="text-xs font-bold text-emerald-950">Caja de Ventas Aperturada (Turno Activo)</p>
+                              </div>
+                              <p className="text-xs text-emerald-700 mt-0.5">
+                                Efectivo disponible en turno: <span className="font-extrabold font-mono text-emerald-950 text-sm">L. {formatMoneda(cajaVentasInfo.disponibleEfectivo)}</span>
+                              </p>
+                            </div>
+                          </div>
+                          {Number(form.importe) > cajaVentasInfo.disponibleEfectivo && (
+                            <span className="px-2.5 py-1 bg-red-100 text-red-700 text-[10px] font-black rounded-md uppercase shrink-0 border border-red-200">
+                              Excede disponible
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 shadow-xs">
+                          <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <AlertCircle className="w-5 h-5 text-rose-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-rose-950">Caja de Ventas Cerrada (No Aperturada)</p>
+                            <p className="text-xs text-rose-700 mt-0.5 leading-relaxed">
+                              Para recargar desde fondos de venta o cobros diarios, la <strong>Caja de Ventas</strong> debe estar aperturada. Ve a <strong>Cierre de Caja (Ventas)</strong> para abrir el turno antes de proceder.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Método de Pago */}
                   <div>

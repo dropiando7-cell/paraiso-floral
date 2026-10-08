@@ -119,6 +119,9 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const isSubmittingRef = useRef(false);
+  const [lastSaleCart, setLastSaleCart] = useState<CartItem[]>([]);
+  const [lastSaleTotals, setLastSaleTotals] = useState<any>(null);
 
   // Favorites & Sales Counter State
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -777,8 +780,18 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   };
 
   const handleCheckout = async () => {
+    if (isSubmittingRef.current || isProcessing) return;
     if (cart.length === 0) return;
+    
+    isSubmittingRef.current = true;
     setIsProcessing(true);
+
+    const snapshotCart = [...cart];
+    const snapshotTotals = { ...totals };
+    const snapshotClientName = clientName;
+    const snapshotSelectedClient = selectedClient ? { ...selectedClient } : null;
+    const snapshotPaymentMethod = paymentMethod;
+    const snapshotCashTendered = cashTendered;
 
     const payload: POSFacturaPayload = {
       clienteNombre: clientName,
@@ -816,42 +829,60 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       })
     };
 
-    const res = await onEmitirFactura(payload);
-    setIsProcessing(false);
-    
-    if (res.success && res.correlativo) {
-      // Si este cobro correspondía a un pedido de CEDI, marcarlo como facturado en el ERP
-      if (activePedidoCediId) {
-        marcarPedidoFacturado(activePedidoCediId, res.facturaId || res.docId);
-        setActivePedidoCediId(null);
-      }
-
-      setLastTicket(res.correlativo);
-      setLastFacturaId(res.facturaId || res.docId || null);
-      if (res.numeroCAI || res.rangoAutorizado || res.fechaLimiteEmision) {
-        setLastFiscalData({
-          numeroCAI: res.numeroCAI,
-          rangoAutorizado: res.rangoAutorizado,
-          fechaLimiteEmision: res.fechaLimiteEmision
+    try {
+      const res = await onEmitirFactura(payload);
+      
+      if (res.success && (res.correlativo || res.facturaId)) {
+        // Guardar snapshot para vista previa e impresión y limpiar de inmediato el carrito activo para evitar duplicados
+        setLastSaleCart(snapshotCart);
+        setLastSaleTotals({
+          totals: snapshotTotals,
+          clientName: snapshotClientName,
+          selectedClient: snapshotSelectedClient,
+          paymentMethod: snapshotPaymentMethod,
+          cashTendered: snapshotCashTendered
         });
-      }
-      setShowCheckout(false);
+        setCart([]);
+        setCashTendered('');
 
-      setShowSuccess(true);
-
-      // Auto-increment sales count for top products ranking
-      setSalesCount(prev => {
-        const updated = { ...prev };
-        cart.forEach(item => {
-          updated[item.id] = (updated[item.id] || 0) + item.qty;
-        });
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('paraiso_pos_sales_count', JSON.stringify(updated));
+        // Si este cobro correspondía a un pedido de CEDI, marcarlo como facturado en el ERP
+        if (activePedidoCediId) {
+          marcarPedidoFacturado(activePedidoCediId, res.facturaId || res.docId);
+          setActivePedidoCediId(null);
         }
-        return updated;
-      });
-    } else {
-      alert("Error: " + res.error);
+
+        setLastTicket(res.correlativo || null);
+        setLastFacturaId(res.facturaId || res.docId || null);
+        if (res.numeroCAI || res.rangoAutorizado || res.fechaLimiteEmision) {
+          setLastFiscalData({
+            numeroCAI: res.numeroCAI,
+            rangoAutorizado: res.rangoAutorizado,
+            fechaLimiteEmision: res.fechaLimiteEmision
+          });
+        }
+        setShowCheckout(false);
+        setShowSuccess(true);
+
+        // Auto-increment sales count for top products ranking
+        setSalesCount(prev => {
+          const updated = { ...prev };
+          snapshotCart.forEach(item => {
+            updated[item.id] = (updated[item.id] || 0) + item.qty;
+          });
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('paraiso_pos_sales_count', JSON.stringify(updated));
+          }
+          return updated;
+        });
+      } else {
+        alert("Error: " + (res.error || "No se pudo emitir la factura"));
+      }
+    } catch (err: any) {
+      console.error("Error in handleCheckout:", err);
+      alert("Error al procesar la venta: " + (err.message || "Error desconocido"));
+    } finally {
+      setIsProcessing(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -1136,6 +1167,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const rangoTicket = lastFiscalData?.rangoAutorizado || (sarCfg?.rangoInicial && sarCfg?.rangoFinal ? `Del ${sarCfg.rangoInicial} al ${sarCfg.rangoFinal}` : null);
   const fechaLimiteTicket = lastFiscalData?.fechaLimiteEmision || sarCfg?.fechaLimiteEmision;
   const fechaLimiteFormatted = fechaLimiteTicket ? (typeof fechaLimiteTicket === 'string' ? fechaLimiteTicket.split('T')[0] : new Date(fechaLimiteTicket).toLocaleDateString('es-HN')) : null;
+
+  const activeTicketItems = lastSaleCart.length > 0 ? lastSaleCart : cart;
+  const activeTicketTotals = lastSaleTotals?.totals || totals;
+  const activeTicketClientName = lastSaleTotals?.clientName || clientName;
+  const activeTicketSelectedClient = lastSaleTotals?.selectedClient || selectedClient;
+  const activeTicketPaymentMethod = lastSaleTotals?.paymentMethod || paymentMethod;
+  const activeTicketCashTendered = lastSaleTotals?.cashTendered !== undefined ? lastSaleTotals.cashTendered : cashTendered;
 
   return (
 
@@ -2237,8 +2275,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 <div className="my-1.5 border-b border-dashed border-slate-400" />
                 <p className="text-xs font-black text-indigo-950 font-mono">FACTURA FISCAL Nº: {lastTicket}</p>
                 <p className="text-[10px] text-slate-500">{new Date().toLocaleString('es-HN')}</p>
-                <p className="text-[10px] text-slate-700 text-left mt-2"><strong>Cliente:</strong> {clientName}</p>
-                {selectedClient?.rtn && <p className="text-[10px] text-slate-700 text-left font-mono"><strong>RTN:</strong> {selectedClient.rtn}</p>}
+                <p className="text-[10px] text-slate-700 text-left mt-2"><strong>Cliente:</strong> {activeTicketClientName}</p>
+                {activeTicketSelectedClient?.rtn && <p className="text-[10px] text-slate-700 text-left font-mono"><strong>RTN:</strong> {activeTicketSelectedClient.rtn}</p>}
                 <p className="text-[10px] text-slate-700 text-left"><strong>Cajero:</strong> {cajeroNombre}</p>
               </div>
 
@@ -2251,7 +2289,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cart.map((item, idx) => (
+                  {activeTicketItems.map((item, idx) => (
                     <tr key={idx} className="align-top">
                       <td className="py-1 font-bold">{item.qty}</td>
                       <td className="py-1 px-1">{item.nombre}</td>
@@ -2259,17 +2297,24 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t border-dashed border-black font-bold text-[10px]">
+                    <td className="py-1">{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</td>
+                    <td className="py-1 px-1 uppercase" colSpan={2}>TOTAL ÍTEMS / PAQUETES</td>
+                  </tr>
+                </tfoot>
               </table>
 
               <div className="space-y-0.5 text-right text-[11px] font-mono border-b border-dashed border-slate-400 pb-2">
-                <div className="flex justify-between"><span>Subtotal:</span><span>{fmt(totals.subTotal)}</span></div>
-                {totals.descuentos > 0 && <div className="flex justify-between"><span>Descuentos:</span><span>-{fmt(totals.descuentos)}</span></div>}
-                {totals.exonerado > 0 && <div className="flex justify-between"><span>Exonerado:</span><span>{fmt(totals.exonerado)}</span></div>}
-                <div className="flex justify-between"><span>ISV (15%):</span><span>{fmt(totals.isv15)}</span></div>
-                {totals.isv18 > 0 && <div className="flex justify-between"><span>ISV (18%):</span><span>{fmt(totals.isv18)}</span></div>}
+                <div className="flex justify-between font-bold border-b border-dashed border-slate-200 pb-0.5 mb-0.5"><span>Total Ítems:</span><span>{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</span></div>
+                <div className="flex justify-between"><span>Subtotal:</span><span>{fmt(activeTicketTotals.subTotal)}</span></div>
+                {activeTicketTotals.descuentos > 0 && <div className="flex justify-between"><span>Descuentos:</span><span>-{fmt(activeTicketTotals.descuentos)}</span></div>}
+                {activeTicketTotals.exonerado > 0 && <div className="flex justify-between"><span>Exonerado:</span><span>{fmt(activeTicketTotals.exonerado)}</span></div>}
+                <div className="flex justify-between"><span>ISV (15%):</span><span>{fmt(activeTicketTotals.isv15)}</span></div>
+                {activeTicketTotals.isv18 > 0 && <div className="flex justify-between"><span>ISV (18%):</span><span>{fmt(activeTicketTotals.isv18)}</span></div>}
                 <div className="flex justify-between font-black text-sm text-slate-900 pt-1 border-t border-slate-300">
                   <span>TOTAL:</span>
-                  <span>{fmt(totals.total)}</span>
+                  <span>{fmt(activeTicketTotals.total)}</span>
                 </div>
               </div>
 
@@ -2328,8 +2373,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
              <p className="text-xs mt-2 font-bold font-mono">FACTURA FISCAL Nº: {lastTicket}</p>
              <p className="text-[9.5px] border-b border-dashed border-black pb-1.5 mb-1.5">Fecha: {new Date().toLocaleDateString('es-HN', { hour: '2-digit', minute:'2-digit' })}</p>
-             <p className="text-[9.5px] text-left">Cliente: {clientName}</p>
-             {selectedClient?.rtn && <p className="text-[9.5px] text-left font-mono">RTN Cliente: {selectedClient.rtn}</p>}
+             <p className="text-[9.5px] text-left">Cliente: {activeTicketClientName}</p>
+             {activeTicketSelectedClient?.rtn && <p className="text-[9.5px] text-left font-mono">RTN Cliente: {activeTicketSelectedClient.rtn}</p>}
              <p className="text-[9.5px] text-left">Cajero: {cajeroNombre}</p>
            </div>
            
@@ -2342,7 +2387,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                </tr>
              </thead>
              <tbody>
-               {cart.map((item, idx) => (
+               {activeTicketItems.map((item, idx) => (
                  <tr key={idx} className="align-top">
                    <td className="pt-1.5">{item.qty}</td>
                    <td className="pt-1.5 px-1 pr-2 truncate max-w-[40mm]">
@@ -2356,21 +2401,31 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                  </tr>
                ))}
              </tbody>
+              <tfoot>
+                <tr className="border-t border-dashed border-black font-bold text-[10px]">
+                  <td className="pt-1.5">{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</td>
+                  <td className="pt-1.5 px-1 uppercase" colSpan={2}>TOTAL ÍTEMS / PAQUETES</td>
+                </tr>
+              </tfoot>
            </table>
 
            <div className="text-[10px] border-t border-dashed border-black pt-1.5 flex flex-col gap-0.5 w-full items-end pb-3 border-b">
-             <div className="flex w-[85%] justify-between"><span className="uppercase">Sub Total:</span><span>{fmt(totals.subTotal)}</span></div>
-             {totals.descuentos > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Descuentos:</span><span>-{fmt(totals.descuentos)}</span></div>}
-             {totals.exonerado > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Exonerado:</span><span>{fmt(totals.exonerado)}</span></div>}
-             <div className="flex w-[85%] justify-between"><span className="uppercase">ISV 15%:</span><span>{fmt(totals.isv15)}</span></div>
-             {totals.isv18 > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">ISV 18%:</span><span>{fmt(totals.isv18)}</span></div>}
-             <div className="flex w-[85%] justify-between font-black text-xs mt-1 pt-1 border-t border-black"><span className="uppercase">TOTAL:</span><span>{fmt(totals.total)}</span></div>
+             <div className="flex w-[85%] justify-between text-slate-800 font-semibold mb-0.5 pb-0.5 border-b border-dashed border-gray-300">
+                <span className="uppercase">Total Ítems:</span>
+                <span>{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</span>
+              </div>
+              <div className="flex w-[85%] justify-between"><span className="uppercase">Sub Total:</span><span>{fmt(activeTicketTotals.subTotal)}</span></div>
+             {activeTicketTotals.descuentos > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Descuentos:</span><span>-{fmt(activeTicketTotals.descuentos)}</span></div>}
+             {activeTicketTotals.exonerado > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Exonerado:</span><span>{fmt(activeTicketTotals.exonerado)}</span></div>}
+             <div className="flex w-[85%] justify-between"><span className="uppercase">ISV 15%:</span><span>{fmt(activeTicketTotals.isv15)}</span></div>
+             {activeTicketTotals.isv18 > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">ISV 18%:</span><span>{fmt(activeTicketTotals.isv18)}</span></div>}
+             <div className="flex w-[85%] justify-between font-black text-xs mt-1 pt-1 border-t border-black"><span className="uppercase">TOTAL:</span><span>{fmt(activeTicketTotals.total)}</span></div>
            </div>
 
            <div className="mt-3 flex flex-col gap-0.5 text-[10px] pb-3 border-b border-dashed border-black">
-             <p className="font-bold">Método Pago: {paymentMethod}</p>
-             {paymentMethod === 'Efectivo' && cashTendered && <p>Recibido: {fmt(Number(cashTendered))}</p>}
-             {paymentMethod === 'Efectivo' && cashTendered && <p className="font-bold">Cambio: {fmt(Number(cashTendered) - totals.total)}</p>}
+             <p className="font-bold">Método Pago: {activeTicketPaymentMethod}</p>
+             {activeTicketPaymentMethod === 'Efectivo' && activeTicketCashTendered && <p>Recibido: {fmt(Number(activeTicketCashTendered))}</p>}
+             {activeTicketPaymentMethod === 'Efectivo' && activeTicketCashTendered && <p className="font-bold">Cambio: {fmt(Number(activeTicketCashTendered) - activeTicketTotals.total)}</p>}
            </div>
 
            <div className="text-center mt-3 text-[9px] leading-tight space-y-0.5">

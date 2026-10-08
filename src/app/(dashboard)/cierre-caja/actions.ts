@@ -68,6 +68,14 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                     }
                 });
 
+                const pagosClienteBefore = await prisma.pagoCliente.findMany({
+                    where: {
+                        cajaSessionId: active.id,
+                        fecha: { lte: thresholdUtc },
+                        anulado: false
+                    }
+                });
+
                 const saldoInicial = Number(active.saldoInicial);
                 const ventasEfectivo = facturasBefore
                     .filter(f => (f.metodoPago || 'Efectivo') === 'Efectivo')
@@ -78,8 +86,11 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                 const soporteEfectivo = ordenesBefore
                     .filter(o => (o.metodoPagoRevision || 'Efectivo') === 'Efectivo')
                     .reduce((sum, o) => sum + Number(o.costoRevision), 0);
+                const abonosEfectivo = pagosClienteBefore
+                    .filter(p => (p.metodoPago || 'Efectivo').toUpperCase().includes('EFECTIVO'))
+                    .reduce((sum, p) => sum + Number(p.monto), 0);
 
-                const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo;
+                const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo + abonosEfectivo;
 
                 // Perform database updates in a transaction
                 await prisma.$transaction([
@@ -106,6 +117,15 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                         where: {
                             cajaSessionId: active.id,
                             fechaRecibido: { gt: thresholdUtc }
+                        },
+                        data: {
+                            cajaSessionId: null
+                        }
+                    }),
+                    prisma.pagoCliente.updateMany({
+                        where: {
+                            cajaSessionId: active.id,
+                            fecha: { gt: thresholdUtc }
                         },
                         data: {
                             cajaSessionId: null
@@ -220,12 +240,17 @@ export async function abrirCaja(saldoInicial: number) {
     localStartOfToday.setHours(0, 0, 0, 0);
     const startOfTodayUtc = new Date(localStartOfToday.getTime() + 6 * 60 * 60 * 1000);
 
+    const localEndOfToday = new Date(localNow);
+    localEndOfToday.setHours(23, 59, 59, 999);
+    const endOfTodayUtc = new Date(localEndOfToday.getTime() + 6 * 60 * 60 * 1000);
+
     await prisma.factura.updateMany({
         where: {
             organizationId: user.organizationId,
             cajaSessionId: null,
             tipoDocumento: 'FACTURA',
-            fechaEmision: { gte: startOfTodayUtc },
+            createdAt: { gte: startOfTodayUtc },
+            fechaEmision: { gte: startOfTodayUtc, lte: endOfTodayUtc },
             NOT: {
                 correlativo: {
                     startsWith: 'FAC-OCC'
@@ -241,7 +266,8 @@ export async function abrirCaja(saldoInicial: number) {
         where: {
             organizationId: user.organizationId,
             cajaSessionId: null,
-            fechaPago: { gte: startOfTodayUtc }
+            createdAt: { gte: startOfTodayUtc },
+            fechaPago: { gte: startOfTodayUtc, lte: endOfTodayUtc }
         },
         data: {
             cajaSessionId: nuevaSesion.id
@@ -253,7 +279,7 @@ export async function abrirCaja(saldoInicial: number) {
             organizationId: user.organizationId,
             cajaSessionId: null,
             metodoPagoRevision: { not: 'Ninguno' },
-            fechaRecibido: { gte: startOfTodayUtc }
+            fechaRecibido: { gte: startOfTodayUtc, lte: endOfTodayUtc }
         },
         data: {
             cajaSessionId: nuevaSesion.id
@@ -264,7 +290,13 @@ export async function abrirCaja(saldoInicial: number) {
         where: {
             organizationId: user.organizationId,
             cajaSessionId: null,
-            fecha: { gte: startOfTodayUtc }
+            createdAt: { gte: startOfTodayUtc },
+            fecha: { gte: startOfTodayUtc, lte: endOfTodayUtc },
+            NOT: {
+                referencia: {
+                    startsWith: 'ABONO EXCEL'
+                }
+            }
         },
         data: {
             cajaSessionId: nuevaSesion.id
@@ -752,11 +784,11 @@ export async function getPendingDeposits() {
     }
 }
 
-// Register a cash register movement (Withdrawal/Remittance or Guarantee Refund)
+// Register a cash register movement (Withdrawal/Remittance, Guarantee Refund, or Transfer to Caja Chica)
 export async function registrarCorteMovimiento(payload: {
     sessionId: string;
     tipo: 'INGRESO' | 'EGRESO';
-    concepto: 'RETIRO_BANCARIO' | 'REEMBOLSO_GARANTIA' | 'OTRO';
+    concepto: 'RETIRO_BANCARIO' | 'REEMBOLSO_GARANTIA' | 'TRASPASO_CAJA_CHICA' | 'OTRO' | string;
     descripcion: string;
     monto: number;
     metodoPago: string;
@@ -846,6 +878,52 @@ export async function registrarCorteMovimiento(payload: {
                 }
             });
         });
+    } else if (payload.concepto === 'TRASPASO_CAJA_CHICA') {
+        // Find active Caja Chica session
+        const openCajaChica = await prisma.cajaChicaSession.findFirst({
+            where: {
+                organizationId: user.organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+
+        if (!openCajaChica) {
+            throw new Error("No se puede realizar el traslado porque no hay una sesión de Caja Chica abierta.");
+        }
+
+        await prisma.$transaction(async (tx) => {
+            const movChica = await tx.cajaChicaMovimiento.create({
+                data: {
+                    sessionId: openCajaChica.id,
+                    tipo: 'INGRESO',
+                    categoria: 'Cobro de venta',
+                    descripcion: payload.descripcion || 'Traslado de fondos desde Caja de Ventas',
+                    documento: 'RECIBO',
+                    importe: payload.monto,
+                    moneda: 'HNL',
+                    tipoCambio: 1,
+                    total: payload.monto,
+                    beneficiario: 'Caja Chica',
+                    creadoPorId: user.id
+                }
+            });
+
+            await tx.corteCajaMovimiento.create({
+                data: {
+                    organizationId: user.organizationId,
+                    sessionId: session.id,
+                    tipo: payload.tipo,
+                    concepto: payload.concepto,
+                    descripcion: payload.descripcion,
+                    monto: new Prisma.Decimal(payload.monto),
+                    metodoPago: payload.metodoPago,
+                    referenciaId: movChica.id,
+                    creadoPorId: user.id
+                }
+            });
+        });
+
+        revalidatePath('/caja-chica');
     } else {
         // Register standard movement (e.g. Bank withdrawal/drop)
         await prisma.corteCajaMovimiento.create({
@@ -926,6 +1004,22 @@ export async function anularCorteMovimiento(movimientoId: string) {
                     where: { id: pagoNegativo.id }
                 });
             }
+        } else if (mov.concepto === 'TRASPASO_CAJA_CHICA' && mov.referenciaId) {
+            // Find and annul linked CajaChicaMovimiento
+            const movChica = await tx.cajaChicaMovimiento.findUnique({
+                where: { id: mov.referenciaId }
+            });
+
+            if (movChica && movChica.estado !== 'ANULADO') {
+                await tx.cajaChicaMovimiento.update({
+                    where: { id: movChica.id },
+                    data: {
+                        estado: 'ANULADO',
+                        anuladaAt: new Date(),
+                        anuladaPorId: user.id
+                    }
+                });
+            }
         }
 
         // Logical delete of the movement
@@ -939,5 +1033,6 @@ export async function anularCorteMovimiento(movimientoId: string) {
     });
 
     revalidatePath('/cierre-caja');
+    revalidatePath('/caja-chica');
     return { success: true };
 }

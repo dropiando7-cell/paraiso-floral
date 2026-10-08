@@ -168,6 +168,15 @@ def build_receipt(data):
         
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
     
+    # --- TOTAL ITEMS / PAQUETES (Suma de columna CANT) ---
+    total_cant = sum(float(it.get('cantidad', 1) or 0) for it in items)
+    total_cant_str = f"{int(total_cant)}" if total_cant.is_integer() else f"{total_cant:g}"
+    
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(f"{MARGIN_LEFT}{total_cant_str:<4}{'TOTAL ITEMS / PAQUETES':<38}".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_OFF)
+    receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
+    
     # --- TOTALES (Alineación a la derecha perfecta: Label 26 + Monto 16 = 42) ---
     subtotal_num = doc.get('subTotal') or doc.get('subtotal') or 0
     if subtotal_num == 0 and items:
@@ -196,6 +205,7 @@ def build_receipt(data):
         total_num = subtotal_num + impuesto_num
     total_str = format_currency(total_num)
     
+    receipt.extend(f"{MARGIN_LEFT}{'TOTAL ITEMS:':<26}{total_cant_str:>16}".encode('ascii', 'ignore') + LF)
     receipt.extend(f"{MARGIN_LEFT}{'SUBTOTAL:':<26}{subtotal_str:>16}".encode('ascii', 'ignore') + LF)
     if (impuesto_num > 0 or t15 > 0 or t18 > 0):
         receipt.extend(f"{MARGIN_LEFT}{'IMPUESTO (15%):':<26}{impuesto_str:>16}".encode('ascii', 'ignore') + LF)

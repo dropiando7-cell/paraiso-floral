@@ -346,10 +346,45 @@ export async function searchProductos(query: string = "", limitOverride?: number
     }
 }
 
+// Helper para prevenir facturas duplicadas por doble-click o re-envío inmediato
+async function checkDuplicateRecentInvoice(
+    organizationId: string,
+    clienteId: string,
+    total: number,
+    tipoDocumento: string,
+    detallesCount: number,
+    userId?: string
+) {
+    try {
+        const threshold = new Date(Date.now() - 25000); // Ventana de 25 segundos
+        const existing = await prisma.factura.findFirst({
+            where: {
+                organizationId,
+                clienteId,
+                total,
+                tipoDocumento,
+                createdAt: { gte: threshold },
+                estado: { not: 'ANULADA' },
+                ...(userId ? { creadoPorId: userId } : {})
+            },
+            include: { detalles: true },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (existing && existing.detalles.length === detallesCount) {
+            return existing;
+        }
+    } catch (e) {
+        console.warn('Error checking duplicate invoice:', e);
+    }
+    return null;
+}
+
 // --- CREAR FACTURA ---
 export async function crearFacturaSegura(facturaData: any, detalles: any[], tipoCorrelativo: string = "FACTURA") {
     try {
         const organizationId = await getOrganizationId();
+        const authUser = await getAuthenticatedUser().catch(() => null);
 
         // Check for active caja session
         const activeCaja = await prisma.corteCajaSession.findFirst({
@@ -390,29 +425,27 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
 
         if (!clienteId) throw new Error("Se requiere un cliente válido.");
 
-        // Asignación de Correlativo Oficial y Datos Fiscales
-        let correlativoGenerado = '';
-        let sarNumeroCAI: string | null = null;
-        let sarRangoAutorizado: string | null = null;
-        let sarFechaLimite: Date | null = null;
-
+        // BLINDAJE ANTI-DUPLICADOS: Si se envió la misma factura en los últimos 25s, retornar la existente
         if (tipoCorrelativo === 'FACTURA') {
-            const sarData = await getNextSarCorrelativo(prisma, organizationId);
-            if (sarData.isSar) {
-                correlativoGenerado = sarData.correlativo;
-                sarNumeroCAI = sarData.numeroCAI;
-                sarRangoAutorizado = sarData.rangoAutorizado;
-                sarFechaLimite = sarData.fechaLimiteEmision;
+            const duplicate = await checkDuplicateRecentInvoice(
+                organizationId,
+                clienteId,
+                facturaData.total,
+                tipoCorrelativo,
+                detalles.length,
+                authUser?.id
+            );
+            if (duplicate) {
+                console.warn(`[AntiDuplicate] Factura POS duplicada detectada para cliente ${clienteId}. Retornando factura existente ${duplicate.correlativo}`);
+                return { 
+                    success: true, 
+                    facturaId: duplicate.id, 
+                    correlativo: duplicate.correlativo,
+                    numeroCAI: duplicate.numeroCAI,
+                    rangoAutorizado: duplicate.rangoAutorizado,
+                    fechaLimiteEmision: duplicate.fechaLimiteEmision
+                };
             }
-        }
-
-        if (!correlativoGenerado) {
-            const ultimaFactura = await prisma.factura.findFirst({
-                where: { organizationId },
-                orderBy: { numeroInterno: 'desc' }
-            });
-            const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
-            correlativoGenerado = formatCorrelativo(nextNumber, tipoCorrelativo);
         }
 
         // Validate Stock if allowZeroStockBilling is disabled
@@ -440,8 +473,31 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
             }
         }
 
-        // TRANSACTION: Asegura que si falla el descuento de inventario, NO se guarde la factura.
+        // TRANSACTION ATÓMICA: Asigna correlativo SAR y descuenta inventario dentro de la misma transacción
         const result = await prisma.$transaction(async (tx) => {
+            let correlativoGenerado = '';
+            let sarNumeroCAI: string | null = null;
+            let sarRangoAutorizado: string | null = null;
+            let sarFechaLimite: Date | null = null;
+
+            if (tipoCorrelativo === 'FACTURA') {
+                const sarData = await getNextSarCorrelativo(tx, organizationId);
+                if (sarData.isSar) {
+                    correlativoGenerado = sarData.correlativo;
+                    sarNumeroCAI = sarData.numeroCAI;
+                    sarRangoAutorizado = sarData.rangoAutorizado;
+                    sarFechaLimite = sarData.fechaLimiteEmision;
+                }
+            }
+
+            if (!correlativoGenerado) {
+                const ultimaFactura = await tx.factura.findFirst({
+                    where: { organizationId },
+                    orderBy: { numeroInterno: 'desc' }
+                });
+                const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
+                correlativoGenerado = formatCorrelativo(nextNumber, tipoCorrelativo);
+            }
             
             // 1. Guardar la Factura
             const nuevaFactura = await tx.factura.create({
@@ -476,6 +532,8 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                         ? new Date(Date.now() + (Number(facturaData.diasCredito) || 15) * 24 * 60 * 60 * 1000) 
                         : null,
                     cajaSessionId,
+                    creadoPorId: authUser?.id || undefined,
+                    nombreUsuario: authUser?.fullName || undefined,
                     
                     detalles: {
                         create: detalles.map((d) => ({
@@ -521,20 +579,22 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
         });
 
         // Log activity
-        const creator = await getAuthenticatedUser();
-        await logActivity({
-            userId: creator.id,
-            organizationId,
-            action: 'CREATE',
-            module: '/facturas',
-            description: `Creó documento ${tipoCorrelativo}: ${result.correlativo}`,
-            metadata: {
-                facturaId: result.id,
-                correlativo: result.correlativo,
-                tipoDocumento: tipoCorrelativo,
-                total: facturaData.total
-            }
-        });
+        const creator = await getAuthenticatedUser().catch(() => null);
+        if (creator) {
+            await logActivity({
+                userId: creator.id,
+                organizationId,
+                action: 'CREATE',
+                module: '/facturas',
+                description: `Creó documento ${tipoCorrelativo}: ${result.correlativo}`,
+                metadata: {
+                    facturaId: result.id,
+                    correlativo: result.correlativo,
+                    tipoDocumento: tipoCorrelativo,
+                    total: facturaData.total
+                }
+            });
+        }
 
         revalidatePath('/facturas');
         return { 
@@ -545,7 +605,6 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
             rangoAutorizado: result.rangoAutorizado,
             fechaLimiteEmision: result.fechaLimiteEmision
         };
-
 
     } catch (error: any) {
         console.error("Error al crear factura:", error);
@@ -571,7 +630,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
         // Verificar que el documento existe y pertenece a la organización
         const docExistente = await prisma.factura.findFirst({
-            where: { id, organizationId }
+            where: { id, organizationId },
+            include: { detalles: true }
         });
         if (!docExistente) throw new Error('Documento no encontrado o sin permisos.');
         if (docExistente.estado === 'ANULADA') throw new Error('No se puede modificar un documento anulado.');
@@ -770,8 +830,38 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 await tx.facturaMetodoPago.deleteMany({ where: { facturaId: id } });
             }
 
-            // Descontar inventario (sólo si no lo estaba ya)
-            if (docExistente.estado === 'BORRADOR' && (debeDescontarInventario || debeRestaurarInventario)) {
+            // Manejo preciso de inventario en actualizaciones:
+            // 1. Si el documento ya tenía inventario descontado (p. ej. factura emitida previa), revertimos antes de aplicar nuevos ítems
+            if (docExistente.inventarioDescontado && Array.isArray((docExistente as any).detalles)) {
+                for (const oldDetail of (docExistente as any).detalles) {
+                    if (oldDetail.productoId) {
+                        const prod = await tx.producto.findUnique({ where: { id: oldDetail.productoId } });
+                        const esServicio = prod?.esServicio === true || prod?.stockActual === 9999;
+                        if (!esServicio) {
+                            await tx.producto.update({
+                                where: { id: oldDetail.productoId },
+                                data: { stockActual: { increment: Number(oldDetail.cantidad) || 0 } }
+                            });
+                        }
+                    }
+                    if (oldDetail.activoId) {
+                        const activo = await tx.activoFijo.findUnique({ where: { id: oldDetail.activoId } });
+                        if (activo) {
+                            await tx.activoFijo.update({
+                                where: { id: oldDetail.activoId },
+                                data: { 
+                                    stock: { increment: Number(oldDetail.cantidad) || 0 },
+                                    estatusContable: 'VIGENTE'
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 2. Aplicar descuento o restauración según el nuevo estado/tipo
+            const aplicarInventario = debeDescontarInventario || debeRestaurarInventario;
+            if (aplicarInventario) {
                 for (const item of lineItems) {
                     if (item.productoId) {
                         const prod = await tx.producto.findUnique({ where: { id: item.productoId } });
@@ -818,7 +908,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 // Mark inventory deducted
                 await tx.factura.update({
                     where: { id },
-                    data: { inventarioDescontado: true }
+                    data: { inventarioDescontado: debeDescontarInventario }
                 });
             }
 
@@ -889,6 +979,27 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
         }
 
         if (!clienteId) throw new Error("Se requiere un cliente válido.");
+
+        // Anti-duplicados server-side: si se intenta crear una factura emitida idéntica en menos de 25 segundos
+        if (data.tipoDocumento === 'FACTURA' && data.estado !== 'BORRADOR') {
+            const duplicate = await checkDuplicateRecentInvoice(
+                organizationId,
+                clienteId,
+                Number(data.total) || 0,
+                data.tipoDocumento || 'FACTURA',
+                lineItems.length,
+                creadoPorId
+            );
+            if (duplicate) {
+                console.warn(`[AntiDuplicate] Bloqueada creación duplicada de factura para cliente ${clienteId}. Retornando factura existente ${duplicate.correlativo}`);
+                return {
+                    success: true,
+                    docId: duplicate.id,
+                    correlativo: duplicate.correlativo,
+                    isDuplicatePrevented: true
+                };
+            }
+        }
 
         // Descuenta inventario: FACTURA y PROFORMA sí, COTIZACION no
         const debeDescontarInventario = data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA';

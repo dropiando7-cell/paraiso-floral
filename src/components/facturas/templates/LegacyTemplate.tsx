@@ -118,6 +118,11 @@ export default function LegacyTemplate(props: TemplateProps) {
   const [datePart = '', ...timeParts] = (currentDateStr || '').split(' ');
   const timePart = timeParts.join(' ');
 
+  const totalItemsQty = (lineItems || [])
+    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
+  const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
+
  return (
  <div className={`flex flex-col min-h-[1056px] print:min-h-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 print:overflow-hidden break-inside-avoid ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`} style={templateStyles}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0 text-gray-900">
@@ -393,6 +398,14 @@ export default function LegacyTemplate(props: TemplateProps) {
  {/* Totals table right */}
  <div className="w-full md:w-80 print:w-72 border-t border-gray-300 pt-2 print:shrink-0">
  <div className={`flex flex-col text-[11px] ${settings?.subtotalsBorder ? 'border border-b-0' : 'gap-0.5'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? (isGrouped ? 'px-2 py-0.5' : 'border-r px-2 py-0.5') : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-700 font-semibold`} style={subtotalStyle}>Total Ítems / Paquetes</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-0.5' : ''}`}>
+ <span className={`${subtotalSizeClass} ${monoClass} font-extrabold text-slate-900`} style={subtotalStyle}>{formattedTotalQty}</span>
+ </div>
+ </div>
  <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
  <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? (isGrouped ? 'px-2 py-0.5' : 'border-r px-2 py-0.5') : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
  <span className={`${subtotalSizeClass} text-gray-600 font-medium`} style={subtotalStyle}>Sub-Total</span>

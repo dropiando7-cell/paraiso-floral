@@ -101,6 +101,11 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
  );
 
+  const totalItemsQty = (lineItems || [])
+    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
+  const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
+
  return (
  <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 print:overflow-hidden break-inside-avoid ${fontClass} print:bg-white`} style={templateStyles}>
  {/* Document Card */}
@@ -410,6 +415,14 @@ export default function ModernTemplate(props: TemplateProps) {
  <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Resumen Financiero</p>
 
  <div className={`${settings?.subtotalsBorder ? 'border border-b-0 text-sm' : 'space-y-3'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-700 font-semibold`} style={subtotalStyle}>Total Ítems / Paquetes</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-extrabold text-slate-900 ${monoClass}`} style={subtotalStyle}>{formattedTotalQty}</span>
+ </div>
+ </div>
  <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
  <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
  <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Subtotal L.</span>

@@ -473,7 +473,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                 txList.push({
                     id: m.id,
                     fechaStr: m.createdAt,
-                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
+                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
                     cliente: m.descripcion || 'Movimiento de Caja',
                     monto: isNegative ? -m.monto : m.monto
                 });
@@ -933,7 +933,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs font-bold text-slate-900">
-                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
+                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs">
                                                                     <div className="flex flex-col">
@@ -1385,7 +1385,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-4 py-2 font-bold text-slate-800">
-                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
+                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
                                                                     </td>
                                                                     <td className="px-4 py-2">
                                                                         <div className="flex flex-col">

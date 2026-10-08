@@ -92,6 +92,11 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
  );
 
+  const totalItemsQty = (lineItems || [])
+    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
+  const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
+
  return (
  <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`} style={templateStyles}>
  <div className="flex flex-col flex-1 p-8 md:p-14 print:p-0">
@@ -290,6 +295,10 @@ export default function MinimalistTemplate(props: TemplateProps) {
 
  <div className="w-full md:w-64 print:float-right print:w-[40%]">
  <div className="space-y-3 text-sm">
+ <div className="flex justify-between text-slate-700 font-semibold">
+ <span>Total Ítems / Paquetes</span>
+ <span className="font-extrabold text-slate-900">{formattedTotalQty}</span>
+ </div>
  <div className="flex justify-between text-slate-500">
  <span>Subtotal L.</span>
  <span>{fmt(totals.subtotal)}</span>
