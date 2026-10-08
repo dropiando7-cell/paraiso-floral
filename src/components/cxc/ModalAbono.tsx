@@ -40,7 +40,7 @@ interface ModalAbonoProps {
 
 export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: ModalAbonoProps) {
   const [monto, setMonto] = useState<string>('');
-  const [metodoPago, setMetodoPago] = useState<string>('TRANSFERENCIA');
+  const [metodoPago, setMetodoPago] = useState<string>('Transferencia');
   const [banco, setBanco] = useState<string>('Ficohsa');
   const [referencia, setReferencia] = useState<string>('');
   const [notas, setNotas] = useState<string>('');
@@ -311,12 +311,12 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
             </label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'TRANSFERENCIA', label: 'Transferencia' },
-                { id: 'EFECTIVO', label: 'Efectivo en Caja' },
-                { id: 'TIGO_MONEY', label: 'Tigo Money' },
-                { id: 'CHEQUE', label: 'Cheque' },
-                { id: 'DEPOSITO', label: 'Depósito Bancario' },
-                { id: 'OTRO', label: 'Otro' }
+                { id: 'Transferencia', label: 'Transferencia' },
+                { id: 'Efectivo', label: 'Efectivo en Caja' },
+                { id: 'Tigo Money', label: 'Tigo Money' },
+                { id: 'Cheque', label: 'Cheque' },
+                { id: 'Depósito Bancario', label: 'Depósito Bancario' },
+                { id: 'Otro', label: 'Otro' }
               ].map((item) => (
                 <button
                   type="button"

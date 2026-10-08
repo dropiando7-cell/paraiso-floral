@@ -456,8 +456,14 @@ export async function getCajaSessionSummary(sessionId: string) {
     // Classify PagosCliente (Abonos Cuentas por Cobrar)
     session.pagosCliente.forEach(p => {
         if (p.anulado) return;
-        let metodo = p.metodoPago || 'Efectivo';
-        if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
+        let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
+        let metodo = 'Efectivo'; // Default
+        
+        if (rawMetodo.includes('TARJETA')) metodo = 'Tarjeta';
+        else if (rawMetodo.includes('TRANSFERENCIA')) metodo = 'Transferencia';
+        else if (rawMetodo.includes('CHEQUE')) metodo = 'Cheque';
+        else if (rawMetodo.includes('OCCIDENTE') || rawMetodo.includes('LINK')) metodo = 'Link de pago de Occidente';
+        
         const total = Number(p.monto);
         if (summary.abonos[metodo] !== undefined) {
             summary.abonos[metodo] += total;
