@@ -120,6 +120,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
 
     try {
       setLoading(true);
+      const isEfectivo = metodoPago.toLowerCase().trim() === 'efectivo';
       const res = await fetch('/api/cxc/abonos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,7 +128,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
           clienteId: cliente.id,
           monto: valMonto,
           metodoPago,
-          banco: banco.trim() || undefined,
+          banco: isEfectivo ? undefined : (banco.trim() || undefined),
           referencia: referencia.trim() || undefined,
           notas: notas.trim() || undefined,
           fecha: fechaPago || undefined,
@@ -321,7 +322,12 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                 <button
                   type="button"
                   key={item.id}
-                  onClick={() => setMetodoPago(item.id)}
+                  onClick={() => {
+                    setMetodoPago(item.id);
+                    if (item.id.toLowerCase() === 'efectivo') {
+                      setBankDropdownOpen(false);
+                    }
+                  }}
                   className={`py-2 px-3 rounded-xl border text-xs font-semibold text-left transition-all ${
                     metodoPago === item.id
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-500 font-bold'
@@ -335,7 +341,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
           </div>
 
           {/* Banco y Referencia */}
-          {metodoPago !== 'EFECTIVO' && (
+          {metodoPago.toLowerCase().trim() !== 'efectivo' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Selector Inteligente de Banco Destino */}
               <div className="relative" ref={bankDropdownRef}>
@@ -433,6 +439,20 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
                 />
               </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span># Referencia / N° Recibo Físico</span>
+                <span className="text-[9px] text-slate-400 font-semibold uppercase">Opcional</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: Recibo manual #0045 (opcional)"
+                value={referencia}
+                onChange={(e) => setReferencia(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+              />
             </div>
           )}
 

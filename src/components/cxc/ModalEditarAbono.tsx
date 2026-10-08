@@ -87,13 +87,14 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
 
     try {
       setLoading(true);
+      const isEfectivo = metodoPago?.toUpperCase() === 'EFECTIVO' || metodoPago?.toLowerCase() === 'efectivo';
       const res = await fetch(`/api/cxc/abonos/${pago.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           monto: valMonto,
           metodoPago,
-          banco: banco.trim() || undefined,
+          banco: isEfectivo ? null : (banco.trim() || null),
           referencia: referencia.trim() || undefined,
           notas: notas.trim() || undefined,
           fecha: fechaPago || undefined
@@ -202,7 +203,12 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
                 <button
                   type="button"
                   key={item.id}
-                  onClick={() => setMetodoPago(item.id)}
+                  onClick={() => {
+                    setMetodoPago(item.id);
+                    if (item.id === 'EFECTIVO' || item.id.toLowerCase() === 'efectivo') {
+                      setBankDropdownOpen(false);
+                    }
+                  }}
                   className={`py-2 px-3 rounded-xl border text-xs font-semibold text-left transition-all ${
                     metodoPago === item.id
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-500 font-bold'
@@ -216,7 +222,7 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
           </div>
 
           {/* Banco y Referencia */}
-          {metodoPago !== 'EFECTIVO' && (
+          {metodoPago?.toUpperCase() !== 'EFECTIVO' && metodoPago?.toLowerCase() !== 'efectivo' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Selector Inteligente de Banco Destino */}
               <div className="relative" ref={bankDropdownRef}>
@@ -312,6 +318,20 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
                 />
               </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span># Referencia / N° Recibo Físico</span>
+                <span className="text-[9px] text-slate-400 font-semibold uppercase">Opcional</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Ej: Recibo manual #0045 (opcional)"
+                value={referencia}
+                onChange={(e) => setReferencia(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+              />
             </div>
           )}
 
