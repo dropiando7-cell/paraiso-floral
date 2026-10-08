@@ -18,6 +18,99 @@ import {
 // Fuente: Inter (Google Fonts)
 // ============================================================
 
+export const DEFAULT_CATEGORIAS_GASTO: { nombre: string; cuenta: string }[] = [
+  { nombre: 'Papelería', cuenta: '5102-001' },
+  { nombre: 'Impresiones y copias', cuenta: '5102-002' },
+  { nombre: 'Transporte', cuenta: '5103-001' },
+  { nombre: 'Envios', cuenta: '5109-001' },
+  { nombre: 'Mensajería y envíos', cuenta: '5109-001' },
+  { nombre: 'Combustible', cuenta: '5103-002' },
+  { nombre: 'REEMBOLSO COMBUSTIBLE', cuenta: '5103-002' },
+  { nombre: 'Peajes y parqueos', cuenta: '5103-003' },
+  { nombre: 'Alimentación', cuenta: '5104-001' },
+  { nombre: 'Refrigerios', cuenta: '5104-002' },
+  { nombre: 'Cafetería', cuenta: '5104-003' },
+  { nombre: 'Botellones de agua', cuenta: '5104-004' },
+  { nombre: 'Limpieza', cuenta: '5105-001' },
+  { nombre: 'Mantenimiento', cuenta: '5106-001' },
+  { nombre: 'Reparaciones menores', cuenta: '5106-002' },
+  { nombre: 'Servicios públicos', cuenta: '5107-001' },
+  { nombre: 'Internet y telefonía', cuenta: '5107-002' },
+  { nombre: 'Herramientas', cuenta: '5108-001' },
+  { nombre: 'Repuestos y accesorios', cuenta: '5108-002' },
+  { nombre: 'Suministros médicos', cuenta: '5108-003' },
+  { nombre: 'Compra a proveedores', cuenta: '5199-003' },
+  { nombre: 'COMPRAS DE PRODUCTOS', cuenta: '5199-004' },
+  { nombre: 'Trámites legales', cuenta: '5110-001' },
+  { nombre: 'Permisos y licencias', cuenta: '5110-002' },
+  { nombre: 'Capacitación', cuenta: '5111-001' },
+  { nombre: 'Viáticos', cuenta: '5112-001' },
+  { nombre: 'Hospedaje', cuenta: '5112-002' },
+  { nombre: 'Atención a clientes', cuenta: '5113-001' },
+  { nombre: 'Marketing y publicidad', cuenta: '5114-001' },
+  { nombre: 'Donaciones', cuenta: '5115-001' },
+  { nombre: 'Propinas', cuenta: '5115-002' },
+  { nombre: 'Otros gastos', cuenta: '5199-001' },
+  { nombre: 'Reembolso', cuenta: '5199-002' }
+];
+
+export const LOCAL_STORAGE_KEY_CATEGORIAS = 'caja_chica_custom_categories_v1';
+
+export const mergeCategorias = (
+  baseList: { nombre: string; cuenta: string }[],
+  storedList: { nombre: string; cuenta: string }[] = [],
+  dbMovimientos: any[] = [],
+  dbSesionesCerradas: any[] = []
+): { nombre: string; cuenta: string }[] => {
+  const map = new Map<string, { nombre: string; cuenta: string }>();
+
+  // 1. Categorías base
+  baseList.forEach(c => {
+    if (c.nombre && c.nombre.trim()) {
+      map.set(c.nombre.trim().toLowerCase(), { nombre: c.nombre.trim(), cuenta: c.cuenta?.trim() || '5199-001' });
+    }
+  });
+
+  // 2. Categorías guardadas en localStorage
+  storedList.forEach(c => {
+    if (c && c.nombre && c.nombre.trim()) {
+      map.set(c.nombre.trim().toLowerCase(), { nombre: c.nombre.trim(), cuenta: c.cuenta?.trim() || '5199-001' });
+    }
+  });
+
+  // 3. Movimientos de la sesión activa
+  dbMovimientos.forEach(m => {
+    if (m && m.categoria && typeof m.categoria === 'string' && m.categoria.trim()) {
+      const key = m.categoria.trim().toLowerCase();
+      if (!map.has(key)) {
+        let cuenta = m.cuentaContable?.trim() || '5199-001';
+        if (key.includes('envio') || key.includes('flete') || key.includes('mensaj')) cuenta = '5109-001';
+        else if (key.includes('combust') || key.includes('gasolin')) cuenta = '5103-002';
+        else if (key.includes('proveedor') || key.includes('compra')) cuenta = '5199-003';
+        map.set(key, { nombre: m.categoria.trim(), cuenta });
+      }
+    }
+  });
+
+  // 4. Movimientos de sesiones cerradas
+  dbSesionesCerradas.forEach(s => {
+    (s.movimientos || []).forEach((m: any) => {
+      if (m && m.categoria && typeof m.categoria === 'string' && m.categoria.trim()) {
+        const key = m.categoria.trim().toLowerCase();
+        if (!map.has(key)) {
+          let cuenta = m.cuentaContable?.trim() || '5199-001';
+          if (key.includes('envio') || key.includes('flete') || key.includes('mensaj')) cuenta = '5109-001';
+          else if (key.includes('combust') || key.includes('gasolin')) cuenta = '5103-002';
+          else if (key.includes('proveedor') || key.includes('compra')) cuenta = '5199-003';
+          map.set(key, { nombre: m.categoria.trim(), cuenta });
+        }
+      }
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+};
+
 export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const organization = dbUser?.organization;
   // -------------------- ESTADO PRINCIPAL --------------------
@@ -56,40 +149,28 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const [nuevaCategoria, setNuevaCategoria] = useState('');
   const [nuevaCuenta, setNuevaCuenta] = useState('');
 
-  const [categoriasGasto, setCategoriasGasto] = useState([
-    { nombre: 'Papelería', cuenta: '5102-001' },
-    { nombre: 'Transporte', cuenta: '5103-001' },
-    { nombre: 'Combustible', cuenta: '5103-002' },
-    { nombre: 'Peajes y parqueos', cuenta: '5103-003' },
-    { nombre: 'Alimentación', cuenta: '5104-001' },
-    { nombre: 'Refrigerios', cuenta: '5104-002' },
-    { nombre: 'Cafetería', cuenta: '5104-003' },
-    { nombre: 'Limpieza', cuenta: '5105-001' },
-    { nombre: 'Mantenimiento', cuenta: '5106-001' },
-    { nombre: 'Servicios públicos', cuenta: '5107-001' },
-    { nombre: 'Internet y telefonía', cuenta: '5107-002' },
-    { nombre: 'Herramientas', cuenta: '5108-001' },
-    { nombre: 'Repuestos y accesorios', cuenta: '5108-002' },
-    { nombre: 'Suministros médicos', cuenta: '5108-003' },
-    { nombre: 'Mensajería y envíos', cuenta: '5109-001' },
-    { nombre: 'Trámites legales', cuenta: '5110-001' },
-    { nombre: 'Permisos y licencias', cuenta: '5110-002' },
-    { nombre: 'Capacitación', cuenta: '5111-001' },
-    { nombre: 'Viáticos', cuenta: '5112-001' },
-    { nombre: 'Hospedaje', cuenta: '5112-002' },
-    { nombre: 'Atención a clientes', cuenta: '5113-001' },
-    { nombre: 'Marketing y publicidad', cuenta: '5114-001' },
-    { nombre: 'Impresiones y copias', cuenta: '5102-002' },
-    { nombre: 'Botellones de agua', cuenta: '5104-004' },
-    { nombre: 'Reparaciones menores', cuenta: '5106-002' },
-    { nombre: 'Donaciones', cuenta: '5115-001' },
-    { nombre: 'Propinas', cuenta: '5115-002' },
-    { nombre: 'Otros gastos', cuenta: '5199-001' },
-    { nombre: 'Reembolso', cuenta: '5199-002' }
-  ]);
+  const [categoriasGasto, setCategoriasGasto] = useState<{ nombre: string; cuenta: string }[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY_CATEGORIAS);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return mergeCategorias(DEFAULT_CATEGORIAS_GASTO, parsed);
+          }
+        }
+      } catch (err) {
+        console.error('Error cargando categorías iniciales:', err);
+      }
+    }
+    return DEFAULT_CATEGORIAS_GASTO;
+  });
 
   const cargarSesion = async () => {
     setCargando(true);
+    let sessionMovs: any[] = [];
+    let closedSessions: any[] = [];
+
     const res = await getOpenSession(organization?.id || dbUser?.organizationId);
     if (res.success) {
       setUserRole(dbUser?.role || '');
@@ -98,7 +179,8 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       setSesionActiva(res.session);
       setCajaAbierta(true);
       setSaldoInicial(res.session.saldoInicial);
-      setMovimientos(res.session.movimientos || []);
+      sessionMovs = res.session.movimientos || [];
+      setMovimientos(sessionMovs);
     } else {
       setSesionActiva(null);
       setCajaAbierta(false);
@@ -108,7 +190,32 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
     const resCerradas = await getClosedSessions(organization?.id || dbUser?.organizationId);
     if (resCerradas.success) {
-      setSesionesCerradas(resCerradas.sessions || []);
+      closedSessions = resCerradas.sessions || [];
+      setSesionesCerradas(closedSessions);
+    }
+
+    // Sincronizar categorías con las existentes en DB + localStorage
+    let storedCustom: { nombre: string; cuenta: string }[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEY_CATEGORIAS);
+        if (raw) storedCustom = JSON.parse(raw);
+      } catch (err) {
+        console.error('Error al leer categorías de localStorage:', err);
+      }
+    }
+
+    const merged = mergeCategorias(DEFAULT_CATEGORIAS_GASTO, storedCustom, sessionMovs, closedSessions);
+    setCategoriasGasto(merged);
+    if (typeof window !== 'undefined') {
+      try {
+        const customOnly = merged.filter(c => 
+          !DEFAULT_CATEGORIAS_GASTO.some(def => def.nombre.toLowerCase() === c.nombre.toLowerCase())
+        );
+        localStorage.setItem(LOCAL_STORAGE_KEY_CATEGORIAS, JSON.stringify(customOnly));
+      } catch (err) {
+        console.error('Error al persistir categorías:', err);
+      }
     }
 
     await cargarEstadoCajaVentas();
@@ -187,11 +294,16 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const movimientosFiltrados = useMemo(() => {
     return movimientos.filter(m => {
       const matchTipo = filtroTipo === 'TODOS' || m.tipo === filtroTipo;
+      const desc = (m.descripcion || '').toLowerCase();
+      const cat = (m.categoria || '').toLowerCase();
+      const doc = (m.nroDoc || '').toLowerCase();
+      const ben = (m.beneficiario || '').toLowerCase();
+      const q = busqueda.toLowerCase();
       const matchBusqueda = busqueda === '' ||
-        m.descripcion.toLowerCase().includes(busqueda.toLowerCase()) ||
-        m.categoria.toLowerCase().includes(busqueda.toLowerCase()) ||
-        m.nroDoc.toLowerCase().includes(busqueda.toLowerCase()) ||
-        m.beneficiario.toLowerCase().includes(busqueda.toLowerCase());
+        desc.includes(q) ||
+        cat.includes(q) ||
+        doc.includes(q) ||
+        ben.includes(q);
       return matchTipo && matchBusqueda;
     });
   }, [movimientos, filtroTipo, busqueda]);
@@ -1390,12 +1502,15 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                           setForm({
                             ...form,
                             categoria: e.target.value,
-                            cuentaContable: cat ? cat.cuenta : ''
+                            cuentaContable: cat ? cat.cuenta : form.cuentaContable
                           });
                         }}
                         className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
                       >
                         <option value="">Selecciona una categoría...</option>
+                        {form.categoria && !categoriasGasto.some(c => c.nombre.toLowerCase() === form.categoria.toLowerCase()) && (
+                          <option value={form.categoria}>{form.categoria}</option>
+                        )}
                         {categoriasGasto.map((cat) => (
                           <option key={cat.nombre} value={cat.nombre}>{cat.nombre}</option>
                         ))}
@@ -2144,7 +2259,21 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                         type="button"
                         onClick={() => {
                           if (confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) {
-                            setCategoriasGasto(categoriasGasto.filter(c => c.nombre !== cat.nombre));
+                            const nuevaLista = categoriasGasto.filter(c => c.nombre.toLowerCase() !== cat.nombre.toLowerCase());
+                            setCategoriasGasto(nuevaLista);
+                            if (typeof window !== 'undefined') {
+                              try {
+                                const raw = localStorage.getItem(LOCAL_STORAGE_KEY_CATEGORIAS);
+                                if (raw) {
+                                  const parsed: { nombre: string; cuenta: string }[] = JSON.parse(raw);
+                                  const filtered = parsed.filter(c => c.nombre.toLowerCase() !== cat.nombre.toLowerCase());
+                                  localStorage.setItem(LOCAL_STORAGE_KEY_CATEGORIAS, JSON.stringify(filtered));
+                                }
+                              } catch (err) {
+                                console.error('Error al eliminar categoría de localStorage:', err);
+                              }
+                            }
+                            toast.success(`Categoría "${cat.nombre}" eliminada`);
                           }
                         }}
                         className="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-opacity"
@@ -2170,22 +2299,45 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   const limpiaNombre = nuevaCategoria.trim();
                   const limpiaCuenta = nuevaCuenta.trim();
                   if (!limpiaNombre) {
-                    alert('Ingresa un nombre para la categoría');
+                    toast.error('Ingresa un nombre para la categoría');
                     return;
                   }
                   if (!limpiaCuenta) {
-                    alert('Ingresa la cuenta contable correspondiente');
+                    toast.error('Ingresa la cuenta contable correspondiente');
                     return;
                   }
-                  if (categoriasGasto.some(c => c.nombre.toLowerCase() === limpiaNombre.toLowerCase())) {
-                    alert('Esa categoría ya existe');
+                  const yaExiste = categoriasGasto.find(c => c.nombre.toLowerCase() === limpiaNombre.toLowerCase());
+                  if (yaExiste) {
+                    toast.success(`La categoría "${yaExiste.nombre}" ya existe y fue seleccionada`);
+                    setForm((prev: any) => ({ ...prev, categoria: yaExiste.nombre, cuentaContable: yaExiste.cuenta }));
+                    setNuevaCategoria('');
+                    setNuevaCuenta('');
+                    setShowModalCategoria(false);
                     return;
                   }
-                  setCategoriasGasto([...categoriasGasto, { nombre: limpiaNombre, cuenta: limpiaCuenta }]);
-                  setForm({ ...form, categoria: limpiaNombre, cuentaContable: limpiaCuenta });
+
+                  const nueva = { nombre: limpiaNombre, cuenta: limpiaCuenta };
+                  const nuevaLista = [...categoriasGasto, nueva].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+                  setCategoriasGasto(nuevaLista);
+
+                  if (typeof window !== 'undefined') {
+                    try {
+                      const raw = localStorage.getItem(LOCAL_STORAGE_KEY_CATEGORIAS);
+                      const parsed: { nombre: string; cuenta: string }[] = raw ? JSON.parse(raw) : [];
+                      if (!parsed.some(c => c.nombre.toLowerCase() === limpiaNombre.toLowerCase())) {
+                        parsed.push(nueva);
+                        localStorage.setItem(LOCAL_STORAGE_KEY_CATEGORIAS, JSON.stringify(parsed));
+                      }
+                    } catch (err) {
+                      console.error('Error al guardar categoría en localStorage:', err);
+                    }
+                  }
+
+                  setForm((prev: any) => ({ ...prev, categoria: limpiaNombre, cuentaContable: limpiaCuenta }));
                   setNuevaCategoria('');
                   setNuevaCuenta('');
                   setShowModalCategoria(false);
+                  toast.success(`Categoría "${limpiaNombre}" agregada exitosamente`);
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-600/20"
               >
