@@ -66,6 +66,20 @@ export default function DocumentListTable({
   const [ticketPreview, setTicketPreview] = useState<DocumentRecord | null>(null);
   const [directPrint, setDirectPrint] = useState(false);
   const [docForSupervisorAuth, setDocForSupervisorAuth] = useState<DocumentRecord | null>(null);
+  const [openMenuDocId, setOpenMenuDocId] = useState<string | null>(null);
+
+  // Cerrar menú de acciones contextual al hacer clic fuera
+  useEffect(() => {
+    if (!openMenuDocId) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest('[data-actions-menu]')) {
+        setOpenMenuDocId(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [openMenuDocId]);
 
   const isGerenteIlimitado = 
     userRole === 'SUPER_ADMIN' || 
@@ -924,7 +938,7 @@ export default function DocumentListTable({
             <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm">
               <th 
                 onClick={() => handleSort('correlativo')}
-                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors whitespace-nowrap min-w-[200px]"
               >
                 <div className="flex items-center gap-1">
                   Documento
@@ -951,7 +965,7 @@ export default function DocumentListTable({
                 </div>
               </th>
               <th className="p-4 border-b border-slate-200 text-center">Estado</th>
-              <th className="p-4 border-b border-slate-200 text-right">Acciones</th>
+              <th className="p-4 border-b border-slate-200 text-right whitespace-nowrap min-w-[130px]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -964,18 +978,18 @@ export default function DocumentListTable({
                 </td>
               </tr>
             ) : (
-              paginatedData.map(doc => (
+              paginatedData.map((doc, index) => (
                 <tr 
                   key={doc.id}
                   className="hover:bg-blue-50/30 transition-colors group"
                 >
-                  <td className="p-4 align-middle">
+                  <td className="p-4 align-middle whitespace-nowrap">
                    <div className="flex items-center gap-3">
                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border ${doc.tipoDocumento === 'FACTURA' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
                        {doc.tipoDocumento === 'FACTURA' ? <CheckCircle2 size={18} /> : doc.tipoDocumento === 'NOTA_CREDITO' ? <Undo size={18} /> : <FileText size={18} />}
                      </div>
-                     <div>
-                       <p className="font-bold text-slate-800 tabular-nums">{doc.correlativo}</p>
+                     <div className="whitespace-nowrap">
+                       <p className="font-bold text-slate-900 tabular-nums font-mono text-sm whitespace-nowrap tracking-tight">{doc.correlativo}</p>
                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">{doc.tipoDocumento}</p>
                      </div>
                    </div>
@@ -1032,21 +1046,23 @@ export default function DocumentListTable({
                   {getStatusBadge(doc)}
                 </td>
                 <td className="p-4 align-middle text-right">
-                  <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1 relative" onClick={e => e.stopPropagation()}>
+                    {/* Botón Ver (Ojito) */}
                     <Link href={`/facturas/ver/${doc.id}`} title="Ver Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Eye size={16} />
                     </Link>
-                    <button onClick={() => setDocToPrint(doc)} title="Imprimir Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+
+                    {/* Botón Imprimir (Impresora) */}
+                    <button onClick={() => setDocToPrint(doc)} title="Imprimir Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer">
                       <Printer size={16} />
                     </button>
-                    <Link href={`/facturas/ver/${doc.id}?download=true`} title="Descargar PDF" className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
-                      <Download size={16} />
-                    </Link>
+
+                    {/* Botón Editar (Lapicito o Candado si está protegida +24h) */}
                     {isDocExpired(doc) && !isGerenteIlimitado ? (
                       <button 
                         onClick={() => setDocForSupervisorAuth(doc)} 
                         title="Factura protegida (+24h) - Desbloquear con PIN de Gerencia" 
-                        className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
+                        className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
                       >
                         <Lock size={16} />
                       </button>
@@ -1055,52 +1071,125 @@ export default function DocumentListTable({
                         <Pencil size={16} />
                       </Link>
                     )}
-                    <Link
-                      href={`/facturas/ver/${doc.id}?whatsapp=true`}
-                      title="Copiar Imagen para WhatsApp"
-                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
-                    >
-                      <MessageCircle size={16} />
-                    </Link>
-                    <button 
-                      onClick={() => handleSendEmail(doc.id)} 
-                      title="Enviar por Correo" 
-                      className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                    >
-                      <Mail size={16} />
-                    </button>
-                    {doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && (
-                      <Link href={`/facturas/${doc.id}?notaCredito=true`} title="Generar Nota de Crédito" className="p-2 text-slate-500 hover:text-purple-600 hover:bg-purple-100 rounded-lg transition-colors">
-                        <Undo size={16} />
-                      </Link>
-                    )}
-                    {doc.metodoPago === 'Transferencia' && !doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
-                      <button 
-                        onClick={() => setDocToConfirmTransfer(doc)} 
-                        title="Confirmar Transferencia" 
-                        className="p-2 text-amber-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1"
-                      >
-                        <Clock size={16} />
-                      </button>
-                    )}
+
+                    {/* Indicador Transferencia Confirmada si aplica */}
                     {doc.metodoPago === 'Transferencia' && doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
-                      <span title="Transferencia Confirmada" className="p-2 text-emerald-600 flex items-center gap-1">
+                      <span title="Transferencia Confirmada" className="p-1.5 text-emerald-600 flex items-center">
                         <CheckCircle2 size={16} />
                       </span>
                     )}
-                    {doc.estado !== 'ANULADA' && (
-                      <button 
-                        onClick={() => setDocToAnul(doc)} 
-                        disabled={isAnulando === doc.id}
-                        title="Anular Documento" 
-                        className={`p-2 rounded-lg transition-colors ${isAnulando === doc.id ? 'text-slate-300' : 'text-slate-500 hover:text-red-600 hover:bg-red-100'}`}
+
+                    {/* Menú de Más Opciones (...) */}
+                    <div className="relative inline-block text-left" data-actions-menu>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuDocId(openMenuDocId === doc.id ? null : doc.id);
+                        }}
+                        className={`p-2 rounded-lg transition-colors cursor-pointer ${openMenuDocId === doc.id ? 'bg-slate-200 text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}
+                        title="Más opciones"
                       >
-                        <Ban size={16} className={isAnulando === doc.id ? 'animate-pulse' : ''} />
+                        <MoreHorizontal size={18} />
                       </button>
-                    )}
-                    <Link href={`/facturas/${doc.id}?clone=true`} title="Duplicar Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
-                      <Copy size={16} />
-                    </Link>
+
+                      {openMenuDocId === doc.id && (
+                        <div 
+                          className={`absolute ${index >= paginatedData.length - 3 && paginatedData.length > 3 ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} right-0 z-50 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-1.5 animate-in fade-in zoom-in-95 duration-150 text-left`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link
+                            href={`/facturas/ver/${doc.id}?download=true`}
+                            onClick={() => setOpenMenuDocId(null)}
+                            className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-700 transition-colors w-full"
+                          >
+                            <Download size={15} className="text-slate-400 shrink-0" />
+                            <span>Descargar PDF</span>
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuDocId(null);
+                              const clienteNombre = doc.clienteNombre || 'Estimado(a) cliente';
+                              const docUrl = `${window.location.origin}/facturas/ver/${doc.id}`;
+                              const pdfUrl = `${window.location.origin}/api/pdf/${doc.id}`;
+                              const docLabel = doc.tipoDocumento === 'FACTURA' ? 'Factura' : doc.tipoDocumento === 'PROFORMA' ? 'Factura Pro Forma' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'Nota de Crédito' : 'Cotización';
+                              const mensaje = `Hola *${clienteNombre}*! 🌸\n\nLe compartimos su *${docLabel} No. ${doc.correlativo}* de *Distribuidora Paraíso Floral*.\n\n📄 *Ver documento:* \n${docUrl}\n\n📥 *Descarga directa PDF:* \n${pdfUrl}\n\n¡Muchas gracias por su preferencia! ✨`;
+                              window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+                            }}
+                            className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors w-full text-left cursor-pointer"
+                          >
+                            <MessageCircle size={15} className="text-emerald-600 shrink-0" />
+                            <span>Compartir por WhatsApp</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenMenuDocId(null);
+                              handleSendEmail(doc.id);
+                            }}
+                            className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition-colors w-full text-left cursor-pointer"
+                          >
+                            <Mail size={15} className="text-blue-600 shrink-0" />
+                            <span>Enviar por Correo</span>
+                          </button>
+
+                          <Link
+                            href={`/facturas/${doc.id}?clone=true`}
+                            onClick={() => setOpenMenuDocId(null)}
+                            className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-700 transition-colors w-full"
+                          >
+                            <Copy size={15} className="text-slate-400 shrink-0" />
+                            <span>Duplicar Documento</span>
+                          </Link>
+
+                          {doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && (
+                            <Link
+                              href={`/facturas/${doc.id}?notaCredito=true`}
+                              onClick={() => setOpenMenuDocId(null)}
+                              className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition-colors w-full"
+                            >
+                              <Undo size={15} className="text-purple-600 shrink-0" />
+                              <span>Generar Nota de Crédito</span>
+                            </Link>
+                          )}
+
+                          {doc.metodoPago === 'Transferencia' && !doc.transferenciaConfirmada && doc.estado !== 'ANULADA' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuDocId(null);
+                                setDocToConfirmTransfer(doc);
+                              }}
+                              className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors w-full text-left cursor-pointer"
+                            >
+                              <Clock size={15} className="text-amber-500 shrink-0" />
+                              <span>Confirmar Transferencia</span>
+                            </button>
+                          )}
+
+                          {doc.estado !== 'ANULADA' && (
+                            <>
+                              <div className="my-1 border-t border-slate-100" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenMenuDocId(null);
+                                  setDocToAnul(doc);
+                                }}
+                                disabled={isAnulando === doc.id}
+                                className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors w-full text-left cursor-pointer disabled:opacity-50"
+                              >
+                                <Ban size={15} className={`text-rose-500 shrink-0 ${isAnulando === doc.id ? 'animate-pulse' : ''}`} />
+                                <span>Anular Documento</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
               </tr>
