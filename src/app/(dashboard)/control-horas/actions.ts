@@ -130,8 +130,17 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
                 const validPunches: Date[] = [];
                 punchesCols.forEach(colIdx => {
                     const val = String(row[colIdx] || '').trim();
-                    if (val.match(/^[0-9]{1,2}:[0-9]{2}$/)) {
-                        const [hh, mm] = val.split(':').map(Number);
+                    if (val.match(/^[0-9]{1,2}:[0-9]{2}(?:\s*[a-zA-Z\.]*)?$/)) {
+                        let isPM = val.toLowerCase().includes('p');
+                        let isAM = val.toLowerCase().includes('a');
+                        let [hhStr, mmStr] = val.replace(/[^0-9:]/g, '').split(':');
+                        let hh = Number(hhStr);
+                        let mm = Number(mmStr);
+                        
+                        if (isPM && hh < 12) hh += 12;
+                        if (isAM && hh === 12) hh = 0;
+                        if (!isPM && !isAM && hh < 6) hh += 12;
+
                         const dObj = new Date(anioDetectado, m - 1, d, hh, mm);
                         validPunches.push(dObj);
                     }
@@ -174,7 +183,16 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
                 const parts = timeStr.split(' ');
                 if (parts.length >= 2) {
                     const [d, m, y] = parts[0].split('/').map(Number);
-                    const [hh, mm] = parts[1].split(':').map(Number);
+                    const [hhStr, mmStr] = parts[1].split(':');
+                    let hh = Number(hhStr);
+                    let mm = Number(mmStr);
+                    
+                    const isPM = timeStr.toLowerCase().includes('p');
+                    const isAM = timeStr.toLowerCase().includes('a');
+                    if (isPM && hh < 12) hh += 12;
+                    if (isAM && hh === 12) hh = 0;
+                    if (!isPM && !isAM && hh < 6) hh += 12;
+
                     if (d && m && y && !isNaN(hh) && !isNaN(mm)) {
                         dateObj = new Date(y, m - 1, d, hh, mm);
                         mesDetectado = m;
@@ -225,7 +243,13 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
             empId = item.empId || empId;
 
             item.punches.sort((a, b) => a.getTime() - b.getTime());
-            const primeraEntrada = item.punches[0];
+            
+            // Regla: Tomar la última marca de la mañana como entrada real (Ej. Erick marca 6am y 7am -> Entrada = 7am)
+            const morningPunches = item.punches.filter(p => p.getHours() < 12);
+            const primeraEntrada = morningPunches.length > 0 
+                ? morningPunches[morningPunches.length - 1] 
+                : item.punches[0];
+
             const ultimaSalida = item.punches[item.punches.length - 1];
 
             const dayOfWeek = item.dateObj.getDay(); // 0 = Dom, 6 = Sáb, 1..5 = L-V
