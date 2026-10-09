@@ -149,7 +149,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
  </div>
 
- <div className={`mt-6 cursor-pointer ${settings.logoPosition === 'right' ? 'text-left w-full' : settings.logoPosition === 'center' ? 'text-center' : 'text-right'}`} onClick={() => setShowClientModal(true)}>
+ <div className={`mt-6 ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'} ${settings.logoPosition === 'right' ? 'text-left w-full' : settings.logoPosition === 'center' ? 'text-center' : 'text-right'}`} onClick={() => { if (!viewMode) setShowClientModal(true); }}>
  </div>
  </div>
  </div>
@@ -173,17 +173,22 @@ export default function LegacyTemplate(props: TemplateProps) {
   
   <div className="flex flex-col pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Términos de pago:</span>
-  <select
-  value={paymentTerms}
-  onChange={e => setPaymentTerms(e.target.value)}
-  className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
-  >
-  <option value="Pago inmediato">Pago inmediato</option>
-  <option value="15 días netos">15 días netos</option>
-  <option value="30 días netos">30 días netos</option>
-  <option value="60 días netos">60 días netos</option>
-  <option value="90 días netos">90 días netos</option>
-  </select>
+  {viewMode ? (
+    <span className="text-gray-700 font-semibold mt-1 text-xs select-none">{paymentTerms}</span>
+  ) : (
+    <select
+      value={paymentTerms}
+      onChange={e => setPaymentTerms(e.target.value)}
+      disabled={viewMode}
+      className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
+    >
+      <option value="Pago inmediato">Pago inmediato</option>
+      <option value="15 días netos">15 días netos</option>
+      <option value="30 días netos">30 días netos</option>
+      <option value="60 días netos">60 días netos</option>
+      <option value="90 días netos">90 días netos</option>
+    </select>
+  )}
   <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentTerms}</span>
   </div>
 
@@ -253,7 +258,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   </div>
   )}
 
- <div className="flex flex-col pl-3 cursor-pointer" onClick={() => setShowClientModal(true)}>
+ <div className={`flex flex-col pl-3 ${viewMode ? 'cursor-default select-none' : 'cursor-pointer hover:opacity-80'}`} onClick={() => { if (!viewMode) setShowClientModal(true); }}>
  <span className={`font-bold uppercase text-slate-800 mb-1 ${headerSmallSize}`}>Cliente:</span>
  {selectedClient ? (
  <div className="text-[10px] leading-tight text-slate-700">

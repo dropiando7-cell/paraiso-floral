@@ -153,32 +153,40 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="grid grid-cols-2 gap-8 mb-8">
  <div>
  <h3 className={`font-bold uppercase border-b border-slate-300 pb-1 mb-2 ${headerSmallSize}`}>Facturado A:</h3>
- <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
- <p className={`font-bold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-400 italic'} group-hover:${baseColor} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
+ <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-left group w-full ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'}`}>
+<p className={`font-bold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-400 italic'} ${viewMode ? '' : 'group-hover:' + baseColor} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
  <p className={`text-sm text-slate-600 mt-1 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient?.rtn || '—'}</p>
  </button>
  </div>
  <div>
  <h3 className={`font-bold uppercase border-b border-slate-300 pb-1 mb-2 ${headerSmallSize}`}>Condiciones de Pago:</h3>
  <div className="space-y-2 mt-2">
- <select
- value={paymentTerms}
- onChange={e => setPaymentTerms(e.target.value)}
- className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm p-1.5 focus:ring-0 print:appearance-none print:border-none print:p-0 font-semibold"
- >
- <option value="Pago inmediato">Pago inmediato</option>
- <option value="15 días netos">15 días netos</option>
- <option value="30 días netos">30 días netos</option>
- <option value="60 días netos">60 días netos</option>
- <option value="90 días netos">90 días netos</option>
- </select>
+ {viewMode ? (
+   <div className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm p-1.5 font-semibold rounded-xs select-none">
+     {paymentTerms}
+   </div>
+ ) : (
+   <select
+     value={paymentTerms}
+     onChange={e => setPaymentTerms(e.target.value)}
+     disabled={viewMode}
+     className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm p-1.5 focus:ring-0 print:appearance-none print:border-none print:p-0 font-semibold cursor-pointer"
+   >
+     <option value="Pago inmediato">Pago inmediato</option>
+     <option value="15 días netos">15 días netos</option>
+     <option value="30 días netos">30 días netos</option>
+     <option value="60 días netos">60 días netos</option>
+     <option value="90 días netos">90 días netos</option>
+   </select>
+ )}
  <div className="flex items-center gap-2">
  <span className="text-xs text-slate-500 uppercase">Validez (días):</span>
  <input
  type="number"
  value={validityDays}
  onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
- className="w-16 border-b border-slate-300 text-sm font-semibold text-slate-800 p-0 text-center focus:ring-0 print:border-none"
+ disabled={viewMode}
+ className={`w-16 border-b border-slate-300 text-sm font-semibold text-slate-800 p-0 text-center focus:ring-0 print:border-none ${viewMode ? 'border-none bg-transparent cursor-default' : ''}`}
  />
  </div>
  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (

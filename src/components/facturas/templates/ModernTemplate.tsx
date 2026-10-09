@@ -171,8 +171,8 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="mt-6 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap md:flex-nowrap items-center gap-4 relative ">
  <div className="flex-1 min-w-[200px]">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Cliente</p>
- <button onClick={() => setShowClientModal(true)} className={`text-white hover:${theme.headerText} ${headerBaseSize} font-semibold flex items-center gap-2 transition-colors `}>
- {selectedClient?.name || 'Seleccionar cliente...'} <Search size={14} className="opacity-50 print:hidden" />
+ <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-white ${headerBaseSize} font-semibold flex items-center gap-2 transition-colors ${viewMode ? 'cursor-default select-none' : `hover:${theme.headerText} cursor-pointer`}`}>
+ {selectedClient?.name || 'Seleccionar cliente...'} {!viewMode && <Search size={14} className="opacity-50 print:hidden" />}
  </button>
  </div>
  <div>
@@ -199,17 +199,22 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
  <div className="w-32">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Términos de Pago</p>
- <select
- value={paymentTerms}
- onChange={e => setPaymentTerms(e.target.value)}
- className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
- >
- <option value="Pago inmediato" className="bg-slate-800 text-white">Pago inmediato</option>
- <option value="15 días netos" className="bg-slate-800 text-white">15 días</option>
- <option value="30 días netos" className="bg-slate-800 text-white">30 días</option>
- <option value="60 días netos" className="bg-slate-800 text-white">60 días</option>
- <option value="90 días netos" className="bg-slate-800 text-white">90 días</option>
- </select>
+ {viewMode ? (
+   <p className={`text-sm font-semibold ${theme.headerText} select-none`}>{paymentTerms}</p>
+ ) : (
+   <select
+     value={paymentTerms}
+     onChange={e => setPaymentTerms(e.target.value)}
+     disabled={viewMode}
+     className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
+   >
+     <option value="Pago inmediato" className="bg-slate-800 text-white">Pago inmediato</option>
+     <option value="15 días netos" className="bg-slate-800 text-white">15 días</option>
+     <option value="30 días netos" className="bg-slate-800 text-white">30 días</option>
+     <option value="60 días netos" className="bg-slate-800 text-white">60 días</option>
+     <option value="90 días netos" className="bg-slate-800 text-white">90 días</option>
+   </select>
+ )}
  </div>
  <div className="w-24">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Vigencia</p>
@@ -218,6 +223,7 @@ export default function ModernTemplate(props: TemplateProps) {
  type="number"
  value={validityDays}
  onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
+ disabled={viewMode}
  className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none w-8 p-0 focus:ring-0 print:p-0 print:m-0 print:w-auto`}
  />
  <span className={`${theme.headerText} text-sm font-semibold `}>días</span>

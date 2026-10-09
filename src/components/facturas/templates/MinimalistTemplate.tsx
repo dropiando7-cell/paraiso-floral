@@ -144,31 +144,37 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="flex flex-col print:flex-row sm:flex-row justify-between gap-6 print:gap-4 mb-10 print:mb-6">
  <div className="flex-1">
  <p className={`${headerSmallSize} text-slate-400 uppercase mb-1`}>Facturar A</p>
- <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
- <p className={`font-semibold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-300'} group-hover:${themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
+ <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-left group w-full ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'}`}>
+ <p className={`font-semibold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-300'} ${viewMode ? '' : 'group-hover:' + themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
  {selectedClient && <p className={`${headerSmallSize} text-slate-500 mt-1`}>{selectedClient.rtn || 'RTN No Disponible'}</p>}
  </button>
  </div>
  
  <div className="w-full sm:w-48 print:w-48 sm:text-right print:text-right">
  <p className="text-[10px] text-slate-400 uppercase mb-1">Pago</p>
- <select
- value={paymentTerms}
- onChange={e => setPaymentTerms(e.target.value)}
- className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
- >
- <option value="Pago inmediato">Pago inmediato</option>
- <option value="15 días netos">15 días netos</option>
- <option value="30 días netos">30 días netos</option>
- <option value="60 días netos">60 días netos</option>
- <option value="90 días netos">90 días netos</option>
- </select>
+ {viewMode ? (
+   <p className="w-full sm:text-right print:text-right text-slate-800 text-sm font-medium mb-1 select-none">{paymentTerms}</p>
+ ) : (
+   <select
+     value={paymentTerms}
+     onChange={e => setPaymentTerms(e.target.value)}
+     disabled={viewMode}
+     className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
+   >
+     <option value="Pago inmediato">Pago inmediato</option>
+     <option value="15 días netos">15 días netos</option>
+     <option value="30 días netos">30 días netos</option>
+     <option value="60 días netos">60 días netos</option>
+     <option value="90 días netos">90 días netos</option>
+   </select>
+ )}
  <div className="flex items-center justify-start sm:justify-end print:justify-end gap-2">
  <span className="text-[10px] text-slate-400">Validez:</span>
  <input
  type="number"
  value={validityDays}
  onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
+ disabled={viewMode}
  className="w-8 border-none bg-transparent text-sm font-medium text-slate-800 p-0 text-right focus:ring-0 print:p-0"
  />
  </div>

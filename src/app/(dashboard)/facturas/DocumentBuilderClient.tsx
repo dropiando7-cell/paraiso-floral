@@ -3083,6 +3083,40 @@ export default function DocumentBuilderClient({
   const effectiveViewMode = viewMode || isAnulada || isConvertida || isForcePrinting;
   const currentCanvasMode = docType === 'factura' ? activeCanvasMode : 'document';
 
+  const handleSafeSetShowClientModal = (show: boolean) => {
+    if (show && effectiveViewMode) return;
+    if (show && isNotaCredito) {
+      toast.error('No se puede cambiar el cliente en una Nota de Crédito');
+      return;
+    }
+    setShowClientModal(show);
+  };
+
+  const handleSafeSetPaymentTerms = (val: string) => {
+    if (effectiveViewMode) return;
+    setPaymentTerms(val);
+  };
+
+  const handleSafeSetPaymentMethod = (val: string) => {
+    if (effectiveViewMode) return;
+    setPaymentMethod(val);
+  };
+
+  const handleSafeSetValidityDays = (val: number) => {
+    if (effectiveViewMode) return;
+    setValidityDays(val);
+  };
+
+  const handleSafeSetAliasVenta = (val: string) => {
+    if (effectiveViewMode) return;
+    setAliasVenta(val);
+  };
+
+  const handleSafeSetVendedorNombre = (val: string) => {
+    if (effectiveViewMode) return;
+    setVendedorNombre(val);
+  };
+
   const estaVencida = (function() {
     if (!initialData?.fechaEmision || 
         (initialData?.tipoDocumento !== 'COTIZACION' && 
@@ -4958,8 +4992,9 @@ export default function DocumentBuilderClient({
              {/* Selector de Origen de Venta */}
              <select
                value={aliasVenta}
-               onChange={(e) => setAliasVenta(e.target.value)}
-               className="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+               onChange={(e) => handleSafeSetAliasVenta(e.target.value)}
+               disabled={effectiveViewMode}
+               className={`border text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${effectiveViewMode ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80' : 'bg-slate-100 border-slate-200 text-slate-700 cursor-pointer'}`}
                title="Origen de Venta"
              >
                <option value="Paraíso Floral">Paraíso Floral</option>
@@ -4969,8 +5004,9 @@ export default function DocumentBuilderClient({
              {/* Selector de Vendedor */}
              <select
                value={vendedorNombre}
-               onChange={(e) => setVendedorNombre(e.target.value)}
-               className={`bg-white border text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${!vendedorNombre ? 'border-amber-400 text-amber-700 bg-amber-50' : 'border-slate-200 text-slate-700'}`}
+               onChange={(e) => handleSafeSetVendedorNombre(e.target.value)}
+               disabled={effectiveViewMode}
+               className={`border text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${effectiveViewMode ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80' : (!vendedorNombre ? 'border-amber-400 text-amber-700 bg-amber-50' : 'border-slate-200 text-slate-700 bg-white cursor-pointer')}`}
                title="Vendedor asignado a esta factura"
              >
                <option value="" disabled>Seleccionar Vendedor...</option>
@@ -5051,13 +5087,13 @@ export default function DocumentBuilderClient({
             today={today}
             futureDate={futureDate}
             validityDays={validityDays}
-            setValidityDays={setValidityDays}
+            setValidityDays={handleSafeSetValidityDays}
             paymentTerms={paymentTerms}
-            setPaymentTerms={setPaymentTerms}
+            setPaymentTerms={handleSafeSetPaymentTerms}
             paymentMethod={paymentMethod}
-            setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
+            setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
             aliasVenta={aliasVenta}
-            setAliasVenta={setAliasVenta}
+            setAliasVenta={handleSafeSetAliasVenta}
             lineItems={lineItems}
             setLineItems={setLineItems}
             handleLineChange={handleLineChange}
@@ -5201,9 +5237,9 @@ export default function DocumentBuilderClient({
                     nombreUsuario={resolvedNombreUsuario}
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments} 
-                    validityDays={validityDays} setValidityDays={setValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
+                    setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                    setPaymentTerms={handleSafeSetPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments} 
+                    validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
                     handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
                     emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
                     totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignaturePayload} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
@@ -5214,12 +5250,12 @@ export default function DocumentBuilderClient({
                   nombreUsuario={resolvedNombreUsuario}
                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                  setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                  setPaymentTerms={setPaymentTerms}
-                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                  aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                  setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                  setPaymentTerms={handleSafeSetPaymentTerms}
+                  paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                  aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
                   transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
-                  validityDays={validityDays} setValidityDays={setValidityDays} 
+                  validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -5237,12 +5273,12 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={handleSafeSetPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                   aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
                    transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
-                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -5260,12 +5296,12 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={handleSafeSetPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                   aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
                    transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
-                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -5283,12 +5319,12 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                   aliasVenta={aliasVenta} setAliasVenta={setAliasVenta}
+                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={handleSafeSetPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                   aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
                    transferenciaConfirmada={transferenciaConfirmada} setTransferenciaConfirmada={setTransferenciaConfirmada}
-                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -6411,7 +6447,7 @@ export default function DocumentBuilderClient({
         </div>
       )}
 
-      {showClientModal && (
+      {showClientModal && !effectiveViewMode && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 print:hidden animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -6602,7 +6638,7 @@ export default function DocumentBuilderClient({
         </div>
       )}
 
-      {showProductModal && (
+      {showProductModal && !effectiveViewMode && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 print:hidden animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -6652,7 +6688,7 @@ export default function DocumentBuilderClient({
         </div>
       )}
 
-      {showNewClientModal && (
+      {showNewClientModal && !effectiveViewMode && (
         <div className="fixed inset-0 z-[65] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 print:hidden">
             <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
@@ -8170,9 +8206,9 @@ export default function DocumentBuilderClient({
                     nombreUsuario={resolvedNombreUsuario}
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                    setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                    setPaymentTerms={setPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments} 
-                    validityDays={validityDays} setValidityDays={setValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
+                    setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                    setPaymentTerms={handleSafeSetPaymentTerms} paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments} 
+                    validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
                     handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
                     emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
                     totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignaturePayload} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
@@ -8183,10 +8219,10 @@ export default function DocumentBuilderClient({
                   nombreUsuario={resolvedNombreUsuario}
                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                  setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                  setPaymentTerms={setPaymentTerms}
-                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                  validityDays={validityDays} setValidityDays={setValidityDays} 
+                  setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                  setPaymentTerms={handleSafeSetPaymentTerms}
+                  paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                  validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -8204,10 +8240,10 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={handleSafeSetPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -8225,10 +8261,10 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={handleSafeSetPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -8246,10 +8282,10 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={setPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} pagosMixtos={mixedPayments}
-                   validityDays={validityDays} setValidityDays={setValidityDays} 
+                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setPaymentTerms={handleSafeSetPaymentTerms}
+                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
