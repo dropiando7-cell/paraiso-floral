@@ -2221,6 +2221,8 @@ export default function DocumentBuilderClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [docType, setDocType] = useState<DocType>('factura');
+  const isExistingDoc = Boolean(initialData?.id || editMode || viewMode);
+  const [isLocked, setIsLocked] = useState(!isExistingDoc);
 
   const docDate = (initialData?.fechaEmision && (editMode || viewMode))
     ? new Date(initialData.fechaEmision)
@@ -2244,9 +2246,9 @@ export default function DocumentBuilderClient({
 
   const [docNumber, setDocNumber] = useState('');
 
-  // Obtener vista previa del próximo correlativo oficial automáticamente para documentos nuevos o clones
+  // Obtener vista previa del próximo correlativo oficial automáticamente para documentos nuevos o clones una vez desbloqueado el lienzo
   useEffect(() => {
-    if (!editMode && !viewMode) {
+    if (!editMode && !viewMode && !isLocked) {
       let tipoParaCorrelativo = docType.toUpperCase();
       if (tipoParaCorrelativo === 'PRESUPUESTO_REPARACION' || tipoParaCorrelativo === 'PRESUPUESTO_MANTENIMIENTO') {
         tipoParaCorrelativo = 'COTIZACION';
@@ -2259,7 +2261,7 @@ export default function DocumentBuilderClient({
         console.error("Error al obtener preview de correlativo:", err);
       });
     }
-  }, [docType, editMode, viewMode]);
+  }, [docType, editMode, viewMode, isLocked]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
   const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
@@ -3099,7 +3101,6 @@ export default function DocumentBuilderClient({
 
   // --- PERSISTENCE (AUTO-SAVE) ---
   const [reservedDocId, setReservedDocId] = useState<string | null>(initialData?.id || null);
-  const [isLocked, setIsLocked] = useState(false);
   const [isReserving, setIsReserving] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -3194,19 +3195,28 @@ export default function DocumentBuilderClient({
         if (parsed.docNumber && editMode) {
           setIsLocked(false);
         } else if (!parsed.reservedDocId && !editMode) {
-          setIsLocked(false);
+          const hasDraftContent = Boolean(
+            parsed.selectedClient || 
+            (parsed.lineItems && parsed.lineItems.some((item: any) => item.code || item.shortDesc)) ||
+            parsed.notes
+          );
+          if (hasDraftContent) {
+            setIsLocked(false);
+          } else {
+            setIsLocked(!isExistingDoc);
+          }
         }
         draftLoadedRef.current = true;
         toast('Borrador restaurado', { icon: '📝' });
       } else {
-        if (!initialData) setIsLocked(false);
+        if (!isExistingDoc) setIsLocked(true);
       }
     } catch (e) {
       console.warn("Failed to parse draft", e);
-      if (!initialData) setIsLocked(false);
+      if (!isExistingDoc) setIsLocked(true);
     }
     setIsHydrated(true);
-  }, [draftKey, effectiveViewMode, initialData, editMode]);
+  }, [draftKey, effectiveViewMode, initialData, editMode, isExistingDoc]);
 
   // 2. Auto-save to localStorage with debounce
   useEffect(() => {
@@ -4765,7 +4775,11 @@ export default function DocumentBuilderClient({
   const handleReservarCorrelativo = async () => {
     setIsReserving(true);
     try {
-      const res = await getProximoCorrelativoPreview(docType.toUpperCase());
+      let tipoParaCorrelativo = docType.toUpperCase();
+      if (tipoParaCorrelativo === 'PRESUPUESTO_REPARACION' || tipoParaCorrelativo === 'PRESUPUESTO_MANTENIMIENTO') {
+        tipoParaCorrelativo = 'COTIZACION';
+      }
+      const res = await getProximoCorrelativoPreview(tipoParaCorrelativo);
       if (res.success && res.correlativo) {
         setReservedDocId(null);
         setDocNumber(res.correlativo);
@@ -5219,71 +5233,6 @@ export default function DocumentBuilderClient({
           )}
           </div>
           {/* ─── END MAIN DOCUMENT BLUR WRAPPER ──────────────────────────────────── */}
-
-          {isLocked && (
-            <div className="absolute inset-x-0 top-0 z-50 flex justify-center pointer-events-none mt-[-8px]">
-              <div className="bg-white/98 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white max-w-3xl w-full mx-4 animate-in zoom-in-95 duration-300 pointer-events-auto">
-                <div className="text-center mb-8">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-                    <FileText size={24} className="text-white" />
-                  </div>
-                  <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Nuevo Documento</h2>
-                  <p className="text-slate-500 mt-2 text-sm">Selecciona el tipo de documento que deseas crear para generar el correlativo oficial.</p>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                  {DOC_TYPES.map((dt) => {
-                    const isSelected = docType === dt.key;
-                    return (
-                      <button
-                        key={dt.key}
-                        onClick={() => setDocType(dt.key)}
-                        className={`
-                          relative text-left p-6 rounded-2xl border-2 transition-all duration-200 outline-none
-                          ${isSelected 
-                            ? `border-[currentColor] ${dt.bg} shadow-md ring-4 ring-slate-100 scale-[1.02] ${dt.color}` 
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-400'
-                          }
-                        `}
-                      >
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${isSelected ? dt.bg : 'bg-slate-50 text-slate-400'} ${isSelected ? dt.color : ''}`}>
-                          {dt.icon}
-                        </div>
-                        <h3 className={`font-bold mb-1 ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>{dt.label}</h3>
-                        <p className={`text-[11px] leading-relaxed ${isSelected ? 'text-slate-700' : 'text-slate-400'}`}>{dt.description}</p>
-                        
-                        {isSelected && (
-                          <div className={`absolute top-4 right-4 w-6 h-6 rounded-full flex items-center justify-center ${dt.color.replace('text-', 'bg-')} shadow-sm`}>
-                            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                              <path d="M1 4.5l3 3 6-7" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div className="flex justify-center border-t border-slate-100 pt-6">
-                  <button 
-                    onClick={handleReservarCorrelativo}
-                    disabled={isReserving || !isHydrated}
-                    className="flex items-center justify-center min-w-[300px] gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/30 text-lg font-bold transform hover:scale-[1.02] active:scale-95 transition-all"
-                  >
-                    {isReserving ? (
-                      <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                      </svg>
-                    ) : (
-                      <Plus size={22} className="stroke-[3]" />
-                    )}
-                    {isReserving ? `Reservando Correlativo...` : `Crear ${currentDocType.label}`}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
 
@@ -6750,12 +6699,93 @@ export default function DocumentBuilderClient({
           if (ordenTrabajoId) {
             router.push(`/soporte/${ordenTrabajoId}`);
           } else {
+            setReservedDocId(null);
+            setDocNumber('');
+            setSelectedClient(null);
+            setLineItems([{ ...emptyLine(), id: 'default-line-hash' }]);
+            setNotes('');
+            setPaymentTerms('Pago inmediato');
+            setPaymentMethod('Efectivo');
+            setMixedPayments([]);
+            setValidityDays(30);
+            setIsSaving(false);
+            isSavingRef.current = false;
+            setIsLocked(true);
             window.location.href = '/facturas?tab=creador';
           }
         };
 
         return (
           <>
+            {/* Modal Global: Selección de Nuevo Documento y Correlativo */}
+            {isLocked && !effectiveViewMode && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto animate-in fade-in transition-all">
+                <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full mx-auto animate-in zoom-in-95 duration-300 pointer-events-auto my-auto relative">
+                  <div className="text-center mb-6 sm:mb-8">
+                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+                      <FileText size={24} className="text-white" />
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Nuevo Documento</h2>
+                    <p className="text-slate-500 mt-2 text-sm font-medium">Selecciona el tipo de documento que deseas crear para generar el correlativo oficial.</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                    {DOC_TYPES.map((dt) => {
+                      const isSelected = docType === dt.key;
+                      return (
+                        <button
+                          key={dt.key}
+                          type="button"
+                          onClick={() => setDocType(dt.key)}
+                          className={`
+                            relative text-left p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 outline-none cursor-pointer flex flex-col justify-between min-h-[140px]
+                            ${isSelected 
+                              ? `border-[currentColor] ${dt.bg} shadow-md ring-4 ring-slate-100 scale-[1.02] ${dt.color}` 
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-400'
+                            }
+                          `}
+                        >
+                          <div>
+                            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center mb-3 ${isSelected ? dt.bg : 'bg-slate-50 text-slate-400'} ${isSelected ? dt.color : ''}`}>
+                              {dt.icon}
+                            </div>
+                            <h3 className={`font-bold text-sm sm:text-base mb-1 ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>{dt.label}</h3>
+                            <p className={`text-[11px] leading-relaxed ${isSelected ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>{dt.description}</p>
+                          </div>
+                          
+                          {isSelected && (
+                            <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center ${dt.color.replace('text-', 'bg-')} shadow-sm`}>
+                              <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                                <path d="M1 4.5l3 3 6-7" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-center border-t border-slate-100 pt-5 sm:pt-6">
+                    <button 
+                      type="button"
+                      onClick={handleReservarCorrelativo}
+                      disabled={isReserving || !isHydrated}
+                      className="flex items-center justify-center w-full sm:w-auto min-w-[280px] sm:min-w-[320px] gap-3 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/30 text-base sm:text-lg font-bold transform hover:scale-[1.02] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isReserving ? (
+                        <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                      ) : (
+                        <Plus size={22} className="stroke-[3]" />
+                      )}
+                      {isReserving ? `Generando Correlativo...` : `Crear ${currentDocType.label}`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {showSuccessModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
           <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full p-6 sm:p-8 md:p-9 text-center flex flex-col items-center gap-5 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden border border-slate-100">
