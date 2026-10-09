@@ -5098,7 +5098,7 @@ export default function DocumentBuilderClient({
 
         <div className={`flex-1 min-w-0 relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
           
-          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-[360px] print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
+          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-[360px] print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[2px] opacity-90' : ''}`}>
              {/* Alerta de Desbloqueo por Supervisión */}
              {editMode && supervisorAuthName && (
                <div className="max-w-[816px] mx-auto mb-4 bg-emerald-50 border border-emerald-300 rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3 print:hidden">
@@ -6821,8 +6821,8 @@ export default function DocumentBuilderClient({
           <>
             {/* Modal de Selección de Nuevo Documento y Correlativo (bloquea únicamente el espacio del canvas, dejando libre el sidebar) */}
             {isLocked && !effectiveViewMode && (
-              <div className="absolute inset-0 z-30 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-xs overflow-y-auto animate-in fade-in transition-all min-h-full">
-                <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full mx-auto animate-in zoom-in-95 duration-300 pointer-events-auto my-auto relative">
+              <div className="absolute inset-0 z-30 flex items-start justify-center pt-4 sm:pt-6 md:pt-8 pb-16 px-4 bg-slate-900/10 backdrop-blur-[2px] overflow-y-auto animate-in fade-in transition-all min-h-full">
+                <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full mx-auto animate-in zoom-in-95 duration-300 pointer-events-auto relative">
                   <div className="text-center mb-6 sm:mb-8">
                     <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
                       <FileText size={24} className="text-white" />
