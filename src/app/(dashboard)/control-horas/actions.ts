@@ -171,6 +171,30 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
     } else {
         // Formato San Pedro Sula (lista de marcajes crudos ZKteco)
         const objectRows = XLSX.utils.sheet_to_json(sheet) as any[];
+
+        // Pre-análisis de formato de fecha global en el archivo
+        let hasPart2GreaterThan12 = false; // Ej: 9/27/2026 -> parte 2 es 27, indica M/D/YYYY
+        let hasPart1GreaterThan12 = false; // Ej: 27/8/2026 -> parte 1 es 27, indica D/M/YYYY
+        let hasAmPm = false;
+
+        for (const row of objectRows) {
+            const timeStr = String(row['Time'] || row['Fecha/Hora'] || row['Hora'] || '').trim();
+            if (!timeStr) continue;
+            if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+                hasAmPm = true;
+            }
+            const match = timeStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (match) {
+                const p1 = Number(match[1]);
+                const p2 = Number(match[2]);
+                if (p1 > 12) hasPart1GreaterThan12 = true;
+                if (p2 > 12) hasPart2GreaterThan12 = true;
+            }
+        }
+
+        // Si la parte 2 supera 12 o si tiene AM/PM sin que la parte 1 supere 12, es M/D/YYYY (formato ZKTeco estándar)
+        const isMonthDayYear = hasPart2GreaterThan12 || (!hasPart1GreaterThan12 && hasAmPm);
+
         objectRows.forEach(row => {
             const name = String(row['Name'] || row['Nombre'] || row['Empleado'] || '').trim();
             const acNo = String(row['AC-No.'] || row['No.'] || row['ID'] || '').trim();
@@ -179,10 +203,29 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
             if (!name || !timeStr) return;
 
             let dateObj: Date | null = null;
+            let d = 1, m = 1, y = 2026;
+
             if (timeStr.includes('/')) {
                 const parts = timeStr.split(' ');
                 if (parts.length >= 2) {
-                    const [d, m, y] = parts[0].split('/').map(Number);
+                    const dateNumbers = parts[0].split('/').map(Number);
+                    if (isMonthDayYear) {
+                        m = dateNumbers[0];
+                        d = dateNumbers[1];
+                        y = dateNumbers[2];
+                    } else {
+                        d = dateNumbers[0];
+                        m = dateNumbers[1];
+                        y = dateNumbers[2];
+                    }
+
+                    // Corrección de seguridad: si m > 12 y d <= 12, se invierten
+                    if (m > 12 && d <= 12) {
+                        const temp = m;
+                        m = d;
+                        d = temp;
+                    }
+
                     const [hhStr, mmStr] = parts[1].split(':');
                     let hh = Number(hhStr);
                     let mm = Number(mmStr);
@@ -201,13 +244,17 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
                 }
             } else if (!isNaN(Date.parse(timeStr))) {
                 dateObj = new Date(timeStr);
-                mesDetectado = dateObj.getMonth() + 1;
-                anioDetectado = dateObj.getFullYear();
+                d = dateObj.getDate();
+                m = dateObj.getMonth() + 1;
+                y = dateObj.getFullYear();
+                mesDetectado = m;
+                anioDetectado = y;
             }
 
             if (!dateObj) return;
 
-            const dateKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            // Clave única por día para agrupar (ISO YYYY-MM-DD para ordenamiento cronológico perfecto)
+            const dateKey = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
             if (!empMap.has(name)) {
                 empMap.set(name, new Map());
@@ -215,7 +262,7 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
             const userDateMap = empMap.get(name)!;
             if (!userDateMap.has(dateKey)) {
                 userDateMap.set(dateKey, {
-                    dateObj: new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()),
+                    dateObj: new Date(y, m - 1, d),
                     punches: [],
                     empId: acNo || 'N/A'
                 });
@@ -244,29 +291,36 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
 
             item.punches.sort((a, b) => a.getTime() - b.getTime());
             
-            // Regla: Tomar la última marca de la mañana como entrada real (Ej. Erick marca 6am y 7am -> Entrada = 7am)
+            // Regla: Tomar la última marca matutina como entrada en caso de múltiples marcajes
+            // (Ej. Erick Saavedra marca ~6am para despachar envíos y luego ~7am antes de salir; se toma 7am obviando el 1er marcaje)
             const morningPunches = item.punches.filter(p => p.getHours() < 12);
-            const primeraEntrada = morningPunches.length > 0 
-                ? morningPunches[morningPunches.length - 1] 
-                : item.punches[0];
-
             const ultimaSalida = item.punches[item.punches.length - 1];
+
+            let primeraEntrada: Date;
+            if (morningPunches.length > 1 && ultimaSalida.getHours() >= 12) {
+                // Múltiples marcas en la mañana y salida en la tarde: usar la última marca de la mañana como entrada efectiva
+                primeraEntrada = morningPunches[morningPunches.length - 1];
+            } else if (morningPunches.length > 0) {
+                primeraEntrada = morningPunches[0];
+            } else {
+                primeraEntrada = item.punches[0];
+            }
 
             const dayOfWeek = item.dateObj.getDay(); // 0 = Dom, 6 = Sáb, 1..5 = L-V
 
-            // Reglas de horario laboral:
-            // Lunes a Viernes: 7:00 AM - 4:00 PM (16:00)
-            // Sábado: 7:00 AM - 11:00 AM (11:00)
-            // Domingo: 7:00 AM - 2:00 PM (14:00) (se paga como día normal)
+            // Reglas de horario laboral base:
+            // 07:00 AM - 04:00 PM (16:00) (BASE DE LUNES A VIERNES)
+            // 07:00 AM - 12:00 PM (12:00) (SÁBADO)
+            // 07:00 AM - 12:00 PM (12:00) (DOMINGO)
             let startHour = 7;
             let endHour = 16;
 
             if (dayOfWeek === 6) { // Sábado
                 startHour = 7;
-                endHour = 11;
+                endHour = 12;
             } else if (dayOfWeek === 0) { // Domingo
                 startHour = 7;
-                endHour = 14;
+                endHour = 12;
             }
 
             const normalEntrada = new Date(primeraEntrada);
@@ -293,8 +347,14 @@ function parsearExcelZKtecoBuffer(buffer: Buffer): {
 
             const formatTime = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+            // Formato de presentación requerido: dd/mm/yyyy
+            const d = item.dateObj.getDate();
+            const m = item.dateObj.getMonth() + 1;
+            const y = item.dateObj.getFullYear();
+            const fechaDDMMYYYY = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+
             diasDetalle.push({
-                fecha: dateKey,
+                fecha: fechaDDMMYYYY,
                 diaSemana: DIAS_SEMANA[dayOfWeek],
                 primeraEntrada: formatTime(primeraEntrada),
                 ultimaSalida: item.punches.length > 1 ? formatTime(ultimaSalida) : 'Sin Salida',

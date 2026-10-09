@@ -50,6 +50,18 @@ export function formatMinutos(minutos: number): string {
     return `${hrs}.${String(mins).padStart(2, '0')} hrs`;
 }
 
+export function formatFechaDDMMYYYY(fechaStr: string): string {
+    if (!fechaStr) return '—';
+    if (fechaStr.includes('-')) {
+        const parts = fechaStr.split('-');
+        if (parts.length === 3) {
+            // Convierte YYYY-MM-DD a DD/MM/YYYY
+            return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+        }
+    }
+    return fechaStr;
+}
+
 interface ControlHorasClientProps {
     userRole: string;
     initialHistorial: any[];
@@ -304,8 +316,10 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
     const filteredModalDias = selectedEmpModal?.dias.filter((dia: DiaDetalle) => {
         if (!modalDaySearchQuery.trim()) return true;
         const q = modalDaySearchQuery.toLowerCase();
+        const displayFecha = formatFechaDDMMYYYY(dia.fecha).toLowerCase();
         return (
             dia.fecha.toLowerCase().includes(q) ||
+            displayFecha.includes(q) ||
             dia.diaSemana.toLowerCase().includes(q) ||
             dia.primeraEntrada.toLowerCase().includes(q) ||
             dia.ultimaSalida.toLowerCase().includes(q) ||
@@ -1106,10 +1120,10 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                             <table className="w-full text-left border-collapse text-xs">
                                 <thead>
                                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase font-black tracking-wider text-[10px]">
-                                        <th className="py-2.5 px-3">Fecha</th>
+                                        <th className="py-2.5 px-3">Fecha (DD/MM/AAAA)</th>
                                         <th className="py-2.5 px-3">Día</th>
-                                        <th className="py-2.5 px-3">Entrada (1ra)</th>
-                                        <th className="py-2.5 px-3">Salida (Última)</th>
+                                        <th className="py-2.5 px-3">Entrada</th>
+                                        <th className="py-2.5 px-3">Salida</th>
                                         <th className="py-2.5 px-3 text-right">Ex. Mañana</th>
                                         <th className="py-2.5 px-3 text-right">Ex. Tarde</th>
                                         <th className="py-2.5 px-3 text-right">Total Ex. Día</th>
@@ -1119,7 +1133,7 @@ export function ControlHorasClient({ userRole, initialHistorial }: ControlHorasC
                                     {filteredModalDias.map((dia: DiaDetalle) => (
                                         <tr key={dia.fecha} className="hover:bg-slate-50">
                                             <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
-                                                {dia.fecha}
+                                                {formatFechaDDMMYYYY(dia.fecha)}
                                             </td>
                                             <td className="py-2.5 px-3 font-bold">
                                                 <span className={`px-2 py-0.5 rounded text-[10px] ${dia.diaSemana === 'Sábado' ? 'bg-amber-100 text-amber-800 font-extrabold' :
