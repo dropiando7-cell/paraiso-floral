@@ -938,34 +938,34 @@ export default function DocumentListTable({
             <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm">
               <th 
                 onClick={() => handleSort('correlativo')}
-                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors whitespace-nowrap min-w-[200px]"
+                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors whitespace-nowrap min-w-[200px] text-center"
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1">
                   Documento
                   {sortField === 'correlativo' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
                 </div>
               </th>
-              <th className="p-4 border-b border-slate-200">Cliente / Entidad</th>
+              <th className="p-4 border-b border-slate-200 text-center">Cliente / Entidad</th>
               <th 
                 onClick={() => handleSort('fechaEmision')}
-                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors text-center"
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1">
                   Emisión
                   {sortField === 'fechaEmision' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
                 </div>
               </th>
               <th 
                 onClick={() => handleSort('total')}
-                className="p-4 border-b border-slate-200 text-right cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                className="p-4 border-b border-slate-200 text-center cursor-pointer select-none hover:bg-slate-100 transition-colors"
               >
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center justify-center gap-1">
                   Monto Total
                   {sortField === 'total' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
                 </div>
               </th>
               <th className="p-4 border-b border-slate-200 text-center">Estado</th>
-              <th className="p-4 border-b border-slate-200 text-right whitespace-nowrap min-w-[130px]">Acciones</th>
+              <th className="p-4 border-b border-slate-200 text-center whitespace-nowrap min-w-[130px]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -1045,8 +1045,8 @@ export default function DocumentListTable({
                 <td className="p-4 align-middle text-center">
                   {getStatusBadge(doc)}
                 </td>
-                <td className="p-4 align-middle text-right">
-                  <div className="flex items-center justify-end gap-1 relative" onClick={e => e.stopPropagation()}>
+                <td className="p-4 align-middle text-center">
+                  <div className="flex items-center justify-center gap-1 relative" onClick={e => e.stopPropagation()}>
                     {/* Botón Ver (Ojito) */}
                     <Link href={`/facturas/ver/${doc.id}`} title="Ver Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Eye size={16} />
