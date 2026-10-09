@@ -145,6 +145,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: 'facturas_propias', label: 'Facturación - Ver solo cotizaciones/facturas propias' },
+        { id: 'editar_facturas_24h', label: 'Facturación - Editar facturas dentro de 24 horas (Cajeros / Vendedores)' },
+        { id: 'editar_facturas_sin_limite', label: 'Facturación - Edición sin límite de tiempo (Gerencia / Supervisión)' },
         { id: '/cierre-caja', label: 'Cierre de Caja Diario (Ventas / Arqueo)' },
         { id: '/compras', label: 'Libro de Compras y Gastos (IA / Excel)' },
         { id: '/caja-chica', label: 'Caja Chica' },

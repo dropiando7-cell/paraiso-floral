@@ -10,12 +10,14 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, List, Pencil,
-  Smartphone, MessageCircle, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot
+  Smartphone, MessageCircle, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot,
+  Lock, ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
+import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import SignatureCanvas from 'react-signature-canvas';
 import { isCredito } from '@/utils/facturaUtils';
 
@@ -283,7 +285,7 @@ function MobileDocumentForm({
   handleToggleLongDesc, emptyLine, emptySectionLine, setShowProductModal,
   totals, fmt, notes, setNotes, isSaving, handleSave, viewMode, isLocked,
   setShowActionsModal, setShowWorkOrderModal, onOpenPreview, settings, handleEditClick,
-  isAnulada, isConvertida
+  isDocLockedForEdit, isAnulada, isConvertida
 }: any) {
   return (
     <div className="space-y-4 pb-28 print:hidden">
@@ -713,9 +715,10 @@ function MobileDocumentForm({
           <button
             type="button"
             onClick={handleEditClick}
-            className="flex-1 py-3 px-3 bg-indigo-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform shadow-md shadow-indigo-500/20"
+            className={`flex-1 py-3 px-3 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform shadow-md ${isDocLockedForEdit ? 'bg-amber-600 shadow-amber-500/20' : 'bg-indigo-600 shadow-indigo-500/20'}`}
           >
-            <Pencil size={15} /> Editar
+            {isDocLockedForEdit ? <Lock size={15} /> : <Pencil size={15} />}
+            {isDocLockedForEdit ? 'Solicitar Desbloqueo' : 'Editar'}
           </button>
         )}
 
@@ -2207,7 +2210,10 @@ export default function DocumentBuilderClient({
   embedMode = false,
   isNotaCredito = false,
   userRole = 'USER',
-  userAccessibleModules = []
+  userAccessibleModules = [],
+  supervisorAuthName,
+  supervisorAuthCode,
+  userEmail = ''
 }: { 
   organization?: any;
   initialData?: any;
@@ -2217,6 +2223,9 @@ export default function DocumentBuilderClient({
   isNotaCredito?: boolean;
   userRole?: string;
   userAccessibleModules?: string[];
+  supervisorAuthName?: string;
+  supervisorAuthCode?: string;
+  userEmail?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -3570,17 +3579,45 @@ export default function DocumentBuilderClient({
   const isSavingRef = useRef(false);
   const [isConverting, setIsConverting] = useState(false);
   const [showAdminWarningModal, setShowAdminWarningModal] = useState(false);
+  const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState<{ nuevoTipo: 'PROFORMA' | 'FACTURA' } | null>(null);
   const [convertPaymentMethod, setConvertPaymentMethod] = useState('Efectivo');
   const [convertEstado, setConvertEstado] = useState<'EMITIDA' | 'BORRADOR'>('EMITIDA');
 
-  const canEditEmitidas = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userAccessibleModules.includes('editar_facturas_emitidas');
+  const orgSegConfig = organization?.invoiceSettings?.seguridadFacturas || {};
+  const limiteEdicionActivo = orgSegConfig.limiteEdicionActivo !== false;
+  const horasLimite = Number(orgSegConfig.horasLimiteEdicion ?? 24);
+
+  const fechaEmisionDoc = initialData?.fechaEmision ? new Date(initialData.fechaEmision) : new Date();
+  const diffHorasEmision = (Date.now() - fechaEmisionDoc.getTime()) / (1000 * 60 * 60);
+  const esFacturaEmitidaExpirada = docType === 'factura' && 
+                                  initialData?.estado === 'EMITIDA' && 
+                                  limiteEdicionActivo && 
+                                  (diffHorasEmision > horasLimite);
+
+  const isSuperAdmin = userRole === 'SUPER_ADMIN' || userEmail === 'master@superapp.com';
+  const isGerenteIlimitado = isSuperAdmin || 
+                             userAccessibleModules.includes('editar_facturas_sin_limite') ||
+                             ['lucio@paraisofloralhn.com', 'lucio.barahona@paraisofloral.com', 'francis@paraisofloralhn.com', 'francis.carias@paraisofloral.com'].includes(userEmail || '');
+
+  const canEdit24h = isGerenteIlimitado || 
+                     userRole === 'ORG_ADMIN' || 
+                     userRole === 'GERENTE' || 
+                     userAccessibleModules.includes('editar_facturas_emitidas') || 
+                     userAccessibleModules.includes('editar_facturas_24h');
 
   const handleEditClick = () => {
     if (docType === 'factura' && initialData?.estado === 'EMITIDA') {
-      if (!canEditEmitidas) {
-        setShowAdminWarningModal(true);
-        return;
+      if (esFacturaEmitidaExpirada) {
+        if (!isGerenteIlimitado) {
+          setShowSupervisorModal(true);
+          return;
+        }
+      } else {
+        if (!canEdit24h) {
+          setShowAdminWarningModal(true);
+          return;
+        }
       }
     }
     router.push(`/facturas/${initialData.id}`);
@@ -4733,7 +4770,8 @@ export default function DocumentBuilderClient({
         total: totals.total,
         templateSettings: settings,
         documentoOrigenId: isNotaCredito ? initialData?.id : undefined,
-        ordenTrabajoId: ordenTrabajoId || undefined
+        ordenTrabajoId: ordenTrabajoId || undefined,
+        supervisorAuthCode: supervisorAuthCode || undefined
       };
       
       let res;
@@ -4741,7 +4779,7 @@ export default function DocumentBuilderClient({
       const targetId = reservedDocId || (editMode ? initialData?.id : null);
       
       if (targetId) {
-        res = await actualizarDocumentoBuilder(targetId, data, validItems);
+        res = await actualizarDocumentoBuilder(targetId, data, validItems, supervisorAuthCode);
       } else {
         res = await guardarDocumentoBuilder(data, validItems);
       }
@@ -4948,9 +4986,10 @@ export default function DocumentBuilderClient({
             {viewMode && !isAnulada && !isConvertida && (docType === 'cotizacion' || docType === 'factura') && (
               <button
                 onClick={handleEditClick}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold hover:shadow-indigo-100 hover:shadow-lg transition-all shadow-sm whitespace-nowrap shrink-0"
+                className={`flex items-center gap-2 px-4 py-2 text-white rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 ${esFacturaEmitidaExpirada && !isGerenteIlimitado ? 'bg-amber-600 hover:bg-amber-700 hover:shadow-amber-100 hover:shadow-lg' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-100 hover:shadow-lg'}`}
               >
-                <Pencil size={15} /> Editar
+                {esFacturaEmitidaExpirada && !isGerenteIlimitado ? <Lock size={15} /> : <Pencil size={15} />}
+                {esFacturaEmitidaExpirada && !isGerenteIlimitado ? 'Solicitar Desbloqueo (PIN)' : 'Editar'}
               </button>
             )}
             <button
@@ -5041,6 +5080,7 @@ export default function DocumentBuilderClient({
             onOpenPreview={() => setShowMobilePreviewModal(true)}
             settings={settings}
             handleEditClick={handleEditClick}
+            isDocLockedForEdit={esFacturaEmitidaExpirada && !isGerenteIlimitado}
             isAnulada={isAnulada}
             isConvertida={isConvertida}
           />
@@ -5059,6 +5099,68 @@ export default function DocumentBuilderClient({
         <div className={`flex-1 min-w-0 relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
           
           <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-[360px] print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
+             {/* Alerta de Desbloqueo por Supervisión */}
+             {editMode && supervisorAuthName && (
+               <div className="max-w-[816px] mx-auto mb-4 bg-emerald-50 border border-emerald-300 rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3 print:hidden">
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                     <ShieldCheck size={22} />
+                   </div>
+                   <div>
+                     <h4 className="text-sm font-bold text-emerald-950">Factura Desbloqueada por Supervisión</h4>
+                     <p className="text-xs text-emerald-800">
+                       Autorizado por: <strong className="font-bold underline">{supervisorAuthName}</strong>. Esta factura tiene más de {horasLimite}h de emisión. Las modificaciones quedarán guardadas con trazabilidad.
+                     </p>
+                   </div>
+                 </div>
+                 <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-emerald-900 px-3 py-1 rounded-full border border-emerald-300 shrink-0">
+                   PIN Verificado
+                 </span>
+               </div>
+             )}
+
+             {/* Historial / Auditoría de Modificaciones */}
+             {viewMode && Array.isArray(initialData?.templateSettings?.auditTrail) && initialData.templateSettings.auditTrail.length > 0 && (
+               <div className="max-w-[816px] mx-auto mb-4 bg-slate-900 text-white rounded-2xl p-4 shadow-md border border-slate-800 print:hidden">
+                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                   <div className="flex items-center gap-2">
+                     <ShieldAlert className="w-5 h-5 text-amber-400" />
+                     <h4 className="text-sm font-bold text-slate-100">
+                       Historial de Modificaciones ({initialData.templateSettings.auditTrail.length})
+                     </h4>
+                   </div>
+                   <span className="text-[10px] font-mono bg-slate-800 text-amber-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold uppercase tracking-wider">
+                     Auditoría Activa
+                   </span>
+                 </div>
+                 <div className="mt-3 space-y-2 text-xs">
+                   {initialData.templateSettings.auditTrail.map((entry: any, idx: number) => (
+                     <div key={idx} className="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                       <div className="space-y-0.5">
+                         <p className="font-semibold text-slate-200">
+                           ✏️ Modificado por: <span className="text-brand-300 font-bold">{entry.modificadoPor?.nombre || entry.modificadoPor?.email || 'Usuario'}</span>
+                           {entry.autorizadoPor && (
+                             <span className="text-emerald-400 font-bold ml-1.5">
+                               (🔓 Autorizado por: {entry.autorizadoPor.nombre})
+                             </span>
+                           )}
+                         </p>
+                         <p className="text-[11px] text-slate-400">
+                           Emisión original: {entry.creadoPorOriginal || 'Usuario'} • Motivo: {entry.motivo || 'Edición de factura'}
+                         </p>
+                       </div>
+                       <div className="text-right sm:shrink-0 text-[11px] font-mono text-slate-400">
+                         <div>{new Date(entry.fecha).toLocaleString('es-HN')}</div>
+                         {entry.totalAnterior !== undefined && entry.totalNuevo !== undefined && (
+                           <div className="text-slate-300">L {Number(entry.totalAnterior).toFixed(2)} → L {Number(entry.totalNuevo).toFixed(2)}</div>
+                         )}
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
+
              <div ref={templateContainerRef} className="max-w-[816px] mx-auto relative bg-white">
           
           {isAnulada && (
@@ -7218,6 +7320,21 @@ export default function DocumentBuilderClient({
             setSendEmailDocId('');
           }}
           documentoId={sendEmailDocId}
+        />
+      )}
+
+      {/* Modal de Autorización de Supervisor (Desbloqueo de facturas protegidas +24h) */}
+      {showSupervisorModal && (
+        <SupervisorAuthModal
+          isOpen={showSupervisorModal}
+          onClose={() => setShowSupervisorModal(false)}
+          facturaId={initialData?.id || ''}
+          correlativo={initialData?.correlativo || docNumber}
+          total={Number(initialData?.total || totals.total)}
+          onAuthorized={(supervisor: { nombre: string; email: string }, code: string) => {
+            setShowSupervisorModal(false);
+            router.push(`/facturas/${initialData.id}?authSupervisor=${encodeURIComponent(supervisor.nombre)}&authCode=${encodeURIComponent(code)}`);
+          }}
         />
       )}
 

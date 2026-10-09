@@ -12,9 +12,11 @@ import {
 import { getUserPreferencesData } from './data';
 import { 
     Printer, Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save, Sparkles, Building2,
-    Receipt, FileText, AlertCircle, AlertTriangle, CheckCircle2, ShieldCheck, Hash, ArrowRight
+    Receipt, FileText, AlertCircle, AlertTriangle, CheckCircle2, ShieldCheck, Hash, ArrowRight,
+    Lock, KeyRound, Plus, Trash2, Eye, EyeOff
 } from 'lucide-react';
 import { EmailTemplateType } from '@prisma/client';
+import { getFacturaSeguridadConfig, saveFacturaSeguridadConfig } from '@/app/(dashboard)/facturas/actions';
 
 const allAvailableModules = [
     { id: '/', name: 'Portal Principal (Por defecto)' },
@@ -44,7 +46,21 @@ export default function ConfiguracionPage() {
     const [saveSuccess, setSaveSuccess] = useState(false);
 
     // Tab Navigation State
-    const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails' | 'sar' | 'pos'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails' | 'sar' | 'pos' | 'seguridad_facturas'>('general');
+
+    // Seguridad de Facturación State
+    const [seguridadConfig, setSeguridadConfig] = useState({
+        limiteEdicionActivo: true,
+        horasLimiteEdicion: 24,
+        supervisores: [
+            { nombre: 'Marcio Pineda (Super Admin)', email: 'master@superapp.com', codigo: '9988', activo: true },
+            { nombre: 'Lucio Barahona (Gerencia)', email: 'lucio@paraisofloralhn.com', codigo: '7711', activo: true },
+            { nombre: 'Francis Carías (Gerencia)', email: 'francis@paraisofloralhn.com', codigo: '5522', activo: true }
+        ]
+    });
+    const [isSavingSeguridad, setIsSavingSeguridad] = useState(false);
+    const [saveSeguridadSuccess, setSaveSeguridadSuccess] = useState(false);
+    const [visiblePins, setVisiblePins] = useState<Record<number, boolean>>({});
 
     const [posDirectPrint, setPosDirectPrint] = useState(false);
     useEffect(() => { setPosDirectPrint(localStorage.getItem('pos_direct_print') === 'true'); }, []);
@@ -149,6 +165,8 @@ export default function ConfiguracionPage() {
                         const aiSetting = await getAiVisionSetting();
                         if (aiSetting.success) setDisableAiVision(aiSetting.disabled || false);
 
+                        await loadSeguridadData(initialOrgId);
+
                         // Fetch Email Templates if Admin
                         const templates = await getEmailTemplates(initialOrgId);
                         setEmailTemplates(templates);
@@ -219,6 +237,45 @@ export default function ConfiguracionPage() {
         }
     };
 
+    const loadSeguridadData = async (orgId?: string) => {
+        try {
+            const res = await getFacturaSeguridadConfig(orgId);
+            if (res.success && res.supervisores) {
+                setSeguridadConfig({
+                    limiteEdicionActivo: res.limiteEdicionActivo !== false,
+                    horasLimiteEdicion: Number(res.horasLimiteEdicion ?? 24),
+                    supervisores: Array.isArray(res.supervisores) && res.supervisores.length > 0
+                        ? res.supervisores
+                        : [
+                            { nombre: 'Marcio Pineda (Super Admin)', email: 'master@superapp.com', codigo: '9988', activo: true },
+                            { nombre: 'Lucio Barahona (Gerencia)', email: 'lucio@paraisofloralhn.com', codigo: '7711', activo: true },
+                            { nombre: 'Francis Carías (Gerencia)', email: 'francis@paraisofloralhn.com', codigo: '5522', activo: true }
+                        ]
+                });
+            }
+        } catch (err) {
+            console.error('Error loading seguridad facturas config:', err);
+        }
+    };
+
+    const handleSaveSeguridad = async () => {
+        setIsSavingSeguridad(true);
+        setSaveSeguridadSuccess(false);
+        try {
+            const res = await saveFacturaSeguridadConfig(seguridadConfig, selectedOrgId || undefined);
+            if (res.success) {
+                setSaveSeguridadSuccess(true);
+                setTimeout(() => setSaveSeguridadSuccess(false), 3000);
+            } else {
+                alert(res.error || 'Error al guardar configuración de seguridad');
+            }
+        } catch (err: any) {
+            alert(err.message || 'Error desconocido al guardar seguridad');
+        } finally {
+            setIsSavingSeguridad(false);
+        }
+    };
+
     const handleOrgChange = async (newOrgId: string) => {
         setSelectedOrgId(newOrgId);
         setIsLoading(true);
@@ -226,6 +283,7 @@ export default function ConfiguracionPage() {
         if (profile) setCompanyProfile(profile);
 
         await loadSarData(newOrgId);
+        await loadSeguridadData(newOrgId);
 
         const templates = await getEmailTemplates(newOrgId);
         setEmailTemplates(templates);
@@ -423,6 +481,16 @@ export default function ConfiguracionPage() {
                                     <span>Facturación SAR</span>
                                 </div>
                                 <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Honduras</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('seguridad_facturas')}
+                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'seguridad_facturas' ? 'text-amber-800 bg-amber-50 border border-amber-200/80 font-bold shadow-2xs' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                                    <span>Seguridad de Facturación</span>
+                                </div>
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase">24h / PIN</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('emails')}
@@ -1227,6 +1295,240 @@ export default function ConfiguracionPage() {
                                         <><CheckCircle2 className="w-4 h-4" /> Configuración Guardada</>
                                     ) : (
                                         <><Save className="w-4 h-4" /> Guardar Facturación SAR</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'seguridad_facturas' && (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            {/* Header */}
+                            <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50/40">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                        <ShieldCheck className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-slate-900">Seguridad & Gobernanza de Facturación</h3>
+                                        <p className="text-xs text-slate-500">
+                                            Control de tiempo límite para editar facturas emitidas y llaves de autorización PIN para Supervisores.
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full border border-amber-200 w-fit">
+                                    Módulo SuperAdmin
+                                </span>
+                            </div>
+
+                            <div className="px-6 py-6 space-y-6">
+                                {/* Sección 1: Regla de Tiempo */}
+                                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <label className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                <Lock className="w-4 h-4 text-amber-600" />
+                                                Activar Límite de Tiempo para Edición de Facturas
+                                            </label>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                Si está activo, las facturas emitidas quedan protegidas tras transcurrir el período configurado.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSeguridadConfig(prev => ({ ...prev, limiteEdicionActivo: !prev.limiteEdicionActivo }))}
+                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${seguridadConfig.limiteEdicionActivo ? 'bg-amber-600' : 'bg-slate-300'}`}
+                                        >
+                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${seguridadConfig.limiteEdicionActivo ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+
+                                    {seguridadConfig.limiteEdicionActivo && (
+                                        <div className="pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700">
+                                                    Horas límite de edición libre (Cajeros / Vendedores):
+                                                </label>
+                                                <p className="text-[11px] text-slate-500">
+                                                    Por defecto 24 horas. Pasado este tiempo, el botón de editar se bloquea y requiere PIN.
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="720"
+                                                    value={seguridadConfig.horasLimiteEdicion}
+                                                    onChange={e => setSeguridadConfig(prev => ({ ...prev, horasLimiteEdicion: Math.max(1, Number(e.target.value) || 24) }))}
+                                                    className="w-24 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-bold text-center text-slate-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                                />
+                                                <span className="text-xs font-bold text-slate-500">Horas</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Sección 2: Supervisores y Códigos PIN */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                <KeyRound className="w-4 h-4 text-amber-600" />
+                                                Supervisores & Códigos PIN de Autorización
+                                            </h4>
+                                            <p className="text-xs text-slate-500">
+                                                Estos códigos permiten a los gerentes desbloquear facturas vencidas directamente en caja.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSeguridadConfig(prev => ({
+                                                    ...prev,
+                                                    supervisores: [
+                                                        ...prev.supervisores,
+                                                        { nombre: '', email: '', codigo: String(Math.floor(1000 + Math.random() * 9000)), activo: true }
+                                                    ]
+                                                }));
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                                        >
+                                            <Plus size={14} />
+                                            <span>Agregar Supervisor</span>
+                                        </button>
+                                    </div>
+
+                                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-slate-200 text-xs">
+                                                <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider">
+                                                    <tr>
+                                                        <th className="px-3 py-2.5 text-left">Supervisor / Gerente</th>
+                                                        <th className="px-3 py-2.5 text-left">Correo Electrónico</th>
+                                                        <th className="px-3 py-2.5 text-left">Código PIN Secreto</th>
+                                                        <th className="px-3 py-2.5 text-center">Estado</th>
+                                                        <th className="px-3 py-2.5 text-right">Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 bg-white">
+                                                    {seguridadConfig.supervisores.map((sup, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                                                            <td className="px-3 py-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={sup.nombre}
+                                                                    placeholder="Nombre del Supervisor"
+                                                                    onChange={e => {
+                                                                        const val = e.target.value;
+                                                                        setSeguridadConfig(prev => {
+                                                                            const updated = [...prev.supervisores];
+                                                                            updated[idx].nombre = val;
+                                                                            return { ...prev, supervisores: updated };
+                                                                        });
+                                                                    }}
+                                                                    className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-semibold focus:bg-white focus:ring-1 focus:ring-amber-500"
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <input
+                                                                    type="email"
+                                                                    value={sup.email}
+                                                                    placeholder="correo@paraisofloralhn.com"
+                                                                    onChange={e => {
+                                                                        const val = e.target.value;
+                                                                        setSeguridadConfig(prev => {
+                                                                            const updated = [...prev.supervisores];
+                                                                            updated[idx].email = val;
+                                                                            return { ...prev, supervisores: updated };
+                                                                        });
+                                                                    }}
+                                                                    className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
+                                                                />
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <input
+                                                                        type={visiblePins[idx] ? 'text' : 'password'}
+                                                                        maxLength={8}
+                                                                        value={sup.codigo}
+                                                                        placeholder="PIN"
+                                                                        onChange={e => {
+                                                                            const val = e.target.value.replace(/\D/g, '');
+                                                                            setSeguridadConfig(prev => {
+                                                                                const updated = [...prev.supervisores];
+                                                                                updated[idx].codigo = val;
+                                                                                return { ...prev, supervisores: updated };
+                                                                            });
+                                                                        }}
+                                                                        className="w-24 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-md text-xs font-mono font-bold tracking-widest text-center focus:bg-white focus:ring-1 focus:ring-amber-500"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setVisiblePins(p => ({ ...p, [idx]: !p[idx] }))}
+                                                                        className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                                                                    >
+                                                                        {visiblePins[idx] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setSeguridadConfig(prev => {
+                                                                            const updated = [...prev.supervisores];
+                                                                            updated[idx].activo = !updated[idx].activo;
+                                                                            return { ...prev, supervisores: updated };
+                                                                        });
+                                                                    }}
+                                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${sup.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}
+                                                                >
+                                                                    {sup.activo ? 'Activo' : 'Inactivo'}
+                                                                </button>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-right">
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={seguridadConfig.supervisores.length <= 1}
+                                                                    onClick={() => {
+                                                                        setSeguridadConfig(prev => ({
+                                                                            ...prev,
+                                                                            supervisores: prev.supervisores.filter((_, i) => i !== idx)
+                                                                        }));
+                                                                    }}
+                                                                    className="p-1 text-slate-400 hover:text-rose-600 rounded disabled:opacity-30 disabled:hover:text-slate-400"
+                                                                    title="Eliminar Supervisor"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer Submit */}
+                            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="text-xs text-slate-500 flex items-center gap-1.5 text-center sm:text-left">
+                                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>Toda autorización mediante estos códigos genera un registro en la Bitácora de Actividades (ActivityLog).</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveSeguridad}
+                                    disabled={isSavingSeguridad}
+                                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+                                >
+                                    {isSavingSeguridad ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                                    ) : saveSeguridadSuccess ? (
+                                        <><CheckCircle2 className="w-4 h-4" /> Configuración Guardada</>
+                                    ) : (
+                                        <><Save className="w-4 h-4" /> Guardar Seguridad de Facturas</>
                                     )}
                                 </button>
                             </div>

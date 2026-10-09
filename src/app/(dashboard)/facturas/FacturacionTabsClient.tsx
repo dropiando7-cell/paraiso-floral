@@ -9,9 +9,18 @@ import FacturacionHeader from './FacturacionHeader';
 interface Props {
   organization: any;
   history: DocumentRecord[];
+  userRole?: string;
+  userAccessibleModules?: string[];
+  userEmail?: string;
 }
 
-export default function FacturacionTabsClient({ organization, history }: Props) {
+export default function FacturacionTabsClient({ 
+  organization, 
+  history,
+  userRole = 'USER',
+  userAccessibleModules = [],
+  userEmail = ''
+}: Props) {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as 'creador' | 'facturas' | 'cotizaciones' | 'proforma') || 'creador';
   const [activeTab, setActiveTab] = useState<'creador' | 'facturas' | 'cotizaciones' | 'proforma'>(initialTab);
@@ -42,19 +51,44 @@ export default function FacturacionTabsClient({ organization, history }: Props) 
       <div className={`${activeTab === 'creador' ? '' : 'p-1.5 sm:p-6 max-w-[1400px] mx-auto w-full'}`}>
         
         {activeTab === 'creador' && (
-          <DocumentBuilderClient organization={organization} />
+          <DocumentBuilderClient 
+            organization={organization} 
+            userRole={userRole}
+            userAccessibleModules={userAccessibleModules}
+          />
         )}
 
         {activeTab === 'facturas' && (
-          <DocumentListTable data={history} type="FACTURA" />
+          <DocumentListTable 
+            data={history} 
+            type="FACTURA" 
+            organization={organization}
+            userRole={userRole}
+            userAccessibleModules={userAccessibleModules}
+            userEmail={userEmail}
+          />
         )}
 
         {activeTab === 'proforma' && (
-          <DocumentListTable data={history} type="PROFORMA" />
+          <DocumentListTable 
+            data={history} 
+            type="PROFORMA" 
+            organization={organization}
+            userRole={userRole}
+            userAccessibleModules={userAccessibleModules}
+            userEmail={userEmail}
+          />
         )}
 
         {activeTab === 'cotizaciones' && (
-          <DocumentListTable data={history} type="COTIZACION" />
+          <DocumentListTable 
+            data={history} 
+            type="COTIZACION" 
+            organization={organization}
+            userRole={userRole}
+            userAccessibleModules={userAccessibleModules}
+            userEmail={userEmail}
+          />
         )}
 
       </div>

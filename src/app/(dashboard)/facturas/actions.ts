@@ -616,7 +616,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
 }
 
 // --- ACTUALIZAR DOCUMENTO EXISTENTE (Cotización, Proforma, Factura) ---
-export async function actualizarDocumentoBuilder(id: string, data: any, lineItems: any[]) {
+export async function actualizarDocumentoBuilder(id: string, data: any, lineItems: any[], supervisorAuthCode?: string) {
     try {
         const user = await getAuthenticatedUser();
         const organizationId = user.organizationId;
@@ -639,12 +639,62 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
         if (!docExistente) throw new Error('Documento no encontrado o sin permisos.');
         if (docExistente.estado === 'ANULADA') throw new Error('No se puede modificar un documento anulado.');
 
-        // Restricción para facturas emitidas
+        // Restricción para facturas emitidas: Regla de 24 horas y Autorización de Gerencia
+        let supervisorAutorizador: { nombre: string; email: string } | null = null;
         if (docExistente.tipoDocumento === 'FACTURA' && docExistente.estado === 'EMITIDA') {
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId },
+                select: { invoiceSettings: true }
+            });
+            const orgSettings = (org?.invoiceSettings as any) || {};
+            const segConfig = orgSettings.seguridadFacturas || {};
+            const limiteActivo = segConfig.limiteEdicionActivo !== false;
+            const horasLimite = Number(segConfig.horasLimiteEdicion ?? 24);
+
+            const fechaEmision = docExistente.fechaEmision ? new Date(docExistente.fechaEmision) : new Date();
+            const diffHoras = (Date.now() - fechaEmision.getTime()) / (1000 * 60 * 60);
+            const estaBloqueadaPorTiempo = limiteActivo && (diffHoras > horasLimite);
+
             const allowedModules = user.accessibleModules || [];
-            const canEditEmitidas = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || allowedModules.includes('editar_facturas_emitidas');
-            if (!canEditEmitidas) {
-                throw new Error('Esta factura ya fue emitida. Solo un rol de administrador o usuario con privilegios autorizados puede manipular esta información sensible.');
+            const isSuperAdmin = userRole === 'SUPER_ADMIN' || user.email === 'master@superapp.com';
+            const isGerenteIlimitado = isSuperAdmin || 
+                                       allowedModules.includes('editar_facturas_sin_limite') ||
+                                       user.customRoleName === 'PF_GERENCIA_AVANZADA' ||
+                                       ['lucio@paraisofloralhn.com', 'lucio.barahona@paraisofloral.com', 'francis@paraisofloralhn.com', 'francis.carias@paraisofloral.com'].includes(user.email || '');
+
+            const canEdit24h = isGerenteIlimitado || 
+                               userRole === 'ORG_ADMIN' || 
+                               userRole === 'GERENTE' || 
+                               user.customRoleName === 'PF_GERENCIA' || 
+                               allowedModules.includes('editar_facturas_emitidas') || 
+                               allowedModules.includes('editar_facturas_24h');
+
+            if (estaBloqueadaPorTiempo) {
+                if (!isGerenteIlimitado) {
+                    const supervisorCode = supervisorAuthCode || data.supervisorAuthCode || data.supervisorCode;
+                    if (!supervisorCode) {
+                        throw new Error(`Esta factura fue emitida hace más de ${Math.round(diffHoras)} horas (límite permitido: ${horasLimite}h) y está protegida. Requiere autorización presencial con código de Gerencia para modificarse.`);
+                    }
+
+                    const supervisoresList = Array.isArray(segConfig.supervisores) && segConfig.supervisores.length > 0
+                        ? segConfig.supervisores
+                        : DEFAULT_SUPERVISORES_SEGURIDAD;
+
+                    const matched = supervisoresList.find((s: any) => s.activo !== false && String(s.codigo).trim() === String(supervisorCode).trim());
+                    if (!matched) {
+                        throw new Error('Código de autorización de gerencia inválido o no reconocido.');
+                    }
+                    supervisorAutorizador = { nombre: matched.nombre, email: matched.email };
+                } else {
+                    supervisorAutorizador = {
+                        nombre: user.fullName || user.nombre || user.email,
+                        email: user.email
+                    };
+                }
+            } else {
+                if (!canEdit24h) {
+                    throw new Error('Esta factura ya fue emitida. Solo un rol de administrador o usuario con privilegios autorizados puede manipular esta información sensible.');
+                }
             }
         }
 
@@ -768,7 +818,28 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     total: data.total,
                     estado: nuevoEstado, 
                     tipoDocumento: nuevoTipo,
-                    templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
+                    templateSettings: (() => {
+                        const currentTemplateSettings = (docExistente.templateSettings as any) || {};
+                        const previousAudit = Array.isArray(currentTemplateSettings.auditTrail) ? currentTemplateSettings.auditTrail : [];
+                        const editorActual = user.fullName || (user.nombre ? `${user.nombre} ${user.apellido || ''}`.trim() : user.email);
+                        const creadorOriginal = docExistente.nombreUsuario || 'Usuario no registrado';
+                        
+                        const newAuditEntry = {
+                            fecha: new Date().toISOString(),
+                            modificadoPor: { id: user.id, nombre: editorActual, email: user.email },
+                            creadoPorOriginal: creadorOriginal,
+                            autorizadoPor: supervisorAutorizador,
+                            totalAnterior: Number(docExistente.total),
+                            totalNuevo: Number(data.total || 0),
+                            motivo: data.motivoModificacion || (supervisorAutorizador ? 'Edición autorizada por Gerencia (+24h)' : 'Edición dentro de plazo')
+                        };
+
+                        const incomingTemplateSettings = data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : currentTemplateSettings;
+                        return {
+                            ...incomingTemplateSettings,
+                            auditTrail: [...previousAudit, newAuditEntry]
+                        };
+                    })(),
                     metodoPago: esCreditoUpdate ? 'Crédito' : (data.metodoPago || docExistente.metodoPago || 'Efectivo'),
                     aliasVenta: data.aliasVenta !== undefined ? data.aliasVenta : docExistente.aliasVenta,
                     vendedorNombre: data.vendedorNombre !== undefined ? data.vendedorNombre : docExistente.vendedorNombre,
@@ -917,16 +988,54 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             }
 
             if (data.templateSettings) {
-                const orgSettings = JSON.parse(JSON.stringify(data.templateSettings));
-                delete orgSettings.roundAdjustment;
+                const currentOrg = await tx.organization.findUnique({
+                    where: { id: organizationId },
+                    select: { invoiceSettings: true }
+                });
+                const existingOrgSettings = (currentOrg?.invoiceSettings as any) || {};
+                const incomingSettings = JSON.parse(JSON.stringify(data.templateSettings));
+                delete incomingSettings.roundAdjustment;
+                delete incomingSettings.auditTrail;
                 await tx.organization.update({
                     where: { id: organizationId },
-                    data: { invoiceSettings: orgSettings }
+                    data: { 
+                        invoiceSettings: {
+                            ...existingOrgSettings,
+                            ...incomingSettings,
+                            seguridadFacturas: existingOrgSettings.seguridadFacturas || incomingSettings.seguridadFacturas
+                        } 
+                    }
                 });
             }
 
             return docActualizado;
         });
+
+        // Registrar en ActivityLog para trazabilidad total
+        if (docExistente.tipoDocumento === 'FACTURA' && docExistente.estado === 'EMITIDA') {
+            const editorActual = user.fullName || (user.nombre ? `${user.nombre} ${user.apellido || ''}`.trim() : user.email);
+            const creadorOriginal = docExistente.nombreUsuario || 'Usuario no registrado';
+            const logDesc = `Factura ${docExistente.correlativo} editada por ${editorActual} (Creada originalmente por ${creadorOriginal}). ` +
+                (supervisorAutorizador ? `Autorizada por Gerencia: ${supervisorAutorizador.nombre} (${supervisorAutorizador.email}). ` : '') +
+                `Total anterior: L ${Number(docExistente.total).toFixed(2)}, Nuevo total: L ${Number(data.total || 0).toFixed(2)}.`;
+
+            await logActivity({
+                organizationId,
+                userId: user.id,
+                action: supervisorAutorizador ? 'FACTURA_EDITADA_CON_AUTORIZACION' : 'FACTURA_EDITADA',
+                module: '/facturas',
+                description: logDesc,
+                metadata: {
+                    facturaId: id,
+                    correlativo: docExistente.correlativo,
+                    creadoPorOriginal: creadorOriginal,
+                    modificadoPor: { id: user.id, nombre: editorActual, email: user.email },
+                    autorizadoPor: supervisorAutorizador,
+                    totalAnterior: Number(docExistente.total),
+                    totalNuevo: Number(data.total || 0)
+                }
+            });
+        }
 
         revalidatePath('/facturas');
         return { success: true, docId: result.id, correlativo: result.correlativo };
@@ -1216,11 +1325,23 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             }
 
             if (data.templateSettings) {
-                const orgSettings = JSON.parse(JSON.stringify(data.templateSettings));
-                delete orgSettings.roundAdjustment;
+                const currentOrg = await tx.organization.findUnique({
+                    where: { id: organizationId },
+                    select: { invoiceSettings: true }
+                });
+                const existingOrgSettings = (currentOrg?.invoiceSettings as any) || {};
+                const incomingSettings = JSON.parse(JSON.stringify(data.templateSettings));
+                delete incomingSettings.roundAdjustment;
+                delete incomingSettings.auditTrail;
                 await tx.organization.update({
                     where: { id: organizationId },
-                    data: { invoiceSettings: orgSettings }
+                    data: { 
+                        invoiceSettings: {
+                            ...existingOrgSettings,
+                            ...incomingSettings,
+                            seguridadFacturas: existingOrgSettings.seguridadFacturas || incomingSettings.seguridadFacturas
+                        } 
+                    }
                 });
             }
 
@@ -2640,5 +2761,158 @@ o1kuxQIwIURB3gBPhMFDttRS
     const sign = crypto.createSign('SHA512');
     sign.update(messageToSign);
     return sign.sign(privateKey, 'base64');
+}
+
+// ─── SEGURIDAD Y CONTROL DE EDICIÓN DE FACTURAS (REGLA 24 HORAS & AUTORIZACIÓN GERENCIAL) ────────
+
+const DEFAULT_SUPERVISORES_SEGURIDAD = [
+    { email: 'master@superapp.com', nombre: 'Marcio Barahona (SuperAdmin)', codigo: '9988', activo: true },
+    { email: 'lucio@paraisofloralhn.com', nombre: 'Lucio Barahona (Gerente)', codigo: '7711', activo: true },
+    { email: 'lucio.barahona@paraisofloral.com', nombre: 'Lucio Barahona (Gerente)', codigo: '7711', activo: true },
+    { email: 'francis@paraisofloralhn.com', nombre: 'Francis Carías (Gerente)', codigo: '5522', activo: true },
+    { email: 'francis.carias@paraisofloral.com', nombre: 'Francis Carías (Gerente)', codigo: '5522', activo: true }
+];
+
+export async function validarCodigoAutorizacionGerente(codigo: string, facturaId?: string) {
+    try {
+        if (!codigo || !codigo.trim()) {
+            return { success: false, error: 'Ingresa el código secreto de autorización.' };
+        }
+
+        const user = await getAuthenticatedUser();
+        const organizationId = user.organizationId;
+
+        const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+
+        const orgSettings = (org?.invoiceSettings as any) || {};
+        const segConfig = orgSettings.seguridadFacturas || {};
+        const supervisoresList = Array.isArray(segConfig.supervisores) && segConfig.supervisores.length > 0
+            ? segConfig.supervisores
+            : DEFAULT_SUPERVISORES_SEGURIDAD;
+
+        const cleanCode = codigo.trim();
+        const matched = supervisoresList.find((s: any) => s.activo !== false && String(s.codigo).trim() === cleanCode);
+
+        if (!matched) {
+            return { success: false, error: 'Código de autorización incorrecto o supervisor inactivo.' };
+        }
+
+        if (facturaId) {
+            await logActivity({
+                organizationId,
+                userId: user.id,
+                action: 'AUTORIZACION_GERENCIA_FACTURA',
+                module: '/facturas',
+                description: `Desbloqueo de factura ${facturaId} autorizado por ${matched.nombre} (${matched.email}) solicitado por ${user.fullName || user.email}.`,
+                metadata: {
+                    facturaId,
+                    autorizadoPor: { nombre: matched.nombre, email: matched.email },
+                    solicitadoPor: { id: user.id, nombre: user.fullName || user.email }
+                }
+            });
+        }
+
+        return {
+            success: true,
+            supervisor: {
+                nombre: matched.nombre,
+                email: matched.email
+            }
+        };
+    } catch (e: any) {
+        console.error('Error al validar código de autorización:', e);
+        return { success: false, error: e.message || 'Error al validar código' };
+    }
+}
+
+export async function getFacturaSeguridadConfig(orgId?: string) {
+    try {
+        const user = await getAuthenticatedUser();
+        const organizationId = (user.role === 'SUPER_ADMIN' && orgId) ? orgId : user.organizationId;
+        const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+        const orgSettings = (org?.invoiceSettings as any) || {};
+        const seg = orgSettings.seguridadFacturas || {};
+
+        const horasLimite = Number(seg.horasLimiteEdicion ?? 24);
+        const limiteActivo = seg.limiteEdicionActivo !== false;
+        const supervisores = Array.isArray(seg.supervisores) && seg.supervisores.length > 0
+            ? seg.supervisores
+            : DEFAULT_SUPERVISORES_SEGURIDAD;
+
+        const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.email === 'master@superapp.com';
+
+        return {
+            success: true,
+            horasLimiteEdicion: horasLimite,
+            limiteEdicionActivo: limiteActivo,
+            supervisores: supervisores.map((s: any) => ({
+                email: s.email,
+                nombre: s.nombre,
+                codigo: isSuperAdmin ? s.codigo : '••••',
+                activo: s.activo !== false
+            }))
+        };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function saveFacturaSeguridadConfig(data: {
+    horasLimiteEdicion: number;
+    limiteEdicionActivo: boolean;
+    supervisores?: Array<{ email: string; nombre: string; codigo: string; activo?: boolean }>;
+}, orgId?: string) {
+    try {
+        const user = await getAuthenticatedUser();
+        const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.email === 'master@superapp.com';
+        if (!isSuperAdmin && user.role !== 'ORG_ADMIN') {
+            return { success: false, error: 'Solo administradores pueden modificar la configuración de seguridad.' };
+        }
+
+        const organizationId = (isSuperAdmin && orgId) ? orgId : user.organizationId;
+        const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+
+        const currentSettings = (org?.invoiceSettings as any) || {};
+        const prevSeguridad = currentSettings.seguridadFacturas || {};
+        
+        let newSupervisores = prevSeguridad.supervisores || DEFAULT_SUPERVISORES_SEGURIDAD;
+        if (data.supervisores && Array.isArray(data.supervisores) && data.supervisores.length > 0) {
+            newSupervisores = data.supervisores.map((s: any) => ({
+                email: String(s.email || '').trim().toLowerCase(),
+                nombre: String(s.nombre || '').trim(),
+                codigo: String(s.codigo || '').trim(),
+                activo: s.activo !== false
+            }));
+        }
+
+        const updatedSettings = {
+            ...currentSettings,
+            seguridadFacturas: {
+                horasLimiteEdicion: Math.max(1, Number(data.horasLimiteEdicion) || 24),
+                limiteEdicionActivo: data.limiteEdicionActivo !== false,
+                supervisores: newSupervisores
+            }
+        };
+
+        await prisma.organization.update({
+            where: { id: organizationId },
+            data: { invoiceSettings: updatedSettings }
+        });
+
+        revalidatePath('/facturas');
+        revalidatePath('/configuracion');
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
 }
 

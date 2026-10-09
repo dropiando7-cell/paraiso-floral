@@ -167,11 +167,41 @@ export default async function EditDocumentPage({
         redirect('/unauthorized');
     }
 
-    // Restricción: Si el documento es una Factura ya Emitida y no es admin ni tiene permiso, redirigir a ver
+    // Restricción: Si el documento es una Factura ya Emitida
+    const authSupervisorName = typeof resolvedSearchParams?.authSupervisor === 'string' ? resolvedSearchParams.authSupervisor : undefined;
+    const authSupervisorCode = typeof resolvedSearchParams?.authCode === 'string' ? resolvedSearchParams.authCode : undefined;
+
     if (doc && doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && !isClone && !isNotaCredito) {
-        const canEditEmitidas = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || allowedModules.includes('editar_facturas_emitidas');
-        if (!canEditEmitidas) {
-            redirect(`/facturas/ver/${id}`);
+        const orgSettings = (org?.invoiceSettings as any) || {};
+        const segConfig = orgSettings.seguridadFacturas || {};
+        const limiteActivo = segConfig.limiteEdicionActivo !== false;
+        const horasLimite = Number(segConfig.horasLimiteEdicion ?? 24);
+
+        const fechaEmision = doc.fechaEmision ? new Date(doc.fechaEmision) : new Date();
+        const diffHoras = (Date.now() - fechaEmision.getTime()) / (1000 * 60 * 60);
+        const estaBloqueadaPorTiempo = limiteActivo && (diffHoras > horasLimite);
+
+        const isSuperAdmin = userRole === 'SUPER_ADMIN' || dbUser.email === 'master@superapp.com';
+        const isGerenteIlimitado = isSuperAdmin || 
+                                   allowedModules.includes('editar_facturas_sin_limite') ||
+                                   dbUser.customRoleName === 'PF_GERENCIA_AVANZADA' ||
+                                   ['lucio@paraisofloralhn.com', 'lucio.barahona@paraisofloral.com', 'francis@paraisofloralhn.com', 'francis.carias@paraisofloral.com'].includes(dbUser.email || '');
+
+        const canEdit24h = isGerenteIlimitado || 
+                           userRole === 'ORG_ADMIN' || 
+                           userRole === 'GERENTE' || 
+                           dbUser.customRoleName === 'PF_GERENCIA' || 
+                           allowedModules.includes('editar_facturas_emitidas') || 
+                           allowedModules.includes('editar_facturas_24h');
+
+        if (estaBloqueadaPorTiempo) {
+            if (!isGerenteIlimitado && !authSupervisorName) {
+                redirect(`/facturas/ver/${id}?authRequired=true`);
+            }
+        } else {
+            if (!canEdit24h) {
+                redirect(`/facturas/ver/${id}`);
+            }
         }
     }
 
@@ -179,7 +209,17 @@ export default async function EditDocumentPage({
         <div className="bg-slate-50 min-h-screen flex flex-col">
             <FacturacionHeader activeTab={isClone || isNotaCredito ? "creador" : "editar"} isSubPage={true} />
             <div className="p-6 max-w-[1400px] mx-auto w-full">
-               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone && !isNotaCredito} isNotaCredito={isNotaCredito} userRole={userRole} userAccessibleModules={allowedModules} />
+               <DocumentBuilderClient 
+                 organization={org} 
+                 initialData={doc} 
+                 editMode={!isClone && !isNotaCredito} 
+                 isNotaCredito={isNotaCredito} 
+                 userRole={userRole} 
+                 userAccessibleModules={allowedModules}
+                 userEmail={dbUser.email}
+                 supervisorAuthName={authSupervisorName}
+                 supervisorAuthCode={authSupervisorCode}
+               />
             </div>
         </div>
     );

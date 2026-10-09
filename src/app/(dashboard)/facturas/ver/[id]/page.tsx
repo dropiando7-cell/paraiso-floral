@@ -79,7 +79,15 @@ export default async function ViewDocumentPage({
     if (isEmbed) {
         return (
             <div className="bg-slate-100 min-h-screen p-2 sm:p-4 print:p-0 flex justify-center">
-                <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} embedMode={true} userRole={userRole} userAccessibleModules={allowedModules} />
+                <DocumentBuilderClient 
+                    organization={org} 
+                    initialData={doc} 
+                    viewMode={true} 
+                    embedMode={true} 
+                    userRole={userRole} 
+                    userAccessibleModules={allowedModules} 
+                    userEmail={dbUser.email}
+                />
             </div>
         );
     }
@@ -87,7 +95,14 @@ export default async function ViewDocumentPage({
     return (
         <div className="bg-slate-50 min-h-screen print:h-auto print:min-h-0 print:overflow-visible">
             <FacturacionHeader activeTab="ver" isSubPage={true} />
-            <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} userRole={userRole} userAccessibleModules={allowedModules} />
+            <DocumentBuilderClient 
+                organization={org} 
+                initialData={doc} 
+                viewMode={true} 
+                userRole={userRole} 
+                userAccessibleModules={allowedModules} 
+                userEmail={dbUser.email}
+            />
         </div>
     );
 }

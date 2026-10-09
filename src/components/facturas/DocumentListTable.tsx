@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2, FileSpreadsheet } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2, FileSpreadsheet, Lock, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia, buscarHistorialDocumentos } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
+import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
 
 export interface DocumentRecord {
@@ -39,11 +40,22 @@ export interface DocumentRecord {
 interface Props {
   data: DocumentRecord[];
   type: 'FACTURA' | 'COTIZACION' | 'PROFORMA' | 'TODOS';
+  organization?: any;
+  userRole?: string;
+  userAccessibleModules?: string[];
+  userEmail?: string;
 }
 
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 
-export default function DocumentListTable({ data, type }: Props) {
+export default function DocumentListTable({ 
+  data, 
+  type,
+  organization,
+  userRole = 'USER',
+  userAccessibleModules = [],
+  userEmail = ''
+}: Props) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [showAnuladas, setShowAnuladas] = useState(false);
@@ -53,6 +65,24 @@ export default function DocumentListTable({ data, type }: Props) {
   const [docToPrint, setDocToPrint] = useState<DocumentRecord | null>(null);
   const [ticketPreview, setTicketPreview] = useState<DocumentRecord | null>(null);
   const [directPrint, setDirectPrint] = useState(false);
+  const [docForSupervisorAuth, setDocForSupervisorAuth] = useState<DocumentRecord | null>(null);
+
+  const isGerenteIlimitado = 
+    userRole === 'SUPER_ADMIN' || 
+    userEmail === 'master@superapp.com' ||
+    (userAccessibleModules && userAccessibleModules.includes('editar_facturas_sin_limite')) ||
+    ['lucio@paraisofloralhn.com', 'lucio.barahona@paraisofloral.com', 'francis@paraisofloralhn.com', 'francis.carias@paraisofloral.com'].includes(userEmail || '');
+
+  const isDocExpired = (doc: DocumentRecord) => {
+    if (doc.tipoDocumento !== 'FACTURA' || doc.estado !== 'EMITIDA') return false;
+    const segConfig = organization?.invoiceSettings?.seguridadFacturas || {};
+    const limiteActivo = segConfig.limiteEdicionActivo !== false;
+    if (!limiteActivo) return false;
+    const horasLimite = Number(segConfig.horasLimiteEdicion ?? 24);
+    const fechaEmision = doc.fechaEmision ? new Date(doc.fechaEmision) : new Date();
+    const diffHoras = (Date.now() - fechaEmision.getTime()) / (1000 * 60 * 60);
+    return diffHoras > horasLimite;
+  };
   useEffect(() => { setDirectPrint(localStorage.getItem('pos_direct_print') === 'true'); }, []);
 
   // Listener para presionar Enter e imprimir el ticket cuando el modal esté abierto
@@ -853,13 +883,23 @@ export default function DocumentListTable({ data, type }: Props) {
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <Link 
-                    href={`/facturas/${doc.id}`} 
-                    title="Editar" 
-                    className="p-1.5 bg-slate-50 border border-slate-200 text-slate-700 hover:text-amber-600 rounded-lg transition-colors"
-                  >
-                    <Pencil size={15} />
-                  </Link>
+                  {isDocExpired(doc) && !isGerenteIlimitado ? (
+                    <button 
+                      onClick={() => setDocForSupervisorAuth(doc)} 
+                      title="Factura protegida (+24h) - Desbloquear con PIN de Gerencia" 
+                      className="p-1.5 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-lg transition-colors flex items-center justify-center shadow-xs"
+                    >
+                      <Lock size={15} />
+                    </button>
+                  ) : (
+                    <Link 
+                      href={`/facturas/${doc.id}`} 
+                      title="Editar" 
+                      className="p-1.5 bg-slate-50 border border-slate-200 text-slate-700 hover:text-amber-600 rounded-lg transition-colors flex items-center justify-center"
+                    >
+                      <Pencil size={15} />
+                    </Link>
+                  )}
                   {doc.estado !== 'ANULADA' && (
                     <button 
                       onClick={() => setDocToAnul(doc)} 
@@ -1002,9 +1042,19 @@ export default function DocumentListTable({ data, type }: Props) {
                     <Link href={`/facturas/ver/${doc.id}?download=true`} title="Descargar PDF" className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
                       <Download size={16} />
                     </Link>
-                    <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
-                      <Pencil size={16} />
-                    </Link>
+                    {isDocExpired(doc) && !isGerenteIlimitado ? (
+                      <button 
+                        onClick={() => setDocForSupervisorAuth(doc)} 
+                        title="Factura protegida (+24h) - Desbloquear con PIN de Gerencia" 
+                        className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
+                      >
+                        <Lock size={16} />
+                      </button>
+                    ) : (
+                      <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
+                        <Pencil size={16} />
+                      </Link>
+                    )}
                     <Link
                       href={`/facturas/ver/${doc.id}?whatsapp=true`}
                       title="Copiar Imagen para WhatsApp"
@@ -1385,6 +1435,22 @@ export default function DocumentListTable({ data, type }: Props) {
         onClose={() => setSendEmailModalOpen(false)}
         documentoId={sendEmailDocId}
       />
+
+      {/* Modal de Autorización de Supervisor (Desbloqueo de facturas protegidas +24h) */}
+      {docForSupervisorAuth && (
+        <SupervisorAuthModal
+          isOpen={Boolean(docForSupervisorAuth)}
+          onClose={() => setDocForSupervisorAuth(null)}
+          facturaId={docForSupervisorAuth.id}
+          correlativo={docForSupervisorAuth.correlativo}
+          total={docForSupervisorAuth.total}
+          onAuthorized={(supervisor: { nombre: string; email: string }, code: string) => {
+            const docId = docForSupervisorAuth.id;
+            setDocForSupervisorAuth(null);
+            router.push(`/facturas/${docId}?authSupervisor=${encodeURIComponent(supervisor.nombre)}&authCode=${encodeURIComponent(code)}`);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -53,5 +53,13 @@ export default async function FacturasPage() {
         console.error("Error fetching data for facturas page:", e);
     }
 
-    return <FacturacionTabsClient organization={org} history={history} />;
+    return (
+        <FacturacionTabsClient 
+            organization={org} 
+            history={history} 
+            userRole={dbUser.role}
+            userAccessibleModules={allowedModules}
+            userEmail={dbUser.email}
+        />
+    );
 }
