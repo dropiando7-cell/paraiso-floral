@@ -4931,7 +4931,7 @@ export default function DocumentBuilderClient({
   const resolvedNombreUsuario = (initialData?.creadoPor ? [initialData.creadoPor.nombre, initialData.creadoPor.apellido].filter(Boolean).join(' ') : null) || initialData?.nombreUsuario || currentUser?.fullName || 'Administrador (BEA)';
 
   return (
-    <div className={`${isKioskMode ? 'fixed inset-0 z-[5000] bg-slate-50 overflow-y-auto' : (embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden')} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
+    <div className={`${isKioskMode ? 'fixed inset-0 z-[5000] bg-slate-50 overflow-y-auto' : (embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : `min-h-[calc(100vh-140px)] bg-slate-50 relative ${isLocked ? 'overflow-hidden' : 'overflow-x-hidden'}`)} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
       <MixedPaymentsModal
         isOpen={showMixedPaymentsModal}
         onClose={() => setShowMixedPaymentsModal(false)}
@@ -5038,7 +5038,7 @@ export default function DocumentBuilderClient({
       )}
 
       {/* Mobile Form View (Visible en móviles < md) */}
-      {!embedMode && (
+      {!embedMode && !isLocked && (
         <div className="block md:hidden px-1 py-1.5 sm:px-3 print:hidden">
           <MobileDocumentForm
             docType={docType}
@@ -6819,9 +6819,9 @@ export default function DocumentBuilderClient({
 
         return (
           <>
-            {/* Modal Global: Selección de Nuevo Documento y Correlativo */}
+            {/* Modal de Selección de Nuevo Documento y Correlativo (bloquea únicamente el espacio del canvas, dejando libre el sidebar) */}
             {isLocked && !effectiveViewMode && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto animate-in fade-in transition-all">
+              <div className="absolute inset-0 z-30 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-xs overflow-y-auto animate-in fade-in transition-all min-h-full">
                 <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full mx-auto animate-in zoom-in-95 duration-300 pointer-events-auto my-auto relative">
                   <div className="text-center mb-6 sm:mb-8">
                     <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">

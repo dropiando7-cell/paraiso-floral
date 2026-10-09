@@ -48,7 +48,7 @@ export default function FacturacionTabsClient({
       <FacturacionHeader activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Tab Content */}
-      <div className={`${activeTab === 'creador' ? '' : 'p-1.5 sm:p-6 max-w-[1400px] mx-auto w-full'}`}>
+      <div className={`${activeTab === 'creador' ? 'relative flex-1 min-h-[calc(100vh-140px)]' : 'p-1.5 sm:p-6 max-w-[1400px] mx-auto w-full'}`}>
         
         {activeTab === 'creador' && (
           <DocumentBuilderClient 
