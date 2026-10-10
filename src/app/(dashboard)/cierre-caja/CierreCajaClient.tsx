@@ -28,9 +28,11 @@ import {
     ArrowDownCircle,
     MessageCircle,
     Copy,
-    Check
+    Check,
+    Calculator
 } from 'lucide-react';
 import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession, getPendingDeposits, registrarCorteMovimiento, anularCorteMovimiento } from './actions';
+import CalculadoraArqueoModal from './CalculadoraArqueoModal';
 
 interface CierreCajaClientProps {
     initialActiveSession: any;
@@ -44,6 +46,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [isMounted, setIsMounted] = useState(false);
     const [copiedActive, setCopiedActive] = useState(false);
     const [copiedPast, setCopiedPast] = useState(false);
+    const [isCalcOpen, setIsCalcOpen] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -1227,9 +1230,19 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <hr className="border-slate-100" />
 
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                        Efectivo Real Contado (Físico)
-                                    </label>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Efectivo Real Contado (Físico)
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCalcOpen(true)}
+                                            className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-md flex items-center gap-1.5 transition cursor-pointer"
+                                        >
+                                            <Calculator size={14} />
+                                            <span>Calculadora</span>
+                                        </button>
+                                    </div>
                                     <div className="relative rounded-lg shadow-sm">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <span className="text-slate-400 font-bold">L.</span>
@@ -2059,6 +2072,14 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                         </form>
                     </div>
                 </div>
+            )}
+            {/* CALCULADORA MODAL */}
+            {isCalcOpen && (
+                <CalculadoraArqueoModal
+                    efectivoEsperado={esperadoEfectivo}
+                    onClose={() => setIsCalcOpen(false)}
+                    onConfirm={(total) => setSaldoReal(total.toFixed(2))}
+                />
             )}
         </div>
     );
