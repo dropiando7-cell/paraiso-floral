@@ -1194,17 +1194,18 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       <header className="bg-white px-3 sm:px-4 py-1.5 sm:py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between border-b border-gray-200 shadow-2xs shrink-0 z-20 print:hidden relative gap-2">
         
         {/* Mobile top bar (Image 2 style) */}
-        <div className="flex md:hidden items-center justify-between bg-[#16a34a] text-white -mx-3 -mt-1.5 p-2 shadow-md mb-1">
-          <div className="flex items-center gap-2">
+        <div className="flex md:hidden items-center justify-between bg-[#16a34a] text-white -mx-3 -mt-1.5 p-2 shadow-md mb-1 gap-1">
+          <div className="flex items-center gap-1.5">
             <button 
               onClick={() => router.push('/facturas')} 
               className="p-1 rounded-lg hover:bg-white/20 text-white transition-colors"
+              title="Volver a Facturas"
             >
               <ArrowLeft size={18} />
             </button>
             <button 
               onClick={() => setShowMobileCartSheet(true)}
-              className="flex items-center gap-1.5 bg-emerald-700/80 hover:bg-emerald-800 text-white px-2 py-1 rounded-lg text-xs font-black shadow-xs"
+              className="flex items-center gap-1 bg-emerald-700/80 hover:bg-emerald-800 text-white px-2 py-1 rounded-lg text-xs font-black shadow-xs"
             >
               <ShoppingCart size={14} />
               <span>Ticket</span>
@@ -1212,23 +1213,16 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 {totalCartItemsCount}
               </span>
             </button>
+            <BandejaPedidosCediModal onSelectPedido={handleCargarPedidoCedi} className="!text-[11px] !py-1 !px-2" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => {
-                if (cart.length > 0) setShowMobileCartSheet(true);
-              }}
-              className="px-2.5 py-1 bg-emerald-700/60 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider"
-            >
-              Guardar
-            </button>
+          <div className="flex items-center gap-1.5">
             <button 
               onClick={() => {
                 if (cart.length > 0) setShowCheckout(true);
               }}
               disabled={cart.length === 0}
-              className="px-3 py-1 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-900 font-black text-xs rounded-lg shadow-xs transition-all active:scale-95 flex items-center gap-1"
+              className="px-2.5 py-1 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-900 font-black text-xs rounded-lg shadow-xs transition-all active:scale-95 flex items-center gap-1"
             >
               <span>COBRAR</span>
               <span className="font-extrabold">{fmt(totals.total)}</span>
@@ -1354,12 +1348,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           </div>
 
           {/* Product Grid Area - SCROLLABLE (Image 2 style tight layout) */}
-          <div className="flex-1 overflow-y-auto p-1.5 sm:p-6 hide-scrollbar relative">
-            <div className={
-              viewMode === 'large' ? 'grid grid-cols-2 xs:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-4' : 
-              viewMode === 'small' ? 'grid grid-cols-3 xs:grid-cols-4 md:grid-cols-6 2xl:grid-cols-8 gap-1.5 sm:gap-3' : 
-              'flex flex-col gap-1.5'
-            }>
+          <div className="flex-1 overflow-y-auto p-2 sm:p-6 hide-scrollbar relative">
+            <div className={`
+              ${viewMode === 'large' ? 'sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:gap-4' : 
+              viewMode === 'small' ? 'sm:grid sm:grid-cols-3 md:grid-cols-6 2xl:grid-cols-8 sm:gap-3' : 
+              'sm:flex sm:flex-col sm:gap-1.5'}
+              flex flex-col gap-2
+            `}>
               {pagedProducts.map(p => {
                 const qtyInCart = getItemCartQty(p.id);
                 const isAnimating = animatingProductId === p.id;
@@ -1370,33 +1365,12 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                   <div 
                     key={p.id} 
                     onClick={() => addToCart(p)}
-                    className={`bg-white cursor-pointer hover:shadow-xl border shadow-xs transition-all group overflow-hidden relative select-none rounded-2xl p-1.5 sm:p-3 active:scale-95 ${
+                    className={`bg-white cursor-pointer hover:shadow-xl border shadow-xs transition-all group overflow-hidden relative select-none rounded-xl p-3 active:scale-95 ${
                       isFav ? 'border-amber-300 ring-1 ring-amber-300/40 bg-amber-50/10' : 'border-gray-200'
                     } ${
                       qtyInCart > 0 ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'hover:border-indigo-200'
                     } ${isAnimating ? 'scale-95 border-emerald-500 ring-4 ring-emerald-400/40' : ''}`}
                   >
-                    {/* Favorite Star Toggle Pin Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => toggleFavorite(p.id, e)}
-                      className={`absolute top-1.5 left-1.5 p-1 rounded-full z-20 transition-all ${
-                        isFav 
-                          ? 'bg-amber-400 text-white shadow-md scale-110' 
-                          : 'bg-white/80 backdrop-blur-xs text-slate-300 hover:text-amber-400 hover:bg-white'
-                      }`}
-                      title={isFav ? 'Quitar de Favoritos' : 'Fijar como Favorito arriba'}
-                    >
-                      <Star size={12} className={isFav ? 'fill-white text-white' : ''} />
-                    </button>
-
-                    {/* Quantity Badge on Product Card */}
-                    {qtyInCart > 0 && (
-                      <div className="absolute top-2 right-2 bg-emerald-600 text-white font-black text-[10px] sm:text-xs px-2 py-0.5 rounded-full shadow-md z-20 animate-in zoom-in-75">
-                        x{qtyInCart}
-                      </div>
-                    )}
-
                     {/* Floating Fly-to-Cart Animation Indicator */}
                     {isAnimating && (
                       <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-emerald-500 text-white font-black text-xs px-2.5 py-0.5 rounded-full shadow-xl animate-bounce z-30 pointer-events-none">
@@ -1404,43 +1378,134 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                       </div>
                     )}
 
-                    <div className={`relative flex items-center justify-center overflow-hidden transition-colors ${
-                      viewMode === 'list' ? 'w-14 h-14 bg-gray-50 rounded-xl mr-3 shrink-0' : 
-                      'aspect-square bg-gray-50/80 rounded-xl mb-1.5 sm:mb-3 p-1.5 group-hover:bg-emerald-50/20'
-                    }`}>
-                       {p.imageUrl ? (
-                         <img src={p.imageUrl} alt={p.nombre} className="w-full h-full object-contain mix-blend-multiply" />
-                       ) : (
-                         <span className="text-3xl sm:text-5xl font-black text-gray-200 group-hover:text-emerald-300 transition-colors uppercase">{p.nombre.substring(0,2)}</span>
-                       )}
-                       
-                       {/* Available Stock Badge on Image */}
-                       {!p.esServicio && (
-                         <span className={`absolute bottom-1 right-1 font-black text-[9.5px] px-1.5 py-0.5 rounded-md shadow-xs backdrop-blur-xs z-10 ${
-                           p.stockActual === 0 ? 'bg-rose-500 text-white' :
-                           p.stockActual <= 5 ? 'bg-amber-500 text-white' :
-                           'bg-slate-900/85 text-white'
-                         }`} title={`Stock disponible en inventario: ${p.stockActual}`}>
-                           Disp: {p.stockActual}
-                         </span>
-                       )}
-                    </div>
+                    {/* DESKTOP LAYOUT (oculto en móvil) */}
+                    <div className="hidden sm:flex h-full flex-col">
+                      <div className="flex justify-between w-full mb-1">
+                        <button
+                          type="button"
+                          onClick={(e) => toggleFavorite(p.id, e)}
+                          className={`p-1 rounded-full z-20 transition-all ${
+                            isFav 
+                              ? 'bg-amber-400 text-white shadow-md' 
+                              : 'text-slate-300 hover:text-amber-400'
+                          }`}
+                          title={isFav ? 'Quitar de Favoritos' : 'Fijar como Favorito arriba'}
+                        >
+                          <Star size={12} className={isFav ? 'fill-white text-white' : ''} />
+                        </button>
+                        {qtyInCart > 0 && (
+                          <div className="bg-emerald-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-md z-20">
+                            x{qtyInCart}
+                          </div>
+                        )}
+                      </div>
 
-                    <div className={viewMode === 'list' ? 'flex-1 min-w-0' : 'flex flex-col flex-1'}>
-                      <h3 className="font-bold text-gray-900 line-clamp-2 leading-tight text-xs sm:text-sm">{p.nombre}</h3>
-                      <div className="mt-auto flex items-center justify-between pt-1 gap-1">
-                        <div>
-                          <p className="font-black text-emerald-600 text-xs sm:text-base leading-none">{fmt(p.precioVenta)}</p>
-                          {p.esServicio && (
-                            <p className="text-[10px] font-extrabold text-slate-400 mt-0.5">Servicio</p>
-                          )}
+                      <div className={`relative flex items-center justify-center overflow-hidden transition-colors ${
+                        viewMode === 'list' ? 'w-14 h-14 bg-gray-50 rounded-xl mr-3 shrink-0' : 
+                        'aspect-square bg-gray-50/80 rounded-xl mb-3 p-1.5 group-hover:bg-emerald-50/20'
+                      }`}>
+                         {p.imageUrl ? (
+                           <img src={p.imageUrl} alt={p.nombre} className="w-full h-full object-contain mix-blend-multiply" />
+                         ) : (
+                           <span className="text-3xl font-black text-gray-200 group-hover:text-emerald-300 transition-colors uppercase">{p.nombre.substring(0,2)}</span>
+                         )}
+                         
+                         {!p.esServicio && (
+                           <span className={`absolute bottom-1 right-1 font-black text-[9.5px] px-1.5 py-0.5 rounded-md shadow-xs backdrop-blur-xs z-10 ${
+                             p.stockActual === 0 ? 'bg-rose-500 text-white' :
+                             p.stockActual <= 5 ? 'bg-amber-500 text-white' :
+                             'bg-slate-900/85 text-white'
+                           }`}>
+                             Disp: {p.stockActual}
+                           </span>
+                         )}
+                      </div>
+
+                      <div className={viewMode === 'list' ? 'flex-1 min-w-0 flex items-center justify-between' : 'flex flex-col flex-1'}>
+                        <div className={viewMode === 'list' ? 'flex-1' : ''}>
+                          <h3 className="font-bold text-gray-900 line-clamp-2 leading-tight text-sm">{p.nombre}</h3>
+                          <div className="flex items-center gap-1 mt-1">
+                            <p className="font-black text-emerald-600 text-base leading-none">{fmt(p.precioVenta)}</p>
+                            {p.esServicio && <p className="text-[10px] font-extrabold text-slate-400">Servicio</p>}
+                          </div>
                         </div>
                         
+                        <div className={viewMode === 'list' ? 'ml-2' : 'mt-auto flex justify-end pt-2'}>
+                          {qtyInCart > 0 ? (
+                            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-300 rounded-xl p-0.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const cartItem = cart.find(i => i.id === p.id);
+                                  if (cartItem) {
+                                    if (cartItem.qty <= 1) {
+                                      removeLine(cartItem.cartId);
+                                      toast.success(`Removido "${p.nombre}"`);
+                                    } else {
+                                      changeQty(cartItem.cartId, -1);
+                                    }
+                                  }
+                                }}
+                                className="w-7 h-7 bg-white text-rose-600 rounded-lg flex items-center justify-center font-black shadow-sm border border-slate-200 hover:bg-rose-50"
+                              >
+                                <Minus size={14} className="stroke-[3]" />
+                              </button>
+                              <span className="font-black text-sm text-emerald-950 px-2 min-w-[20px] text-center">{qtyInCart}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                                className="w-7 h-7 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-black shadow-sm hover:bg-emerald-700"
+                              >
+                                <Plus size={14} className="stroke-[3]" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button 
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-emerald-600 hover:text-white"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* MOBILE LAYOUT (solo visible en móvil) */}
+                    <div className="sm:hidden flex flex-col gap-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 pr-2">
+                          <h3 className="font-bold text-slate-900 text-[15px] leading-tight mb-1">{p.nombre}</h3>
+                          <div className="flex items-center flex-wrap gap-2">
+                            <span className="font-black text-emerald-600 text-[17px]">{fmt(p.precioVenta)}</span>
+                            {!p.esServicio && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                p.stockActual === 0 ? 'bg-rose-100 text-rose-700' :
+                                p.stockActual <= 5 ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-600'
+                              }`}>
+                                Disp: {p.stockActual}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => toggleFavorite(p.id, e)}
+                          className={`p-1.5 rounded-full shrink-0 ${
+                            isFav ? 'bg-amber-100 text-amber-500' : 'bg-slate-50 text-slate-300'
+                          }`}
+                        >
+                          <Star size={14} className={isFav ? 'fill-amber-500' : ''} />
+                        </button>
+                      </div>
+
+                      <div className="flex justify-between items-center border-t border-slate-100 pt-2">
                         {qtyInCart > 0 ? (
-                          <div 
-                            className="flex items-center gap-0.5 bg-emerald-50 border border-emerald-300 rounded-xl p-0.5 shadow-2xs z-20"
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <div className="flex items-center justify-between w-full" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1449,49 +1514,37 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                                 if (cartItem) {
                                   if (cartItem.qty <= 1) {
                                     removeLine(cartItem.cartId);
-                                    toast.success(`Removido "${p.nombre}"`);
                                   } else {
                                     changeQty(cartItem.cartId, -1);
                                   }
                                 }
                               }}
-                              className="w-5 h-5 sm:w-7 sm:h-7 bg-white hover:bg-rose-50 text-rose-600 hover:border-rose-300 rounded-lg flex items-center justify-center font-black shadow-2xs active:scale-90 transition-all border border-slate-200 cursor-pointer"
-                              title="Restar 1 unidad"
+                              className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform"
                             >
-                              <Minus size={12} className="stroke-[3]" />
+                              <Minus size={18} className="stroke-[3]" />
                             </button>
-                            
-                            <span className="font-black text-xs sm:text-sm text-emerald-950 px-1 min-w-[16px] text-center select-none">
-                              {qtyInCart}
-                            </span>
-                            
+                            <span className="font-black text-lg text-emerald-900 mx-4">{qtyInCart}</span>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                addToCart(p);
-                              }}
-                              className="w-5 h-5 sm:w-7 sm:h-7 bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white rounded-lg flex items-center justify-center font-black shadow-2xs transition-all cursor-pointer"
-                              title="Sumar 1 unidad"
+                              onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                              className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-transform"
                             >
-                              <Plus size={12} className="stroke-[3]" />
+                              <Plus size={18} className="stroke-[3]" />
                             </button>
                           </div>
                         ) : (
                           <button 
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCart(p);
-                            }}
-                            className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors shadow-xs bg-gray-100 text-gray-500 group-hover:bg-emerald-600 group-hover:text-white cursor-pointer"
-                            title="Agregar al ticket"
+                            onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                            className="w-full py-2.5 bg-emerald-50 text-emerald-700 font-bold rounded-xl flex items-center justify-center gap-2 border border-emerald-200 active:scale-95 transition-transform"
                           >
-                            <Plus size={14} />
+                            <Plus size={18} />
+                            Agregar al carrito
                           </button>
                         )}
                       </div>
                     </div>
+
                   </div>
                 );
               })}
