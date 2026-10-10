@@ -142,7 +142,7 @@ export default function ClienteSearchSwitcher({
             setSearch('');
           }}
           onChange={e => {
-            setSearch(e.target.value);
+            setSearch(e.target.value.toUpperCase());
             setSelectedIndex(0);
           }}
           onKeyDown={handleKeyDown}
