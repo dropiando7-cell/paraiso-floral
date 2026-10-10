@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Package, Check, X, AlertCircle, Sparkles } from 'lucide-react';
+import Fuse from 'fuse.js';
 
 export interface ProductCatalogItem {
   id: string;
@@ -51,15 +52,19 @@ export function ProductSmartAutocomplete({
   const selectedProduct = products.find(p => p.id === selectedProductId) || null;
 
   // Filter products in real time
-  const filteredProducts = query.trim() === ''
-    ? products.slice(0, 15) // Show top items on focus
-    : products.filter(p => {
-        const q = query.toLowerCase();
-        return (
-          p.nombre.toLowerCase().includes(q) ||
-          p.sku.toLowerCase().includes(q)
-        );
-      }).slice(0, 20);
+  const filteredProducts = React.useMemo(() => {
+    if (query.trim() === '') {
+      return products.slice(0, 15); // Show top items on focus
+    }
+    const fuse = new Fuse(products, {
+      keys: ['nombre', 'sku'],
+      threshold: 0.4, // Intermedio para errores de dedo
+      ignoreLocation: true,
+      includeScore: true,
+      useExtendedSearch: true
+    });
+    return fuse.search(query).map(r => r.item).slice(0, 20);
+  }, [query, products]);
 
   // Handle outside click to close dropdown
   useEffect(() => {

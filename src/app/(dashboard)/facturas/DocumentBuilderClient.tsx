@@ -20,6 +20,8 @@ import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import SignatureCanvas from 'react-signature-canvas';
 import { isCredito } from '@/utils/facturaUtils';
+import Fuse from 'fuse.js';
+import { useFloating, autoUpdate, flip, shift, offset, FloatingPortal } from '@floating-ui/react';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
@@ -1102,71 +1104,47 @@ function LineItemRow({
   const filteredProducts = useMemo(() => {
     if (!showAutocomplete || query.trim().length < 2) return [];
 
-    const queryWords = nQuery.split(/\s+/).filter(w => w.length > 0);
-    if (queryWords.length === 0) return [];
-
-    // Filtrar productos locales en memoria de forma instantánea
-    const localMatched: Product[] = [];
-    for (let i = 0; i < allProducts.length; i++) {
-      const p = allProducts[i];
-      const pNameNorm = normalizeText(p.name);
-      const pCodeNorm = normalizeText(p.code);
-      const searchable = `${pNameNorm} ${pCodeNorm} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
-      if (queryWords.every(word => searchable.includes(word))) {
-        localMatched.push(p);
-      }
-    }
-
-    // Combinar con resultados de búsqueda dinámica si los hay
+    // Combinar productos locales y en caché remota en un solo arreglo
     const map = new Map<string, Product>();
-    for (const p of localMatched) map.set(p.id, p);
-    for (const p of searchResults) {
-      if (!map.has(p.id)) {
-        const pNameNorm = normalizeText(p.name);
-        const pCodeNorm = normalizeText(p.code);
-        const searchable = `${pNameNorm} ${pCodeNorm} ${p.type === 'activo' ? normalizeText(p.description || '') : ''} ${normalizeText(p.serie || '')}`;
-        if (queryWords.every(word => searchable.includes(word))) {
-          map.set(p.id, p);
-        }
-      }
-    }
+    for (const p of allProducts) map.set(p.id, p);
+    for (const p of searchResults) map.set(p.id, p);
 
     const items = Array.from(map.values());
 
-    // Pre-cache de nombres normalizados O(N) para que el ordenamiento sea ultra veloz
-    const normNameMap = new Map<string, string>();
-    for (const it of items) {
-      normNameMap.set(it.id, normalizeText(it.name));
-    }
+    // Configurar búsqueda difusa con Fuse.js
+    const fuse = new Fuse(items, {
+      keys: ['name', 'code', 'description', 'serie'],
+      threshold: 0.4, // Nivel intermedio de tolerancia a errores ortográficos
+      ignoreLocation: true,
+      includeScore: true,
+      useExtendedSearch: true
+    });
 
-    return items.sort((a, b) => {
-      const aName = normNameMap.get(a.id) || '';
-      const bName = normNameMap.get(b.id) || '';
-      
-      // 1st Priority: Name starts with search query
-      const aStarts = aName.startsWith(nQuery);
-      const bStarts = bName.startsWith(nQuery);
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      
-      // 2nd Priority: Name has a word starting with query (word boundary matching)
-      const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(nQuery));
-      const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(nQuery));
-      if (aWordStarts && !bWordStarts) return -1;
-      if (!aWordStarts && bWordStarts) return 1;
-      
-      // 3rd Priority: Shorter names first (exact/closer match)
-      if (aName.includes(nQuery) && bName.includes(nQuery)) {
-        return aName.length - bName.length;
-      }
-      
-      return 0;
-    }).slice(0, 30);
-  }, [allProducts, searchResults, query, nQuery, showAutocomplete]);
+    const results = fuse.search(query);
+
+    return results.map(r => r.item).slice(0, 30);
+  }, [allProducts, searchResults, query, showAutocomplete]);
 
   useEffect(() => {
     setSelectedIndex(0);
   }, [query]);
+
+  const { refs: floatingRefs, floatingStyles } = useFloating({
+    open: showAutocomplete,
+    onOpenChange: setShowAutocomplete,
+    placement: 'bottom-start',
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(6),
+      flip({ padding: 10 }),
+      shift({ padding: 10 })
+    ]
+  });
+
+  const setCombinedRef = (node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    floatingRefs.setReference(node);
+  };
 
   useEffect(() => {
     if (shortDescRef.current) {
@@ -1352,7 +1330,13 @@ function LineItemRow({
     if (!showAutocomplete || !focusedField) return null;
     if (query.trim().length < 2) return null;
     return (
-      <div className="absolute top-[calc(100%+6px)] left-0 w-[520px] md:w-[580px] max-w-[95vw] z-[100] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden print:hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10">
+      <FloatingPortal>
+        <div 
+          ref={floatingRefs.setFloating}
+          style={{ ...floatingStyles, zIndex: 999999 }}
+          id={`autocomplete-dropdown-${item.id}`} 
+          className="w-[520px] md:w-[580px] max-w-[95vw] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden print:hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10"
+        >
         {/* Header */}
         <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/95 backdrop-blur-sm flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
@@ -1444,10 +1428,15 @@ function LineItemRow({
 
             if (autocompleteViewMode === 'inline') {
               return (
-                <button
+                <div
                   key={p.id}
-                  type="button"
-                  onMouseEnter={() => setSelectedIndex(idx)}
+                  role="button"
+                  tabIndex={0}
+                  onPointerMove={(e) => {
+                    if (e.movementX !== 0 || e.movementY !== 0) {
+                      setSelectedIndex(idx);
+                    }
+                  }}
                   onMouseDown={(e) => {
                     // Evitar que el input pierda foco antes del click
                     e.preventDefault();
@@ -1526,15 +1515,20 @@ function LineItemRow({
                       <Pencil size={12} />
                     </button>
                   </div>
-                </button>
+                </div>
               );
             }
 
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                onMouseEnter={() => setSelectedIndex(idx)}
+                role="button"
+                tabIndex={0}
+                onPointerMove={(e) => {
+                  if (e.movementX !== 0 || e.movementY !== 0) {
+                    setSelectedIndex(idx);
+                  }
+                }}
                 onMouseDown={(e) => {
                   // Evitar que el input pierda foco antes del click
                   e.preventDefault();
@@ -1637,7 +1631,7 @@ function LineItemRow({
                     <Pencil size={14} />
                   </button>
                 </div>
-              </button>
+              </div>
             );
           })}
           
@@ -1662,14 +1656,15 @@ function LineItemRow({
           <Plus size={14} className="shrink-0" />
           Registrar nuevo producto o activo en Inventario
         </button>
-      </div>
+        </div>
+      </FloatingPortal>
     );
   };
 
   return (
     <div 
       className={`group relative hover:z-50 ${isDragOver ? 'border-t-[3px] border-blue-500' : ''} ${showAutocomplete ? 'z-[100]' : ''}`} 
-      ref={containerRef} 
+      ref={setCombinedRef} 
       data-line-id={item.id}
       draggable={isDraggable && !viewMode}
       onDragStart={(e) => {
@@ -2041,39 +2036,13 @@ function LineItemRow({
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">L</span>
-                  <input
-                    type="number"
-                    step="any"
-                    value={focusedField === 'monto' ? montoInputValue : displayTotal.toFixed(2)}
-                    onFocus={(e) => {
-                      const t = e.target;
-                      setTimeout(() => t.select(), 10);
-                      setFocusedField('monto');
-                      setMontoInputValue(displayTotal.toFixed(2));
-                    }}
-                    onChange={e => {
-                      const valStr = e.target.value;
-                      setMontoInputValue(valStr);
-                      const val = parseFloat(valStr);
-                      if (!isNaN(val)) {
-                        const calculatedPrice = calculateUnitPriceFromTotal(
-                          val,
-                          Number(item.qty) || 1,
-                          item.tax,
-                          Number(item.discount) || 0,
-                          item.discountType,
-                          settings?.pricesIncludeTax
-                        );
-                        const roundedPrice = Math.round((calculatedPrice + Number.EPSILON) * 100) / 100;
-                        onChange(item.id, 'unitPrice', roundedPrice);
-                      }
-                    }}
-                    onBlur={() => {
-                      setFocusedField(null);
-                    }}
-                    className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-4 pr-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-bold text-slate-800`}
+                  <div
+                    className={`w-full h-[34px] flex items-center justify-end ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-4 pr-1.5 border border-slate-100 rounded-lg bg-slate-50 cursor-not-allowed font-bold text-slate-600 select-none`}
                     style={descStyle}
-                  />
+                    title="El monto total se calcula automáticamente (Cantidad × Precio - Descuentos)"
+                  >
+                    {displayTotal.toFixed(2)}
+                  </div>
                 </div>
               ) : null}
               <span className={`${descSizeClass} font-bold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} ${!viewMode ? 'hidden print:inline' : 'inline'} pr-2`} style={descStyle}>
