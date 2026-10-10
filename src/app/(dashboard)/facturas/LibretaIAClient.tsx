@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Sparkles, AlertCircle, Copy, Share2 } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, Copy, Share2, X, ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 import { guardarDocumentoBuilder } from './actions';
@@ -16,6 +16,7 @@ interface Props {
 export default function LibretaIAClient({ organization }: Props) {
   const router = useRouter();
   const [text, setText] = useState('');
+  const [imageB64, setImageB64] = useState<string | null>(null);
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [selectedCliente, setSelectedCliente] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +26,8 @@ export default function LibretaIAClient({ organization }: Props) {
       toast.error('Por favor selecciona un cliente primero');
       return;
     }
-    if (!text.trim()) {
-      toast.error('Por favor ingresa el texto del pedido');
+    if (!text.trim() && !imageB64) {
+      toast.error('Por favor ingresa el texto o pega una imagen del pedido');
       return;
     }
 
@@ -35,7 +36,7 @@ export default function LibretaIAClient({ organization }: Props) {
       const res = await fetch('/api/ai/libreta-cotizacion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, imageB64 })
       });
       const aiData = await res.json();
       if (aiData.error) throw new Error(aiData.error);
@@ -91,6 +92,27 @@ export default function LibretaIAClient({ organization }: Props) {
       toast.error(e.message || 'Ocurrió un error al procesar el pedido con IA');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              setImageB64(event.target.result as string);
+              toast.success('Imagen pegada correctamente');
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      }
     }
   };
 
@@ -160,19 +182,40 @@ export default function LibretaIAClient({ organization }: Props) {
               </button>
             </label>
             <div className="relative group">
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Ejemplo:&#10;1 Lirios blancos 350&#10;2 Gerberas rosadas 189 c/u&#10;1 envio 250"
-                className="w-full h-64 p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 outline-none transition-all resize-none text-slate-700 font-medium placeholder:text-slate-400"
-              />
-              {!text && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-50 group-focus-within:opacity-0 transition-opacity">
-                  <div className="text-center space-y-2">
-                    <Share2 className="w-8 h-8 text-slate-400 mx-auto" />
-                    <p className="text-sm font-bold text-slate-500">Pega directo desde WhatsApp</p>
+              {imageB64 ? (
+                <div className="relative w-full h-64 p-2 bg-slate-50 border-2 border-slate-200 rounded-2xl flex items-center justify-center overflow-hidden group">
+                  <img src={imageB64} alt="Pedido" className="max-h-full max-w-full object-contain rounded-xl" />
+                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button 
+                      onClick={() => setImageB64(null)}
+                      className="px-4 py-2 bg-white/90 text-slate-800 font-bold rounded-lg shadow-sm flex items-center gap-2 hover:bg-white cursor-pointer"
+                    >
+                      <X className="w-4 h-4 text-red-500" />
+                      Remover Imagen
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onPaste={handlePaste}
+                    placeholder="Ejemplo:&#10;1 Lirios blancos 350&#10;2 Gerberas rosadas 189 c/u&#10;1 envio 250"
+                    className="w-full h-64 p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 outline-none transition-all resize-none text-slate-700 font-medium placeholder:text-slate-400"
+                  />
+                  {!text && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-50 group-focus-within:opacity-0 transition-opacity">
+                      <div className="text-center space-y-2">
+                        <div className="flex justify-center gap-2">
+                          <Share2 className="w-8 h-8 text-slate-400" />
+                          <ImageIcon className="w-8 h-8 text-slate-400" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-500">Pega texto o capturas desde WhatsApp (Ctrl+V)</p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

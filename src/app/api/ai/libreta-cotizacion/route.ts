@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const { text } = await req.json();
+    const { text, imageB64 } = await req.json();
 
-    if (!text) {
-      return NextResponse.json({ error: 'Se requiere texto' }, { status: 400 });
+    if (!text && !imageB64) {
+      return NextResponse.json({ error: 'Se requiere texto o una imagen' }, { status: 400 });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -26,10 +26,11 @@ export async function POST(req: NextRequest) {
     const genai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
-Eres un asistente que convierte notas de WhatsApp en borradores de cotización para un ERP de flores.
-Se te dará el texto que un usuario pegó. Debes extraer:
+Eres un asistente que convierte notas o capturas de pantalla de WhatsApp en borradores de cotización para un ERP de flores.
+Si el usuario envía una imagen, extrae todo el texto visible (cantidades, nombres de productos, precios) como si lo hubieran escrito.
+Se te dará el texto que un usuario pegó y/o una imagen. Debes extraer:
 1. "notas": Cualquier instrucción de entrega o comentario general.
-2. "items": Una lista de productos extraídos del texto.
+2. "items": Una lista de productos extraídos del texto o imagen.
 
 Para CADA ítem, extrae:
 - descripcion: El nombre del producto o servicio (incluyendo color/tipo).
@@ -44,11 +45,29 @@ Devuelve estrictamente un JSON que cumpla el schema sin texto extra.
     let response: any = null;
     let lastError: any = null;
 
+    const parts: any[] = [];
+    if (text) {
+      parts.push({ text: `Texto ingresado:\n\n${text}` });
+    } else {
+      parts.push({ text: "Analiza la siguiente imagen de un pedido." });
+    }
+
+    if (imageB64) {
+      const mimeType = imageB64.substring(imageB64.indexOf(':') + 1, imageB64.indexOf(';'));
+      const data = imageB64.split(',')[1];
+      parts.push({
+        inlineData: {
+          mimeType,
+          data
+        }
+      });
+    }
+
     for (const modelName of candidateModels) {
       try {
         response = await genai.models.generateContent({
           model: modelName,
-          contents: [`Texto ingresado:\n\n${text}`],
+          contents: parts,
           config: {
             systemInstruction,
             responseMimeType: 'application/json',
