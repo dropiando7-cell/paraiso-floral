@@ -182,7 +182,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   // Client Selection & Creation State
   const [clientName, setClientName] = useState('CONSUMIDOR FINAL');
-  const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string; diasCredito?: number; limiteCredito?: number } | null>(null);
+  const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string; diasCredito?: number; limiteCredito?: number; saldoFavor?: number } | null>(null);
   
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isSearchingClients, setIsSearchingClients] = useState(false);

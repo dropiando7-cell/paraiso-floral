@@ -2993,7 +2993,7 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string)
             where: {
                 organizationId: user.organizationId,
                 estado: 'ABIERTA',
-                usuarioAperturaId: user.id
+                creadoPorId: user.id
             }
         });
 
