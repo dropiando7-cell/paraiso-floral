@@ -1647,8 +1647,8 @@ function LineItemRow({
 
         <button
           type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
+          onMouseDown={(e) => {
+            e.preventDefault();
             setShowAutocomplete(false);
             window.dispatchEvent(new CustomEvent('open-activo-modal', { detail: { lineId: item.id } }));
           }}
