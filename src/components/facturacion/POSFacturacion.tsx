@@ -54,6 +54,7 @@ export interface POSFacturaPayload {
   total: number;
   metodoPago: string;
   aliasVenta: string;
+  montoSaldoFavorAplicado?: number;
   detalles: any[];
 }
 
@@ -315,6 +316,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [showClearCartModal, setShowClearCartModal] = useState(false);
   const [showMobileCartSheet, setShowMobileCartSheet] = useState(false);
   const [animatingProductId, setAnimatingProductId] = useState<string | null>(null);
+  const [aplicarSaldoFavor, setAplicarSaldoFavor] = useState(false);
 
   const totalCartItemsCount = useMemo(() => cart.reduce((acc, item) => acc + item.qty, 0), [cart]);
 
@@ -793,6 +795,10 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     const snapshotPaymentMethod = paymentMethod;
     const snapshotCashTendered = cashTendered;
 
+    const saldoFavorDisponible = selectedClient?.saldoFavor || 0;
+    const aplicarMonedero = aplicarSaldoFavor && saldoFavorDisponible > 0;
+    const montoSaldoFavorAplicado = aplicarMonedero ? Math.min(saldoFavorDisponible, totals.total) : 0;
+
     const payload: POSFacturaPayload = {
       clienteNombre: clientName,
       clienteId: selectedClient?.id,
@@ -808,6 +814,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       total: totals.total,
       metodoPago: paymentMethod,
       aliasVenta: aliasVenta,
+      montoSaldoFavorAplicado: montoSaldoFavorAplicado,
       detalles: cart.map(c => {
         let tasa = 0;
         if (c.taxState === 'isv15') tasa = 0.15;
@@ -1174,6 +1181,10 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const activeTicketSelectedClient = lastSaleTotals?.selectedClient || selectedClient;
   const activeTicketPaymentMethod = lastSaleTotals?.paymentMethod || paymentMethod;
   const activeTicketCashTendered = lastSaleTotals?.cashTendered !== undefined ? lastSaleTotals.cashTendered : cashTendered;
+
+  const saldoFavorDisponible = selectedClient?.saldoFavor || 0;
+  const montoSaldoFavorAplicado = (aplicarSaldoFavor && saldoFavorDisponible > 0) ? Math.min(saldoFavorDisponible, totals.total) : 0;
+  const totalAPagar = totals.total - montoSaldoFavorAplicado;
 
   return (
 
@@ -1653,8 +1664,41 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
               
               <div className="flex justify-between items-center pt-1.5 border-t border-gray-100 mt-1">
                 <span className="text-sm font-black text-gray-900 uppercase">Total</span>
-                <span className="text-2xl font-black text-indigo-600 tracking-tight">{fmt(totals.total)}</span>
+                <span className="text-2xl font-black text-gray-900 tracking-tight">{fmt(totals.total)}</span>
               </div>
+
+              {saldoFavorDisponible > 0 && (
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <div className="flex flex-col gap-1.5 bg-emerald-50 border border-emerald-200 rounded-lg p-2 relative overflow-hidden">
+                    <div className="flex items-center justify-between z-10 relative">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={aplicarSaldoFavor}
+                          onChange={(e) => setAplicarSaldoFavor(e.target.checked)}
+                          className="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                          Aplicar Saldo a Favor <span className="text-[10px] font-medium opacity-80">(L. {saldoFavorDisponible.toLocaleString('es-HN', {minimumFractionDigits: 2})})</span>
+                        </span>
+                      </label>
+                    </div>
+                    {aplicarSaldoFavor && (
+                      <div className="flex justify-between items-center text-xs text-emerald-700 font-bold ml-5">
+                        <span>Monto Aplicado:</span>
+                        <span>-{fmt(montoSaldoFavorAplicado)}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {aplicarSaldoFavor && (
+                    <div className="flex justify-between items-center mt-2 p-1.5 bg-gray-900 rounded-lg text-white">
+                      <span className="text-sm font-black uppercase ml-1">A PAGAR</span>
+                      <span className="text-xl font-black tracking-tight">{fmt(totalAPagar)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <button

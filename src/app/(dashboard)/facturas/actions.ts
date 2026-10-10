@@ -507,6 +507,23 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
             
             // 1. Guardar la Factura
                     const esCreditoFactura = isCredito(facturaData.terminosPago) || facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO';
+                    const montoSaldoFavor = Number(facturaData.montoSaldoFavorAplicado) || 0;
+                    
+                    let saldoPendienteInicial = esCreditoFactura ? facturaData.total : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? facturaData.total : 0);
+                    let estadoPagoInicial = esCreditoFactura ? 'PENDIENTE' : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA');
+
+                    if (montoSaldoFavor > 0) {
+                        saldoPendienteInicial = Math.max(0, facturaData.total - montoSaldoFavor);
+                        estadoPagoInicial = saldoPendienteInicial <= 0 ? 'PAGADA' : 'PENDIENTE';
+                    }
+
+                    // Preparar nota automática si se usa saldo a favor
+                    let notaFinal = facturaData.notas || '';
+                    if (montoSaldoFavor > 0) {
+                        const fmtMoney = (v: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(v);
+                        const textoDescuento = `(-) ${fmtMoney(montoSaldoFavor)} pagado con Saldo a Favor. Total a pagar: ${fmtMoney(saldoPendienteInicial)}.`;
+                        notaFinal = notaFinal ? `${notaFinal}\n${textoDescuento}` : textoDescuento;
+                    }
                     
                     const nuevaFactura = await tx.factura.create({
                 data: {
@@ -533,9 +550,10 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     metodoPago: esCreditoFactura ? 'Crédito' : (facturaData.metodoPago || 'Efectivo'),
                     aliasVenta: facturaData.aliasVenta || 'Paraíso Floral',
                     vendedorNombre: facturaData.vendedorNombre || null,
-                    saldoPendiente: esCreditoFactura ? facturaData.total : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? facturaData.total : 0),
-                    estadoPago: esCreditoFactura ? 'PENDIENTE' : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'),
+                    saldoPendiente: saldoPendienteInicial,
+                    estadoPago: estadoPagoInicial,
                     transferenciaConfirmada: esCreditoFactura ? false : (facturaData.transferenciaConfirmada ?? true),
+                    notas: notaFinal || null,
 
                     fechaVencimiento: esCreditoFactura 
                         ? new Date(Date.now() + (Number(facturaData.diasCredito) || 15) * 24 * 60 * 60 * 1000) 
@@ -582,6 +600,34 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                         });
                     }
                 }
+            }
+
+            // 3. Procesar Saldo a Favor / Monedero
+            if (montoSaldoFavor > 0) {
+                // A. Reducir saldo a favor del cliente
+                await tx.cliente.update({
+                    where: { id: clienteId },
+                    data: { saldoFavor: { decrement: montoSaldoFavor } }
+                });
+
+                // B. Crear el registro de abono en PagoCliente
+                const nuevoAbono = await tx.pagoCliente.create({
+                    data: {
+                        organizationId,
+                        clienteId,
+                        monto: montoSaldoFavor,
+                        metodoPago: 'MONEDERO',
+                        notas: `Aplicación automática de Saldo a Favor a documento ${correlativoGenerado}`,
+                        creadoPorId: authUser?.id || undefined,
+                        cajaSessionId,
+                        detalles: {
+                            create: {
+                                facturaId: nuevaFactura.id,
+                                montoAplicado: montoSaldoFavor
+                            }
+                        }
+                    }
+                });
             }
 
             return nuevaFactura;
@@ -2922,3 +2968,133 @@ export async function saveFacturaSeguridadConfig(data: {
     }
 }
 
+
+// --- REGISTRAR PAGO RÁPIDO DESDE HISTORIAL ---
+export async function registrarPagoRapido(facturaId: string, metodoPago: string) {
+    try {
+        const user = await getAuthenticatedUser();
+        const doc = await prisma.factura.findUnique({ where: { id: facturaId }, include: { cliente: true } });
+        
+        if (!doc || doc.organizationId !== user.organizationId) {
+            throw new Error('Factura no encontrada.');
+        }
+        
+        if (doc.estado === 'ANULADA') {
+            throw new Error('La factura está anulada.');
+        }
+
+        const saldoActual = Number(doc.saldoPendiente) || 0;
+        if (saldoActual <= 0) {
+            throw new Error('La factura ya está pagada.');
+        }
+
+        // Buscar caja activa
+        const cajaActiva = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId: user.organizationId,
+                estado: 'ABIERTA',
+                usuarioAperturaId: user.id
+            }
+        });
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Crear el recibo de Pago Cliente
+            const abono = await tx.pagoCliente.create({
+                data: {
+                    organizationId: user.organizationId,
+                    clienteId: doc.clienteId,
+                    monto: saldoActual,
+                    metodoPago: metodoPago.toUpperCase(),
+                    notas: 'Pago rápido registrado desde Historial de Facturas',
+                    creadoPorId: user.id,
+                    cajaSessionId: cajaActiva ? cajaActiva.id : null,
+                    detalles: {
+                        create: {
+                            facturaId: doc.id,
+                            montoAplicado: saldoActual
+                        }
+                    }
+                }
+            });
+
+            // 2. Actualizar Factura a Pagada
+            await tx.factura.update({
+                where: { id: doc.id },
+                data: {
+                    saldoPendiente: 0,
+                    estadoPago: 'PAGADA',
+                    ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {})
+                }
+            });
+        });
+
+        await logActivity({
+            userId: user.id,
+            organizationId: user.organizationId,
+            action: 'UPDATE',
+            module: '/facturas',
+            description: `Registró pago rápido por ${saldoActual} (Método: ${metodoPago}) a factura ${doc.correlativo}`,
+            metadata: { facturaId: doc.id }
+        });
+
+        revalidatePath('/facturas');
+        revalidatePath('/cxc');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Error desconocido' };
+    }
+}
+
+// --- REVERTIR PAGO (VOLVER A PENDIENTE) ---
+export async function revertirPagoFactura(facturaId: string) {
+    try {
+        const user = await getAuthenticatedUser();
+        const doc = await prisma.factura.findUnique({ where: { id: facturaId } });
+        
+        if (!doc || doc.organizationId !== user.organizationId) {
+            throw new Error('Factura no encontrada.');
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Anular pagos asociados a esta factura que no estén anulados
+            const detallesPago = await tx.pagoDetalleFactura.findMany({
+                where: { facturaId: doc.id },
+                include: { pago: true }
+            });
+
+            for (const detalle of detallesPago) {
+                if (!detalle.pago.anulado) {
+                    await tx.pagoCliente.update({
+                        where: { id: detalle.pago.id },
+                        data: { anulado: true, anuladoAt: new Date() }
+                    });
+                }
+            }
+
+            // Actualizar Factura a Pendiente
+            await tx.factura.update({
+                where: { id: doc.id },
+                data: {
+                    saldoPendiente: doc.total,
+                    estadoPago: 'PENDIENTE',
+                    transferenciaConfirmada: false
+                }
+            });
+        });
+
+        await logActivity({
+            userId: user.id,
+            organizationId: user.organizationId,
+            action: 'UPDATE',
+            module: '/facturas',
+            description: `Revirtió estado de pago a PENDIENTE para la factura ${doc.correlativo} (uso de PIN de gerencia)`,
+            metadata: { facturaId: doc.id }
+        });
+
+        revalidatePath('/facturas');
+        revalidatePath('/cxc');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Error desconocido' };
+    }
+}

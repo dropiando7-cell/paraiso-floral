@@ -5,7 +5,7 @@ import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy,
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia, buscarHistorialDocumentos } from '@/app/(dashboard)/facturas/actions';
+import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferencia, buscarHistorialDocumentos, registrarPagoRapido, revertirPagoFactura } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
@@ -67,6 +67,10 @@ export default function DocumentListTable({
   const [directPrint, setDirectPrint] = useState(false);
   const [docForSupervisorAuth, setDocForSupervisorAuth] = useState<DocumentRecord | null>(null);
   const [openMenuDocId, setOpenMenuDocId] = useState<string | null>(null);
+  const [docToMarkPaid, setDocToMarkPaid] = useState<DocumentRecord | null>(null);
+  const [pagoRapidoMethod, setPagoRapidoMethod] = useState('Efectivo');
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [docForRevertAuth, setDocForRevertAuth] = useState<DocumentRecord | null>(null);
 
   // Cerrar menú de acciones contextual al hacer clic fuera
   useEffect(() => {
@@ -250,6 +254,27 @@ export default function DocumentListTable({
     }
   };
 
+  const handleMarcarPagada = async () => {
+    if (!docToMarkPaid) return;
+    const id = docToMarkPaid.id;
+    setIsMarkingPaid(true);
+    const toastId = toast.loading('Registrando pago y liquidando factura...');
+    try {
+      const res = await registrarPagoRapido(id, pagoRapidoMethod);
+      if (res.success) {
+        toast.success('Factura marcada como pagada correctamente', { id: toastId });
+        setDocToMarkPaid(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Error al procesar pago', { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Error de conexión', { id: toastId });
+    } finally {
+      setIsMarkingPaid(false);
+    }
+  };
+
   const filteredData = useMemo(() => {
     const filtered = allDocs.filter(doc => {
       if (!showAnuladas && doc.estado === 'ANULADA') return false;
@@ -347,6 +372,7 @@ export default function DocumentListTable({
       precioUnitario: number;
       totalLinea: number;
       totalFactura: number;
+      docBase: DocumentRecord;
     }[] = [];
 
     let totalUnidades = 0;
@@ -371,6 +397,7 @@ export default function DocumentListTable({
             precioUnitario: Number(d.precioUnitario) || 0,
             totalLinea: Number(d.totalLinea) || 0,
             totalFactura: Number(doc.total) || 0,
+            docBase: doc,
           });
           totalUnidades += Number(d.cantidad) || 0;
           totalMonto += Number(d.totalLinea) || 0;
@@ -408,92 +435,61 @@ export default function DocumentListTable({
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const getStatusBadge = (doc: DocumentRecord) => {
-    let badge = null;
-    switch (doc.estado) {
-      case 'BORRADOR': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">Borrador</span>; break;
-      case 'EMITIDA': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">Emitida</span>; break;
-      case 'CONVERTIDA': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-blue-50 text-blue-700 border border-blue-200" title="Este documento fue convertido en otro">Convertida</span>; break;
-      case 'PENDIENTE': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>; break;
-      case 'ANULADA': badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-rose-50 text-rose-700 border border-rose-200">Anulada</span>; break;
-      default: badge = <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">{doc.estado}</span>; break;
+    if (doc.estado === 'ANULADA') {
+      return (
+        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center gap-1.5 w-max">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Anulada
+        </span>
+      );
     }
-    
-    if (doc.estado === 'ANULADA') return badge;
+    if (doc.estado === 'BORRADOR') {
+      return (
+        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center gap-1.5 w-max">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Borrador
+        </span>
+      );
+    }
+    if (doc.estado === 'CONVERTIDA') {
+      return (
+        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1.5 w-max">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Convertida
+        </span>
+      );
+    }
 
-    // 1. SI ES UNA TRANSACCIÓN AL CRÉDITO:
-    // Nunca debe decir "Pend. Transferencia". Debe decir CLARAMENTE "Crédito"
-    if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
-      const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
-      const hoy = new Date();
-      const diasCred = getDiasCredito(doc.terminosPago, doc.validezDias || 30);
-      const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
-      const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      const estaVencida = diasRestantes < 0 && doc.estadoPago !== 'PAGADA';
+    const isPaid = doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0) || doc.estado === 'PAGADA';
 
-      if (doc.estadoPago === 'PAGADA' && (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0)) {
-        return (
-          <div className="flex flex-col items-center gap-1">
-            {badge}
-            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-emerald-700 bg-emerald-100 border border-emerald-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
-              <CheckCircle2 size={10} /> Crédito Pagado
-            </span>
-          </div>
-        );
+    if (isPaid) {
+      return (
+        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center gap-1.5 w-max shadow-2xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pagada
+        </span>
+      );
+    } else {
+      // Check if it's overdue (Vencida)
+      let isOverdue = false;
+      if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
+        const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
+        const hoy = new Date();
+        const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
+        const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        isOverdue = diasRestantes < 0;
       }
 
-      if (estaVencida) {
+      if (isOverdue) {
         return (
-          <div className="flex flex-col items-center gap-1">
-            {badge}
-            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-rose-700 bg-rose-100 border border-rose-300 flex items-center gap-1 shadow-2xs animate-pulse whitespace-nowrap" title={`Venció hace ${Math.abs(diasRestantes)} días`}>
-              <AlertTriangle size={10} /> Crédito Vencido ({Math.abs(diasRestantes)}d)
-            </span>
-          </div>
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-50 text-rose-600 border border-rose-300 flex items-center justify-center gap-1.5 w-max shadow-2xs animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>Vencida
+          </span>
         );
       }
 
       return (
-        <div className="flex flex-col items-center gap-1">
-          {badge}
-          <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-indigo-700 bg-indigo-50 border border-indigo-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
-            <Clock size={10} /> Crédito {diasCred}D ({diasRestantes}d)
-          </span>
-        </div>
+        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center gap-1.5 w-max shadow-2xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Pendiente
+        </span>
       );
     }
-
-    // 2. SI ES CONTADO CON TRANSFERENCIA BANCARIA:
-    if (doc.metodoPago === 'Transferencia') {
-      if (doc.transferenciaConfirmada) {
-        return (
-          <div className="flex flex-col items-center gap-1">
-            {badge}
-            <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-emerald-700 bg-emerald-100 border border-emerald-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
-              <CheckCircle2 size={10} /> Tr. Confirmada
-            </span>
-          </div>
-        );
-      } else {
-        const horas = (new Date().getTime() - new Date(doc.fechaEmision).getTime()) / (1000 * 60 * 60);
-        const esDemorada = horas > 24;
-
-        return (
-          <div className="flex flex-col items-center gap-1">
-            {badge}
-            {esDemorada ? (
-              <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-rose-700 bg-rose-100 border border-rose-300 flex items-center gap-1 shadow-2xs animate-pulse whitespace-nowrap" title="Más de 24 horas sin confirmarse comprobante">
-                <AlertTriangle size={10} /> Transf. Demorada (+24h)
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider font-black rounded-md text-amber-700 bg-amber-100 border border-amber-200 flex items-center gap-1 shadow-2xs whitespace-nowrap">
-                <Clock size={10} /> Pend. Transferencia
-              </span>
-            )}
-          </div>
-        );
-      }
-    }
-    return badge;
   };
 
   return (
@@ -684,15 +680,7 @@ export default function DocumentListTable({
                             <span className="font-bold text-slate-900 tabular-nums">
                               Facturación POS ({item.correlativo})
                             </span>
-                            <span className={`px-1.5 py-0.2 text-[9px] font-black uppercase rounded ${
-                              item.estado === 'EMITIDA' 
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                                : item.estado === 'ANULADA'
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {item.estado}
-                            </span>
+                            {getStatusBadge(item.docBase)}
                           </div>
                           <span className="text-[10px] text-blue-700 font-bold truncate max-w-sm" title={item.descripcion}>
                             🌸 {item.descripcion}
@@ -1187,6 +1175,36 @@ export default function DocumentListTable({
                               </button>
                             </>
                           )}
+                          
+                          {/* Nueva Opción: Marcar como Pagada */}
+                          {doc.estado !== 'ANULADA' && doc.estado !== 'BORRADOR' && doc.estadoPago !== 'PAGADA' && (doc.saldoPendiente ?? 0) > 0 && (
+                             <button
+                               type="button"
+                               onClick={() => {
+                                 setOpenMenuDocId(null);
+                                 setDocToMarkPaid(doc);
+                               }}
+                               className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors w-full text-left cursor-pointer"
+                             >
+                               <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                               <span>Marcar como Pagada</span>
+                             </button>
+                          )}
+
+                          {/* Nueva Opción: Marcar como Pendiente (Requiere PIN) */}
+                          {doc.estado !== 'ANULADA' && doc.estado !== 'BORRADOR' && doc.estadoPago === 'PAGADA' && (
+                             <button
+                               type="button"
+                               onClick={() => {
+                                 setOpenMenuDocId(null);
+                                 setDocForRevertAuth(doc);
+                               }}
+                               className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 transition-colors w-full text-left cursor-pointer"
+                             >
+                               <Undo size={15} className="text-rose-500 shrink-0" />
+                               <span>Revertir Pago a Pendiente</span>
+                             </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1310,6 +1328,70 @@ export default function DocumentListTable({
                 >
                   <CheckCircle2 size={16} />
                   <span>Sí, Fondos Verificados</span>
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Pago Rápido */}
+      {docToMarkPaid && (
+        <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+             <div className="flex items-center gap-3 text-emerald-600">
+               <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold">
+                 <CheckCircle2 size={20} />
+               </div>
+               <div>
+                 <h3 className="font-extrabold text-slate-900 text-base">Registrar Pago</h3>
+                 <p className="text-xs text-slate-500 font-mono">{docToMarkPaid.correlativo}</p>
+               </div>
+             </div>
+             
+             <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-3">
+               <div className="flex justify-between items-center text-sm">
+                 <span className="text-slate-500 font-medium">Monto a cancelar:</span>
+                 <span className="font-black text-emerald-700">{fmt(docToMarkPaid.saldoPendiente ?? docToMarkPaid.total)}</span>
+               </div>
+               
+               <div className="space-y-1.5">
+                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Método de Pago</label>
+                 <select 
+                   value={pagoRapidoMethod}
+                   onChange={e => setPagoRapidoMethod(e.target.value)}
+                   className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                 >
+                   <option value="Efectivo">💵 Efectivo</option>
+                   <option value="Transferencia">🏦 Transferencia / Depósito</option>
+                   <option value="Tarjeta">💳 Tarjeta de Crédito/Débito</option>
+                 </select>
+               </div>
+             </div>
+
+             <p className="text-[11px] text-amber-700 bg-amber-50 p-3 rounded-xl font-medium border border-amber-200 flex gap-2 items-start leading-tight">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  <strong>IMPORTANTE:</strong> Esta acción cambiará el estado de la factura e ingresará el dinero. Revertirlo después requerirá un PIN de Autorización de Gerencia.
+                </span>
+             </p>
+
+             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDocToMarkPaid(null)}
+                  disabled={isMarkingPaid}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMarcarPagada}
+                  disabled={isMarkingPaid}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isMarkingPaid ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  <span>Registrar Pago</span>
                 </button>
              </div>
           </div>
@@ -1537,6 +1619,33 @@ export default function DocumentListTable({
             const docId = docForSupervisorAuth.id;
             setDocForSupervisorAuth(null);
             router.push(`/facturas/${docId}?authSupervisor=${encodeURIComponent(supervisor.nombre)}&authCode=${encodeURIComponent(code)}`);
+          }}
+        />
+      )}
+
+      {/* Modal de Autorización de Supervisor para REVERTIR Pago */}
+      {docForRevertAuth && (
+        <SupervisorAuthModal
+          isOpen={Boolean(docForRevertAuth)}
+          onClose={() => setDocForRevertAuth(null)}
+          facturaId={docForRevertAuth.id}
+          correlativo={docForRevertAuth.correlativo}
+          total={docForRevertAuth.total}
+          onAuthorized={async (supervisor: { nombre: string; email: string }, code: string) => {
+            const docId = docForRevertAuth.id;
+            setDocForRevertAuth(null);
+            const toastId = toast.loading('Revirtiendo estado de pago a Pendiente...');
+            try {
+              const res = await revertirPagoFactura(docId);
+              if (res.success) {
+                toast.success('Pago revertido con éxito por ' + supervisor.nombre, { id: toastId });
+                router.refresh();
+              } else {
+                toast.error(res.error || 'Error al revertir', { id: toastId });
+              }
+            } catch (e: any) {
+              toast.error(e.message || 'Error de red', { id: toastId });
+            }
           }}
         />
       )}
