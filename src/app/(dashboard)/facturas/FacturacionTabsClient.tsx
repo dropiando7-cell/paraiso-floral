@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import DocumentBuilderClient from './DocumentBuilderClient';
 import DocumentListTable, { DocumentRecord } from '@/components/facturas/DocumentListTable';
 import FacturacionHeader from './FacturacionHeader';
+import LibretaIAClient from './LibretaIAClient';
 
 interface Props {
   organization: any;
@@ -22,17 +23,17 @@ export default function FacturacionTabsClient({
   userEmail = ''
 }: Props) {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get('tab') as 'creador' | 'facturas' | 'cotizaciones' | 'proforma') || 'creador';
-  const [activeTab, setActiveTab] = useState<'creador' | 'facturas' | 'cotizaciones' | 'proforma'>(initialTab);
+  const initialTab = (searchParams.get('tab') as 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'libreta') || 'creador';
+  const [activeTab, setActiveTab] = useState<'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'libreta'>(initialTab);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['creador', 'facturas', 'cotizaciones', 'proforma'].includes(tab)) {
+    if (tab && ['creador', 'facturas', 'cotizaciones', 'proforma', 'libreta'].includes(tab)) {
       setActiveTab(tab as any);
     }
   }, [searchParams]);
 
-  const handleTabChange = (tab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma') => {
+  const handleTabChange = (tab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'libreta') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const newUrl = new URL(window.location.href);
@@ -88,6 +89,14 @@ export default function FacturacionTabsClient({
             userRole={userRole}
             userAccessibleModules={userAccessibleModules}
             userEmail={userEmail}
+          />
+        )}
+
+        {activeTab === 'libreta' && (
+          <LibretaIAClient 
+            organization={organization}
+            userRole={userRole}
+            userAccessibleModules={userAccessibleModules}
           />
         )}
 

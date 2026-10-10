@@ -8,8 +8,8 @@ import BandejaPedidosCediModal from '@/components/facturacion/BandejaPedidosCedi
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 
 interface Props {
-  activeTab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'ver' | 'editar';
-  onTabChange?: (tab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma') => void;
+  activeTab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'ver' | 'editar' | 'libreta';
+  onTabChange?: (tab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma' | 'libreta') => void;
   isSubPage?: boolean;
 }
 
@@ -35,6 +35,8 @@ export default function FacturacionHeader(props: Props) {
         return { label: 'Facturas Pro Forma', icon: Receipt, color: 'text-violet-700 bg-violet-50 border-violet-200/60' };
       case 'cotizaciones':
         return { label: 'Cotizaciones Previas', icon: FileText, color: 'text-blue-700 bg-blue-50 border-blue-200/60' };
+      case 'libreta':
+        return { label: 'Libreta Mágica', icon: Zap, color: 'text-fuchsia-700 bg-fuchsia-50 border-fuchsia-200/60' };
       case 'creador':
       default:
         return { label: 'Nuevo Documento', icon: PlusCircle, color: 'text-slate-700 bg-slate-100 border-slate-200/60' };
@@ -139,6 +141,28 @@ export default function FacturacionHeader(props: Props) {
                     title="Crear Documento"
                   >
                     <PlusCircle size={16} />
+                  </Link>
+                )
+              )}
+
+              {props.activeTab !== 'libreta' && (
+                props.onTabChange ? (
+                  <button
+                    onClick={() => props.onTabChange && props.onTabChange('libreta')}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-700 hover:to-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black shadow-md shadow-fuchsia-500/20 transition-all group shrink-0"
+                    title="Libreta Mágica IA"
+                  >
+                    <span className="hidden sm:inline">✨ Libreta IA</span>
+                    <span className="sm:hidden">✨ IA</span>
+                  </button>
+                ) : (
+                  <Link
+                    href="/facturas?tab=libreta"
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-700 hover:to-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black shadow-md shadow-fuchsia-500/20 transition-all group shrink-0"
+                    title="Libreta Mágica IA"
+                  >
+                    <span className="hidden sm:inline">✨ Libreta IA</span>
+                    <span className="sm:hidden">✨ IA</span>
                   </Link>
                 )
               )}
