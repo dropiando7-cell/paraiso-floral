@@ -616,8 +616,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                 txList.push({
                     id: p.id,
                     fechaStr: p.fecha,
-                    concepto: `Abono CxC (${p.correlativo || 'PAGO'})`,
-                    cliente: p.cliente?.nombre || 'Cliente General',
+                    concepto: `Abono CxC (${p.notas || 'PAGO'})`,
+                    cliente: p.clienteNombre || 'Cliente General',
                     monto: p.monto
                 });
             });

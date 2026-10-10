@@ -403,7 +403,12 @@ export async function getCajaSessionSummary(sessionId: string) {
             },
             pagosCliente: {
                 include: {
-                    cliente: true
+                    cliente: true,
+                    detalles: {
+                        include: {
+                            factura: true
+                        }
+                    }
                 }
             }
         }
@@ -636,15 +641,20 @@ export async function getCajaSessionSummary(sessionId: string) {
             creadoPor: m.creadoPor ? { nombre: m.creadoPor.nombre, email: m.creadoPor.email } : null,
             anuladaPor: m.anuladaPor ? { nombre: m.anuladaPor.nombre, email: m.anuladaPor.email } : null
         })),
-        pagosCliente: session.pagosCliente.map(p => ({
-            id: p.id,
-            monto: Number(p.monto),
-            metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago,
-            fecha: p.fecha.toISOString(),
-            clienteNombre: p.cliente?.nombre || 'Cliente General',
-            notas: p.notas || '',
-            anulado: p.anulado
-        }))
+        pagosCliente: session.pagosCliente.map(p => {
+            const facturaCorrelativo = p.detalles && p.detalles.length > 0 && p.detalles[0].factura 
+                ? p.detalles[0].factura.correlativo 
+                : null;
+            return {
+                id: p.id,
+                monto: Number(p.monto),
+                metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago,
+                fecha: p.fecha.toISOString(),
+                clienteNombre: p.cliente?.nombre || 'Cliente General',
+                notas: facturaCorrelativo ? `Factura ${facturaCorrelativo}` : (p.notas || ''),
+                anulado: p.anulado
+            };
+        })
     };
 
     return {
