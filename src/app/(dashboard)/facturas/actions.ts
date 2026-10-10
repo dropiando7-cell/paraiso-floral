@@ -2997,36 +2997,52 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string)
             }
         });
 
+        const isSameSession = cajaActiva && doc.cajaSessionId === cajaActiva.id;
+
         await prisma.$transaction(async (tx) => {
-            // 1. Crear el recibo de Pago Cliente
-            const abono = await tx.pagoCliente.create({
-                data: {
-                    organizationId: user.organizationId,
-                    clienteId: doc.clienteId,
-                    monto: saldoActual,
-                    metodoPago: metodoPago.toUpperCase(),
-                    notas: 'Pago rápido registrado desde Historial de Facturas',
-                    creadoPorId: user.id,
-                    cajaSessionId: cajaActiva ? cajaActiva.id : null,
-                    detalles: {
-                        create: {
-                            facturaId: doc.id,
-                            montoAplicado: saldoActual
+            if (isSameSession) {
+                // Si la factura es del mismo turno, se convierte directamente a venta de contado
+                await tx.factura.update({
+                    where: { id: doc.id },
+                    data: {
+                        terminosPago: 'Contado',
+                        metodoPago: metodoPago,
+                        saldoPendiente: 0,
+                        estadoPago: 'PAGADA',
+                        ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {})
+                    }
+                });
+            } else {
+                // Si la factura es de un turno anterior, se genera un Abono (CxC)
+                const abono = await tx.pagoCliente.create({
+                    data: {
+                        organizationId: user.organizationId,
+                        clienteId: doc.clienteId,
+                        monto: saldoActual,
+                        metodoPago: metodoPago.toUpperCase(),
+                        notas: 'Pago rápido registrado desde Historial de Facturas',
+                        creadoPorId: user.id,
+                        cajaSessionId: cajaActiva ? cajaActiva.id : null,
+                        detalles: {
+                            create: {
+                                facturaId: doc.id,
+                                montoAplicado: saldoActual
+                            }
                         }
                     }
-                }
-            });
+                });
 
-            // 2. Actualizar Factura a Pagada
-            await tx.factura.update({
-                where: { id: doc.id },
-                data: {
-                    saldoPendiente: 0,
-                    estadoPago: 'PAGADA',
-                    ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {})
-                }
-            });
+                await tx.factura.update({
+                    where: { id: doc.id },
+                    data: {
+                        saldoPendiente: 0,
+                        estadoPago: 'PAGADA',
+                        ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {})
+                    }
+                });
+            }
         });
+
 
         await logActivity({
             userId: user.id,
@@ -3071,12 +3087,14 @@ export async function revertirPagoFactura(facturaId: string) {
                 }
             }
 
-            // Actualizar Factura a Pendiente
+            // Actualizar Factura a Pendiente (vuelve a ser Crédito)
             await tx.factura.update({
                 where: { id: doc.id },
                 data: {
                     saldoPendiente: doc.total,
                     estadoPago: 'PENDIENTE',
+                    terminosPago: 'Crédito',
+                    metodoPago: 'Crédito',
                     transferenciaConfirmada: false
                 }
             });

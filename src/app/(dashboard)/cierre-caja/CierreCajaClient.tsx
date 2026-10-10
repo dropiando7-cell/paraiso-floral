@@ -602,7 +602,16 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
         // Add payments to CxC (Abonos)
         const pagosCliente = session.pagosCliente || [];
-        pagosCliente.filter((p: any) => p.metodoPago === metodo && !p.anulado)
+        pagosCliente.filter((p: any) => {
+            if (p.anulado) return false;
+            let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
+            let pMetodo = 'Efectivo';
+            if (rawMetodo.includes('TARJETA')) pMetodo = 'Tarjeta';
+            else if (rawMetodo.includes('TRANSFERENCIA')) pMetodo = 'Transferencia';
+            else if (rawMetodo.includes('CHEQUE')) pMetodo = 'Cheque';
+            else if (rawMetodo.includes('OCCIDENTE') || rawMetodo.includes('LINK')) pMetodo = 'Link de pago de Occidente';
+            return pMetodo === metodo;
+        })
             .forEach((p: any) => {
                 txList.push({
                     id: p.id,
