@@ -548,15 +548,21 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                         });
                     }
                 });
-            } else if ((f.metodoPago || 'Efectivo') === metodo) {
-                txList.push({
-                    id: f.id,
-                    fechaStr: f.fechaEmision,
-                    concepto: `Facturación POS (${f.correlativo})`,
-                    cliente: f.clienteNombre || 'Cliente General',
-                    monto: f.total,
-                    isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
-                });
+            } else {
+                const pMetodo = f.metodoPago || 'Efectivo';
+                const isCredito = pMetodo === 'Crédito' || pMetodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO');
+                const matchedMetodo = isCredito ? 'Crédito' : (pMetodo === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : pMetodo);
+                
+                if (matchedMetodo === metodo) {
+                    txList.push({
+                        id: f.id,
+                        fechaStr: f.fechaEmision,
+                        concepto: `Facturación POS (${f.correlativo})`,
+                        cliente: f.clienteNombre || 'Cliente General',
+                        monto: f.total,
+                        isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+                    });
+                }
             }
         });
 
@@ -957,7 +963,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 font-medium">
-                                                {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'].map((metodo) => {
+                                                {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente', 'Crédito'].map((metodo) => {
                                                     const v = summaryData?.summary?.ventas?.[metodo] || 0;
                                                     const a = summaryData?.summary?.abonos?.[metodo] || 0;
                                                     const r = summaryData?.summary?.rentas?.[metodo] || 0;
@@ -973,21 +979,24 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                 <td className="px-6 py-3.5 font-bold text-slate-900">
                                                                     <div className="flex items-center gap-2">
                                                                         {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />}
-                                                                        <span>{metodo}</span>
+                                                                        <span>{metodo} {metodo === 'Crédito' && <span className="ml-1 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-normal">Por Cobrar</span>}</span>
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(v)}</td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(a)}</td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(r)}</td>
                                                                 <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(s)}</td>
-                                                                <td className={`px-6 py-3.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/40' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
+                                                                <td className={`px-6 py-3.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/40' : (metodo === 'Crédito' ? 'text-slate-500' : 'text-slate-900')}`}>{formatCurrency(total)}</td>
                                                             </tr>
                                                             {renderBreakdownRow(metodo, summaryData?.session, isExpanded, 6)}
                                                         </React.Fragment>
                                                     );
                                                 })}
                                                 <tr className="bg-slate-900 text-white font-bold text-sm">
-                                                    <td className="px-6 py-4">TOTALES DEL TURNO</td>
+                                                    <td className="px-6 py-4">
+                                                        TOTALES DEL TURNO 
+                                                        <span className="block text-[10px] text-slate-400 font-normal">No incluye Créditos (Por Cobrar)</span>
+                                                    </td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalVentas || 0)}</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalAbonos || 0)}</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalRentas || 0)}</td>

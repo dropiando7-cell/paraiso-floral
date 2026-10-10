@@ -419,7 +419,7 @@ export async function getCajaSessionSummary(sessionId: string) {
     }
 
     // Default structure for classification
-    const metodos = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'];
+    const metodos = ['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente', 'Crédito'];
     const summary = {
         ventas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         rentas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
@@ -440,6 +440,8 @@ export async function getCajaSessionSummary(sessionId: string) {
         // Check if it is a credit sale
         if (metodo === 'Crédito' || metodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO')) {
             summary.ventasCredito += total;
+            summary.ventas['Crédito'] = (summary.ventas['Crédito'] || 0) + total;
+            summary.transaccionesPorMetodo['Crédito'] = (summary.transaccionesPorMetodo['Crédito'] || 0) + 1;
             return;
         }
 
@@ -527,12 +529,12 @@ export async function getCajaSessionSummary(sessionId: string) {
         }
     });
 
-    const totalVentas = Object.values(summary.ventas).reduce((sum, v) => sum + v, 0);
+    const totalVentas = Object.entries(summary.ventas).reduce((sum, [k, v]) => k !== 'Crédito' ? sum + v : sum, 0);
     const totalVentasCredito = summary.ventasCredito || 0;
     const totalFacturado = totalVentas + totalVentasCredito;
-    const totalRentas = Object.values(summary.rentas).reduce((sum, r) => sum + r, 0);
-    const totalSoporte = Object.values(summary.soporte).reduce((sum, s) => sum + s, 0);
-    const totalAbonos = Object.values(summary.abonos).reduce((sum, a) => sum + a, 0);
+    const totalRentas = Object.entries(summary.rentas).reduce((sum, [k, r]) => k !== 'Crédito' ? sum + r : sum, 0);
+    const totalSoporte = Object.entries(summary.soporte).reduce((sum, [k, s]) => k !== 'Crédito' ? sum + s : sum, 0);
+    const totalAbonos = Object.entries(summary.abonos).reduce((sum, [k, a]) => k !== 'Crédito' ? sum + a : sum, 0);
 
     const saldoInicial = Number(session.saldoInicial);
     const ventasEfectivo = summary.ventas['Efectivo'] || 0;
