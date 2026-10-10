@@ -58,8 +58,9 @@ export function ProductSmartAutocomplete({
     }
     const fuse = new Fuse(products, {
       keys: ['nombre', 'sku'],
-      threshold: 0.4, // Intermedio para errores de dedo
+      threshold: 0.6, // Mayor tolerancia para errores de dedo (default 0.6)
       ignoreLocation: true,
+      ignoreFieldNorm: true,
       includeScore: true,
       useExtendedSearch: true
     });

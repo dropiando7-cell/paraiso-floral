@@ -195,7 +195,11 @@ export async function searchProductos(query: string = "", limitOverride?: number
     try {
         const organizationId = await getOrganizationId();
         const queryTrim = query.trim();
-        const limit = limitOverride || (queryTrim ? 50 : 30);
+        const firstWord = queryTrim.split(' ')[0];
+        // Tomar primeros 4 caracteres para atrapar errores ortográficos en el resto de la palabra
+        const queryPrefix = firstWord.length > 4 ? firstWord.substring(0, 4) : firstWord;
+        
+        const limit = limitOverride || (queryTrim ? 150 : 30);
         
         const [productos, activos] = await Promise.all([
             prisma.producto.findMany({
@@ -205,6 +209,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                     ...(queryTrim ? {
                         OR: [
                             { nombre: { contains: queryTrim, mode: 'insensitive' } },
+                            { nombre: { contains: queryPrefix, mode: 'insensitive' } },
                             { sku: { contains: queryTrim, mode: 'insensitive' } },
                             { marca: { contains: queryTrim, mode: 'insensitive' } },
                             { modelo: { contains: queryTrim, mode: 'insensitive' } },
@@ -221,6 +226,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                     ...(queryTrim ? {
                         OR: [
                             { descripcionCorta: { contains: queryTrim, mode: 'insensitive' } },
+                            { descripcionCorta: { contains: queryPrefix, mode: 'insensitive' } },
                             { idQr: { contains: queryTrim, mode: 'insensitive' } },
                             { marca: { contains: queryTrim, mode: 'insensitive' } },
                             { serie: { contains: queryTrim, mode: 'insensitive' } }

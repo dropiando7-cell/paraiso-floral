@@ -1114,8 +1114,9 @@ function LineItemRow({
     // Configurar búsqueda difusa con Fuse.js
     const fuse = new Fuse(items, {
       keys: ['name', 'code', 'description', 'serie'],
-      threshold: 0.4, // Nivel intermedio de tolerancia a errores ortográficos
+      threshold: 0.6, // Mayor tolerancia a errores ortográficos
       ignoreLocation: true,
+      ignoreFieldNorm: true,
       includeScore: true,
       useExtendedSearch: true
     });
@@ -1798,6 +1799,7 @@ function LineItemRow({
                   <input
                     type="number"
                     min="1"
+                    data-qty-index={index}
                     value={item.qty}
                     onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                     onFocus={e => { const t = e.target; setTimeout(() => t.select(), 10); }}
@@ -3632,6 +3634,21 @@ export default function DocumentBuilderClient({
   const [showPrintChoiceModal, setShowPrintChoiceModal] = useState(false);
   const [showTicketPreviewModal, setShowTicketPreviewModal] = useState(false);
   const [directPrint, setDirectPrint] = useState(false);
+  
+  const [showTopHistoryAlert, setShowTopHistoryAlert] = useState(false);
+  const [isHistoryAccordionOpen, setIsHistoryAccordionOpen] = useState(false);
+
+  useEffect(() => {
+    if (viewMode && Array.isArray(initialData?.templateSettings?.auditTrail) && initialData.templateSettings.auditTrail.length > 0) {
+      const history = initialData.templateSettings.auditTrail;
+      const latestDate = Math.max(...history.map((e: any) => new Date(e.fecha).getTime()));
+      if (Date.now() - latestDate < 15000) {
+        setShowTopHistoryAlert(true);
+        const timer = setTimeout(() => setShowTopHistoryAlert(false), 5000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [viewMode, initialData?.templateSettings?.auditTrail]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -5124,23 +5141,26 @@ export default function DocumentBuilderClient({
                </div>
              )}
 
-             {/* Historial / Auditoría de Modificaciones */}
-             {viewMode && Array.isArray(initialData?.templateSettings?.auditTrail) && initialData.templateSettings.auditTrail.length > 0 && (
-               <div className="max-w-[816px] mx-auto mb-4 bg-slate-900 text-white rounded-2xl p-4 shadow-md border border-slate-800 print:hidden">
+             {/* Historial / Auditoría de Modificaciones (Alerta Temporal) */}
+             {viewMode && showTopHistoryAlert && Array.isArray(initialData?.templateSettings?.auditTrail) && initialData.templateSettings.auditTrail.length > 0 && (
+               <div className="max-w-[816px] mx-auto mb-4 bg-slate-900 text-white rounded-2xl p-4 shadow-md border border-slate-800 print:hidden animate-in fade-in slide-in-from-top-4 duration-500">
                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                    <div className="flex items-center gap-2">
-                     <ShieldAlert className="w-5 h-5 text-amber-400" />
+                     <ShieldAlert className="w-5 h-5 text-emerald-400 animate-pulse" />
                      <h4 className="text-sm font-bold text-slate-100">
-                       Historial de Modificaciones ({initialData.templateSettings.auditTrail.length})
+                       Cambio Registrado ({initialData.templateSettings.auditTrail.length})
                      </h4>
                    </div>
-                   <span className="text-[10px] font-mono bg-slate-800 text-amber-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold uppercase tracking-wider">
+                   <span className="text-[10px] font-mono bg-slate-800 text-emerald-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold uppercase tracking-wider">
                      Auditoría Activa
                    </span>
                  </div>
                  <div className="mt-3 space-y-2 text-xs">
-                   {initialData.templateSettings.auditTrail.map((entry: any, idx: number) => (
-                     <div key={idx} className="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                   {initialData.templateSettings.auditTrail.map((entry: any, idx: number) => {
+                     // Solo mostrar el último cambio en la alerta temporal
+                     if (idx !== initialData.templateSettings.auditTrail.length - 1) return null;
+                     return (
+                     <div key={idx} className="bg-slate-800/80 rounded-xl p-2.5 border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                        <div className="space-y-0.5">
                          <p className="font-semibold text-slate-200">
                            ✏️ Modificado por: <span className="text-brand-300 font-bold">{entry.modificadoPor?.nombre || entry.modificadoPor?.email || 'Usuario'}</span>
@@ -5161,7 +5181,7 @@ export default function DocumentBuilderClient({
                          )}
                        </div>
                      </div>
-                   ))}
+                   )})}
                  </div>
                </div>
              )}
@@ -5310,6 +5330,57 @@ export default function DocumentBuilderClient({
             );
           })()}
           </div>
+
+          {/* Acordeón de Historial / Auditoría de Modificaciones (Ubicado abajo) */}
+          {viewMode && Array.isArray(initialData?.templateSettings?.auditTrail) && initialData.templateSettings.auditTrail.length > 0 && (
+            <div className="max-w-[816px] mx-auto mt-6 bg-slate-900 text-white rounded-2xl shadow-md border border-slate-800 print:hidden overflow-hidden">
+               <button 
+                 type="button" 
+                 onClick={() => setIsHistoryAccordionOpen(!isHistoryAccordionOpen)} 
+                 className="w-full flex items-center justify-between p-4 bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer"
+               >
+                 <div className="flex items-center gap-2">
+                   <ShieldAlert className="w-5 h-5 text-amber-400" />
+                   <h4 className="text-sm font-bold text-slate-100">
+                     Historial de Modificaciones ({initialData.templateSettings.auditTrail.length})
+                   </h4>
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <span className="text-[10px] font-mono bg-slate-800 text-amber-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold uppercase tracking-wider">
+                     Auditoría Activa
+                   </span>
+                   <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isHistoryAccordionOpen ? 'rotate-180' : ''}`} />
+                 </div>
+               </button>
+               {isHistoryAccordionOpen && (
+                 <div className="p-4 pt-0 space-y-2 text-xs border-t border-slate-800 bg-slate-900/90 animate-in fade-in slide-in-from-top-2">
+                   {initialData.templateSettings.auditTrail.map((entry: any, idx: number) => (
+                     <div key={idx} className="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                       <div className="space-y-0.5">
+                         <p className="font-semibold text-slate-200">
+                           ✏️ Modificado por: <span className="text-brand-300 font-bold">{entry.modificadoPor?.nombre || entry.modificadoPor?.email || 'Usuario'}</span>
+                           {entry.autorizadoPor && (
+                             <span className="text-emerald-400 font-bold ml-1.5">
+                               (🔓 Autorizado por: {entry.autorizadoPor.nombre})
+                             </span>
+                           )}
+                         </p>
+                         <p className="text-[11px] text-slate-400">
+                           Emisión original: {entry.creadoPorOriginal || 'Usuario'} • Motivo: {entry.motivo || 'Edición de factura'}
+                         </p>
+                       </div>
+                       <div className="text-right sm:shrink-0 text-[11px] font-mono text-slate-400">
+                         <div>{new Date(entry.fecha).toLocaleString('es-HN')}</div>
+                         {entry.totalAnterior !== undefined && entry.totalNuevo !== undefined && (
+                           <div className="text-slate-300">L {Number(entry.totalAnterior).toFixed(2)} → L {Number(entry.totalNuevo).toFixed(2)}</div>
+                         )}
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               )}
+            </div>
+          )}
 
 
           {/* Bottom Action Bar */}
@@ -6454,6 +6525,13 @@ export default function DocumentBuilderClient({
                       if (filteredClients.length > 0 && filteredClients[selectedClientIndex]) {
                         setSelectedClient(filteredClients[selectedClientIndex]);
                         setShowClientModal(false);
+                        setTimeout(() => {
+                          const firstQtyInput = document.querySelector('input[data-qty-index="0"]') as HTMLInputElement;
+                          if (firstQtyInput) {
+                            firstQtyInput.focus();
+                            firstQtyInput.select();
+                          }
+                        }, 150);
                       }
                     } else if (e.key === 'Escape') {
                       e.preventDefault();
@@ -6548,6 +6626,13 @@ export default function DocumentBuilderClient({
                           onClick={() => {
                             setSelectedClient(client);
                             setShowClientModal(false);
+                            setTimeout(() => {
+                              const firstQtyInput = document.querySelector('input[data-qty-index="0"]') as HTMLInputElement;
+                              if (firstQtyInput) {
+                                firstQtyInput.focus();
+                                firstQtyInput.select();
+                              }
+                            }, 150);
                           }}
                           className="flex-1 flex items-center gap-4 text-left min-w-0"
                         >

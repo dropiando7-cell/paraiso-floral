@@ -269,7 +269,7 @@ export default function DocumentListTable({
       } else if (filterVendedor === 'SIN_VENDEDOR') {
         if (doc.vendedorNombre && doc.vendedorNombre.trim()) return false;
       } else if (filterVendedor !== 'TODOS') {
-        if (doc.vendedorNombre !== filterVendedor) return false;
+        if (!doc.vendedorNombre || doc.vendedorNombre.trim().toLowerCase() !== filterVendedor.trim().toLowerCase()) return false;
       }
 
       if (showPendientesTrans) {
@@ -327,7 +327,7 @@ export default function DocumentListTable({
     }
 
     return filtered;
-  }, [allDocs, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos]);
+  }, [allDocs, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos, filterVendedor]);
 
   // Resumen de productos facturados (cuando la búsqueda coincide con líneas de detalle)
   const productSummary = useMemo(() => {

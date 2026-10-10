@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import ModalAbono from '@/components/cxc/ModalAbono';
 import ModalNotaCredito from '@/components/cxc/ModalNotaCredito';
 import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
+import ModalMonederoVirtual from '@/components/cxc/ModalMonederoVirtual';
 import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
@@ -41,6 +42,7 @@ interface ClienteDetalle {
     rtn: string | null;
     limiteCredito: number;
     saldoInicial?: number;
+    saldoFavor?: number;
     fechaSaldoInicial?: string | Date | null;
     diasCredito: number;
   };
@@ -103,6 +105,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   const [modalAbonoOpen, setModalAbonoOpen] = useState<boolean>(false);
   const [modalNCOpen, setModalNCOpen] = useState<boolean>(false);
   const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
+  const [modalMonederoOpen, setModalMonederoOpen] = useState<boolean>(false);
   const [modalEditarAbonoOpen, setModalEditarAbonoOpen] = useState<boolean>(false);
   const [pagoAEditar, setPagoAEditar] = useState<any>(null);
 
@@ -685,6 +688,14 @@ ${publicUrl}
                 <Clock className="w-4 h-4" />
                 <span>Saldo Inicial</span>
               </button>
+
+              <button
+                onClick={() => setModalMonederoOpen(true)}
+                className="py-2.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Monedero</span>
+              </button>
             </div>
           </div>
 
@@ -727,6 +738,33 @@ ${publicUrl}
                 L. {resumen.totalNotasCredito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
               </p>
             </div>
+
+            {(cliente.saldoFavor ?? 0) > 0 && (
+              <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-300 md:col-span-4 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-3 opacity-10">
+                  <DollarSign className="w-20 h-20 text-emerald-900" />
+                </div>
+                <div className="relative z-10 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest flex items-center gap-1">
+                      <DollarSign className="w-4 h-4" /> Monedero Virtual
+                    </span>
+                    <p className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 font-mono">
+                      L. {(cliente.saldoFavor ?? 0).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] text-emerald-600 font-bold mt-1 max-w-sm">
+                      Disponible para aplicar como pago o descuento en futuras facturas.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setModalMonederoOpen(true)}
+                    className="py-2 px-4 bg-white text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 text-xs font-extrabold rounded-xl border border-emerald-200 shadow-sm transition-colors cursor-pointer"
+                  >
+                    Gestionar Monedero
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1074,6 +1112,13 @@ ${publicUrl}
       <ModalSaldoInicial
         isOpen={modalSaldoInicialOpen}
         onClose={() => setModalSaldoInicialOpen(false)}
+        onSuccess={cargarEstadoCuenta}
+        cliente={data?.cliente as any}
+      />
+
+      <ModalMonederoVirtual
+        isOpen={modalMonederoOpen}
+        onClose={() => setModalMonederoOpen(false)}
         onSuccess={cargarEstadoCuenta}
         cliente={data?.cliente as any}
       />

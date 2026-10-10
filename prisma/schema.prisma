@@ -721,6 +721,7 @@ model Cliente {
   emailsCC         String?
   limiteCredito      Decimal        @default(0) @db.Decimal(12, 2)
   saldoInicial       Decimal        @default(0) @db.Decimal(12, 2)
+  saldoFavor         Decimal        @default(0) @db.Decimal(12, 2)
   fechaSaldoInicial  DateTime?
   diasCredito        Int            @default(15)
   vendedorId         String?        @db.Uuid

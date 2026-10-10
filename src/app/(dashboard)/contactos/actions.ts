@@ -211,3 +211,36 @@ export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoIni
         fechaSaldoInicial: updated.fechaSaldoInicial
     };
 }
+
+export async function updateSaldoFavorCliente(clienteId: string, montoAAgregar: number) {
+    const orgId = await getOrgId();
+    
+    // Obtenemos el saldo actual
+    const cliente = await prisma.cliente.findUnique({
+        where: { id: clienteId, organizationId: orgId }
+    });
+
+    if (!cliente) throw new Error('Cliente no encontrado');
+
+    const saldoActual = cliente.saldoFavor ? Number(cliente.saldoFavor) : 0;
+    const nuevoSaldo = saldoActual + montoAAgregar;
+
+    if (nuevoSaldo < 0) {
+        throw new Error('El monedero no puede quedar con saldo negativo.');
+    }
+
+    const updated = await prisma.cliente.update({
+        where: { id: clienteId },
+        data: {
+            saldoFavor: nuevoSaldo
+        }
+    });
+
+    revalidatePath('/cxc');
+    revalidatePath('/cxc/cliente/' + clienteId);
+    revalidatePath('/contactos');
+    return {
+        success: true,
+        saldoFavor: Number(updated.saldoFavor)
+    };
+}
