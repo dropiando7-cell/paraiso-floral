@@ -183,6 +183,8 @@ export default function DocumentListTable({
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
   const [showCredito, setShowCredito] = useState(false);
   const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
+  const [filterFechaDesde, setFilterFechaDesde] = useState<string>('');
+  const [filterFechaHasta, setFilterFechaHasta] = useState<string>('');
 
   // Lista dinámica de vendedores para el selector
   const availableVendedores = useMemo(() => {
@@ -205,7 +207,7 @@ export default function DocumentListTable({
   useEffect(() => {
     setCurrentPage(1);
     setProductPage(1);
-  }, [search, showAnuladas, type, filterVendedor, filterOrigen]);
+  }, [search, showAnuladas, type, filterVendedor, filterOrigen, filterFechaDesde, filterFechaHasta]);
 
   const confirmAnular = async () => {
     if (!docToAnul) return;
@@ -309,6 +311,25 @@ export default function DocumentListTable({
         if (!isCredito(doc.terminosPago) && doc.metodoPago !== 'Crédito' && doc.metodoPago !== 'CREDITO') return false;
         const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
         if (!fVenc || fVenc.getTime() >= new Date().getTime() || doc.estadoPago === 'PAGADA') return false;
+      }
+
+      // Filtro por fecha (Emisión)
+      if (filterFechaDesde || filterFechaHasta) {
+        // Asumiendo doc.fechaEmision es string en formato ISO o YYYY-MM-DD
+        const emisionDate = new Date(doc.fechaEmision);
+        emisionDate.setHours(0,0,0,0);
+        
+        if (filterFechaDesde) {
+            const fd = new Date(filterFechaDesde);
+            fd.setHours(0,0,0,0);
+            // Since JS dates and local timezones might mismatch, we just compare timestamps after setting hours to 0
+            if (emisionDate.getTime() + (emisionDate.getTimezoneOffset() * 60000) < fd.getTime() + (fd.getTimezoneOffset() * 60000)) return false;
+        }
+        if (filterFechaHasta) {
+            const fh = new Date(filterFechaHasta);
+            fh.setHours(23,59,59,999);
+            if (emisionDate.getTime() + (emisionDate.getTimezoneOffset() * 60000) > fh.getTime() + (fh.getTimezoneOffset() * 60000)) return false;
+        }
       }
       
       const q = search.trim().toLowerCase();
@@ -598,6 +619,32 @@ export default function DocumentListTable({
               <option value="HF">Solo HonduFlores</option>
             </select>
           )}
+
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-slate-200 rounded-xl shadow-2xs w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-500">Desde:</span>
+            <input
+              type="date"
+              value={filterFechaDesde}
+              onChange={(e) => setFilterFechaDesde(e.target.value)}
+              className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent"
+            />
+            <span className="text-xs font-bold text-slate-500 ml-1">Hasta:</span>
+            <input
+              type="date"
+              value={filterFechaHasta}
+              onChange={(e) => setFilterFechaHasta(e.target.value)}
+              className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent"
+            />
+            {(filterFechaDesde || filterFechaHasta) && (
+              <button
+                onClick={() => { setFilterFechaDesde(''); setFilterFechaHasta(''); }}
+                className="ml-1 text-slate-400 hover:text-rose-500"
+                title="Limpiar fechas"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1693,7 +1693,7 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: 200 // Limit for reasonable UI perf
+            take: 5000 // Aumentado para ver todo el historial
         });
         
         return docs.map(doc => ({
