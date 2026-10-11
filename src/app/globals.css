@@ -119,5 +119,13 @@ body {
   text-transform: uppercase !important;
 }
 
-
-
+/* Quitar flechas incrementadoras de inputs numéricos */
+input.no-spin::-webkit-outer-spin-button,
+input.no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+input.no-spin[type=number] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}

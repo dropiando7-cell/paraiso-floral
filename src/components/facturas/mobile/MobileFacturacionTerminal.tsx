@@ -28,14 +28,22 @@ import {
   Copy, 
   Check, 
   ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  Zap,
   Building2,
   Phone,
   RefreshCw,
-  ShoppingBag
+  ShoppingBag,
+  LayoutGrid,
+  List
 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { playTactileClick, playSuccessChime, triggerHaptic, playErrorBuzz } from '@/utils/audioAlerts';
 import { searchClientes, searchProductos } from '@/app/(dashboard)/facturas/actions';
+import BandejaPedidosCediModal from '@/components/facturacion/BandejaPedidosCediModal';
 
 // Helper to resolve flower images from public/flores or fallback
 export const resolveFlowerImage = (name: string = ''): string => {
@@ -105,12 +113,14 @@ interface MobileFacturacionTerminalProps {
   isLocked: boolean;
   setShowActionsModal: (show: boolean) => void;
   setShowWorkOrderModal?: (show: boolean) => void;
-  onOpenPreview: () => void;
+  onOpenPreview: (format?: 'ticket' | 'carta') => void;
   settings?: any;
+  setSettings?: React.Dispatch<React.SetStateAction<any>>;
   handleEditClick?: () => void;
   isDocLockedForEdit?: boolean;
   isAnulada?: boolean;
   isConvertida?: boolean;
+  onDiscard?: () => void;
 }
 
 export default function MobileFacturacionTerminal({
@@ -141,11 +151,17 @@ export default function MobileFacturacionTerminal({
   isLocked,
   onOpenPreview,
   settings,
+  setSettings,
   handleEditClick,
   isDocLockedForEdit,
   isAnulada,
-  isConvertida
+  isConvertida,
+  onDiscard
 }: MobileFacturacionTerminalProps) {
+
+  const router = useRouter();
+  // Estado para mostrar/ocultar el encabezado superior, tipo de doc e IA (oculto por defecto al crear)
+  const [showTopSection, setShowTopSection] = useState(false);
 
   // ─── LOCAL STATE: AI HUB & CLIENT DIRECTORY MODAL ─────────────────────────
   const [activeAiModal, setActiveAiModal] = useState<'none' | 'libreta' | 'captura' | 'audio'>('none');
@@ -176,6 +192,12 @@ export default function MobileFacturacionTerminal({
   const [productSearchText, setProductSearchText] = useState('');
   const [productSuggestions, setProductSuggestions] = useState<any[]>([]);
   const [isSearchingProducts, setIsSearchingProducts] = useState(false);
+
+  // Format Chooser for Preview (Ticket vs Carta)
+  const [showPreviewChooser, setShowPreviewChooser] = useState(false);
+
+  // View Mode: Cards visuales vs Lista Inline compacta (Inspirado en Imagen 3)
+  const [itemsViewMode, setItemsViewMode] = useState<'cards' | 'inline'>('cards');
 
   // ─── SPEECH RECOGNITION SETUP ─────────────────────────────────────────────
   const startAudioListening = () => {
@@ -630,137 +652,218 @@ export default function MobileFacturacionTerminal({
   return (
     <div className="w-full pb-36 print:hidden font-sans select-none animate-in fade-in duration-200 px-0.5">
       
-      {/* ─── 1. TOP BRAND HEADER (Estilo Imagen 4) ─────────────────────────── */}
-      <div className="bg-[#386641] text-white px-3 py-2.5 rounded-xl shadow-md mb-2 flex items-center justify-between">
-        <div>
-          <h1 className="text-xs font-black tracking-wider uppercase text-emerald-100 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Paraíso Floral
-          </h1>
-          <p className="text-[10px] font-bold text-emerald-200/90 uppercase tracking-tight mt-0.5">
-            Módulo de Facturación
-          </p>
-        </div>
-
-        <div className="text-right">
-          <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-200/80 block">
+      {/* ─── BARRA DE ESTILO SUPERIOR: TIPO DE DOCUMENTO & TOGGLE ENCABEZADO/IA ─── */}
+      <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-xl px-2.5 py-1.5 mb-2 shadow-2xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isFactura ? 'bg-[#15803d]' : isCotizacion ? 'bg-[#1d4ed8]' : 'bg-[#6b21a8]'} animate-pulse`} />
+          <span className="text-xs font-black uppercase text-slate-900 tracking-tight truncate">
             {isFactura ? 'Factura Oficial' : isCotizacion ? 'Cotización' : 'Pro Forma'}
           </span>
-          <span className="text-[11px] font-mono font-black bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/30 inline-block mt-0.5">
-            {docNumber || 'PENDIENTE'}
-          </span>
-        </div>
-      </div>
-
-      {/* ─── 2. SELECTOR DE TIPO DE DOCUMENTO (Pills Directos) ─────────────── */}
-      <div className="grid grid-cols-3 gap-1 bg-slate-200/80 p-1 rounded-xl mb-2.5 border border-slate-300/60 shadow-2xs">
-        <button
-          type="button"
-          onClick={() => {
-            setDocType('factura');
-            triggerHaptic(25);
-            playTactileClick();
-          }}
-          className={`py-1.5 px-1 text-center rounded-lg text-xs font-black transition-all ${
-            isFactura
-              ? 'bg-[#15803d] text-white shadow-sm scale-[1.01]'
-              : 'text-slate-700 hover:bg-white/60'
-          }`}
-        >
-          Factura Oficial
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setDocType('cotizacion');
-            triggerHaptic(25);
-            playTactileClick();
-          }}
-          className={`py-1.5 px-1 text-center rounded-lg text-xs font-black transition-all ${
-            isCotizacion
-              ? 'bg-[#1d4ed8] text-white shadow-sm scale-[1.01]'
-              : 'text-slate-700 hover:bg-white/60'
-          }`}
-        >
-          Cotización
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setDocType('proforma');
-            triggerHaptic(25);
-            playTactileClick();
-          }}
-          className={`py-1.5 px-1 text-center rounded-lg text-xs font-black transition-all ${
-            isProforma
-              ? 'bg-[#6b21a8] text-white shadow-sm scale-[1.01]'
-              : 'text-slate-700 hover:bg-white/60'
-          }`}
-        >
-          Pro Forma
-        </button>
-      </div>
-
-      {/* ─── 3. HUB DE ENTRADA INTELIGENTE CON IA (3 Canales) ───────────────── */}
-      <div className="bg-gradient-to-r from-emerald-900 via-slate-900 to-indigo-950 text-white p-2.5 rounded-xl shadow-md mb-2.5 border border-emerald-500/20">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" style={{ animationDuration: '4s' }} />
-            <span className="text-[11px] font-black tracking-wide uppercase text-emerald-100">
-              Carga con IA
+          {docNumber && (
+            <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+              #{docNumber}
             </span>
-          </div>
-          <span className="text-[9px] font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">
-            Gemini Flash
-          </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveAiModal('libreta');
-              triggerHaptic(30);
-              playTactileClick();
-            }}
-            className="flex items-center justify-center gap-1.5 p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all text-center group cursor-pointer"
-          >
-            <MessageSquare size={14} className="text-emerald-300" />
-            <span className="text-[11px] font-black">Libreta IA</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveAiModal('captura');
-              triggerHaptic(30);
-              playTactileClick();
-            }}
-            className="flex items-center justify-center gap-1.5 p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all text-center group cursor-pointer"
-          >
-            <Camera size={14} className="text-indigo-300" />
-            <span className="text-[11px] font-black">Captura</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveAiModal('audio');
-              triggerHaptic(30);
-              playTactileClick();
-            }}
-            className="flex items-center justify-center gap-1.5 p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all text-center group cursor-pointer"
-          >
-            <Mic size={14} className="text-fuchsia-300" />
-            <span className="text-[11px] font-black">Voz</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setShowTopSection(prev => !prev);
+            triggerHaptic(20);
+            playTactileClick();
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border shadow-2xs active:scale-95 cursor-pointer ${
+            showTopSection
+              ? 'bg-slate-800 text-white border-slate-700 hover:bg-slate-900'
+              : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+          }`}
+          title={showTopSection ? "Ocultar panel superior" : "Mostrar tipo de documento, IA y atajos"}
+        >
+          {showTopSection ? (
+            <>
+              <span>Ocultar</span>
+              <ChevronUp size={13} className="text-slate-300" />
+            </>
+          ) : (
+            <>
+              <SlidersHorizontal size={11} className="text-emerald-600" />
+              <span>Opciones & IA</span>
+              <ChevronDown size={13} className="text-slate-500" />
+            </>
+          )}
+        </button>
       </div>
+
+      {/* ─── CONTENEDOR DESPLEGABLE: ENCABEZADO, ACCESOS RÁPIDOS, TIPO DE DOC E IA ─── */}
+      {showTopSection && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-200 space-y-2 mb-2">
+          {/* Fila de Atajos Rápidos (IA, Pedidos CEDI, POS, Lista) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveAiModal('libreta');
+                triggerHaptic(25);
+                playTactileClick();
+              }}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white px-3 py-1.5 rounded-xl text-xs font-black shadow-xs shrink-0 active:scale-95 cursor-pointer"
+            >
+              <Sparkles size={13} className="text-fuchsia-200" />
+              <span>IA</span>
+            </button>
+
+            <BandejaPedidosCediModal onSelectPedido={(pedido) => router.push(`/facturas/pos?cargarPedido=${pedido.id}`)} />
+
+            <Link
+              href="/facturas/pos"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-black shadow-xs shrink-0 active:scale-95"
+            >
+              <Zap size={13} className="text-white fill-white/20" />
+              <span>POS</span>
+            </Link>
+
+            <Link
+              href="/facturas?tab=facturas"
+              className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 shrink-0 ml-auto"
+            >
+              <span>Ver Facturas</span>
+            </Link>
+          </div>
+
+          {/* 1. TOP BRAND HEADER (Estilo Imagen 4) */}
+          <div className="bg-[#386641] text-white px-3 py-2.5 rounded-xl shadow-md flex items-center justify-between">
+            <div>
+              <h1 className="text-xs font-black tracking-wider uppercase text-emerald-100 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Paraíso Floral
+              </h1>
+              <p className="text-[10px] font-bold text-emerald-200/90 uppercase tracking-tight mt-0.5">
+                Módulo de Facturación
+              </p>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-200/80 block">
+                {isFactura ? 'Factura Oficial' : isCotizacion ? 'Cotización' : 'Pro Forma'}
+              </span>
+              <span className="text-[11px] font-mono font-black bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/30 inline-block mt-0.5">
+                {docNumber || 'PENDIENTE'}
+              </span>
+            </div>
+          </div>
+
+          {/* 2. SELECTOR DE TIPO DE DOCUMENTO (Pills Directos) */}
+          <div className="grid grid-cols-3 gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                setDocType('factura');
+                triggerHaptic(25);
+                playTactileClick();
+              }}
+              className={`py-1.5 px-1 text-center rounded-lg text-xs font-black transition-all ${
+                isFactura
+                  ? 'bg-[#15803d] text-white shadow-sm scale-[1.01]'
+                  : 'text-slate-700 hover:bg-white/60'
+              }`}
+            >
+              Factura Oficial
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setDocType('cotizacion');
+                triggerHaptic(25);
+                playTactileClick();
+              }}
+              className={`py-1.5 px-1 text-center rounded-lg text-xs font-black transition-all ${
+                isCotizacion
+                  ? 'bg-[#1d4ed8] text-white shadow-sm scale-[1.01]'
+                  : 'text-slate-700 hover:bg-white/60'
+              }`}
+            >
+              Cotización
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setDocType('proforma');
+                triggerHaptic(25);
+                playTactileClick();
+              }}
+              className={`py-1.5 px-1 text-center rounded-lg text-xs font-black transition-all ${
+                isProforma
+                  ? 'bg-[#6b21a8] text-white shadow-sm scale-[1.01]'
+                  : 'text-slate-700 hover:bg-white/60'
+              }`}
+            >
+              Pro Forma
+            </button>
+          </div>
+
+          {/* 3. HUB DE ENTRADA INTELIGENTE CON IA (3 Canales) */}
+          <div className="bg-gradient-to-r from-emerald-900 via-slate-900 to-indigo-950 text-white p-2.5 rounded-xl shadow-md border border-emerald-500/20">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" style={{ animationDuration: '4s' }} />
+                <span className="text-[11px] font-black tracking-wide uppercase text-emerald-100">
+                  Carga con IA
+                </span>
+              </div>
+              <span className="text-[9px] font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">
+                Gemini Flash
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAiModal('libreta');
+                  triggerHaptic(30);
+                  playTactileClick();
+                }}
+                className="flex items-center justify-center gap-1.5 p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all text-center group cursor-pointer"
+              >
+                <MessageSquare size={14} className="text-emerald-300" />
+                <span className="text-[11px] font-black">Libreta IA</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAiModal('captura');
+                  triggerHaptic(30);
+                  playTactileClick();
+                }}
+                className="flex items-center justify-center gap-1.5 p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all text-center group cursor-pointer"
+              >
+                <Camera size={14} className="text-indigo-300" />
+                <span className="text-[11px] font-black">Captura</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAiModal('audio');
+                  triggerHaptic(30);
+                  playTactileClick();
+                }}
+                className="flex items-center justify-center gap-1.5 p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all text-center group cursor-pointer"
+              >
+                <Mic size={14} className="text-fuchsia-300" />
+                <span className="text-[11px] font-black">Voz</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── 4. CLIENTE & FORMA DE PAGO (Diseño Exacto Imagen 2) ────────────── */}
-      <div className="bg-white rounded-xl p-2 sm:p-2.5 border border-slate-200 shadow-sm mb-2">
+      <div className="bg-white rounded-xl p-1.5 sm:p-2 border border-slate-200 shadow-sm mb-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           
           {/* Lado A: Nombre / o escribir cliente con búsqueda en tiempo real */}
@@ -788,62 +891,88 @@ export default function MobileFacturacionTerminal({
               </div>
             </div>
 
-            {/* Input Editable Directo: Buscar o escribir cliente... */}
+            {/* Input / Selector de Cliente Unificado (Sin duplicación de nombre) */}
             <div className="relative">
-              <Search size={14} className="text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                value={inlineClientText}
-                onChange={(e) => handleInlineClientType(e.target.value)}
-                onFocus={() => {
-                  setIsInlineFocused(true);
-                  if (inlineMatches.length === 0) {
-                    const source = (allClients && allClients.length > 0) ? allClients : clientSuggestions;
-                    setInlineMatches(source.slice(0, 15));
-                  }
-                }}
-                placeholder="Buscar o escribir cliente..."
-                className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2d6a4f] shadow-2xs"
-              />
-              {inlineClientText && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInlineClientText('');
-                    setIsInlineFocused(false);
-                  }}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5"
-                >
-                  <X size={12} />
-                </button>
+              {selectedClient ? (
+                <div className="w-full pl-3 pr-2 py-2 bg-emerald-50/70 border-2 border-emerald-600 rounded-xl flex items-center justify-between min-h-[46px] shadow-xs">
+                  <div className="min-w-0 flex-1 cursor-pointer" onClick={openClientDirectory}>
+                    <div className="flex items-center gap-1.5">
+                      <User size={14} className="text-[#2d6a4f] shrink-0" />
+                      <span className="text-xs sm:text-sm font-black uppercase text-slate-900 truncate tracking-tight">
+                        {(selectedClient.name || selectedClient.nombre || '').toUpperCase()}
+                      </span>
+                    </div>
+                    {(selectedClient.rtn || selectedClient.phone) && (
+                      <p className="text-[10px] text-slate-600 font-mono font-bold mt-0.5 truncate pl-5">
+                        {selectedClient.rtn ? `RTN: ${selectedClient.rtn}` : ''}
+                        {selectedClient.rtn && selectedClient.phone ? ' · ' : ''}
+                        {selectedClient.phone ? `TEL: ${selectedClient.phone}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 ml-1">
+                    <button
+                      type="button"
+                      onClick={openClientDirectory}
+                      className="px-2 py-1 text-[10px] font-black uppercase text-emerald-800 bg-emerald-200/80 hover:bg-emerald-300 rounded-lg transition-colors cursor-pointer"
+                      title="Cambiar cliente"
+                    >
+                      Cambiar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setSelectedClient) setSelectedClient(null);
+                        setInlineClientText('');
+                        setIsInlineFocused(false);
+                        triggerHaptic(20);
+                      }}
+                      className="w-7 h-7 rounded-full bg-slate-200/90 hover:bg-red-100 hover:text-red-600 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+                      title="Quitar cliente"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search size={16} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={inlineClientText}
+                    onChange={(e) => handleInlineClientType(e.target.value.toUpperCase())}
+                    onFocus={() => {
+                      setIsInlineFocused(true);
+                      if (inlineMatches.length === 0) {
+                        const source = (allClients && allClients.length > 0) ? allClients : clientSuggestions;
+                        setInlineMatches(source.slice(0, 15));
+                      }
+                    }}
+                    placeholder="BUSCAR O ESCRIBIR CLIENTE..."
+                    style={{ textTransform: 'uppercase' }}
+                    className="w-full pl-9 pr-9 py-3 bg-slate-50 border-2 border-slate-300 rounded-xl text-xs sm:text-sm font-black text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#2d6a4f] focus:ring-2 focus:ring-[#2d6a4f]/20 shadow-xs min-h-[46px] uppercase tracking-tight"
+                  />
+                  {inlineClientText && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInlineClientText('');
+                        setIsInlineFocused(false);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               )}
-            </div>
-
-            {/* Selector Dropdown Inferior (Estilo Imagen 2: Floristería San Pedro (FSP-102) ▼) */}
-            <div 
-              onClick={openClientDirectory}
-              className="mt-1 bg-slate-100/90 border border-slate-300 rounded-lg px-2 py-1 flex items-center justify-between cursor-pointer hover:bg-slate-200/90 transition-colors shadow-2xs"
-            >
-              <div className="truncate flex-1 pr-1">
-                <span className="text-xs font-bold text-slate-800 truncate block leading-tight">
-                  {selectedClient 
-                    ? `${selectedClient.name} ${selectedClient.rtn ? `(${selectedClient.rtn})` : ''}` 
-                    : 'Floristería San Pedro (FSP-102) / Directorio...'}
-                </span>
-                {selectedClient?.phone && (
-                  <span className="text-[9px] text-slate-500 font-mono block leading-none mt-0.5">
-                    Tel: {selectedClient.phone} {selectedClient.address ? `· ${selectedClient.address}` : ''}
-                  </span>
-                )}
-              </div>
-              <ChevronDown size={14} className="text-slate-500 shrink-0" />
             </div>
 
             {/* Autocomplete Flotante Inline al Escribir */}
             {isInlineFocused && inlineMatches.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-300 z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
                 <div className="p-1.5 bg-slate-50 text-[10px] font-bold text-slate-500 flex items-center justify-between border-b border-slate-200">
-                  <span>Directorio de Clientes</span>
+                  <span className="uppercase tracking-wider">Directorio de Clientes</span>
                   <button
                     type="button"
                     onClick={() => setIsInlineFocused(false)}
@@ -859,7 +988,7 @@ export default function MobileFacturacionTerminal({
                     className="p-2 hover:bg-emerald-50 cursor-pointer flex items-center justify-between text-left"
                   >
                     <div className="min-w-0 flex-1 pr-2">
-                      <p className="text-xs font-black text-slate-900 truncate">{c.name || c.nombre}</p>
+                      <p className="text-xs font-black uppercase text-slate-900 truncate tracking-tight">{(c.name || c.nombre || '').toUpperCase()}</p>
                       <p className="text-[10px] text-slate-500 font-mono">
                         RTN: {c.rtn || 'Consumidor Final'} {(c.phone || c.telefono) ? `· Tel: ${c.phone || c.telefono}` : ''}
                       </p>
@@ -872,9 +1001,9 @@ export default function MobileFacturacionTerminal({
                 {inlineClientText.trim() && (
                   <div
                     onClick={() => handleUseCustomName(inlineClientText)}
-                    className="p-2 bg-emerald-50 hover:bg-emerald-100 cursor-pointer text-center text-xs font-bold text-emerald-800 border-t border-emerald-100"
+                    className="p-2 bg-emerald-50 hover:bg-emerald-100 cursor-pointer text-center text-xs font-black uppercase text-emerald-800 border-t border-emerald-100"
                   >
-                    + Usar cliente: &ldquo;{inlineClientText}&rdquo;
+                    + Usar cliente: &ldquo;{inlineClientText.toUpperCase()}&rdquo;
                   </div>
                 )}
               </div>
@@ -952,9 +1081,42 @@ export default function MobileFacturacionTerminal({
             <span className="w-2 h-2 rounded-full bg-[#2d6a4f]" />
             {isFactura ? 'Detalle de Factura' : isCotizacion ? 'Detalle de Cotización' : 'Detalle de Pro Forma'}
           </h2>
-          <span className="text-[11px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
-            {lineItems.length} {lineItems.length === 1 ? 'ítem' : 'ítems'}
-          </span>
+
+          <div className="flex items-center gap-1.5">
+            {/* View Mode Toggle: Cards vs Lista Inline (Inspirado en Imagen 3) */}
+            <div className="flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300">
+              <button
+                type="button"
+                onClick={() => { setItemsViewMode('cards'); triggerHaptic(15); }}
+                className={`px-2 py-1 rounded-md text-[10px] font-black flex items-center gap-1 transition-all ${
+                  itemsViewMode === 'cards'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Vista en Cards con foto"
+              >
+                <LayoutGrid size={11} />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setItemsViewMode('inline'); triggerHaptic(15); }}
+                className={`px-2 py-1 rounded-md text-[10px] font-black flex items-center gap-1 transition-all ${
+                  itemsViewMode === 'inline'
+                    ? 'bg-[#2d6a4f] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Vista de lista rápida tipo tabla"
+              >
+                <List size={11} />
+                <span>Lista</span>
+              </button>
+            </div>
+
+            <span className="text-[11px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
+              {lineItems.length} {lineItems.length === 1 ? 'ítem' : 'ítems'}
+            </span>
+          </div>
         </div>
 
         {/* Empty state */}
@@ -968,8 +1130,8 @@ export default function MobileFacturacionTerminal({
           </div>
         )}
 
-        {/* Listado de Cards RECTANGULARES (Estilo Imagen 2) */}
-        {lineItems.map((item) => {
+        {/* ─── VISTA 1: LISTADO EN CARDS CON FOTOS (Estilo Imagen 2) ─── */}
+        {itemsViewMode === 'cards' && lineItems.map((item) => {
           const qty = Number(item.qty) || 0;
           const price = Number(item.unitPrice) || 0;
           const lineTotal = qty * price;
@@ -980,14 +1142,14 @@ export default function MobileFacturacionTerminal({
           return (
             <div
               key={item.id}
-              className={`bg-white rounded-xl p-2 border-2 transition-all shadow-xs relative overflow-hidden flex items-center gap-2.5 ${
+              className={`bg-white rounded-xl p-2 sm:p-2.5 border-2 transition-all shadow-xs relative overflow-hidden flex items-center gap-2 min-h-[72px] ${
                 badgeInfo.isBulk
                   ? 'border-[#b45309]'
                   : 'border-[#2d6a4f]'
               }`}
             >
-              {/* 1. Foto de Flor (Izquierda - 56x56) */}
-              <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+              {/* 1. Foto de Flor (Izquierda - 52x52) */}
+              <div className="w-13 h-13 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
                 <img
                   src={flowerImg}
                   alt={item.shortDesc || 'Flor'}
@@ -998,23 +1160,23 @@ export default function MobileFacturacionTerminal({
                 />
               </div>
 
-              {/* 2. Columna Central (Título, Cantidad de Paquete, Stepper y Precio c/u) */}
-              <div className="min-w-0 flex-1 flex flex-col justify-between h-14 py-0.5">
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-tight truncate">
-                  {item.shortDesc || 'Flor sin asignar'}
+              {/* 2. Columna Central (Título en Mayúsculas, Cantidad y Stepper) */}
+              <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5 py-0.5">
+                <h3 className="text-xs sm:text-sm font-black uppercase text-slate-900 leading-snug truncate tracking-tight">
+                  {(item.shortDesc || 'FLOR SIN ASIGNAR').toUpperCase()}
                 </h3>
 
-                <p className="text-[11px] font-bold text-slate-500 leading-none">
-                  {qty} {badgeInfo.isBulk ? 'atados' : 'paq'}
+                <p className="text-[10px] font-extrabold uppercase text-slate-500 leading-none">
+                  {qty} {badgeInfo.isBulk ? 'ATADOS' : 'PAQ'}
                 </p>
 
-                {/* Stepper Compacto y Precio Unitario */}
-                <div className="flex items-center gap-1.5 mt-0.5">
+                {/* Stepper Compacto con Selección Automática */}
+                <div className="flex items-center gap-1.5 pt-0.5">
                   <div className="flex items-center bg-slate-100 rounded-md border border-slate-300 p-0.5">
                     <button
                       type="button"
                       onClick={() => handleStepQty(item.id, item.qty, -1)}
-                      className="w-6 h-6 rounded bg-white text-slate-900 flex items-center justify-center font-black active:scale-95 active:bg-slate-200 border border-slate-200"
+                      className="w-6 h-6 rounded bg-white text-slate-900 flex items-center justify-center font-black active:scale-95 active:bg-slate-200 border border-slate-200 cursor-pointer"
                       title="Disminuir"
                     >
                       <Minus size={11} strokeWidth={3} />
@@ -1023,52 +1185,57 @@ export default function MobileFacturacionTerminal({
                       type="number"
                       value={item.qty}
                       onChange={(e) => handleLineChange(item.id, 'qty', Math.max(1, Number(e.target.value)))}
-                      className="w-7 text-center text-xs font-black text-slate-900 bg-transparent focus:outline-none border-none p-0"
+                      onFocus={(e) => e.target.select()}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      className="w-8 text-center text-xs font-black text-slate-900 bg-transparent focus:outline-none border-none p-0 select-all no-spin [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       type="button"
                       onClick={() => handleStepQty(item.id, item.qty, 1)}
-                      className="w-6 h-6 rounded bg-white text-slate-900 flex items-center justify-center font-black active:scale-95 active:bg-slate-200 border border-slate-200"
+                      className="w-6 h-6 rounded bg-white text-slate-900 flex items-center justify-center font-black active:scale-95 active:bg-slate-200 border border-slate-200 cursor-pointer"
                       title="Aumentar"
                     >
                       <Plus size={11} strokeWidth={3} />
                     </button>
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-600">
-                    L. {fmt(price).replace('L. ', '').replace('L ', '')}
+                  <span className="text-[10px] font-bold text-slate-400 font-mono">
+                    Tot: L.{fmt(lineTotal).replace('L. ', '').replace('L ', '')}
                   </span>
                 </div>
               </div>
 
-              {/* 3. Columna Derecha (Badge LÁSER/GRANEL, Subtotal Línea, Estado Completado/Vincular y Eliminar) */}
-              <div className="shrink-0 flex flex-col justify-between items-end h-14 py-0.5 text-right">
-                <span
-                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-1 shadow-2xs ${
-                    badgeInfo.isBulk
-                      ? 'bg-[#d97706] text-white'
-                      : 'bg-[#2d6a4f] text-white'
-                  }`}
-                >
-                  <Tag size={9} />
-                  {badgeInfo.label}
-                </span>
-
-                <span className="text-xs sm:text-sm font-black text-slate-950 font-mono tracking-tight">
-                  {fmt(lineTotal)}
-                </span>
+              {/* 3. Columna Derecha (Precio Editable Arriba + Estado/Eliminar Abajo) */}
+              <div className="shrink-0 flex flex-col justify-between items-end min-h-[58px] py-0.5 text-right gap-1.5">
+                {/* Input de Precio Unitario Editable (Sin flechas ▲▼) */}
+                <div className="flex items-center bg-slate-50 border-2 border-slate-300 focus-within:border-[#2d6a4f] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#2d6a4f]/20 rounded-lg px-1.5 py-0.5 shadow-2xs">
+                  <span className="text-[11px] font-black text-slate-400 font-mono mr-0.5">L.</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={item.unitPrice === 0 ? '' : item.unitPrice}
+                    placeholder="0.00"
+                    onFocus={(e) => e.target.select()}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleLineChange(item.id, 'unitPrice', val === '' ? 0 : parseFloat(val) || 0);
+                    }}
+                    className="w-16 sm:w-20 text-right text-xs sm:text-sm font-black text-slate-900 bg-transparent focus:outline-none font-mono no-spin [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
 
                 <div className="flex items-center gap-1">
                   {isLinked ? (
-                    <span className="text-[9px] font-black bg-[#2d6a4f] text-white px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xs">
-                      <Check size={10} strokeWidth={3} /> Completado
+                    <span className="text-[9px] font-black uppercase bg-[#2d6a4f] text-white px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xs">
+                      <Check size={9} strokeWidth={3} /> OK
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleOpenLinkingModal(item.id, item.shortDesc)}
-                      className="text-[9px] font-black text-amber-900 bg-amber-200/90 border border-amber-400 px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                      className="text-[9px] font-black uppercase text-amber-900 bg-amber-200/90 border border-amber-400 px-1 py-0.5 rounded flex items-center gap-0.5 active:scale-95 cursor-pointer"
                     >
-                      ⚠️ Vincular
+                      ⚠️ VINCULAR
                     </button>
                   )}
 
@@ -1078,16 +1245,118 @@ export default function MobileFacturacionTerminal({
                       triggerHaptic(30);
                       handleDeleteLine(item.id);
                     }}
-                    className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors"
+                    className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors cursor-pointer"
                     title="Eliminar flor"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
             </div>
           );
         })}
+
+        {/* ─── VISTA 2: LISTADO INLINE COMPACTO Y LIMPIO (Inspirado en Imagen 3) ─── */}
+        {itemsViewMode === 'inline' && lineItems.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-300 shadow-xs overflow-hidden">
+            {/* Cabecera de Tabla Inline */}
+            <div className="bg-slate-100/90 border-b border-slate-300 px-2 py-2 flex items-center text-[10px] font-black uppercase text-slate-700 tracking-wider">
+              <span className="flex-1 min-w-0">Flor / Ítem</span>
+              <span className="w-20 text-center shrink-0">Cant</span>
+              <span className="w-24 text-right shrink-0">Precio</span>
+              <span className="w-7 text-right shrink-0"></span>
+            </div>
+
+            {/* Filas Compactas con Estilo Cebra */}
+            <div className="divide-y divide-slate-200">
+              {lineItems.map((item, idx) => {
+                const isEven = idx % 2 === 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`px-2 py-2 flex items-center gap-1.5 transition-colors ${
+                      isEven ? 'bg-white' : 'bg-slate-50/70'
+                    }`}
+                  >
+                    {/* Nombre de Flor en Mayúsculas */}
+                    <div className="flex-1 min-w-0 pr-1">
+                      <p className="text-xs font-black uppercase text-slate-900 truncate tracking-tight leading-tight">
+                        {(item.shortDesc || 'FLOR SIN ASIGNAR').toUpperCase()}
+                      </p>
+                      <p className="text-[10px] font-bold uppercase text-slate-400 font-mono leading-none mt-0.5">
+                        {resolveItemBadge(item.shortDesc, item.code).label}
+                      </p>
+                    </div>
+
+                    {/* Stepper Compacto con Selección Automática */}
+                    <div className="w-20 flex items-center justify-center bg-slate-100 rounded-md border border-slate-300 p-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleStepQty(item.id, item.qty, -1)}
+                        className="w-5 h-5 rounded bg-white text-slate-900 flex items-center justify-center font-black active:scale-95 border border-slate-200 cursor-pointer"
+                        title="Disminuir"
+                      >
+                        <Minus size={9} strokeWidth={3} />
+                      </button>
+                      <input
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => handleLineChange(item.id, 'qty', Math.max(1, Number(e.target.value)))}
+                        onFocus={(e) => e.target.select()}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                        className="w-7 text-center text-xs font-black text-slate-900 bg-transparent focus:outline-none border-none p-0 select-all no-spin [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleStepQty(item.id, item.qty, 1)}
+                        className="w-5 h-5 rounded bg-white text-slate-900 flex items-center justify-center font-black active:scale-95 border border-slate-200 cursor-pointer"
+                        title="Aumentar"
+                      >
+                        <Plus size={9} strokeWidth={3} />
+                      </button>
+                    </div>
+
+                    {/* Precio Unitario Editable (Sin flechas ▲▼) */}
+                    <div className="w-24 text-right shrink-0">
+                      <div className="flex items-center justify-end bg-white border border-slate-300 rounded-md px-1.5 py-0.5 focus-within:border-[#2d6a4f] focus-within:ring-1 focus-within:ring-[#2d6a4f]/30">
+                        <span className="text-[10px] font-bold text-slate-400 font-mono mr-0.5">L.</span>
+                        <input
+                          type="number"
+                          step="any"
+                          value={item.unitPrice === 0 ? '' : item.unitPrice}
+                          placeholder="0.00"
+                          onFocus={(e) => e.target.select()}
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleLineChange(item.id, 'unitPrice', val === '' ? 0 : parseFloat(val) || 0);
+                          }}
+                          className="w-16 text-right text-xs font-black text-slate-900 bg-transparent focus:outline-none font-mono no-spin [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Botón Eliminar */}
+                    <div className="w-7 text-right shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic(30);
+                          handleDeleteLine(item.id);
+                        }}
+                        className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors cursor-pointer"
+                        title="Eliminar flor"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ─── Botón Rectangular: Agregar ítem (F3 / Escáner) (Estilo Imagen 2) ─ */}
         <button
@@ -1114,23 +1383,62 @@ export default function MobileFacturacionTerminal({
 
       </div>
 
+      {/* ─── SWITCH: PRECIOS INCLUYEN ISV (Estilo Escritorio) ─────────────── */}
+      <div className="bg-white rounded-xl p-2.5 border border-slate-200 shadow-2xs flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+            settings?.pricesIncludeTax ? 'bg-emerald-100 text-[#2d6a4f]' : 'bg-slate-100 text-slate-600'
+          }`}>
+            <Receipt size={16} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-black text-slate-900 uppercase block tracking-tight leading-tight">
+              Precios incluyen ISV
+            </span>
+            <span className="text-[10px] text-slate-500 block leading-tight font-medium">
+              {settings?.pricesIncludeTax 
+                ? 'Impuesto ISV 15% ya incluido en el precio' 
+                : 'Impuesto ISV 15% se calcula adicional (+15%)'}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic(25);
+            playTactileClick();
+            setSettings?.((s: any) => ({ ...s, pricesIncludeTax: !s.pricesIncludeTax }));
+          }}
+          className={`w-12 h-6 rounded-full transition-colors relative flex items-center p-0.5 shrink-0 cursor-pointer ${
+            settings?.pricesIncludeTax ? 'bg-[#2d6a4f]' : 'bg-slate-300'
+          }`}
+          title="Alternar Precios incluyen ISV"
+        >
+          <span
+            className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform transform ${
+              settings?.pricesIncludeTax ? 'translate-x-6' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+
       {/* ─── 6. RESUMEN DE TOTALES (Estilo Imagen 4) ────────────────────────── */}
       <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm mb-3 space-y-1.5">
         <div className="flex justify-between items-center text-xs font-bold text-slate-600">
           <span>Subtotal:</span>
-          <span className="font-mono text-slate-800">{fmt(totals.subtotalNeto)}</span>
+          <span className="font-mono text-slate-800">{fmt(totals.subtotal || 0)}</span>
         </div>
 
-        {totals.descuentoTotal > 0 && (
+        {(Number(totals.descuentos) > 0 || Number(totals.descuentoTotal) > 0) && (
           <div className="flex justify-between items-center text-xs font-bold text-amber-600">
             <span>Descuento:</span>
-            <span className="font-mono">-{fmt(totals.descuentoTotal)}</span>
+            <span className="font-mono">-{fmt(totals.descuentos || totals.descuentoTotal || 0)}</span>
           </div>
         )}
 
         <div className="flex justify-between items-center text-xs font-bold text-slate-600">
           <span>Impuesto (ISV 15%):</span>
-          <span className="font-mono text-slate-800">{fmt(totals.isv15)}</span>
+          <span className="font-mono text-slate-800">{fmt(totals.isv15 || 0)}</span>
         </div>
 
         <div className="pt-2 border-t-2 border-slate-200 flex justify-between items-center">
@@ -1138,10 +1446,28 @@ export default function MobileFacturacionTerminal({
             {isFactura ? 'Total Factura' : isCotizacion ? 'Total Cotización' : 'Total Documento'}
           </span>
           <span className="text-lg sm:text-xl font-black text-slate-950">
-            {fmt(totals.total)}
+            {fmt(totals.total || 0)}
           </span>
         </div>
       </div>
+
+      {/* ─── BOTÓN DESCARTAR BORRADOR / LIMPIAR CARRITO (Afuera del Canvas) ─── */}
+      {!viewMode && onDiscard && (
+        <div className="pt-1 pb-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(30);
+              playTactileClick();
+              onDiscard();
+            }}
+            className="w-full py-3 px-4 rounded-xl border-2 border-red-200 bg-red-50/80 hover:bg-red-100 text-red-700 active:scale-[0.99] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer group"
+          >
+            <Trash2 size={16} className="text-red-500 group-hover:scale-110 transition-transform" />
+            <span>Descartar Borrador / Limpiar Pedido</span>
+          </button>
+        </div>
+      )}
 
       {/* ─── 7. BARRA FIJA INFERIOR (Sticky Checkout - Estilo Imagen 4) ─────── */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-300/80 p-2.5 shadow-2xl flex items-center gap-2 print:hidden md:hidden">
@@ -1149,8 +1475,8 @@ export default function MobileFacturacionTerminal({
         {/* Botón Vista Previa */}
         <button
           type="button"
-          onClick={onOpenPreview}
-          className="py-3 px-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-xl font-bold text-xs flex items-center justify-center gap-1 border border-slate-300 transition-transform shadow-xs shrink-0"
+          onClick={() => setShowPreviewChooser(true)}
+          className="py-3 px-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-300 transition-transform shadow-xs shrink-0"
         >
           <Eye size={15} className="text-slate-600" />
           <span>Vista Previa</span>
@@ -1190,6 +1516,84 @@ export default function MobileFacturacionTerminal({
           )}
         </button>
       </div>
+
+      {/* ─── MODAL ELECCIÓN DE VISTA PREVIA (TICKET 80mm vs HOJA CARTA) ─── */}
+      {showPreviewChooser && (
+        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-4 sm:p-5 shadow-2xl border border-slate-200 flex flex-col gap-3 animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Eye size={17} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase">Vista Previa</h3>
+                  <p className="text-[10px] text-slate-500">Selecciona el formato a previsualizar</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPreviewChooser(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 my-1">
+              {/* Opción Ticket 80mm */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPreviewChooser(false);
+                  onOpenPreview('ticket');
+                }}
+                className="p-3.5 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-600 rounded-2xl flex items-center gap-3 text-left transition-all active:scale-[0.98]"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <Receipt size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">Ticket Térmico (80mm)</span>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-600 text-white">Recomendado</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium leading-tight">Optimizado para celulares e impresoras térmicas POS</p>
+                </div>
+              </button>
+
+              {/* Opción Hoja Carta */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPreviewChooser(false);
+                  onOpenPreview('carta');
+                }}
+                className="p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-300 rounded-2xl flex items-center gap-3 text-left transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">Hoja Carta Completa</span>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-600 text-white">Vista Previa PDF</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium leading-tight">Abre la vista previa de impresión típica de PDF (8.5 x 11 in)</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPreviewChooser(false)}
+              className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200 transition-colors uppercase tracking-wider"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ─── MODAL DEDICADO: DIRECTORIO DE CLIENTES (Búsqueda Rápida) ────── */}
       {isClientDirectoryOpen && (
@@ -1276,7 +1680,7 @@ export default function MobileFacturacionTerminal({
                   >
                     <div className="min-w-0 flex-1 pr-2">
                       <div className="flex items-center gap-2">
-                        <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{client.name || client.nombre}</p>
+                        <p className="text-xs sm:text-sm font-black uppercase text-slate-900 truncate tracking-tight">{(client.name || client.nombre || '').toUpperCase()}</p>
                         {(client.category || client.categoria) && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0">
                             {client.category || client.categoria}
@@ -1588,7 +1992,7 @@ export default function MobileFacturacionTerminal({
                       className="w-10 h-10 rounded-lg object-cover border border-slate-200"
                     />
                     <div>
-                      <p className="text-xs font-black text-slate-900">{prod.name}</p>
+                      <p className="text-xs font-black uppercase text-slate-900 truncate tracking-tight">{(prod.name || prod.nombre || '').toUpperCase()}</p>
                       <p className="text-[10px] text-slate-500 font-mono">SKU: {prod.code || prod.sku || 'N/A'}</p>
                     </div>
                   </div>

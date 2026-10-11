@@ -7,7 +7,7 @@ import {
   Search, Plus, Trash2, ChevronDown, ChevronUp, GripVertical,
   User, Building2, FileText, Receipt, ClipboardList, Send,
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
-  X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
+  X, Calculator, Download, Eye, MoreHorizontal, ArrowRight, ArrowLeft,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, List, Pencil,
   Smartphone, MessageCircle, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus, Maximize, Minimize, Mic, MicOff, Bot,
@@ -749,40 +749,149 @@ function MobileDocumentForm({
   );
 }
 
-function MobilePrintPreviewModal({ isOpen, onClose, onPrint, children }: { isOpen: boolean; onClose: () => void; onPrint?: () => void; children: React.ReactNode }) {
+function MobilePrintPreviewModal({ 
+  isOpen, 
+  onClose, 
+  onPrint, 
+  format = 'ticket',
+  setFormat,
+  zoomScale = 'fit',
+  setZoomScale,
+  children 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onPrint?: () => void; 
+  format?: 'ticket' | 'carta';
+  setFormat?: (f: 'ticket' | 'carta') => void;
+  zoomScale?: 'fit' | '100%';
+  setZoomScale?: (z: 'fit' | '100%') => void;
+  children: React.ReactNode 
+}) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col print:relative print:z-auto print:bg-white print:inset-auto md:hidden">
-      {/* Header */}
-      <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800 print:hidden shrink-0">
-        <div className="flex items-center gap-2">
-          <Eye size={18} className="text-blue-400" />
-          <span className="font-bold text-sm">Vista Previa de Impresión</span>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="fixed inset-0 z-[999] bg-slate-950 flex flex-col print:relative print:z-auto print:bg-white print:inset-auto md:hidden animate-in fade-in duration-200">
+      {/* Top Header Bar */}
+      <div className="bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between border-b border-slate-800 print:hidden shrink-0 gap-2 shadow-md">
+        {/* Botón Regresar */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white rounded-xl text-xs font-black transition-all border border-slate-700 shrink-0"
+        >
+          <ArrowLeft size={16} />
+          <span>Regresar</span>
+        </button>
+
+        {/* Selector de Formato: Ticket vs Hoja Carta */}
+        <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
           <button
             type="button"
-            onClick={onPrint || (() => window.print())}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+            onClick={() => setFormat?.('ticket')}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-black flex items-center gap-1 transition-all ${
+              format === 'ticket'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
           >
-            <Printer size={14} /> Imprimir
+            <Receipt size={13} />
+            <span>Ticket</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              setTimeout(() => {
+                window.print();
+              }, 150);
+            }}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-black flex items-center gap-1 transition-all text-slate-400 hover:text-white cursor-pointer"
+            title="Abrir Vista Previa de Impresión PDF"
+          >
+            <FileText size={13} />
+            <span>Carta (PDF)</span>
+          </button>
+        </div>
+
+        {/* Acciones: Imprimir / Cerrar */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              setTimeout(() => {
+                window.print();
+              }, 150);
+            }}
+            className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            title="Vista Previa PDF / Imprimir"
+          >
+            <Printer size={16} />
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 bg-slate-800 text-slate-300 hover:text-white rounded-lg active:scale-95 transition-transform"
+            className="p-2 bg-slate-800 text-slate-300 hover:text-white rounded-xl active:scale-95 transition-transform cursor-pointer"
+            title="Cerrar"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
       </div>
 
+      {/* Sub-header de Zoom solo para Formato Carta */}
+      {format === 'carta' && setZoomScale && (
+        <div className="bg-slate-900/90 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-300 print:hidden shrink-0">
+          <span className="font-bold text-slate-300">Vista Tamaño Carta (8.5 x 11 in):</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setZoomScale('fit')}
+              className={`px-2.5 py-0.5 rounded font-bold transition-colors ${zoomScale === 'fit' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              Ajustar ancho
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoomScale('100%')}
+              className={`px-2.5 py-0.5 rounded font-bold transition-colors ${zoomScale === '100%' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              100% Real
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sheet Content */}
-      <div className="flex-1 overflow-auto p-2 sm:p-4 bg-slate-800 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible">
-        <div className="w-full max-w-[816px] bg-white shadow-2xl rounded-sm overflow-hidden print:shadow-none print:max-w-none">
+      <div className={`flex-1 overflow-auto p-2 sm:p-4 bg-slate-950 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible ${format === 'carta' && zoomScale === '100%' ? 'overflow-x-auto' : ''}`}>
+        <div className={`${
+          format === 'ticket' 
+            ? 'w-full max-w-[360px] bg-white shadow-2xl rounded-2xl p-2 border border-slate-200 overflow-hidden' 
+            : (zoomScale === '100%' 
+                ? 'w-[816px] min-w-[816px] bg-white shadow-2xl rounded-sm p-4 overflow-visible' 
+                : 'w-full max-w-[816px] bg-white shadow-2xl rounded-sm p-2 sm:p-4 overflow-hidden')
+        } print:shadow-none print:max-w-none print:w-full print:p-0`}>
           {children}
         </div>
+      </div>
+
+      {/* Sticky Bottom Exit Bar */}
+      <div className="p-2.5 bg-slate-900 border-t border-slate-800 flex items-center gap-2 print:hidden shrink-0 shadow-lg">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 active:scale-98 transition-all border border-slate-700 shadow-xs"
+        >
+          <ArrowLeft size={16} /> Volver a Facturación
+        </button>
+        <button
+          type="button"
+          onClick={onPrint || (() => window.print())}
+          className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 active:scale-98 transition-all"
+        >
+          <Printer size={16} /> Imprimir {format === 'ticket' ? 'Ticket' : 'Carta'}
+        </button>
       </div>
     </div>
   );
@@ -824,7 +933,17 @@ function ClientCard({ client, onRemove }: { client: Client; onRemove: () => void
   );
 }
 
-function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Product) => void }) {
+function ProductSearchItem({ 
+  product, 
+  onAdd, 
+  onSelect,
+  isSelected = false 
+}: { 
+  product: Product; 
+  onAdd: (p: Product) => void;
+  onSelect?: () => void;
+  isSelected?: boolean;
+}) {
   const catColors: Record<string, string> = {
     'Diagnóstico': 'text-blue-600 bg-blue-50',
     'Monitoreo': 'text-violet-600 bg-violet-50',
@@ -836,29 +955,72 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
     'Cirugía': 'text-pink-600 bg-pink-50',
   };
   const cc = catColors[product.category] || 'text-slate-600 bg-slate-100';
+
+  const handleCardClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Si ya está seleccionada (borde verde), al darle con el dedo o clic se inserta en el documento
+    if (isSelected) {
+      onAdd(product);
+    } else {
+      // Si aún no está seleccionada, se selecciona en verde
+      if (onSelect) {
+        onSelect();
+      } else {
+        onAdd(product);
+      }
+    }
+  };
+
   return (
     <button
-      onClick={() => onAdd(product)}
-      className="w-full flex items-start gap-3 p-3 hover:bg-blue-50/70 rounded-xl transition-all group text-left"
+      type="button"
+      onMouseDown={(e) => {
+        // Prevenir que el input pierda foco antes del click en desktop/emulador
+        e.preventDefault();
+      }}
+      onClick={handleCardClick}
+      className={`w-full flex items-start gap-3 p-3 rounded-2xl transition-all group text-left cursor-pointer select-none active:scale-[0.99] ${
+        isSelected
+          ? 'bg-emerald-50/90 border-2 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+          : 'bg-white hover:bg-slate-50 border border-slate-200'
+      }`}
     >
-      <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 relative transition-colors group-hover:border-blue-300">
+      <div className={`w-10 h-10 rounded-lg overflow-hidden border bg-slate-50 flex items-center justify-center shrink-0 relative transition-colors ${
+        isSelected ? 'border-emerald-500 bg-emerald-100/50' : 'border-slate-200 group-hover:border-emerald-300'
+      }`}>
         {product.imageUrl ? (
           <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
-        ) : product.type === 'activo' ? (
-          <Stethoscope size={14} className="text-indigo-400 group-hover:text-blue-500" />
         ) : (
-          <Package size={14} className="text-slate-400 group-hover:text-blue-500" />
+          <Package size={16} className={isSelected ? 'text-emerald-700' : 'text-slate-400 group-hover:text-emerald-600'} />
         )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-semibold text-slate-700 group-hover:text-blue-700 leading-tight">{product.name}</p>
-          <span className="shrink-0 text-xs font-bold text-slate-700 group-hover:text-blue-600">{fmt(product.price)}</span>
+          <p className={`text-xs sm:text-sm font-black leading-tight uppercase tracking-tight ${
+            isSelected ? 'text-emerald-950 font-black' : 'text-slate-800 group-hover:text-emerald-800'
+          }`}>
+            {(product.name || '').toUpperCase()}
+          </p>
+          <div className="text-right shrink-0">
+            <span className={`block text-xs sm:text-sm font-black ${
+              isSelected ? 'text-emerald-800 font-black' : 'text-slate-800 group-hover:text-emerald-700'
+            }`}>
+              {fmt(product.price)}
+            </span>
+            {isSelected ? (
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase bg-emerald-600 text-white px-1.5 py-0.5 rounded shadow-2xs mt-0.5">
+                Elegido · Enter ↵
+              </span>
+            ) : (
+              <span className="inline-flex items-center text-[9px] font-bold text-slate-400 mt-0.5">
+                Tocar p/ elegir
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] font-mono text-slate-400">{product.code}</span>
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cc}`}>{product.category}</span>
-          <span className="text-[10px] text-slate-400">Stock: {product.stock}</span>
+          {product.code && <span className="text-[10px] font-mono text-slate-400 uppercase">{(product.code || '').toUpperCase()}</span>}
+          {product.category && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${cc}`}>{(product.category || '').toUpperCase()}</span>}
+          <span className="text-[10px] text-slate-500 font-bold uppercase">STOCK: {product.stock}</span>
         </div>
       </div>
     </button>
@@ -2269,8 +2431,18 @@ export default function DocumentBuilderClient({
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClientIndex, setSelectedClientIndex] = useState(0);
   const [productSearch, setProductSearch] = useState('');
+  const [selectedProductIndex, setSelectedProductIndex] = useState(0);
+  const [modalSearchResults, setModalSearchResults] = useState<Product[]>([]);
+  const [isSearchingModal, setIsSearchingModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
+
+  useEffect(() => {
+    if (showProductModal) {
+      setSelectedProductIndex(0);
+      setModalSearchResults([]);
+    }
+  }, [showProductModal]);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showUnsavedWhatsAppWarning, setShowUnsavedWhatsAppWarning] = useState(false);
@@ -3098,6 +3270,8 @@ export default function DocumentBuilderClient({
   const [isLoaded, setIsLoaded] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [showMobilePreviewModal, setShowMobilePreviewModal] = useState(false);
+  const [mobilePreviewFormat, setMobilePreviewFormat] = useState<'ticket' | 'carta'>('ticket');
+  const [mobileCartaZoom, setMobileCartaZoom] = useState<'fit' | '100%'>('fit');
 
   useEffect(() => {
     const handleShowLightbox = (e: Event) => {
@@ -4215,7 +4389,7 @@ export default function DocumentBuilderClient({
     const loadData = async () => {
       try {
         const cls = await searchClientes('');
-        const prd = await searchProductos('');
+        const prd = await searchProductos('', 300);
         setAllClients(cls.map((c: any) => ({
           id: c.id,
           name: c.nombre,
@@ -4250,7 +4424,7 @@ export default function DocumentBuilderClient({
 
     const handleForceReloadCatalog = async () => {
       try {
-        const prd = await searchProductos('');
+        const prd = await searchProductos('', 300);
         setAllProducts(prd.map((p: any) => ({
           id: p.id,
           code: p.sku || '',
@@ -4566,19 +4740,94 @@ export default function DocumentBuilderClient({
     }
   };
 
-  const nProductSearch = normalizeText(productSearch);
-  const filteredProducts = allProducts.filter(p => {
-    const matchesSearch = normalizeText(p.name).includes(nProductSearch) ||
-      normalizeText(p.code).includes(nProductSearch) ||
-      normalizeText(p.category).includes(nProductSearch);
-      
-    if (showExpiredOnly) {
-      const isExpired = p.fechaVencimiento && new Date(p.fechaVencimiento) < new Date();
-      return matchesSearch && isExpired;
+  // --- BÚSQUEDA DINÁMICA REMOTA EN SERVIDOR PARA EL MODAL DE PRODUCTOS ---
+  useEffect(() => {
+    if (!showProductModal) {
+      setModalSearchResults([]);
+      return;
     }
-    
-    return matchesSearch;
-  });
+
+    const trimmed = productSearch.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setModalSearchResults([]);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      setIsSearchingModal(true);
+      try {
+        const res = await searchProductos(trimmed, 150);
+        const mapped: Product[] = res.map((p: any) => ({
+          id: p.id,
+          code: p.sku || '',
+          name: p.nombre,
+          description: p.descripcion || '',
+          price: Number(p.precioVenta) || 0,
+          category: p.marca || 'General',
+          stock: p.stockActual || 0,
+          brand: p.marca || '',
+          type: p.type || 'producto',
+          imageUrl: p.imageUrl || p.imagenUrl || null,
+          fechaVencimiento: p.fechaVencimiento || null,
+          serie: p.serie || null,
+          marcaModelo: p.marcaModelo || null,
+          isOrdenTrabajo: p.isOrdenTrabajo || false
+        }));
+        setModalSearchResults(mapped);
+      } catch (err) {
+        console.error("Error searching products dynamic for modal:", err);
+      } finally {
+        setIsSearchingModal(false);
+      }
+    }, 150);
+
+    return () => clearTimeout(delayDebounce);
+  }, [productSearch, showProductModal]);
+
+  // --- FILTRADO INTELIGENTE CON FUSE.JS (COINCIDENCIAS EXACTAS Y DIFUSAS / TYPOS) ---
+  const filteredProducts = useMemo(() => {
+    // 1. Combinar productos locales y en caché remota en un solo mapa
+    const map = new Map<string, Product>();
+    for (const p of allProducts) map.set(p.id, p);
+    for (const p of modalSearchResults) map.set(p.id, p);
+
+    let items = Array.from(map.values());
+
+    if (showExpiredOnly) {
+      items = items.filter(p => p.fechaVencimiento && new Date(p.fechaVencimiento) < new Date());
+    }
+
+    const trimmed = productSearch.trim();
+    if (!trimmed) {
+      return items;
+    }
+
+    // 2. Configurar búsqueda difusa con Fuse.js (idéntico a la versión de escritorio)
+    const fuse = new Fuse(items, {
+      keys: ['name', 'code', 'description', 'brand', 'category', 'serie'],
+      threshold: 0.6, // Mayor tolerancia a errores ortográficos / typos
+      ignoreLocation: true,
+      ignoreFieldNorm: true,
+      includeScore: true,
+      useExtendedSearch: true
+    });
+
+    const results = fuse.search(trimmed);
+    if (results.length > 0) {
+      return results.map(r => r.item).slice(0, 50);
+    }
+
+    // 3. Fallback normalizado si Fuse no arroja resultados
+    const nSearch = normalizeText(trimmed);
+    const fallbackMatches = items.filter(p => {
+      return normalizeText(p.name).includes(nSearch) ||
+        normalizeText(p.code).includes(nSearch) ||
+        normalizeText(p.category).includes(nSearch) ||
+        normalizeText(p.brand || '').includes(nSearch);
+    });
+
+    return (fallbackMatches.length > 0 ? fallbackMatches : modalSearchResults).slice(0, 50);
+  }, [allProducts, modalSearchResults, productSearch, showExpiredOnly]);
 
   const handleLineChange = useCallback((id: string, field: any, val: any) => {
     if (field === 'sectionStyle' && val) {
@@ -4680,6 +4929,9 @@ export default function DocumentBuilderClient({
       return hasEmpty ? prev.map((l, i) => i === prev.length - 1 && !l.shortDesc ? newLine : l) : [...prev, newLine];
     });
     setShowProductModal(false);
+    setProductSearch('');
+    setSelectedProductIndex(0);
+    toast.success(`Agregado: ${sanitizedShortDesc.toUpperCase()}`, { icon: '🌸' });
   }, [activeLineId]);
 
   const handleSave = async () => {
@@ -5058,7 +5310,7 @@ export default function DocumentBuilderClient({
 
       {/* Mobile Form View (Visible en móviles < md) */}
       {!embedMode && !isLocked && (
-        <div className="block md:hidden px-1 py-1 print:hidden">
+        <div className="block md:hidden px-0 py-0.5 print:hidden">
           <MobileFacturacionTerminal
             allClients={allClients}
             docType={docType}
@@ -5098,12 +5350,24 @@ export default function DocumentBuilderClient({
             isLocked={isLocked}
             setShowActionsModal={setShowActionsModal}
             setShowWorkOrderModal={setShowWorkOrderModal}
-            onOpenPreview={() => setShowMobilePreviewModal(true)}
+            onOpenPreview={(format?: 'ticket' | 'carta') => {
+              if (format === 'carta') {
+                setShowMobilePreviewModal(false);
+                setTimeout(() => {
+                  window.print();
+                }, 150);
+              } else {
+                setMobilePreviewFormat('ticket');
+                setShowMobilePreviewModal(true);
+              }
+            }}
             settings={settings}
+            setSettings={setSettings}
             handleEditClick={handleEditClick}
             isDocLockedForEdit={esFacturaEmitidaExpirada && !isGerenteIlimitado}
             isAnulada={isAnulada}
             isConvertida={isConvertida}
+            onDiscard={() => setShowDiscardModal(true)}
           />
         </div>
       )}
@@ -6696,43 +6960,114 @@ export default function DocumentBuilderClient({
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Package size={18} className="text-blue-600" /> Catálogo Médico
+                <Package size={18} className="text-emerald-600" /> Catálogo de Flores y Productos
               </h3>
-              <button onClick={() => setShowProductModal(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+              <button onClick={() => { setShowProductModal(false); setProductSearch(''); setSelectedProductIndex(0); }} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
                 <X size={18} />
               </button>
             </div>
             <div className="p-4 border-b border-slate-100 bg-white">
-              <div className="flex gap-2 items-center">
-                <div className="relative flex-1">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    autoFocus
-                    value={productSearch}
-                    onChange={e => setProductSearch(e.target.value)}
-                    placeholder="Buscar equipo, marca o código..."
-                    className="w-full pl-11 pr-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
-                  />
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (filteredProducts.length === 0) return;
+                  const chosen = filteredProducts[selectedProductIndex] || filteredProducts[0];
+                  if (chosen) {
+                    addProduct(chosen);
+                  }
+                }}
+                className="relative w-full"
+              >
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  autoFocus
+                  enterKeyHint="enter"
+                  value={productSearch}
+                  onChange={e => {
+                    setProductSearch(e.target.value.toUpperCase());
+                    setSelectedProductIndex(0);
+                  }}
+                  onKeyDown={e => {
+                    if (filteredProducts.length === 0) return;
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSelectedProductIndex(prev => (prev + 1) % filteredProducts.length);
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSelectedProductIndex(prev => (prev - 1 + filteredProducts.length) % filteredProducts.length);
+                    } else if (e.key === 'Enter' || e.keyCode === 13 || (e as any).which === 13) {
+                      e.preventDefault();
+                      const chosen = filteredProducts[selectedProductIndex] || filteredProducts[0];
+                      if (chosen) {
+                        addProduct(chosen);
+                      }
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowProductModal(false);
+                      setProductSearch('');
+                      setSelectedProductIndex(0);
+                    }
+                  }}
+                  placeholder="BUSCAR FLOR, PRODUCTO O CÓDIGO..."
+                  style={{ textTransform: 'uppercase' }}
+                  className="w-full pl-11 pr-10 py-3.5 text-sm sm:text-base font-bold border-2 border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none uppercase tracking-tight shadow-2xs"
+                />
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {isSearchingModal && (
+                    <Loader2 size={16} className="text-emerald-600 animate-spin" />
+                  )}
+                  {productSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductSearch('');
+                        setSelectedProductIndex(0);
+                      }}
+                      className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                      title="Limpiar búsqueda"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
-                <button
-                  onClick={() => setShowExpiredOnly(!showExpiredOnly)}
-                  className={`px-4 py-3 rounded-xl text-xs font-semibold border-2 transition-all flex items-center justify-center whitespace-nowrap ${showExpiredOnly ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
-                  title="Mostrar solo productos vencidos"
-                >
-                  <AlertCircle size={14} className="mr-1.5" />
-                  Vencidos
-                </button>
-              </div>
+              </form>
             </div>
             <div className="overflow-y-auto p-4 bg-slate-50/50 flex-1">
+              {filteredProducts.length > 0 && productSearch.trim() && (
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-2.5 px-1">
+                  <span>{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado en catálogo' : 'resultados en catálogo'}</span>
+                  {isSearchingModal && (
+                    <span className="text-emerald-700 flex items-center gap-1 text-[10px]">
+                      <Loader2 size={11} className="animate-spin" /> Buscando...
+                    </span>
+                  )}
+                </div>
+              )}
+
               {filteredProducts.length === 0 ? (
-                <div className="p-8 text-center text-slate-400">
-                  <p>No se encontraron productos.</p>
+                <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center">
+                  {isSearchingModal ? (
+                    <>
+                      <Loader2 className="w-7 h-7 text-emerald-600 animate-spin mb-2" />
+                      <p className="text-xs font-bold text-slate-600">Buscando flores y productos en inventario...</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold text-slate-600">No se encontraron productos.</p>
+                      <p className="text-xs text-slate-400 mt-1">Verifica el nombre o código de inventario.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {filteredProducts.map(product => (
-                    <ProductSearchItem key={product.id} product={product} onAdd={addProduct} />
+                  {filteredProducts.map((product, idx) => (
+                    <ProductSearchItem 
+                      key={product.id} 
+                      product={product} 
+                      isSelected={idx === selectedProductIndex}
+                      onSelect={() => setSelectedProductIndex(idx)}
+                      onAdd={addProduct} 
+                    />
                   ))}
                 </div>
               )}
@@ -8226,8 +8561,12 @@ export default function DocumentBuilderClient({
         isOpen={showMobilePreviewModal}
         onClose={() => setShowMobilePreviewModal(false)}
         onPrint={() => setShowPrintChoiceModal(true)}
+        format={mobilePreviewFormat}
+        setFormat={setMobilePreviewFormat}
+        zoomScale={mobileCartaZoom}
+        setZoomScale={setMobileCartaZoom}
       >
-        <div className="relative bg-white min-h-[600px] p-2 sm:p-4">
+        <div className="relative bg-white min-h-[300px] p-2 sm:p-4">
           {isAnulada && (
              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 px-8">
                  <span className="text-6xl sm:text-9xl font-black text-red-500 uppercase tracking-widest -rotate-45 block whitespace-nowrap">ANULADA</span>
@@ -8260,7 +8599,7 @@ export default function DocumentBuilderClient({
 
             return (
               <>
-                {currentCanvasMode === 'document' && searchParams.get('print') === 'ticket' && (
+                {currentCanvasMode === 'document' && (mobilePreviewFormat === 'ticket' || searchParams.get('print') === 'ticket') && (
                   <TicketTemplate
                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                     nombreUsuario={resolvedNombreUsuario}
@@ -8274,90 +8613,98 @@ export default function DocumentBuilderClient({
                     totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignaturePayload} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
                   />
                 )}
-                {currentCanvasMode === 'document' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && <ModernTemplate 
-                  settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-                  nombreUsuario={resolvedNombreUsuario}
-                  docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-                  today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                  setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
-                  setPaymentTerms={handleSafeSetPaymentTerms}
-                  paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
-                  validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
-                  lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-                  handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-                  setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-                  setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                  LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-                  setSettings={setSettings}
-                  onToggleTerms={handleToggleTerms}
-                  numeroCAI={resolvedNumeroCAI}
-                  rangoAutorizado={resolvedRangoAutorizado}
-                  fechaLimiteEmision={resolvedFechaLimiteEmision}
-                  isSar={isDocumentoFiscal}
-                />}
-                {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
-                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-                   nombreUsuario={resolvedNombreUsuario}
-                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={handleSafeSetPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
-                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
-                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                   LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-                   setSettings={setSettings}
-                   onToggleTerms={handleToggleTerms}
-                   numeroCAI={resolvedNumeroCAI}
-                   rangoAutorizado={resolvedRangoAutorizado}
-                   fechaLimiteEmision={resolvedFechaLimiteEmision}
-                   isSar={isDocumentoFiscal}
-                />}
-                {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
-                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-                   nombreUsuario={resolvedNombreUsuario}
-                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={handleSafeSetPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
-                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
-                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-                  handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                   LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-                   setSettings={setSettings}
-                   onToggleTerms={handleToggleTerms}
-                   numeroCAI={resolvedNumeroCAI}
-                   rangoAutorizado={resolvedRangoAutorizado}
-                   fechaLimiteEmision={resolvedFechaLimiteEmision}
-                   isSar={isDocumentoFiscal}
-                />}
-                {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
-                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-                   nombreUsuario={resolvedNombreUsuario}
-                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
-                   setPaymentTerms={handleSafeSetPaymentTerms}
-                   paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
-                   validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
-                   lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
-                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                   LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
-                   setSettings={setSettings}
-                   onToggleTerms={handleToggleTerms}
-                   numeroCAI={resolvedNumeroCAI}
-                   rangoAutorizado={resolvedRangoAutorizado}
-                   fechaLimiteEmision={resolvedFechaLimiteEmision}
-                   isSar={isDocumentoFiscal}
-                />}
+                {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && (
+                  <ModernTemplate 
+                    settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                    nombreUsuario={resolvedNombreUsuario}
+                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                    setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                    setPaymentTerms={handleSafeSetPaymentTerms}
+                    paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                    validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
+                    lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                    setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                    LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                    setSettings={setSettings}
+                    onToggleTerms={handleToggleTerms}
+                    numeroCAI={resolvedNumeroCAI}
+                    rangoAutorizado={resolvedRangoAutorizado}
+                    fechaLimiteEmision={resolvedFechaLimiteEmision}
+                    isSar={isDocumentoFiscal}
+                  />
+                )}
+                {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && settings.template === 'classic' && (
+                  <ClassicTemplate 
+                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                     nombreUsuario={resolvedNombreUsuario}
+                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                     setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                     setPaymentTerms={handleSafeSetPaymentTerms}
+                     paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                     validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
+                     lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                     handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                     setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                     setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                     LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                     setSettings={setSettings}
+                     onToggleTerms={handleToggleTerms}
+                     numeroCAI={resolvedNumeroCAI}
+                     rangoAutorizado={resolvedRangoAutorizado}
+                     fechaLimiteEmision={resolvedFechaLimiteEmision}
+                     isSar={isDocumentoFiscal}
+                  />
+                )}
+                {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && settings.template === 'minimalist' && (
+                  <MinimalistTemplate 
+                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                     nombreUsuario={resolvedNombreUsuario}
+                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                     setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                     setPaymentTerms={handleSafeSetPaymentTerms}
+                     paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                     validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
+                     lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                     handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                     setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                     setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                     LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                     setSettings={setSettings}
+                     onToggleTerms={handleToggleTerms}
+                     numeroCAI={resolvedNumeroCAI}
+                     rangoAutorizado={resolvedRangoAutorizado}
+                     fechaLimiteEmision={resolvedFechaLimiteEmision}
+                     isSar={isDocumentoFiscal}
+                  />
+                )}
+                {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && settings.template === 'legacy' && (
+                  <LegacyTemplate 
+                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                     nombreUsuario={resolvedNombreUsuario}
+                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+                     setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                     setPaymentTerms={handleSafeSetPaymentTerms}
+                     paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+                     validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} 
+                     lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+                     handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+                     setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+                     setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+                     LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+                     setSettings={setSettings}
+                     onToggleTerms={handleToggleTerms}
+                     numeroCAI={resolvedNumeroCAI}
+                     rangoAutorizado={resolvedRangoAutorizado}
+                     fechaLimiteEmision={resolvedFechaLimiteEmision}
+                     isSar={isDocumentoFiscal}
+                  />
+                )}
               </>
             );
           })()}
