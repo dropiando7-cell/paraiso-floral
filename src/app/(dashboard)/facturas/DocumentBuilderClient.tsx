@@ -1066,6 +1066,8 @@ function LineItemRow({
   const [montoInputValue, setMontoInputValue] = useState<string>('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const lastSelectedProductRef = useRef<{ id: string; time: number } | null>(null);
   const [isDraggable, setIsDraggable] = useState(false);
   const [isSyncingCatalog, setIsSyncingCatalog] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
@@ -1212,13 +1214,22 @@ function LineItemRow({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setShowAutocomplete(false);
+      const target = e.target as Node;
+      if (containerRef.current && containerRef.current.contains(target)) {
+        return;
       }
+      if (dropdownRef.current && dropdownRef.current.contains(target)) {
+        return;
+      }
+      const targetEl = e.target as HTMLElement | null;
+      if (targetEl?.closest && targetEl.closest(`#autocomplete-dropdown-${item.id}`)) {
+        return;
+      }
+      setShowAutocomplete(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [item.id]);
 
   const query = focusedField === 'code' ? (item.code || '') : (item.shortDesc || '');
   const nQuery = normalizeText(query);
@@ -1306,6 +1317,11 @@ function LineItemRow({
     floatingRefs.setReference(node);
   };
 
+  const setFloatingRef = (node: HTMLDivElement | null) => {
+    dropdownRef.current = node;
+    floatingRefs.setFloating(node);
+  };
+
   useEffect(() => {
     if (shortDescRef.current) {
       shortDescRef.current.style.height = 'auto';
@@ -1321,6 +1337,13 @@ function LineItemRow({
   }, [item.longDesc, item.showLongDesc]);
 
   const handleSelectProduct = (product: Product) => {
+    if (!product) return;
+    const now = Date.now();
+    if (lastSelectedProductRef.current && lastSelectedProductRef.current.id === product.id && (now - lastSelectedProductRef.current.time) < 300) {
+      return;
+    }
+    lastSelectedProductRef.current = { id: product.id, time: now };
+
     if ((product as any).isOrdenTrabajo) {
       setShowAutocomplete(false);
       window.dispatchEvent(new CustomEvent('extract-work-order-event', {
@@ -1492,7 +1515,7 @@ function LineItemRow({
     return (
       <FloatingPortal>
         <div 
-          ref={floatingRefs.setFloating}
+          ref={setFloatingRef}
           style={{ ...floatingStyles, zIndex: 999999 }}
           id={`autocomplete-dropdown-${item.id}`} 
           className="w-[520px] md:w-[580px] max-w-[95vw] bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden print:hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/10"
@@ -1509,6 +1532,10 @@ function LineItemRow({
             ) : (
               <button
                 type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSyncCatalogClick();
@@ -1528,7 +1555,10 @@ function LineItemRow({
             <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300/40">
               <button
                 type="button"
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleAutocompleteViewMode('inline');
@@ -1545,7 +1575,10 @@ function LineItemRow({
               </button>
               <button
                 type="button"
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleAutocompleteViewMode('cards');
@@ -1598,10 +1631,15 @@ function LineItemRow({
                     }
                   }}
                   onMouseDown={(e) => {
-                    // Evitar que el input pierda foco antes del click
                     e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectProduct(p);
                   }}
-                  onClick={() => handleSelectProduct(p)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSelectProduct(p);
+                  }}
                   className={`group w-full text-left px-3 py-1.5 rounded-md grid grid-cols-[88px_1fr_78px_86px_24px] gap-2 items-center transition-colors cursor-pointer ${
                     isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200' : 'hover:bg-slate-50/80 text-slate-800'
                   }`}
@@ -1652,6 +1690,10 @@ function LineItemRow({
                   <div className="flex justify-center items-center">
                     <button
                       type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -1690,10 +1732,15 @@ function LineItemRow({
                   }
                 }}
                 onMouseDown={(e) => {
-                  // Evitar que el input pierda foco antes del click
                   e.preventDefault();
+                  e.stopPropagation();
+                  handleSelectProduct(p);
                 }}
-                onClick={() => handleSelectProduct(p)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelectProduct(p);
+                }}
                 className={`group w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-all cursor-pointer ${
                   isHovered ? 'bg-blue-50/90 text-blue-950 ring-1 ring-blue-200/80 shadow-xs' : 'hover:bg-slate-50 text-slate-800'
                 }`}
@@ -1768,6 +1815,10 @@ function LineItemRow({
                 <div className="shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -1808,10 +1859,17 @@ function LineItemRow({
           type="button"
           onMouseDown={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             setShowAutocomplete(false);
             window.dispatchEvent(new CustomEvent('open-activo-modal', { detail: { lineId: item.id } }));
           }}
-          className="w-full text-left px-3.5 py-2.5 border-t border-slate-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-colors shrink-0"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowAutocomplete(false);
+            window.dispatchEvent(new CustomEvent('open-activo-modal', { detail: { lineId: item.id } }));
+          }}
+          className="w-full text-left px-3.5 py-2.5 border-t border-slate-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-colors shrink-0 cursor-pointer"
         >
           <Plus size={14} className="shrink-0" />
           Registrar nuevo producto o activo en Inventario
