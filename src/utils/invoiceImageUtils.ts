@@ -63,12 +63,15 @@ export async function captureInvoiceImageBlob(container: HTMLElement): Promise<B
     const html2canvasModule = await import('html2canvas-pro');
     const html2canvas = html2canvasModule.default;
 
+    const targetWidth = Math.max(container.offsetWidth || 816, 816);
     canvas = await html2canvas(container, {
       scale: 2, // Calidad HD para que todo el texto y números sean ultra legibles en WhatsApp
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
+      windowWidth: targetWidth,
+      width: targetWidth,
     });
   } finally {
     // Restaurar siempre los elementos y las imágenes
@@ -113,4 +116,59 @@ export async function copyInvoiceImageToClipboard(container: HTMLElement): Promi
   } else {
     throw new Error('Tu navegador no soporta copiar imágenes directamente al portapapeles.');
   }
+}
+
+export interface InvoiceCaptureResult {
+  blob: Blob;
+  copied: boolean;
+  shared: boolean;
+}
+
+/**
+ * Captura la factura en formato carta HD, la copia al portapapeles y permite compartir nativamente en móviles
+ */
+export async function captureAndProcessInvoiceImage(
+  container: HTMLElement,
+  options?: {
+    filename?: string;
+    title?: string;
+    shareIfAvailable?: boolean;
+  }
+): Promise<InvoiceCaptureResult> {
+  const blob = await captureInvoiceImageBlob(container);
+  let copied = false;
+  let shared = false;
+
+  // 1. Intentar copiar directamente al portapapeles
+  if (typeof window !== 'undefined' && navigator.clipboard && window.ClipboardItem) {
+    try {
+      const item = new ClipboardItem({ 'image/png': blob });
+      await navigator.clipboard.write([item]);
+      copied = true;
+    } catch (err) {
+      console.warn('No se pudo copiar directamente al portapapeles:', err);
+    }
+  }
+
+  // 2. Si está disponible en celular, activar Web Share API para compartir directo a WhatsApp
+  const filename = options?.filename || 'factura.png';
+  if (options?.shareIfAvailable !== false && typeof window !== 'undefined' && navigator.canShare) {
+    try {
+      const file = new File([blob], filename, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: options?.title || 'Documento de Facturación',
+          text: options?.title ? `${options.title} - Paraíso Floral` : 'Paraíso Floral'
+        });
+        shared = true;
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.warn('Error en Web Share API:', err);
+      }
+    }
+  }
+
+  return { blob, copied, shared };
 }

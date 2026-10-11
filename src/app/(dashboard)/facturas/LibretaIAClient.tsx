@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
-import { guardarDocumentoBuilder } from './actions';
+import { guardarDocumentoBuilder, searchProductos } from './actions';
 
 type TargetDocType = 'COTIZACION' | 'FACTURA' | 'PROFORMA';
 
@@ -65,6 +65,9 @@ export default function LibretaIAClient({ organization }: Props) {
   const [targetDocType, setTargetDocType] = useState<TargetDocType>('COTIZACION');
   const [showDocTypeMenu, setShowDocTypeMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pricesIncludeTax, setPricesIncludeTax] = useState<boolean>(() => {
+    return organization?.invoiceSettings?.pricesIncludeTax !== false;
+  });
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Cerrar menú desplegable al hacer clic afuera
@@ -100,27 +103,75 @@ export default function LibretaIAClient({ organization }: Props) {
       const aiData = await res.json();
       if (aiData.error) throw new Error(aiData.error);
 
-      // Calcular totales
-      let subTotal = 0;
-      const validItems = (aiData.items || []).map((item: any, idx: number) => {
-        const lineTotal = (item.cantidad || 1) * (item.precioUnitario || 0);
-        subTotal += lineTotal;
-        return {
-          id: `ai-item-${idx}`,
-          code: '',
-          shortDesc: item.descripcion,
-          longDesc: '',
-          richDesc: '',
-          showLongDesc: false,
-          qty: item.cantidad || 1,
-          unitPrice: item.precioUnitario || 0,
-          tax: 'EXENTO', // Por defecto exento para líneas libres, se puede editar luego
-          discount: 0,
-          discountType: 'percentage',
-        };
-      });
+      const extractedItems = aiData.items || [];
+      if (extractedItems.length === 0) {
+        throw new Error('No se detectaron flores ni productos claros en el texto/imagen');
+      }
 
-      const isv15 = targetDocType === 'FACTURA' ? 0 : 0; // Se ajusta en el builder
+      // Buscar automáticamente coincidencias en el catálogo de inventario
+      const validItems = await Promise.all(
+        extractedItems.map(async (item: any, idx: number) => {
+          const desc = item.descripcion || 'Producto';
+          const qty = Number(item.cantidad) || 1;
+          const userPrice = Number(item.precioUnitario) || 0;
+
+          let matchedProduct: any = null;
+          try {
+            const searchRes = await searchProductos(desc, 5);
+            if (searchRes && searchRes.length > 0) {
+              matchedProduct = searchRes[0];
+            }
+          } catch (e) {
+            console.warn('Error al buscar producto coincidente en inventario:', e);
+          }
+
+          const finalPrice = userPrice > 0 ? userPrice : (Number(matchedProduct?.price) || 0);
+
+          return {
+            id: `ai-item-${idx}-${Date.now()}`,
+            code: matchedProduct ? (matchedProduct.code || '') : '',
+            shortDesc: matchedProduct ? matchedProduct.name : desc.toUpperCase(),
+            longDesc: matchedProduct ? (matchedProduct.description || '') : '',
+            richDesc: '',
+            showLongDesc: false,
+            qty: qty,
+            unitPrice: finalPrice,
+            tax: 'isv15', // En Paraíso Floral todos los productos son gravados con ISV 15%
+            discount: 0,
+            discountType: 'percentage',
+            productoId: matchedProduct && matchedProduct.type === 'producto' ? matchedProduct.id : undefined,
+            activoId: matchedProduct && matchedProduct.type === 'activo' ? matchedProduct.id : undefined,
+            imageUrl: matchedProduct?.imageUrl || undefined
+          };
+        })
+      );
+
+      // Calcular montos considerando el switch de ISV (precios incluyen o más ISV)
+      let subTotal = 0;
+      let totalGravado15 = 0;
+      let totalIsv15 = 0;
+      let finalTotal = 0;
+
+      for (const it of validItems) {
+        const lineVal = it.qty * it.unitPrice;
+        if (pricesIncludeTax) {
+          // El precio ya incluye el 15% de ISV
+          const base = lineVal / 1.15;
+          const isv = lineVal - base;
+          subTotal += base;
+          totalGravado15 += base;
+          totalIsv15 += isv;
+          finalTotal += lineVal;
+        } else {
+          // Se suma el 15% de ISV sobre el precio
+          const isv = lineVal * 0.15;
+          subTotal += lineVal;
+          totalGravado15 += lineVal;
+          totalIsv15 += isv;
+          finalTotal += (lineVal + isv);
+        }
+      }
+
       const data = {
         clienteId: selectedClienteId,
         tipoDocumento: targetDocType,
@@ -131,21 +182,25 @@ export default function LibretaIAClient({ organization }: Props) {
         aliasVenta: 'Paraíso Floral',
         transferenciaConfirmada: false,
         validezDias: targetDocType === 'COTIZACION' ? 15 : 30,
-        subTotal: subTotal,
+        subTotal: Number(subTotal.toFixed(2)),
         descuentos: 0,
-        totalExento: subTotal, // Todo exento por defecto
+        totalExento: 0,
         totalExonerado: 0,
-        totalGravado15: 0,
-        isv15: 0,
+        totalGravado15: Number(totalGravado15.toFixed(2)),
+        isv15: Number(totalIsv15.toFixed(2)),
         totalGravado18: 0,
         isv18: 0,
-        total: subTotal,
+        total: Number(finalTotal.toFixed(2)),
+        templateSettings: {
+          ...(organization?.invoiceSettings || {}),
+          pricesIncludeTax
+        }
       };
 
       const result = await guardarDocumentoBuilder(data, validItems);
       if (result.success && result.docId) {
         const docName = DOC_TYPE_CONFIG[targetDocType].label;
-        toast.success(`¡${docName} generada exitosamente!`);
+        toast.success(`¡${docName} generada exitosamente con ISV 15%!`);
         router.push(`/facturas/${result.docId}`);
       } else {
         throw new Error(result.error || `Error al guardar ${DOC_TYPE_CONFIG[targetDocType].label.toLowerCase()}`);
@@ -196,7 +251,7 @@ export default function LibretaIAClient({ organization }: Props) {
               <h2 className="text-2xl font-black tracking-tight">Libreta Mágica IA</h2>
             </div>
             <p className="text-fuchsia-100 font-medium max-w-lg leading-relaxed">
-              Pega la lista del pedido de WhatsApp aquí. La IA lo leerá, extraerá los productos, y generará una {DOC_TYPE_CONFIG[targetDocType].label.toLowerCase()} lista para emitir o compartir.
+              Pega la lista del pedido de WhatsApp aquí. La IA lo leerá, extraerá los productos de tu inventario, y generará una {DOC_TYPE_CONFIG[targetDocType].label.toLowerCase()} lista para emitir o compartir.
             </p>
           </div>
         </div>
@@ -316,19 +371,43 @@ export default function LibretaIAClient({ organization }: Props) {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <AlertCircle className="w-4 h-4 text-fuchsia-500" />
-            La IA usará líneas libres (productos sin código).
+        <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Switch de Precios Incluyen ISV */}
+            <div className="flex items-center gap-2.5 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+              <div className="text-left">
+                <span className="text-xs font-bold text-slate-800 block">Precios incluyen ISV</span>
+                <span className="text-[10px] text-slate-500 block">
+                  {pricesIncludeTax ? 'ISV 15% incluido en precio' : '+15% de ISV se sumará al total'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPricesIncludeTax(prev => !prev)}
+                className={`w-9 h-5 rounded-full transition-colors relative shrink-0 focus:outline-none cursor-pointer ml-1 ${
+                  pricesIncludeTax ? 'bg-blue-600' : 'bg-slate-300'
+                }`}
+                title={pricesIncludeTax ? "Precios ya incluyen ISV (15%)" : "Se sumará el 15% de ISV al precio"}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
+                  pricesIncludeTax ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span>Coincidencias en catálogo automáticas</span>
+            </div>
           </div>
 
           {/* Dynamic Split Button with Quick Dropdown */}
-          <div ref={menuRef} className="relative w-full sm:w-auto inline-flex shadow-lg rounded-xl overflow-visible">
+          <div ref={menuRef} className="relative w-full md:w-auto inline-flex shadow-lg rounded-xl overflow-visible">
             <button
               type="button"
               onClick={handleProcess}
               disabled={isLoading || (!text.trim() && !imageB64) || !selectedClienteId}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 text-white font-bold text-xs sm:text-sm transition-all rounded-l-xl active:scale-[0.99] disabled:opacity-50 cursor-pointer ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 text-white font-bold text-xs sm:text-sm transition-all rounded-l-xl active:scale-[0.99] disabled:opacity-50 cursor-pointer ${
                 DOC_TYPE_CONFIG[targetDocType].buttonBg
               }`}
             >

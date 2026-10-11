@@ -18,6 +18,7 @@ import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
+import { captureAndProcessInvoiceImage } from '@/utils/invoiceImageUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { isCredito } from '@/utils/facturaUtils';
 import Fuse from 'fuse.js';
@@ -2513,6 +2514,47 @@ export default function DocumentBuilderClient({
       return;
     }
     setShowWhatsAppModal(true);
+  };
+
+  const handleCaptureLetterImage = async () => {
+    const container = templateContainerRef.current;
+    if (!container) {
+      toast.error('No se encontró el contenedor de la factura');
+      return;
+    }
+
+    const toastId = toast.loading('Generando captura en tamaño carta HD...');
+    try {
+      const clientName = showSuccessModal?.clienteNombre || selectedClient?.name || initialData?.clienteNombre || 'Cliente';
+      const correlativo = showSuccessModal?.correlativo || docNumber || initialData?.correlativo || 'documento';
+      const cleanFileName = `${correlativo.replace(/[^a-zA-Z0-9-_]/g, '_')}.png`;
+
+      const { blob, copied, shared } = await captureAndProcessInvoiceImage(container, {
+        filename: cleanFileName,
+        title: `${docType === 'factura' ? 'Factura' : 'Cotización'} ${correlativo}`
+      });
+
+      toast.dismiss(toastId);
+      if (copied) {
+        toast.success('¡Captura copiada al portapapeles! Lista para pegar en WhatsApp 📸', { duration: 5000 });
+      } else if (shared) {
+        toast.success('¡Imagen compartida exitosamente! 📸', { duration: 4000 });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = cleanFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('¡Captura descargada exitosamente! 📸', { duration: 4000 });
+      }
+    } catch (err: any) {
+      console.error('Error generando captura de factura:', err);
+      toast.dismiss(toastId);
+      toast.error(err.message || 'Error al generar la captura');
+    }
   };
 
   useEffect(() => {
@@ -5481,12 +5523,17 @@ export default function DocumentBuilderClient({
             isAnulada={isAnulada}
             isConvertida={isConvertida}
             onDiscard={() => setShowDiscardModal(true)}
+            lastSavedDoc={showSuccessModal}
+            onCloseLastSavedDoc={() => {
+              setShowSuccessModal(null);
+            }}
+            onCaptureLetterImage={handleCaptureLetterImage}
           />
         </div>
       )}
 
-      {/* Desktop Canvas View (Visible on >= md screens or print) */}
-      <div className={`mx-auto px-4 py-8 hidden md:flex print:!flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
+      {/* Desktop Canvas View (Visible on >= md screens or print, rendered off-screen on mobile for 1:1 letter image capture) */}
+      <div className={`mx-auto px-4 py-8 max-md:fixed max-md:left-0 max-md:top-0 max-md:w-[816px] max-md:pointer-events-none max-md:z-[-9999] md:relative md:left-auto md:top-auto md:w-auto md:pointer-events-auto md:z-auto md:flex print:!flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 print:block transition-all duration-300 ${
         showCustomizer
           ? 'max-w-none w-full gap-5'
           : (viewMode && docType === 'factura' && !isLocked)
@@ -5562,7 +5609,7 @@ export default function DocumentBuilderClient({
                </div>
              )}
 
-             <div ref={templateContainerRef} className="max-w-[816px] mx-auto relative bg-white">
+             <div ref={templateContainerRef} className="w-[816px] max-w-[816px] mx-auto relative bg-white shrink-0">
           
           {isAnulada && (
              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 print:opacity-20 px-8">
@@ -7433,7 +7480,7 @@ export default function DocumentBuilderClient({
               </div>
             )}
             {showSuccessModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+        <div className="hidden md:flex fixed inset-0 z-[70] items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
           <div className="bg-white rounded-3xl sm:rounded-[2.5rem] shadow-2xl max-w-2xl w-full p-6 sm:p-8 md:p-9 text-center flex flex-col items-center gap-5 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden border border-slate-100">
             {/* Boton X para cerrar */}
             <button 

@@ -121,6 +121,15 @@ interface MobileFacturacionTerminalProps {
   isAnulada?: boolean;
   isConvertida?: boolean;
   onDiscard?: () => void;
+  lastSavedDoc?: {
+    show: boolean;
+    docId: string;
+    correlativo: string;
+    format: string;
+    clienteNombre?: string;
+  } | null;
+  onCloseLastSavedDoc?: () => void;
+  onCaptureLetterImage?: () => Promise<void>;
 }
 
 export default function MobileFacturacionTerminal({
@@ -156,7 +165,10 @@ export default function MobileFacturacionTerminal({
   isDocLockedForEdit,
   isAnulada,
   isConvertida,
-  onDiscard
+  onDiscard,
+  lastSavedDoc,
+  onCloseLastSavedDoc,
+  onCaptureLetterImage
 }: MobileFacturacionTerminalProps) {
 
   const router = useRouter();
@@ -193,8 +205,18 @@ export default function MobileFacturacionTerminal({
   const [productSuggestions, setProductSuggestions] = useState<any[]>([]);
   const [isSearchingProducts, setIsSearchingProducts] = useState(false);
 
-  // Format Chooser for Preview (Ticket vs Carta)
+  // Format Chooser for Preview (Ticket vs Carta) y Modal Post-Emisión
   const [showPreviewChooser, setShowPreviewChooser] = useState(false);
+  const [isPostEmissionModalOpen, setIsPostEmissionModalOpen] = useState(false);
+  const [isCapturingImage, setIsCapturingImage] = useState(false);
+
+  // Abrir modal automáticamente cuando se emite / guarda exitosamente el documento
+  useEffect(() => {
+    if (lastSavedDoc?.show && lastSavedDoc?.docId) {
+      setIsPostEmissionModalOpen(true);
+      playSuccessChime();
+    }
+  }, [lastSavedDoc]);
 
   // View Mode: Cards visuales vs Lista Inline compacta (Inspirado en Imagen 3)
   const [itemsViewMode, setItemsViewMode] = useState<'cards' | 'inline'>('cards');
@@ -1502,71 +1524,82 @@ export default function MobileFacturacionTerminal({
         </div>
       )}
 
-      {/* ─── 7. BARRA FIJA INFERIOR (Sticky Checkout - Estilo Imagen 4) ─────── */}
+      {/* ─── 7. BARRA FIJA INFERIOR (Sticky Checkout) ─────── */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-300/80 p-2.5 shadow-2xl flex items-center gap-2 print:hidden md:hidden">
-        
-        {/* Botón Vista Previa */}
-        <button
-          type="button"
-          onClick={() => setShowPreviewChooser(true)}
-          className="py-3 px-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-300 transition-transform shadow-xs shrink-0"
-        >
-          <Eye size={15} className="text-slate-600" />
-          <span>Vista Previa</span>
-        </button>
-
-        {/* Botón Principal de Emisión a Ancho Completo */}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          className={`flex-1 py-3.5 px-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] ${
-            isSaving
-              ? 'bg-slate-400 cursor-not-allowed text-white'
-              : isFactura
-                ? 'bg-[#15803d] hover:bg-[#166534] text-white shadow-emerald-700/25'
-                : isCotizacion
-                  ? 'bg-[#1d4ed8] hover:bg-[#1e40af] text-white shadow-blue-700/25'
-                  : 'bg-[#6b21a8] hover:bg-[#581c87] text-white shadow-purple-700/25'
-          }`}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              <span>Guardando...</span>
-            </>
-          ) : (
-            <>
-              <FileText size={16} />
-              <span>
-                {isFactura 
-                  ? 'GENERAR Y EMITIR FACTURA' 
-                  : isCotizacion 
-                    ? 'GENERAR COTIZACIÓN' 
-                    : 'GENERAR PRO FORMA'}
-              </span>
-            </>
-          )}
-        </button>
+        {viewMode ? (
+          <button
+            type="button"
+            onClick={() => setIsPostEmissionModalOpen(true)}
+            className="w-full py-3.5 px-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-900/20"
+          >
+            <Camera size={16} />
+            <span>OPCIONES DE DOCUMENTO (CAPTURA / IMPRESIÓN)</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`w-full py-3.5 px-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] ${
+              isSaving
+                ? 'bg-slate-400 cursor-not-allowed text-white'
+                : isFactura
+                  ? 'bg-[#15803d] hover:bg-[#166534] text-white shadow-emerald-700/25'
+                  : isCotizacion
+                    ? 'bg-[#1d4ed8] hover:bg-[#1e40af] text-white shadow-blue-700/25'
+                    : 'bg-[#6b21a8] hover:bg-[#581c87] text-white shadow-purple-700/25'
+            }`}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Guardando...</span>
+              </>
+            ) : (
+              <>
+                <FileText size={16} />
+                <span>
+                  {isFactura 
+                    ? 'GENERAR Y EMITIR FACTURA' 
+                    : isCotizacion 
+                      ? 'GENERAR COTIZACIÓN' 
+                      : 'GENERAR PRO FORMA'}
+                </span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* ─── MODAL ELECCIÓN DE VISTA PREVIA (TICKET 80mm vs HOJA CARTA) ─── */}
-      {showPreviewChooser && (
+      {/* ─── MODAL POST-EMISIÓN: VISTA PREVIA Y ACCIONES (CAPTURA, TICKET, CARTA) ─── */}
+      {(isPostEmissionModalOpen || showPreviewChooser) && (
         <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-sm p-4 sm:p-5 shadow-2xl border border-slate-200 flex flex-col gap-3 animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                  <Eye size={17} />
+                  <CheckCircle2 size={18} />
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 uppercase">Vista Previa</h3>
-                  <p className="text-[10px] text-slate-500">Selecciona el formato a previsualizar</p>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-black text-slate-900 uppercase truncate">
+                    {lastSavedDoc?.format === 'factura' 
+                      ? 'Factura Oficial SAR' 
+                      : lastSavedDoc?.format === 'proforma' 
+                        ? 'Factura Pro Forma' 
+                        : 'Cotización Emitida'}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-mono truncate">
+                    {lastSavedDoc?.correlativo || docNumber} {lastSavedDoc?.clienteNombre ? `• ${lastSavedDoc.clienteNombre}` : (selectedClient?.name ? `• ${selectedClient.name}` : '')}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowPreviewChooser(false)}
+                onClick={() => {
+                  setIsPostEmissionModalOpen(false);
+                  setShowPreviewChooser(false);
+                  onCloseLastSavedDoc?.();
+                }}
                 className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center"
               >
                 <X size={16} />
@@ -1574,33 +1607,73 @@ export default function MobileFacturacionTerminal({
             </div>
 
             <div className="grid grid-cols-1 gap-2.5 my-1">
-              {/* Opción Ticket 80mm */}
+              {/* 1. Realizar Captura */}
+              <button
+                type="button"
+                disabled={isCapturingImage}
+                onClick={async () => {
+                  if (onCaptureLetterImage) {
+                    setIsCapturingImage(true);
+                    try {
+                      await onCaptureLetterImage();
+                    } finally {
+                      setIsCapturingImage(false);
+                    }
+                  } else {
+                    toast.error('Función de captura no disponible');
+                  }
+                }}
+                className="p-3.5 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-600 rounded-2xl flex items-center gap-3 text-left transition-all active:scale-[0.98] cursor-pointer group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                  {isCapturingImage ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">1. Realizar Captura</span>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-600 text-white">Recomendado</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium leading-tight">
+                    {isCapturingImage ? 'Capturando en tamaño carta...' : 'Copia la imagen en tamaño carta al portapapeles para WhatsApp'}
+                  </p>
+                </div>
+              </button>
+
+              {/* 2. Ticket */}
               <button
                 type="button"
                 onClick={() => {
-                  setShowPreviewChooser(false);
-                  onOpenPreview('ticket');
+                  const targetDocId = lastSavedDoc?.docId;
+                  if (targetDocId) {
+                    window.open(`/facturas/ver/${targetDocId}?print=ticket`, '_blank');
+                  } else {
+                    onOpenPreview('ticket');
+                  }
                 }}
-                className="p-3.5 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-600 rounded-2xl flex items-center gap-3 text-left transition-all active:scale-[0.98]"
+                className="p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-300 rounded-2xl flex items-center gap-3 text-left transition-all active:scale-[0.98] cursor-pointer"
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-sm">
                   <Receipt size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">Ticket Térmico (80mm)</span>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-600 text-white">Recomendado</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">2. Ticket</span>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">80mm POS</span>
                   </div>
                   <p className="text-[11px] text-slate-600 mt-0.5 font-medium leading-tight">Optimizado para celulares e impresoras térmicas POS</p>
                 </div>
               </button>
 
-              {/* Opción Hoja Carta */}
+              {/* 3. Hoja en carta */}
               <button
                 type="button"
                 onClick={() => {
-                  setShowPreviewChooser(false);
-                  onOpenPreview('carta');
+                  const targetDocId = lastSavedDoc?.docId;
+                  if (targetDocId) {
+                    window.open(`/facturas/ver/${targetDocId}?print=true`, '_blank');
+                  } else {
+                    onOpenPreview('carta');
+                  }
                 }}
                 className="p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-300 rounded-2xl flex items-center gap-3 text-left transition-all active:scale-[0.98] cursor-pointer"
               >
@@ -1609,20 +1682,24 @@ export default function MobileFacturacionTerminal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">Hoja Carta Completa</span>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-600 text-white">Vista Previa PDF</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">3. Hoja en carta</span>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-700">PDF Carta</span>
                   </div>
-                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium leading-tight">Abre la vista previa de impresión típica de PDF (8.5 x 11 in)</p>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium leading-tight">Documento completo en tamaño carta (8.5 × 11 in)</p>
                 </div>
               </button>
             </div>
 
             <button
               type="button"
-              onClick={() => setShowPreviewChooser(false)}
+              onClick={() => {
+                setIsPostEmissionModalOpen(false);
+                setShowPreviewChooser(false);
+                onCloseLastSavedDoc?.();
+              }}
               className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-black hover:bg-slate-200 transition-colors uppercase tracking-wider"
             >
-              Cancelar
+              Cerrar
             </button>
           </div>
         </div>
