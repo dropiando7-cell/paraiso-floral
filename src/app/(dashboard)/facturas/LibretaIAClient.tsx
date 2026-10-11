@@ -128,6 +128,7 @@ export default function LibretaIAClient({ organization }: Props) {
         notas: aiData.notas || '',
         terminosPago: 'Contado',
         metodoPago: 'Efectivo',
+        aliasVenta: 'Paraíso Floral',
         transferenciaConfirmada: false,
         validezDias: targetDocType === 'COTIZACION' ? 15 : 30,
         subTotal: subTotal,

@@ -1235,7 +1235,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     referenciaOriginalId: data.referenciaOriginalId || null,
                     ordenTrabajoId: data.ordenTrabajoId || null,
                     metodoPago: esCreditoNuevo ? 'Crédito' : (data.metodoPago || 'Efectivo'),
-                    aliasVenta: data.aliasVenta || null,
+                    aliasVenta: data.aliasVenta || 'Paraíso Floral',
                     vendedorNombre: data.vendedorNombre || null,
                     transferenciaConfirmada: esCreditoNuevo ? false : (data.transferenciaConfirmada || false),
                     cajaSessionId,
@@ -1246,7 +1246,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                                 ? Number(item.discount) || 0
                                 : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
-                            let finalDesc = item.shortDesc;
+                            let finalDesc = item.shortDesc || item.descripcion || 'Producto';
                             if (item.marcaModelo || item.serie) {
                                 if (item.marcaModelo) finalDesc += `\nMarca/Modelo: ${item.marcaModelo}`;
                                 if (item.serie) finalDesc += `\nSerie: ${item.serie}`;
@@ -1269,7 +1269,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                             return {
                                 descripcion: finalDesc,
                                 descripcionEnriquecida: item.richDesc || null,
-                                cantidad: Number(item.qty) || 0,
+                                cantidad: Math.max(1, Math.round(Number(item.qty) || 1)),
                                 precioUnitario: Number(item.unitPrice) || 0,
                                 porcentajeIsv: item.tax === 'isv15' ? 15 : item.tax === 'isv18' ? 18 : 0,
                                 totalDescuento: discountAmt || 0,
