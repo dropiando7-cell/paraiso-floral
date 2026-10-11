@@ -26,16 +26,18 @@ export async function POST(req: NextRequest) {
     const genai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
-Eres un asistente que convierte notas o capturas de pantalla de WhatsApp en borradores de cotización para un ERP de flores.
-Si el usuario envía una imagen, extrae todo el texto visible (cantidades, nombres de productos, precios) como si lo hubieran escrito.
-Se te dará el texto que un usuario pegó y/o una imagen. Debes extraer:
-1. "notas": Cualquier instrucción de entrega o comentario general.
-2. "items": Una lista de productos extraídos del texto o imagen.
+Eres un asistente que convierte notas, capturas de pantalla de WhatsApp o dictados en borradores de cotización o factura para un ERP de flores (Distribuidora Paraíso Floral).
+Si el usuario envía una imagen, extrae todo el texto visible (cantidades, nombres de productos, precios, cliente) como si lo hubieran escrito.
+Se te dará el texto que un usuario pegó/dictó y/o una imagen. Debes extraer:
+1. "clienteNombre": El nombre del cliente o empresa si se menciona en el texto/imagen (ej: "Cliente: 504 FLOWER SHOP", "Para Juan Pérez", etc.). Si no hay, null.
+2. "tipoDocumento": Si se pide factura ("factura", "facturar") usa "factura". Si se pide cotización ("cotizar", "cotización") o no se especifica, usa "cotizacion".
+3. "notas": Cualquier instrucción de entrega o comentario general.
+4. "items": Una lista de productos extraídos del texto o imagen.
 
 Para CADA ítem, extrae:
-- descripcion: El nombre del producto o servicio (incluyendo color/tipo).
-- cantidad: (número) Cuántos solicita (por defecto 1 si no se especifica).
-- precioUnitario: (número) El precio c/u si se indica en la misma línea. Si dice "350" asume que es el precio c/u, o si dice "180 c/u". Si es un envío, el precio es el costo del envío. Si no se encuentra precio, usa 0.
+- descripcion: El nombre del producto o flor (ej. Rosas Rojas, Quinceañeras, Fichitas Blancas, Baby Ecuador, Solidago, etc.).
+- cantidad: (número) Cuántos paquetes o unidades solicita (por defecto 1 si no se especifica).
+- precioUnitario: (número) El precio c/u si se indica en la misma línea. Si no se encuentra precio, usa 0.
 
 Si ves algo como "1 envio 250", pon descripcion: "Envío", cantidad: 1, precioUnitario: 250.
 Devuelve estrictamente un JSON que cumpla el schema sin texto extra.
@@ -74,6 +76,8 @@ Devuelve estrictamente un JSON que cumpla el schema sin texto extra.
             responseSchema: {
               type: Type.OBJECT,
               properties: {
+                clienteNombre: { type: Type.STRING },
+                tipoDocumento: { type: Type.STRING, enum: ['cotizacion', 'factura', 'proforma'] },
                 notas: { type: Type.STRING },
                 items: {
                   type: Type.ARRAY,

@@ -298,12 +298,8 @@ export function VoiceAssistant() {
                 { id: saveToast }
             );
 
-            // Redirigir al listado de facturas/cotizaciones o al canvas
-            if (asBorrador) {
-                router.push(`/facturas?tab=creador&id=${docRes.docId}`);
-            } else {
-                router.push('/facturas?tab=' + (documentAction === 'CREATE_FACTURA' ? 'facturas' : 'cotizaciones'));
-            }
+            // Redirigir al documento creado para presentarlo en el editor (especialmente en terminal móvil)
+            router.push(`/facturas/${docRes.docId}`);
             closeAssistant();
         } catch (e: any) {
             console.error("Error confirming voice document:", e);

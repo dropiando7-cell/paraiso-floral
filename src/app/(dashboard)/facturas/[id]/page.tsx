@@ -208,7 +208,7 @@ export default async function EditDocumentPage({
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col">
             <FacturacionHeader activeTab={isClone || isNotaCredito ? "creador" : "editar"} isSubPage={true} />
-            <div className="p-6 max-w-[1400px] mx-auto w-full">
+            <div className="p-0 md:p-6 max-w-[1400px] mx-auto w-full">
                <DocumentBuilderClient 
                  organization={org} 
                  initialData={doc} 

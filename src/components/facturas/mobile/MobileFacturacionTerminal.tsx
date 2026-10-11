@@ -341,11 +341,44 @@ export default function MobileFacturacionTerminal({
         });
       }
 
+      // Cambiar tipo de documento si la IA lo detectó
+      if (data.tipoDocumento && (data.tipoDocumento === 'factura' || data.tipoDocumento === 'cotizacion' || data.tipoDocumento === 'proforma')) {
+        setDocType(data.tipoDocumento);
+      }
+
       // Add to lineItems (replacing empty default row if single and blank)
       setLineItems(prev => {
         const isDefaultEmptyOnly = prev.length === 1 && !prev[0].shortDesc && !prev[0].code && (!prev[0].unitPrice || Number(prev[0].unitPrice) === 0);
         return isDefaultEmptyOnly ? newItemsToAdd : [...prev, ...newItemsToAdd];
       });
+
+      // Asignar cliente si la IA lo identificó
+      if (data.clienteNombre && typeof data.clienteNombre === 'string' && data.clienteNombre.trim()) {
+        const searchPool = (allClients && allClients.length > 0) ? allClients : clientSuggestions;
+        const cleanTarget = data.clienteNombre.trim().toLowerCase();
+        const foundClient = searchPool.find((c: any) => 
+          c.name?.toLowerCase().includes(cleanTarget) || cleanTarget.includes(c.name?.toLowerCase())
+        );
+
+        if (foundClient) {
+          if (setSelectedClient) setSelectedClient(foundClient);
+          setInlineClientText(foundClient.name);
+          toast.success(`Cliente: ${foundClient.name}`, { icon: '👤' });
+        } else {
+          setInlineClientText(data.clienteNombre.trim());
+          if (setSelectedClient) {
+            setSelectedClient({
+              id: '',
+              name: data.clienteNombre.trim(),
+              rtn: '',
+              phone: '',
+              address: '',
+              category: 'Cliente'
+            });
+          }
+          toast.success(`Cliente: ${data.clienteNombre.trim()}`, { icon: '👤' });
+        }
+      }
 
       if (data.notas && data.notas.trim()) {
         setNotes(notes ? `${notes}\n${data.notas}` : data.notas);

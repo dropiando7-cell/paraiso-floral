@@ -104,7 +104,7 @@ import { convertirDocumento, crearServicioRapido } from './actions';
 import { ActivoModal } from '../inventario/InventarioClient';
 import { getAreas } from '../admin/areas/actions';
 import { getInvoicePDFFileName } from '@/utils/pdfName';
-import MobileFacturacionTerminal from '@/components/facturas/mobile/MobileFacturacionTerminal';
+import MobileFacturacionTerminal, { resolveFlowerImage } from '@/components/facturas/mobile/MobileFacturacionTerminal';
 const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: string; bg: string; description: string }[] = [
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
   { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
@@ -2649,20 +2649,56 @@ export default function DocumentBuilderClient({
         if (!res.ok || !data.success) throw new Error(data.error || 'Error al procesar.');
 
         let itemsAdded = 0;
+        const isCreatingNew = data.action === 'CREATE_COTIZACION' || data.action === 'CREATE_FACTURA';
         
+        // 0. Tipo de documento
+        if (data.action === 'CREATE_COTIZACION') {
+            setDocType('cotizacion');
+            setIsLocked(false);
+            toast.success("Modo Cotización activado.", { id: toastId });
+        } else if (data.action === 'CREATE_FACTURA') {
+            setDocType('factura');
+            setIsLocked(false);
+            toast.success("Modo Factura activado.", { id: toastId });
+        } else if (data.action === 'CHANGE_DOC_TYPE' && data.nuevoTipoDocumento) {
+            setDocType(data.nuevoTipoDocumento);
+            toast.success(`Tipo de documento cambiado a ${data.nuevoTipoDocumento.toUpperCase()}`, { id: toastId });
+        }
+
         // 1. Asignar cliente si se detectó
-        if (data.client && data.client.found && data.client.id) {
-            setSelectedClient({
-                id: data.client.id,
-                name: data.client.nombre || '',
-                rtn: data.client.rtn || '',
-                email: data.client.email || '',
-                phone: data.client.telefono || '',
-                address: data.client.direccion || '',
-                city: '',
-                category: ''
-            });
-            toast.success(`Cliente asignado: ${data.client.nombre}`, { id: toastId });
+        if (data.client?.nombre) {
+            let clientToSet: any = null;
+            if (data.client.found && data.client.id) {
+                clientToSet = {
+                    id: data.client.id,
+                    name: data.client.nombre || '',
+                    rtn: data.client.rtn || '',
+                    email: data.client.email || '',
+                    phone: data.client.telefono || '',
+                    address: data.client.direccion || '',
+                    city: '',
+                    category: 'Cliente'
+                };
+            } else {
+                const cleanTarget = data.client.nombre.trim().toLowerCase();
+                const matched = (allClients || []).find((c: any) => 
+                    c.name?.toLowerCase().includes(cleanTarget) || cleanTarget.includes(c.name?.toLowerCase())
+                );
+                if (matched) {
+                    clientToSet = matched;
+                } else {
+                    clientToSet = {
+                        id: '',
+                        name: data.client.nombre.trim(),
+                        rtn: data.client.rtn || '',
+                        category: 'Cliente'
+                    };
+                }
+            }
+            if (clientToSet) {
+                setSelectedClient(clientToSet);
+                toast.success(`Cliente: ${clientToSet.name}`, { id: toastId });
+            }
         }
 
         // 1.5 Acciones a nivel de documento
@@ -2673,11 +2709,6 @@ export default function DocumentBuilderClient({
             toast.success("Documento limpiado.", { id: toastId });
             setIsProcessingVoice(false);
             return;
-        }
-
-        if (data.action === 'CHANGE_DOC_TYPE' && data.nuevoTipoDocumento) {
-            setDocType(data.nuevoTipoDocumento);
-            toast.success(`Tipo de documento cambiado a ${data.nuevoTipoDocumento.toUpperCase()}`, { id: toastId });
         }
 
         if (data.notasDocumento) {
@@ -2695,62 +2726,84 @@ export default function DocumentBuilderClient({
             toast.success(`Método de pago: ${data.metodoPago}`, { id: toastId });
         }
 
-        // 2. Agregar o actualizar líneas a la factura
+        // 2. Agregar o actualizar líneas a la factura / cotización
         if (data.items && data.items.length > 0) {
+            // Resolver productos no encontrados con búsqueda en catálogo en tiempo real
+            const resolvedItems: any[] = [];
+            for (const aiItem of data.items) {
+                let matchedProduct: any = null;
+                if (!aiItem.found) {
+                    try {
+                        const matches = await searchProductos(aiItem.name);
+                        if (matches && matches.length > 0) {
+                            matchedProduct = matches[0];
+                        }
+                    } catch (e) {}
+                }
+                resolvedItems.push({ ...aiItem, matchedProduct });
+            }
+
             setLineItems(prev => {
-                let updatedLines = [...prev];
+                let updatedLines = isCreatingNew ? [] : [...prev];
                 const newLines: LineItem[] = [];
 
-                for (const aiItem of data.items) {
-                    if (aiItem.type === 'nuevo' || !aiItem.found) {
-                        toast.error(`El ítem "${aiItem.name}" no está registrado en el inventario. Se omitió de la lista.`, { duration: 5000, id: `err-${aiItem.name}` });
-                        continue;
-                    }
+                for (const aiItem of resolvedItems) {
+                    const prod = aiItem.matchedProduct;
+                    const isFound = aiItem.found || !!prod;
 
-                    if (aiItem.found) {
-                        const existingIndex = updatedLines.findIndex(l => 
-                            (aiItem.type === 'producto' && l.productoId === aiItem.productoId) ||
-                            (aiItem.type === 'activo' && l.activoId === aiItem.activoId)
-                        );
+                    const existingIndex = updatedLines.findIndex(l => 
+                        (aiItem.type === 'producto' && l.productoId === aiItem.productoId) ||
+                        (prod && prod.type === 'producto' && l.productoId === prod.id) ||
+                        (aiItem.type === 'activo' && l.activoId === aiItem.activoId) ||
+                        (prod && prod.type === 'activo' && l.activoId === prod.id)
+                    );
 
-                        if (existingIndex !== -1) {
-                            if (aiItem.isDelete) {
-                                // Eliminar el renglón
-                                updatedLines.splice(existingIndex, 1);
-                                itemsAdded++;
-                                toast.success(`Ítem eliminado: ${aiItem.name}`, { id: `del-${aiItem.name}` });
-                            } else if (aiItem.isUpdate) {
-                                // Actualizar renglón existente
-                                updatedLines[existingIndex] = {
-                                    ...updatedLines[existingIndex],
-                                    qty: aiItem.quantity > 0 ? aiItem.quantity : updatedLines[existingIndex].qty,
-                                    unitPrice: aiItem.price || updatedLines[existingIndex].unitPrice,
-                                    discount: aiItem.descuento || updatedLines[existingIndex].discount
-                                };
-                                itemsAdded++;
-                            }
-                        } else if (!aiItem.isDelete) {
-                            // Agregar como nueva línea (solo si no es un delete huérfano)
-                            newLines.push({
-                                id: uid(),
-                                code: aiItem.sku || '',
-                                shortDesc: aiItem.name || '',
-                                longDesc: aiItem.type === 'activo' && aiItem.sku ? `S/N: ${aiItem.sku}` : '',
-                                richDesc: '',
-                                showLongDesc: false,
-                                qty: aiItem.quantity || 1,
-                                unitPrice: aiItem.price || 0,
-                                tax: 'isv15',
-                                discount: aiItem.descuento || 0,
-                                discountType: 'percentage',
-                                productoId: aiItem.type === 'producto' ? aiItem.productoId : undefined,
-                                activoId: aiItem.type === 'activo' ? aiItem.activoId : undefined,
-                                serie: aiItem.type === 'activo' ? aiItem.sku : null,
-                                _isNew: false
-                            });
+                    if (existingIndex !== -1 && !isCreatingNew) {
+                        if (aiItem.isDelete) {
+                            // Eliminar el renglón
+                            updatedLines.splice(existingIndex, 1);
+                            itemsAdded++;
+                            toast.success(`Ítem eliminado: ${aiItem.name}`);
+                        } else if (aiItem.isUpdate) {
+                            // Actualizar renglón existente
+                            updatedLines[existingIndex] = {
+                                ...updatedLines[existingIndex],
+                                qty: aiItem.quantity > 0 ? aiItem.quantity : updatedLines[existingIndex].qty,
+                                unitPrice: aiItem.price || updatedLines[existingIndex].unitPrice,
+                                discount: aiItem.descuento || updatedLines[existingIndex].discount
+                            };
                             itemsAdded++;
                         }
+                    } else if (!aiItem.isDelete) {
+                        const finalName = prod ? prod.name : aiItem.name;
+                        const finalCode = prod ? prod.code : (aiItem.sku || '');
+                        const finalPrice = aiItem.price > 0 ? aiItem.price : (prod ? prod.price : 0);
+                        const finalProdId = prod ? (prod.type === 'producto' ? prod.id : undefined) : (aiItem.type === 'producto' ? aiItem.productoId : undefined);
+                        const finalActivoId = prod ? (prod.type === 'activo' ? prod.id : undefined) : (aiItem.type === 'activo' ? aiItem.activoId : undefined);
+
+                        newLines.push({
+                            id: uid(),
+                            code: finalCode,
+                            shortDesc: finalName,
+                            longDesc: aiItem.type === 'activo' && finalCode ? `S/N: ${finalCode}` : '',
+                            richDesc: '',
+                            showLongDesc: false,
+                            qty: aiItem.quantity || 1,
+                            unitPrice: finalPrice,
+                            tax: 'isv15',
+                            discount: aiItem.descuento || 0,
+                            discountType: 'percentage',
+                            productoId: finalProdId,
+                            activoId: finalActivoId,
+                            imageUrl: prod?.imageUrl || resolveFlowerImage(finalName),
+                            _isNew: !isFound
+                        });
+                        itemsAdded++;
                     }
+                }
+
+                if (isCreatingNew) {
+                    return newLines.length > 0 ? newLines : [{ id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false, qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage', _isNew: true }];
                 }
 
                 if (newLines.length > 0) {
@@ -2762,11 +2815,13 @@ export default function DocumentBuilderClient({
 
                 return updatedLines.length > 0 ? updatedLines : [{ id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false, qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage', _isNew: true }];
             });
+
+            setIsLocked(false);
         }
 
         if (itemsAdded > 0) {
             toast.success(`${itemsAdded} producto(s) agregado(s).`, { id: toastId });
-        } else if (data.client?.found) {
+        } else if (data.client?.nombre) {
             // Already handled
         } else {
             toast('No se detectaron productos o clientes.', { id: toastId, icon: '🤔' });
