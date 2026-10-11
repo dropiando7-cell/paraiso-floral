@@ -958,17 +958,8 @@ function ProductSearchItem({
   const cc = catColors[product.category] || 'text-slate-600 bg-slate-100';
 
   const handleCardClick = (e: React.MouseEvent | React.TouchEvent) => {
-    // Si ya está seleccionada (borde verde), al darle con el dedo o clic se inserta en el documento
-    if (isSelected) {
-      onAdd(product);
-    } else {
-      // Si aún no está seleccionada, se selecciona en verde
-      if (onSelect) {
-        onSelect();
-      } else {
-        onAdd(product);
-      }
-    }
+    // Al hacer clic o tocar con el dedo se agrega directamente al documento (1 solo toque)
+    onAdd(product);
   };
 
   return (
@@ -1009,11 +1000,11 @@ function ProductSearchItem({
             </span>
             {isSelected ? (
               <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase bg-emerald-600 text-white px-1.5 py-0.5 rounded shadow-2xs mt-0.5">
-                Elegido · Enter ↵
+                Agregar · Enter ↵
               </span>
             ) : (
-              <span className="inline-flex items-center text-[9px] font-bold text-slate-400 mt-0.5">
-                Tocar p/ elegir
+              <span className="inline-flex items-center text-[9px] font-bold text-slate-500 mt-0.5 group-hover:text-emerald-700">
+                Tocar para agregar +
               </span>
             )}
           </div>
@@ -2461,7 +2452,7 @@ export default function DocumentBuilderClient({
     }
   }, [docType, editMode, viewMode, isLocked]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [mixedPayments, setMixedPayments] = useState<any[]>([]);
@@ -3496,34 +3487,41 @@ export default function DocumentBuilderClient({
         if (editMode && parsed.docNumber) setDocNumber(parsed.docNumber);
         if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
         if (parsed.lineItems && parsed.lineItems.length > 0) {
-          const mergedLineItems = parsed.lineItems.map((item: any) => {
-            const dbDetail = initialData?.detalles?.find((d: any) => {
-              return d.id === item.id || d.descripcion.replace(/__METADATA__.*$/, '').startsWith(item.shortDesc);
-            });
-            if (dbDetail) {
-              let dbMeta: any = {};
-              const rawDesc = dbDetail.descripcion || '';
-              const metaIdx = rawDesc.indexOf('__METADATA__');
-              if (metaIdx !== -1) {
-                try {
-                  dbMeta = JSON.parse(rawDesc.substring(metaIdx + 12));
-                } catch(e){}
+          const validDraftItems = parsed.lineItems.filter((item: any) => 
+            Boolean(item.code || item.shortDesc || (item.unitPrice && Number(item.unitPrice) > 0))
+          );
+          if (validDraftItems.length > 0) {
+            const mergedLineItems = validDraftItems.map((item: any) => {
+              const dbDetail = initialData?.detalles?.find((d: any) => {
+                return d.id === item.id || d.descripcion.replace(/__METADATA__.*$/, '').startsWith(item.shortDesc);
+              });
+              if (dbDetail) {
+                let dbMeta: any = {};
+                const rawDesc = dbDetail.descripcion || '';
+                const metaIdx = rawDesc.indexOf('__METADATA__');
+                if (metaIdx !== -1) {
+                  try {
+                    dbMeta = JSON.parse(rawDesc.substring(metaIdx + 12));
+                  } catch(e){}
+                }
+                const recoveredImg = dbMeta.imageUrl || dbDetail.producto?.imagenWeb || dbDetail.activo?.imagenUrl || undefined;
+                const recoveredSerie = dbMeta.serie || dbDetail.activo?.serie || undefined;
+                const recoveredBrand = dbMeta.marcaModelo || undefined;
+                
+                return {
+                  ...item,
+                  _isNew: false,
+                  imageUrl: item.imageUrl || recoveredImg,
+                  serie: item.serie || recoveredSerie,
+                  marcaModelo: item.marcaModelo || recoveredBrand
+                };
               }
-              const recoveredImg = dbMeta.imageUrl || dbDetail.producto?.imagenWeb || dbDetail.activo?.imagenUrl || undefined;
-              const recoveredSerie = dbMeta.serie || dbDetail.activo?.serie || undefined;
-              const recoveredBrand = dbMeta.marcaModelo || undefined;
-              
-              return {
-                ...item,
-                _isNew: false,
-                imageUrl: item.imageUrl || recoveredImg,
-                serie: item.serie || recoveredSerie,
-                marcaModelo: item.marcaModelo || recoveredBrand
-              };
-            }
-            return { ...item, _isNew: false };
-          });
-          setLineItems(mergedLineItems);
+              return { ...item, _isNew: false };
+            });
+            setLineItems(mergedLineItems);
+          } else {
+            setLineItems([]);
+          }
         }
         if (parsed.notes) setNotes(parsed.notes);
         if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
@@ -4663,8 +4661,8 @@ export default function DocumentBuilderClient({
 
       setLineItems(prev => {
         if (prev.length <= 1) {
-          toast('Se restableció la línea vacía');
-          return [{ ...emptyLine(), id: prev[0]?.id || 'default-line-hash' }];
+          toast('Se restableció la lista vacía');
+          return [];
         }
         const toDeleteId = targetLineId || activeLineId;
         if (toDeleteId) {
@@ -4941,6 +4939,11 @@ export default function DocumentBuilderClient({
 
   // --- FILTRADO INTELIGENTE CON FUSE.JS (COINCIDENCIAS EXACTAS Y DIFUSAS / TYPOS) ---
   const filteredProducts = useMemo(() => {
+    const trimmed = productSearch.trim();
+    if (!trimmed) {
+      return [];
+    }
+
     // 1. Combinar productos locales y en caché remota en un solo mapa
     const map = new Map<string, Product>();
     for (const p of allProducts) map.set(p.id, p);
@@ -4950,11 +4953,6 @@ export default function DocumentBuilderClient({
 
     if (showExpiredOnly) {
       items = items.filter(p => p.fechaVencimiento && new Date(p.fechaVencimiento) < new Date());
-    }
-
-    const trimmed = productSearch.trim();
-    if (!trimmed) {
-      return items;
     }
 
     // 2. Configurar búsqueda difusa con Fuse.js (idéntico a la versión de escritorio)
@@ -5075,14 +5073,22 @@ export default function DocumentBuilderClient({
       serie: product.serie || null,
     };
     setLineItems(prev => {
+      // 1. Si hay una línea activa específica vacía (ej. seleccionada en escritorio), reemplazar esa fila vacía
       if (activeLineId) {
-        // Replace the currently selected row
-        return prev.map(l => l.id === activeLineId ? { ...newLine, id: l.id } : l);
+        const targetLine = prev.find(l => l.id === activeLineId);
+        if (targetLine && !targetLine.shortDesc && !targetLine.code) {
+          return prev.map(l => l.id === activeLineId ? { ...newLine, id: l.id } : l);
+        }
       }
-      // Otherwise, act as before: replace last empty row or append
-      const hasEmpty = prev.some(l => !l.shortDesc && !l.unitPrice);
-      return hasEmpty ? prev.map((l, i) => i === prev.length - 1 && !l.shortDesc ? newLine : l) : [...prev, newLine];
+      // 2. Si la última fila es un placeholder vacío sin código ni descripción, reemplazarla
+      const lastItem = prev[prev.length - 1];
+      if (lastItem && !lastItem.shortDesc && !lastItem.code && (!lastItem.unitPrice || Number(lastItem.unitPrice) === 0)) {
+        return prev.map((l, i) => i === prev.length - 1 ? newLine : l);
+      }
+      // 3. En cualquier otro caso: AGREGAR SIEMPRE COMO NUEVO REGISTRO / CARD NUEVO
+      return [...prev, newLine];
     });
+    setActiveLineId(null);
     setShowProductModal(false);
     setProductSearch('');
     setSelectedProductIndex(0);
@@ -7204,7 +7210,13 @@ export default function DocumentBuilderClient({
                 </div>
               )}
 
-              {filteredProducts.length === 0 ? (
+              {!productSearch.trim() ? (
+                <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center">
+                  <Search className="w-9 h-9 text-slate-300 mb-2 stroke-[1.5]" />
+                  <p className="text-sm font-bold text-slate-600">Empieza a escribir para buscar flores o productos</p>
+                  <p className="text-xs text-slate-400 mt-1">Busca por nombre de flor, código de inventario o categoría.</p>
+                </div>
+              ) : filteredProducts.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center">
                   {isSearchingModal ? (
                     <>
@@ -7388,7 +7400,7 @@ export default function DocumentBuilderClient({
             setReservedDocId(null);
             setDocNumber('');
             setSelectedClient(null);
-            setLineItems([{ ...emptyLine(), id: 'default-line-hash' }]);
+            setLineItems([]);
             setNotes('');
             setPaymentTerms('Pago inmediato');
             setPaymentMethod('Efectivo');
