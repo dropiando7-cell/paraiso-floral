@@ -29,6 +29,7 @@ import { VoiceOrderAssistantModal } from '@/components/pedidos/VoiceOrderAssista
 import { ProductSmartAutocomplete, ProductCatalogItem } from '@/components/pedidos/ProductSmartAutocomplete';
 import { ClientSmartAutocomplete, ClientCatalogItem } from '@/components/pedidos/ClientSmartAutocomplete';
 import { playSuccessChime } from '@/utils/audioAlerts';
+import { resolveFlowerImage } from '@/components/facturas/mobile/MobileFacturacionTerminal';
 
 interface AssistantMember {
   id: string;
@@ -847,8 +848,83 @@ export default function NuevoPedidoParserClient({
                         </div>
                       )}
 
-                      {/* Main Row: Responsive Grid for Smart Product Autocomplete, Qty & Delete */}
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                      {/* Mobile View: Large Ergonomic Card (Visible on mobile < md) */}
+                      <div className="flex md:hidden flex-col gap-3">
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                            <img
+                              src={resolveFlowerImage(item.nombreProducto)}
+                              alt={item.nombreProducto || 'Flor'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).src = '/logo-paraiso-floral.png'; }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider flex items-center justify-between mb-1">
+                              <span>Producto en Catálogo</span>
+                              {!item.mappedProductoId && (
+                                <span className="text-rose-500 text-[10px] font-extrabold flex items-center gap-0.5">
+                                  <AlertCircle className="w-3 h-3" /> Requerido
+                                </span>
+                              )}
+                            </label>
+                            <ProductSmartAutocomplete
+                              products={products}
+                              selectedProductId={item.mappedProductoId}
+                              onSelect={(prod) => handleItemProductSelect(index, prod)}
+                              onCtrlEnter={handleAddItem}
+                              autoFocus={focusLastRowOnAdd && index === parsedItems.length - 1}
+                              placeholder="Escribe flor o código..."
+                              isInvalid={!item.mappedProductoId}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteItem(index)}
+                            disabled={parsedItems.length <= 1}
+                            className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors disabled:opacity-30 disabled:pointer-events-none active:scale-95 cursor-pointer shrink-0 mt-5"
+                            title="Eliminar producto"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Mobile Stepper Controls */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                          <span className="text-xs font-black text-slate-600 uppercase tracking-tight">Cantidad (Paquetes / Atados):</span>
+                          <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() => handleItemQtyChange(index, Math.max(1, item.cantidadSolicitada - 1))}
+                              className="w-10 h-10 rounded-lg bg-white active:bg-slate-200 flex items-center justify-center text-slate-800 font-black text-lg border border-slate-300 shadow-2xs active:scale-95 transition-transform"
+                            >
+                              <Minus className="w-4 h-4" strokeWidth={3} />
+                            </button>
+                            <input
+                              type="number"
+                              value={item.cantidadSolicitada === 0 ? '' : item.cantidadSolicitada}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => handleItemQtyChange(index, e.target.value)}
+                              onBlur={() => {
+                                if (!item.cantidadSolicitada || item.cantidadSolicitada < 1 || isNaN(Number(item.cantidadSolicitada))) {
+                                  handleItemQtyChange(index, 1);
+                                }
+                              }}
+                              className="w-12 text-center text-sm font-black text-slate-900 bg-transparent focus:outline-none py-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleItemQtyChange(index, item.cantidadSolicitada + 1)}
+                              className="w-10 h-10 rounded-lg bg-white active:bg-slate-200 flex items-center justify-center text-slate-800 font-black text-lg border border-slate-300 shadow-2xs active:scale-95 transition-transform"
+                            >
+                              <Plus className="w-4 h-4" strokeWidth={3} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Desktop View: Compact Table Row (Visible on >= md) */}
+                      <div className="hidden md:grid md:grid-cols-12 gap-3 items-center">
                         
                         {/* 1. Smart Product Autocomplete (Width: 9 cols on desktop) */}
                         <div className="md:col-span-9 flex flex-col gap-1">

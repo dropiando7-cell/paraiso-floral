@@ -104,10 +104,7 @@ import { convertirDocumento, crearServicioRapido } from './actions';
 import { ActivoModal } from '../inventario/InventarioClient';
 import { getAreas } from '../admin/areas/actions';
 import { getInvoicePDFFileName } from '@/utils/pdfName';
-
-
-
-
+import MobileFacturacionTerminal from '@/components/facturas/mobile/MobileFacturacionTerminal';
 const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: string; bg: string; description: string }[] = [
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
   { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
@@ -5061,13 +5058,15 @@ export default function DocumentBuilderClient({
 
       {/* Mobile Form View (Visible en móviles < md) */}
       {!embedMode && !isLocked && (
-        <div className="block md:hidden px-1 py-1.5 sm:px-3 print:hidden">
-          <MobileDocumentForm
+        <div className="block md:hidden px-1 py-1 print:hidden">
+          <MobileFacturacionTerminal
+            allClients={allClients}
             docType={docType}
             setDocType={setDocType}
             docNumber={docNumber}
             currentDocType={currentDocType}
             selectedClient={selectedClient}
+            setSelectedClient={setSelectedClient}
             setShowClientModal={setShowClientModal}
             resolvedFechaEmision={resolvedFechaEmision}
             today={today}
@@ -5077,7 +5076,7 @@ export default function DocumentBuilderClient({
             paymentTerms={paymentTerms}
             setPaymentTerms={handleSafeSetPaymentTerms}
             paymentMethod={paymentMethod}
-            setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
+            setPaymentMethod={handleSafeSetPaymentMethod}
             aliasVenta={aliasVenta}
             setAliasVenta={handleSafeSetAliasVenta}
             lineItems={lineItems}
@@ -6911,17 +6910,20 @@ export default function DocumentBuilderClient({
           <>
             {/* Modal de Selección de Nuevo Documento y Correlativo (bloquea únicamente el espacio del canvas, dejando libre el sidebar) */}
             {isLocked && !effectiveViewMode && (
-              <div className="absolute inset-0 z-30 flex items-start justify-center pt-4 sm:pt-6 md:pt-8 pb-16 px-4 bg-slate-900/10 backdrop-blur-[2px] overflow-y-auto animate-in fade-in transition-all min-h-full">
-                <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full mx-auto animate-in zoom-in-95 duration-300 pointer-events-auto relative">
-                  <div className="text-center mb-6 sm:mb-8">
-                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-                      <FileText size={24} className="text-white" />
+              <div className="absolute inset-0 z-30 flex items-stretch sm:items-start justify-center p-2 sm:p-6 md:p-8 bg-slate-900/10 backdrop-blur-[2px] overflow-hidden sm:overflow-y-auto animate-in fade-in transition-all h-full">
+                <div className="bg-white p-3.5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 max-w-3xl w-full mx-auto animate-in zoom-in-95 duration-300 pointer-events-auto relative flex flex-col justify-between h-full sm:h-auto">
+                  
+                  {/* Encabezado */}
+                  <div className="text-center shrink-0 mb-2 sm:mb-8">
+                    <div className="w-10 h-10 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-1.5 sm:mb-4 shadow-md sm:shadow-lg shadow-blue-500/20">
+                      <FileText size={20} className="text-white sm:w-6 sm:h-6" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Nuevo Documento</h2>
-                    <p className="text-slate-500 mt-2 text-sm font-medium">Selecciona el tipo de documento que deseas crear para generar el correlativo oficial.</p>
+                    <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">Nuevo Documento</h2>
+                    <p className="text-slate-500 mt-0.5 sm:mt-2 text-xs sm:text-sm font-medium">Selecciona el tipo de documento a emitir:</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  {/* Listado de 4 Cards aprovechando toda la altura vertical */}
+                  <div className="flex-1 flex flex-col sm:grid sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 my-1.5 sm:mb-8">
                     {DOC_TYPES.map((dt) => {
                       const isSelected = docType === dt.key;
                       return (
@@ -6930,25 +6932,27 @@ export default function DocumentBuilderClient({
                           type="button"
                           onClick={() => setDocType(dt.key)}
                           className={`
-                            relative text-left p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 outline-none cursor-pointer flex flex-col justify-between min-h-[140px]
+                            relative text-left p-3 sm:p-5 rounded-2xl border-2 transition-all duration-200 outline-none cursor-pointer flex-1 flex items-center sm:flex-col sm:justify-between min-h-0 sm:min-h-[140px] gap-3 sm:gap-0
                             ${isSelected 
-                              ? `border-[currentColor] ${dt.bg} shadow-md ring-4 ring-slate-100 scale-[1.02] ${dt.color}` 
-                              : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-400'
+                              ? `border-[currentColor] ${dt.bg} shadow-md ring-2 sm:ring-4 ring-slate-100 scale-[1.01] sm:scale-[1.02] ${dt.color}` 
+                              : 'border-slate-200 bg-white hover:border-slate-300 text-slate-400'
                             }
                           `}
                         >
-                          <div>
-                            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center mb-3 ${isSelected ? dt.bg : 'bg-slate-50 text-slate-400'} ${isSelected ? dt.color : ''}`}>
+                          <div className="flex items-center gap-3 sm:block sm:w-full">
+                            <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? dt.bg : 'bg-slate-50 text-slate-400'} ${isSelected ? dt.color : ''}`}>
                               {dt.icon}
                             </div>
-                            <h3 className={`font-bold text-sm sm:text-base mb-1 ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>{dt.label}</h3>
-                            <p className={`text-[11px] leading-relaxed ${isSelected ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>{dt.description}</p>
+                            <div className="min-w-0 flex-1">
+                              <h3 className={`font-bold text-sm sm:text-base leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>{dt.label}</h3>
+                              <p className={`text-[11px] sm:text-xs leading-relaxed mt-0.5 ${isSelected ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>{dt.description}</p>
+                            </div>
                           </div>
                           
                           {isSelected && (
-                            <div className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center ${dt.color.replace('text-', 'bg-')} shadow-sm`}>
-                              <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                                <path d="M1 4.5l3 3 6-7" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            <div className={`ml-auto sm:ml-0 sm:absolute sm:top-4 sm:right-4 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${dt.color.replace('text-', 'bg-')} shadow-sm`}>
+                              <svg width="12" height="10" viewBox="0 0 11 9" fill="none">
+                                <path d="M1 4.5l3 3 6-7" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             </div>
                           )}
@@ -6957,24 +6961,26 @@ export default function DocumentBuilderClient({
                     })}
                   </div>
 
-                  <div className="flex justify-center border-t border-slate-100 pt-5 sm:pt-6">
+                  {/* Botón Inferior Anclado */}
+                  <div className="shrink-0 pt-2.5 sm:pt-6 border-t border-slate-100">
                     <button 
                       type="button"
                       onClick={handleReservarCorrelativo}
                       disabled={isReserving || !isHydrated}
-                      className="flex items-center justify-center w-full sm:w-auto min-w-[280px] sm:min-w-[320px] gap-3 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/30 text-base sm:text-lg font-bold transform hover:scale-[1.02] active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                      className="flex items-center justify-center w-full sm:w-auto min-w-[280px] sm:min-w-[320px] gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/25 text-sm sm:text-lg font-black transform hover:scale-[1.01] sm:hover:scale-[1.02] active:scale-95 transition-all cursor-pointer disabled:opacity-50 mx-auto"
                     >
                       {isReserving ? (
-                        <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none">
+                        <svg className="animate-spin w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                         </svg>
                       ) : (
-                        <Plus size={22} className="stroke-[3]" />
+                        <Plus size={20} className="stroke-[3] sm:w-[22px] sm:h-[22px]" />
                       )}
                       {isReserving ? `Generando Correlativo...` : `Crear ${currentDocType.label}`}
                     </button>
                   </div>
+
                 </div>
               </div>
             )}
