@@ -29,7 +29,8 @@ import {
     MessageCircle,
     Copy,
     Check,
-    Calculator
+    Calculator,
+    X
 } from 'lucide-react';
 import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession, getPendingDeposits, registrarCorteMovimiento, anularCorteMovimiento } from './actions';
 import CalculadoraArqueoModal from './CalculadoraArqueoModal';
@@ -66,6 +67,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [saldoReal, setSaldoReal] = useState<string>('');
     const [observaciones, setObservaciones] = useState<string>('');
     const [isClosing, setIsClosing] = useState(false);
+    const [showConfirmCloseModal, setShowConfirmCloseModal] = useState(false);
     
     // States for editing initial balance in active session
     const [isEditingSaldoInicial, setIsEditingSaldoInicial] = useState(false);
@@ -161,16 +163,22 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         }
     };
 
-    // Handle Close Turno
-    const handleClose = async (e: React.FormEvent) => {
+    // Trigger Confirm Close Modal
+    const handleTriggerCloseModal = (e: React.FormEvent) => {
         e.preventDefault();
         const realAmt = parseFloat(saldoReal);
         if (isNaN(realAmt) || realAmt < 0) {
             toast.error("El saldo físico contado debe ser un número válido mayor o igual a 0");
             return;
         }
+        setShowConfirmCloseModal(true);
+    };
 
-        if (!window.confirm("¿Está seguro de que desea cerrar el turno de caja actual? Esta acción no se puede deshacer y bloqueará las transacciones en este turno.")) {
+    // Confirm and Close Turno
+    const handleConfirmClose = async () => {
+        const realAmt = parseFloat(saldoReal);
+        if (isNaN(realAmt) || realAmt < 0) {
+            toast.error("El saldo físico contado debe ser un número válido mayor o igual a 0");
             return;
         }
 
@@ -178,6 +186,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         try {
             await cerrarCaja(activeSession.id, realAmt, observaciones);
             toast.success("Caja cerrada correctamente y reporte archivado.");
+            setShowConfirmCloseModal(false);
             setActiveSession(null);
             setSummaryData(null);
             setRotationData([]);
@@ -744,6 +753,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                     placeholder="0.00"
                                     value={saldoInicial}
                                     onChange={(e) => setSaldoInicial(e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
                                     required
                                 />
                             </div>
@@ -812,6 +823,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                 className="block w-full pl-5 pr-1.5 py-1 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 text-right"
                                                 value={nuevoSaldoInicial}
                                                 onChange={(e) => setNuevoSaldoInicial(e.target.value)}
+                                                onFocus={(e) => e.target.select()}
+                                                onClick={(e) => (e.target as HTMLInputElement).select()}
                                                 autoFocus
                                             />
                                         </div>
@@ -1218,7 +1231,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 </div>
                             </div>
 
-                            <form onSubmit={handleClose} className="p-6 space-y-5">
+                            <form onSubmit={handleTriggerCloseModal} className="p-6 space-y-5">
                                 <div>
                                     <span className="text-xs text-slate-500 font-bold block uppercase tracking-wider mb-2">Efectivo Teórico Esperado</span>
                                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 flex justify-between items-center">
@@ -1255,6 +1268,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                             placeholder="0.00"
                                             value={saldoReal}
                                             onChange={(e) => setSaldoReal(e.target.value)}
+                                            onFocus={(e) => e.target.select()}
+                                            onClick={(e) => (e.target as HTMLInputElement).select()}
                                             required
                                         />
                                     </div>
@@ -2080,6 +2095,153 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                     onClose={() => setIsCalcOpen(false)}
                     onConfirm={(total) => setSaldoReal(total.toFixed(2))}
                 />
+            )}
+
+            {/* CONFIRMAR CIERRE MODAL */}
+            {showConfirmCloseModal && activeSession && (
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden animate-scale-up">
+                        {/* Header */}
+                        <div className="p-6 bg-gradient-to-br from-red-50 via-rose-50 to-amber-50 border-b border-rose-100 flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-500/30">
+                                <Lock className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-black uppercase tracking-wider text-red-700 bg-red-100/80 px-2.5 py-0.5 rounded-full border border-red-200">
+                                        Confirmación de Cierre
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmCloseModal(false)}
+                                        disabled={isClosing}
+                                        className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-white/60 transition cursor-pointer"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <h3 className="text-xl font-black text-slate-900 mt-2">
+                                    ¿Cerrar Turno de Caja Definitivamente?
+                                </h3>
+                                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                    Esta acción archivará la sesión actual, bloqueará el registro de nuevas transacciones en este turno y generará el reporte oficial de arqueo.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Fondo Inicial</p>
+                                    <p className="text-lg font-black text-slate-900 mt-0.5">
+                                        {formatCurrency(activeSession.saldoInicial)}
+                                    </p>
+                                </div>
+                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Efectivo Físico</p>
+                                    <p className="text-lg font-black text-slate-900 mt-0.5">
+                                        {formatCurrency(parseFloat(saldoReal) || 0)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Efectivo Esperado</p>
+                                    <p className="text-base font-extrabold text-slate-800 mt-0.5">
+                                        {formatCurrency(esperadoEfectivo)}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Diferencia</p>
+                                    <p className={`text-base font-black mt-0.5 ${
+                                        diferencia === 0 ? 'text-emerald-600' : diferencia < 0 ? 'text-red-600' : 'text-blue-600'
+                                    }`}>
+                                        {diferencia === 0 ? 'L. 0.00' : (diferencia < 0 ? `- ${formatCurrency(Math.abs(diferencia))}` : `+ ${formatCurrency(diferencia)}`)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Status reconciliation badge */}
+                            <div className={`p-3.5 rounded-2xl border flex items-center gap-3 ${
+                                diferencia === 0
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                                    : diferencia < 0
+                                    ? 'bg-red-50 border-red-200 text-red-900'
+                                    : 'bg-blue-50 border-blue-200 text-blue-900'
+                            }`}>
+                                <div className="shrink-0">
+                                    {diferencia === 0 ? (
+                                        <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                    ) : diferencia < 0 ? (
+                                        <TrendingDown className="w-5 h-5 text-red-600" />
+                                    ) : (
+                                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                                    )}
+                                </div>
+                                <div className="text-xs">
+                                    <p className="font-black">
+                                        {diferencia === 0
+                                            ? 'Caja Cuadrada Perfecta'
+                                            : diferencia < 0
+                                            ? 'Faltante de Efectivo Detectado'
+                                            : 'Sobrante de Efectivo Detectado'}
+                                    </p>
+                                    <p className="text-[11px] opacity-85 mt-0.5">
+                                        {diferencia === 0
+                                            ? 'El efectivo físico coincide exactamente con el monto calculado por el sistema.'
+                                            : diferencia < 0
+                                            ? `Falta ${formatCurrency(Math.abs(diferencia))} en la gaveta física.`
+                                            : `Hay un excedente de ${formatCurrency(diferencia)} en la gaveta física.`}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Observaciones preview */}
+                            {observaciones.trim() ? (
+                                <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 text-xs text-amber-900">
+                                    <p className="font-bold text-[10px] uppercase tracking-wider text-amber-700 mb-1 flex items-center gap-1">
+                                        <FileText className="w-3.5 h-3.5" />
+                                        Nota de Cierre Registrada:
+                                    </p>
+                                    <p className="italic text-slate-700 bg-white/70 p-2 rounded-lg border border-amber-100">
+                                        &quot;{observaciones.trim()}&quot;
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-[11px] text-slate-400 italic text-center">
+                                    Sin notas u observaciones adicionales registradas.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmCloseModal(false)}
+                                disabled={isClosing}
+                                className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-100 transition cursor-pointer disabled:opacity-50"
+                            >
+                                Volver y Revisar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmClose}
+                                disabled={isClosing}
+                                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                            >
+                                {isClosing ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Lock className="w-4 h-4" />
+                                )}
+                                <span>{isClosing ? 'Cerrando Turno...' : 'Sí, Cerrar Turno Oficial'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -3,15 +3,46 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import PublicCierreClient from './PublicCierreClient';
 
-export const metadata = {
-  title: 'Reporte de Cierre de Caja Diario - Distribuidora Paraíso Floral',
-  description: 'Reporte oficial de arqueo y cierre de turno de caja.',
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  if (!id) {
+    return {
+      title: { absolute: 'Reporte de Cierre de Caja Diario' }
+    };
   }
-};
+
+  const session = await prisma.corteCajaSession.findUnique({
+    where: { id },
+    select: { cierreAt: true, aperturaAt: true }
+  });
+
+  const dateSource = session?.cierreAt || session?.aperturaAt || new Date();
+  const formatter = new Intl.DateTimeFormat('es-HN', {
+    timeZone: 'America/Tegucigalpa',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+  const parts = formatter.formatToParts(new Date(dateSource));
+  const day = parts.find(p => p.type === 'day')?.value || '01';
+  const month = parts.find(p => p.type === 'month')?.value || '01';
+  const year = parts.find(p => p.type === 'year')?.value || '2026';
+  const fechaStr = `${day}-${month}-${year}`;
+
+  return {
+    title: {
+      absolute: `Reporte de Cierre de Caja Diario_${fechaStr}`
+    },
+    description: 'Reporte oficial de arqueo y cierre de turno de caja.',
+    robots: {
+      index: false,
+      follow: false,
+      nocache: true
+    }
+  };
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;

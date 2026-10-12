@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Printer, CheckCircle2, Lock, MessageCircle, DollarSign, Activity, FileText, Copy, Check
 } from 'lucide-react';
@@ -28,7 +28,27 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
     day: 'numeric'
   });
 
+  const getReportTitle = () => {
+    const dateSource = session?.cierreAt || session?.aperturaAt || new Date();
+    const formatter = new Intl.DateTimeFormat('es-HN', {
+      timeZone: 'America/Tegucigalpa',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const parts = formatter.formatToParts(new Date(dateSource));
+    const day = parts.find(p => p.type === 'day')?.value || '01';
+    const month = parts.find(p => p.type === 'month')?.value || '01';
+    const year = parts.find(p => p.type === 'year')?.value || '2026';
+    return `Reporte de Cierre de Caja Diario_${day}-${month}-${year}`;
+  };
+
+  useEffect(() => {
+    document.title = getReportTitle();
+  }, [session]);
+
   const handlePrint = () => {
+    document.title = getReportTitle();
     window.print();
   };
 
