@@ -434,6 +434,7 @@ export async function getCajaSessionSummary(sessionId: string) {
     session.facturas.forEach(f => {
         let metodo = f.metodoPago || 'Efectivo';
         if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
+        if (metodo === 'Transferencia Bancaria') metodo = 'Transferencia';
         
         const total = Number(f.total);
         
@@ -454,6 +455,7 @@ export async function getCajaSessionSummary(sessionId: string) {
             f.pagosMixtos.forEach((p: any) => {
                 let pMetodo = p.metodoPago;
                 if (pMetodo === 'Tarjeta de Crédito/Débito') pMetodo = 'Tarjeta';
+                if (pMetodo === 'Transferencia Bancaria') pMetodo = 'Transferencia';
                 const pTotal = Number(p.monto);
                 
                 // Exclude unconfirmed transfers inside mixed payments
@@ -602,13 +604,13 @@ export async function getCajaSessionSummary(sessionId: string) {
             id: f.id,
             correlativo: f.correlativo,
             total: Number(f.total),
-            metodoPago: f.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : f.metodoPago,
+            metodoPago: f.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (f.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : f.metodoPago),
             fechaEmision: f.fechaEmision.toISOString(),
             clienteNombre: f.cliente?.nombre || 'Cliente General',
             transferenciaConfirmada: f.transferenciaConfirmada,
             pagosMixtos: f.pagosMixtos ? f.pagosMixtos.map((p: any) => ({
                 id: p.id,
-                metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago,
+                metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (p.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : p.metodoPago),
                 monto: Number(p.monto)
             })) : []
         })),
