@@ -2459,10 +2459,10 @@ export default function DocumentBuilderClient({
   const [showMixedPaymentsModal, setShowMixedPaymentsModal] = useState(false);
   
   useEffect(() => {
-    if (paymentMethod === 'MIXTO') {
+    if (paymentMethod === 'MIXTO' && !viewMode && !isLocked) {
       setShowMixedPaymentsModal(true);
     }
-  }, [paymentMethod]);
+  }, [paymentMethod, viewMode, isLocked]);
 
   // Sincronizar automáticamente el método de pago con los términos de pago al crédito
   useEffect(() => {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2, FileSpreadsheet, Lock, ShieldCheck } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2, FileSpreadsheet, Lock, ShieldCheck, Filter, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -9,6 +9,7 @@ import { anularDocumento, limpiarBorradoresTemporalesHuecos, confirmarTransferen
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
+import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
 import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
 
 export interface DocumentRecord {
@@ -71,6 +72,7 @@ export default function DocumentListTable({
   const [pagoRapidoMethod, setPagoRapidoMethod] = useState('Efectivo');
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [docForRevertAuth, setDocForRevertAuth] = useState<DocumentRecord | null>(null);
+  const [showMixedPaymentsModal, setShowMixedPaymentsModal] = useState(false);
 
   // Cerrar menú de acciones contextual al hacer clic fuera
   useEffect(() => {
@@ -183,6 +185,7 @@ export default function DocumentListTable({
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
   const [showCredito, setShowCredito] = useState(false);
   const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
+  const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [filterFechaDesde, setFilterFechaDesde] = useState<string>('');
   const [filterFechaHasta, setFilterFechaHasta] = useState<string>('');
 
@@ -256,13 +259,19 @@ export default function DocumentListTable({
     }
   };
 
-  const handleMarcarPagada = async () => {
+  const handleMarcarPagada = async (pagosMixtosArray?: any[]) => {
     if (!docToMarkPaid) return;
+
+    if (pagoRapidoMethod === 'MIXTO' && (!pagosMixtosArray || pagosMixtosArray.length === 0)) {
+      setShowMixedPaymentsModal(true);
+      return;
+    }
+
     const id = docToMarkPaid.id;
     setIsMarkingPaid(true);
     const toastId = toast.loading('Registrando pago y liquidando factura...');
     try {
-      const res = await registrarPagoRapido(id, pagoRapidoMethod);
+      const res = await registrarPagoRapido(id, pagoRapidoMethod, pagosMixtosArray);
       if (res.success) {
         toast.success('Factura marcada como pagada correctamente', { id: toastId });
         setDocToMarkPaid(null);
@@ -516,137 +525,162 @@ export default function DocumentListTable({
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in">
       {/* Header & Controls */}
-      <div className="p-3.5 sm:p-5 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3.5 bg-slate-50/50">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 w-full xl:w-auto">
-          <div>
+      {(() => {
+        const activeFilters =
+          (filterVendedor !== 'TODOS' ? 1 : 0) +
+          (showAnuladas ? 1 : 0) +
+          (showPendientesTrans ? 1 : 0) +
+          (showCredito ? 1 : 0) +
+          (showCreditosVencidos ? 1 : 0) +
+          (type === 'FACTURA' && filterOrigen !== 'TODOS' ? 1 : 0) +
+          (filterFechaDesde || filterFechaHasta ? 1 : 0);
+        const chip = (active: boolean, color: string) =>
+          `px-3.5 py-2 rounded-full border text-xs font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${active ? color : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
+        const resetAll = () => {
+          setFilterVendedor('TODOS'); setShowAnuladas(false); setShowPendientesTrans(false);
+          setShowCredito(false); setShowCreditosVencidos(false); setFilterOrigen('TODOS' as any);
+          setFilterFechaDesde(''); setFilterFechaHasta('');
+        };
+        return (
+      <div className="p-3.5 sm:p-5 border-b border-slate-100 bg-slate-50/50 space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3.5">
+          <div className="shrink-0">
             <h2 className="text-lg sm:text-xl font-black text-slate-900 whitespace-nowrap">
               {type === 'FACTURA' ? 'Historial de Facturas' : type === 'COTIZACION' ? 'Historial de Cotizaciones' : 'Documentos Recientes'}
             </h2>
             <p className="text-xs text-slate-500 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
           </div>
-
-          {/* 🔍 Buscador cambiado al LADO IZQUIERDO */}
-          <div className="relative w-full sm:w-80">
-            {isSearchingRemote ? (
-              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" size={16} />
-            ) : (
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            )}
-            <input
-              type="text"
-              placeholder="Buscar factura, cliente o producto..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs placeholder:text-slate-400"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full transition-colors cursor-pointer"
-                title="Limpiar búsqueda"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filtros a la derecha */}
-        <div className="relative w-full xl:w-auto flex flex-wrap items-center gap-2">
-          {/* Selector de Filtro por Vendedor (Reemplaza Depurar Borradores) */}
-          <select
-            value={filterVendedor}
-            onChange={(e) => setFilterVendedor(e.target.value)}
-            className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
-            title="Filtrar por vendedor asignado"
-          >
-            <option value="TODOS">Todos los Vendedores</option>
-            <option value="CON_VENDEDOR">Con Vendedor Asignado</option>
-            <option value="SIN_VENDEDOR">Sin Vendedor Asignado</option>
-            <optgroup label="Vendedores Registrados">
-              {availableVendedores.map(v => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </optgroup>
-          </select>
-
-          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
-            <input 
-              type="checkbox" 
-              checked={showAnuladas}
-              onChange={e => setShowAnuladas(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-            />
-            <span className="text-xs font-bold text-slate-700 select-none">Mostrar Anuladas</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
-            <input 
-              type="checkbox" 
-              checked={showPendientesTrans}
-              onChange={e => setShowPendientesTrans(e.target.checked)}
-              className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
-            />
-            <span className="text-xs font-bold text-slate-700 select-none">Pend. Transferencia</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
-            <input 
-              type="checkbox" 
-              checked={showCredito}
-              onChange={e => setShowCredito(e.target.checked)}
-              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-            />
-            <span className="text-xs font-bold text-slate-700 select-none">Ventas a Crédito</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
-            <input 
-              type="checkbox" 
-              checked={showCreditosVencidos}
-              onChange={e => setShowCreditosVencidos(e.target.checked)}
-              className="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500"
-            />
-            <span className="text-xs font-bold text-slate-700 select-none">Créditos Vencidos</span>
-          </label>
-
-          {type === 'FACTURA' && (
-            <select
-              value={filterOrigen}
-              onChange={(e) => setFilterOrigen(e.target.value as any)}
-              className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
+          <div className="flex items-stretch gap-2.5 flex-1">
+            <div className="relative flex-1">
+              {isSearchingRemote ? (
+                <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" size={18} />
+              ) : (
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              )}
+              <input
+                type="text"
+                placeholder="BUSCAR FACTURA, CLIENTE O PRODUCTO..."
+                value={search}
+                onChange={e => setSearch(e.target.value.toUpperCase())}
+                autoCapitalize="characters"
+                className="w-full h-12 pl-11 pr-10 bg-white border border-slate-200 rounded-xl text-sm font-bold uppercase tracking-wide text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs placeholder:text-slate-400 placeholder:font-medium"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full transition-colors cursor-pointer"
+                  title="Limpiar búsqueda"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowFiltersPanel(v => !v)}
+              title={showFiltersPanel ? 'Ocultar panel de filtros' : 'Mostrar panel de filtros'}
+              className={`h-12 px-4 sm:px-5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-2xs cursor-pointer whitespace-nowrap ${showFiltersPanel ? 'bg-indigo-900 border-indigo-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
             >
-              <option value="TODOS">Todas las Ventas</option>
-              <option value="PARAISO">Solo Paraíso Floral</option>
-              <option value="HF">Solo HonduFlores</option>
-            </select>
-          )}
-
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 border border-slate-200 rounded-xl shadow-2xs w-full sm:w-auto">
-            <span className="text-xs font-bold text-slate-500">Desde:</span>
-            <input
-              type="date"
-              value={filterFechaDesde}
-              onChange={(e) => setFilterFechaDesde(e.target.value)}
-              className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent"
-            />
-            <span className="text-xs font-bold text-slate-500 ml-1">Hasta:</span>
-            <input
-              type="date"
-              value={filterFechaHasta}
-              onChange={(e) => setFilterFechaHasta(e.target.value)}
-              className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent"
-            />
-            {(filterFechaDesde || filterFechaHasta) && (
-              <button
-                onClick={() => { setFilterFechaDesde(''); setFilterFechaHasta(''); }}
-                className="ml-1 text-slate-400 hover:text-rose-500"
-                title="Limpiar fechas"
-              >
-                <X size={14} />
-              </button>
-            )}
+              <Filter size={16} />
+              <span className="hidden sm:inline">{showFiltersPanel ? 'Filtros (Abiertos)' : 'Filtros'}</span>
+              {activeFilters > 0 && (
+                <span className={`min-w-5 h-5 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center ${showFiltersPanel ? 'bg-white text-indigo-900' : 'bg-blue-600 text-white'}`}>{activeFilters}</span>
+              )}
+              {showFiltersPanel ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
           </div>
         </div>
+
+        {showFiltersPanel && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-slate-600">Vendedor</span>
+                <select
+                  value={filterVendedor}
+                  onChange={(e) => setFilterVendedor(e.target.value)}
+                  className="h-11 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  <option value="TODOS">Todos los Vendedores</option>
+                  <option value="CON_VENDEDOR">Con Vendedor Asignado</option>
+                  <option value="SIN_VENDEDOR">Sin Vendedor Asignado</option>
+                  <optgroup label="Vendedores Registrados">
+                    {availableVendedores.map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+              {type === 'FACTURA' && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold text-slate-600">Origen de Venta</span>
+                  <select
+                    value={filterOrigen}
+                    onChange={(e) => setFilterOrigen(e.target.value as any)}
+                    className="h-11 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    <option value="TODOS">Todas las Ventas</option>
+                    <option value="PARAISO">Solo Paraíso Floral</option>
+                    <option value="HF">Solo HonduFlores</option>
+                  </select>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5"><Calendar size={13} className="text-indigo-500" /> Rango de Emisión</span>
+                <div className="h-11 flex items-center gap-2 bg-white px-3 border border-slate-200 rounded-xl">
+                  <input
+                    type="date"
+                    value={filterFechaDesde}
+                    onChange={(e) => setFilterFechaDesde(e.target.value)}
+                    className="flex-1 min-w-0 text-xs font-semibold text-slate-700 focus:outline-none bg-transparent"
+                    title="Desde"
+                  />
+                  <span className="text-slate-300">→</span>
+                  <input
+                    type="date"
+                    value={filterFechaHasta}
+                    onChange={(e) => setFilterFechaHasta(e.target.value)}
+                    className="flex-1 min-w-0 text-xs font-semibold text-slate-700 focus:outline-none bg-transparent"
+                    title="Hasta"
+                  />
+                  {(filterFechaDesde || filterFechaHasta) && (
+                    <button
+                      onClick={() => { setFilterFechaDesde(''); setFilterFechaHasta(''); }}
+                      className="text-slate-400 hover:text-rose-500"
+                      title="Limpiar fechas"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
+              <button type="button" onClick={() => setShowAnuladas(v => !v)} className={chip(showAnuladas, 'bg-slate-800 border-slate-800 text-white')}>
+                <span className={`w-1.5 h-1.5 rounded-full ${showAnuladas ? 'bg-white' : 'bg-slate-400'}`} /> Mostrar Anuladas
+              </button>
+              <button type="button" onClick={() => setShowPendientesTrans(v => !v)} className={chip(showPendientesTrans, 'bg-amber-50 border-amber-300 text-amber-700')}>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pend. Transferencia
+              </button>
+              <button type="button" onClick={() => setShowCredito(v => !v)} className={chip(showCredito, 'bg-indigo-50 border-indigo-300 text-indigo-700')}>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> Ventas a Crédito
+              </button>
+              <button type="button" onClick={() => setShowCreditosVencidos(v => !v)} className={chip(showCreditosVencidos, 'bg-rose-50 border-rose-300 text-rose-700')}>
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Créditos Vencidos
+              </button>
+              {activeFilters > 0 && (
+                <button type="button" onClick={resetAll} className="ml-auto text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer">
+                  <X size={13} /> Limpiar filtros
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+        );
+      })()}
 
       {/* 🌸 RESUMEN Y DESGLOSE DE PRODUCTO (TIPO HISTORIAL CIERRE DE CAJA) */}
       {productSummary && (
@@ -1411,6 +1445,7 @@ export default function DocumentListTable({
                    <option value="Efectivo">💵 Efectivo</option>
                    <option value="Transferencia">🏦 Transferencia / Depósito</option>
                    <option value="Tarjeta">💳 Tarjeta de Crédito/Débito</option>
+                   <option value="MIXTO">🧮 Pago Dividido / Mixto</option>
                  </select>
                </div>
              </div>
@@ -1433,7 +1468,7 @@ export default function DocumentListTable({
                 </button>
                 <button
                   type="button"
-                  onClick={handleMarcarPagada}
+                  onClick={() => handleMarcarPagada()}
                   disabled={isMarkingPaid}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1693,6 +1728,20 @@ export default function DocumentListTable({
             } catch (e: any) {
               toast.error(e.message || 'Error de red', { id: toastId });
             }
+          }}
+        />
+      )}
+
+      {/* Modal Pagos Mixtos */}
+      {docToMarkPaid && showMixedPaymentsModal && (
+        <MixedPaymentsModal
+          isOpen={showMixedPaymentsModal}
+          onClose={() => setShowMixedPaymentsModal(false)}
+          totalAmount={docToMarkPaid.saldoPendiente ?? docToMarkPaid.total}
+          payments={[]}
+          onSave={(payments) => {
+            setShowMixedPaymentsModal(false);
+            handleMarcarPagada(payments);
           }}
         />
       )}

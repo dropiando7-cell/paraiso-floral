@@ -2970,7 +2970,7 @@ export async function saveFacturaSeguridadConfig(data: {
 
 
 // --- REGISTRAR PAGO RÁPIDO DESDE HISTORIAL ---
-export async function registrarPagoRapido(facturaId: string, metodoPago: string) {
+export async function registrarPagoRapido(facturaId: string, metodoPago: string, pagosMixtosArray?: any[]) {
     try {
         const user = await getAuthenticatedUser();
         const doc = await prisma.factura.findUnique({ where: { id: facturaId }, include: { cliente: true } });
@@ -3009,28 +3009,60 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string)
                         metodoPago: metodoPago,
                         saldoPendiente: 0,
                         estadoPago: 'PAGADA',
-                        ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {})
+                        ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {}),
+                        ...(pagosMixtosArray && pagosMixtosArray.length > 0 ? {
+                             pagosMixtos: {
+                                 create: pagosMixtosArray.map(p => ({
+                                     metodoPago: p.metodo,
+                                     monto: Number(p.monto),
+                                     referencia: p.referencia || null,
+                                     banco: p.banco || null,
+                                 }))
+                             }
+                        } : {})
                     }
                 });
             } else {
                 // Si la factura es de un turno anterior, se genera un Abono (CxC)
-                const abono = await tx.pagoCliente.create({
-                    data: {
-                        organizationId: user.organizationId,
-                        clienteId: doc.clienteId,
-                        monto: saldoActual,
-                        metodoPago: metodoPago.toUpperCase(),
-                        notas: 'Pago rápido registrado desde Historial de Facturas',
-                        creadoPorId: user.id,
-                        cajaSessionId: cajaActiva ? cajaActiva.id : null,
-                        detalles: {
-                            create: {
-                                facturaId: doc.id,
-                                montoAplicado: saldoActual
+                if (pagosMixtosArray && pagosMixtosArray.length > 0) {
+                    for (const p of pagosMixtosArray) {
+                        await tx.pagoCliente.create({
+                            data: {
+                                organizationId: user.organizationId,
+                                clienteId: doc.clienteId,
+                                monto: Number(p.monto),
+                                metodoPago: p.metodo.toUpperCase(),
+                                notas: `Pago mixto registrado desde Historial de Facturas`,
+                                creadoPorId: user.id,
+                                cajaSessionId: cajaActiva ? cajaActiva.id : null,
+                                detalles: {
+                                    create: {
+                                        facturaId: doc.id,
+                                        montoAplicado: Number(p.monto)
+                                    }
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    const abono = await tx.pagoCliente.create({
+                        data: {
+                            organizationId: user.organizationId,
+                            clienteId: doc.clienteId,
+                            monto: saldoActual,
+                            metodoPago: metodoPago.toUpperCase(),
+                            notas: 'Pago rápido registrado desde Historial de Facturas',
+                            creadoPorId: user.id,
+                            cajaSessionId: cajaActiva ? cajaActiva.id : null,
+                            detalles: {
+                                create: {
+                                    facturaId: doc.id,
+                                    montoAplicado: saldoActual
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
 
                 await tx.factura.update({
                     where: { id: doc.id },
