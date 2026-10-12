@@ -1,5 +1,6 @@
 ---
-description: Deploy to Vercel (dropiando7@gmail.com / bioelectronicahn)
+description: Deploy to Vercel (dropiando7-cells-projects / paraiso-floral)
 ---
 
-Cuando el usuario pida "desplegar en Vercel", **SIEMPRE** se debe hacer mediante el CLI de Vercel para asegurar que se despliega con la cuenta correcta (`dropiando7@gmail.com` / `admin-`) y en el proyecto `bioelectronicahn`.
+El proyecto **Paraíso Floral** está vinculado automáticamente a GitHub (`dropiando7-cells-projects/paraiso-floral`).
+Cada vez que se hace `git push origin main`, Vercel detecta el commit y realiza el despliegue automático a Producción de inmediato. No es necesario ejecutar el CLI manual.
