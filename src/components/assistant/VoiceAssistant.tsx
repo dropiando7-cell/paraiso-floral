@@ -308,11 +308,9 @@ export function VoiceAssistant() {
         }
     };
 
-    // Si estamos en el creador de facturas/cotizaciones, ocultar el asistente global porque el componente DocumentBuilderClient tiene el suyo propio
-    const isCreatorTab = searchParams.get('tab') === 'creador' || pathname.includes('/facturas/nueva');
-    if (pathname.includes('/facturas') && (isCreatorTab || pathname.endsWith('/facturas'))) {
-        // Asumimos que la página principal de /facturas muestra el DocumentBuilderClient por defecto si no hay tab,
-        // o si tiene tab=creador
+    // Si estamos en el módulo de facturas, ocultar el asistente global 
+    // porque el componente MobileFacturacionTerminal tiene su propia interfaz de IA más pulida.
+    if (pathname.includes('/facturas')) {
         return null;
     }
 

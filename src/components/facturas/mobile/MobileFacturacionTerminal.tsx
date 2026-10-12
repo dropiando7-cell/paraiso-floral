@@ -223,7 +223,7 @@ export default function MobileFacturacionTerminal({
 
   // ─── SPEECH RECOGNITION SETUP ─────────────────────────────────────────────
   const startAudioListening = () => {
-    setAudioTranscript('');
+    const baseTranscript = audioTranscript ? audioTranscript.trim() + ' ' : '';
     setIsRecordingAudio(true);
     triggerHaptic(50);
     playTactileClick();
@@ -241,7 +241,7 @@ export default function MobileFacturacionTerminal({
           for (let i = 0; i < event.results.length; i++) {
             fullText += event.results[i][0].transcript + ' ';
           }
-          setAudioTranscript(fullText.trim());
+          setAudioTranscript(baseTranscript + fullText.trim());
         };
 
         recognition.onerror = (err: any) => {
@@ -1573,8 +1573,8 @@ export default function MobileFacturacionTerminal({
 
       {/* ─── MODAL POST-EMISIÓN: VISTA PREVIA Y ACCIONES (CAPTURA, TICKET, CARTA) ─── */}
       {(isPostEmissionModalOpen || showPreviewChooser) && (
-        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-4 sm:p-5 shadow-2xl border border-slate-200 flex flex-col gap-3 animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-4 sm:p-5 shadow-2xl border border-slate-200 flex flex-col gap-3 animate-in zoom-in-95 duration-300">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
@@ -2003,8 +2003,19 @@ export default function MobileFacturacionTerminal({
             </div>
 
             {/* Live Transcript Box */}
-            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200 text-left min-h-[70px]">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase mb-1">Transcripción en vivo:</span>
+            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200 text-left min-h-[70px] relative">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Transcripción en vivo:</span>
+                {audioTranscript.trim() && (
+                  <button 
+                    type="button" 
+                    onClick={() => setAudioTranscript('')}
+                    className="text-[10px] font-bold text-fuchsia-600 hover:underline"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
               <p className="text-xs font-semibold text-slate-800">
                 {audioTranscript || <span className="text-slate-400 italic">Esperando que hables...</span>}
               </p>
