@@ -3528,7 +3528,9 @@ export default function DocumentBuilderClient({
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.validityDays) setValidityDays(parsed.validityDays);
         if (parsed.settings && typeof parsed.settings === 'object') {
-          setSettings(prev => ({ ...prev, ...parsed.settings }));
+          if (editMode || isExistingDoc) {
+            setSettings(prev => ({ ...prev, ...parsed.settings }));
+          }
         }
         if (parsed.docNumber && editMode) {
           setIsLocked(false);
@@ -5660,7 +5662,7 @@ export default function DocumentBuilderClient({
                     validityDays={validityDays} setValidityDays={handleSafeSetValidityDays} lineItems={lineItems} handleLineChange={handleLineChange} 
                     handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
                     emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
-                    totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignaturePayload} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
+                    totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode || Boolean(showSuccessModal)} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignaturePayload} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
                   />
                 )}
                 {currentCanvasMode === 'document' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && <ModernTemplate 
@@ -5678,7 +5680,7 @@ export default function DocumentBuilderClient({
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                   setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
                   setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                  LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                  LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode || Boolean(showSuccessModal)} clienteSignature={clienteSignaturePayload}
                   setSettings={setSettings}
                   onToggleTerms={handleToggleTerms}
                   numeroCAI={resolvedNumeroCAI}
@@ -5701,7 +5703,7 @@ export default function DocumentBuilderClient({
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
                    setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode || Boolean(showSuccessModal)} clienteSignature={clienteSignaturePayload}
                    setSettings={setSettings}
                    onToggleTerms={handleToggleTerms}
                    numeroCAI={resolvedNumeroCAI}
@@ -5724,7 +5726,7 @@ export default function DocumentBuilderClient({
                   handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
                    setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode || Boolean(showSuccessModal)} clienteSignature={clienteSignaturePayload}
                    setSettings={setSettings}
                    onToggleTerms={handleToggleTerms}
                    numeroCAI={resolvedNumeroCAI}
@@ -5747,7 +5749,7 @@ export default function DocumentBuilderClient({
                    handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
                    setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
                    setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+                   LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode || Boolean(showSuccessModal)} clienteSignature={clienteSignaturePayload}
                    setSettings={setSettings}
                    onToggleTerms={handleToggleTerms}
                    numeroCAI={resolvedNumeroCAI}

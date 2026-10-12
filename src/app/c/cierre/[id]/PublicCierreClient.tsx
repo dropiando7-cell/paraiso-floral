@@ -142,13 +142,22 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`;
         });
 
     const pagosCliente = session.pagosCliente || [];
-    pagosCliente.filter((p: any) => p.metodoPago === metodo && !p.anulado)
+    pagosCliente.filter((p: any) => {
+        if (p.anulado) return false;
+        let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
+        let pMetodo = 'Efectivo';
+        if (rawMetodo.includes('TARJETA')) pMetodo = 'Tarjeta';
+        else if (rawMetodo.includes('TRANSFERENCIA')) pMetodo = 'Transferencia';
+        else if (rawMetodo.includes('CHEQUE')) pMetodo = 'Cheque';
+        else if (rawMetodo.includes('OCCIDENTE') || rawMetodo.includes('LINK')) pMetodo = 'Link de pago de Occidente';
+        return pMetodo === metodo;
+    })
         .forEach((p: any) => {
             txList.push({
                 id: p.id,
                 fechaStr: p.fecha,
-                concepto: `Abono CxC (${p.correlativo || 'PAGO'})`,
-                cliente: p.cliente?.nombre || 'Cliente General',
+                concepto: `Abono CxC (${p.notas || p.correlativo || 'PAGO'})`,
+                cliente: p.clienteNombre || p.cliente?.nombre || 'Cliente General',
                 monto: Number(p.monto)
             });
         });
