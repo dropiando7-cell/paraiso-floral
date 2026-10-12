@@ -181,6 +181,7 @@ export async function searchClientes(query: string = "") {
                 nombre: plain.nombre ? plain.nombre.toUpperCase() : '',
                 nombreContacto: plain.nombreContacto ? plain.nombreContacto.toUpperCase() : null,
                 limiteCredito: plain.limiteCredito ? Number(plain.limiteCredito) : 0,
+                saldoFavor: plain.saldoFavor ? Number(plain.saldoFavor) : 0,
                 diasCredito: plain.diasCredito !== null && plain.diasCredito !== undefined ? plain.diasCredito : 15
             };
         });
@@ -513,15 +514,24 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     let estadoPagoInicial = esCreditoFactura ? 'PENDIENTE' : (facturaData.metodoPago === 'Transferencia' && !facturaData.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA');
 
                     if (montoSaldoFavor > 0) {
-                        saldoPendienteInicial = Math.max(0, facturaData.total - montoSaldoFavor);
-                        estadoPagoInicial = saldoPendienteInicial <= 0 ? 'PAGADA' : 'PENDIENTE';
+                        const restante = Math.max(0, facturaData.total - montoSaldoFavor);
+                        // El restante solo queda pendiente si la venta es a crédito o transferencia sin confirmar;
+                        // si se paga en efectivo/tarjeta, la factura queda PAGADA.
+                        if (saldoPendienteInicial > 0) {
+                            saldoPendienteInicial = restante;
+                            estadoPagoInicial = restante <= 0 ? 'PAGADA' : 'PENDIENTE';
+                        } else {
+                            saldoPendienteInicial = 0;
+                            estadoPagoInicial = 'PAGADA';
+                        }
                     }
 
                     // Preparar nota automática si se usa saldo a favor
                     let notaFinal = facturaData.notas || '';
                     if (montoSaldoFavor > 0) {
                         const fmtMoney = (v: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(v);
-                        const textoDescuento = `(-) ${fmtMoney(montoSaldoFavor)} pagado con Saldo a Favor. Total a pagar: ${fmtMoney(saldoPendienteInicial)}.`;
+                        const restante = Math.max(0, facturaData.total - montoSaldoFavor);
+                        const textoDescuento = `SALDO A FAVOR APLICADO: (-) ${fmtMoney(montoSaldoFavor)}. Restante pagado/por pagar: ${fmtMoney(restante)}.`;
                         notaFinal = notaFinal ? `${notaFinal}\n${textoDescuento}` : textoDescuento;
                     }
                     

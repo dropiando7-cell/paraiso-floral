@@ -212,28 +212,82 @@ export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoIni
     };
 }
 
-export async function updateSaldoFavorCliente(clienteId: string, montoAAgregar: number) {
+export async function getSaldoFavorCliente(clienteId: string) {
+    if (!clienteId) return 0;
     const orgId = await getOrgId();
-    
-    // Obtenemos el saldo actual
-    const cliente = await prisma.cliente.findUnique({
+    const c = await prisma.cliente.findFirst({
+        where: { id: clienteId, organizationId: orgId },
+        select: { saldoFavor: true }
+    });
+    return c?.saldoFavor ? Number(c.saldoFavor) : 0;
+}
+
+export async function updateSaldoFavorCliente(
+    clienteId: string,
+    montoAAgregar: number,
+    motivo?: string,
+    facturaId?: string | null
+) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado');
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, organizationId: true, nombre: true, apellido: true }
+    });
+    if (!dbUser) throw new Error('Organización no encontrada');
+    const orgId = dbUser.organizationId;
+
+    const motivoLimpio = (motivo || '').trim();
+    if (!motivoLimpio) throw new Error('Debes indicar el motivo del movimiento.');
+    if (!montoAAgregar || isNaN(montoAAgregar)) throw new Error('Monto inválido.');
+
+    const cliente = await prisma.cliente.findFirst({
         where: { id: clienteId, organizationId: orgId }
     });
-
     if (!cliente) throw new Error('Cliente no encontrado');
 
-    const saldoActual = cliente.saldoFavor ? Number(cliente.saldoFavor) : 0;
-    const nuevoSaldo = saldoActual + montoAAgregar;
+    let facturaCorrelativo: string | null = null;
+    if (facturaId) {
+        const f = await prisma.factura.findFirst({
+            where: { id: facturaId, clienteId, organizationId: orgId },
+            select: { correlativo: true }
+        });
+        if (!f) throw new Error('La factura relacionada no pertenece a este cliente.');
+        facturaCorrelativo = f.correlativo;
+    }
 
+    const saldoActual = cliente.saldoFavor ? Number(cliente.saldoFavor) : 0;
+    const nuevoSaldo = Math.round((saldoActual + montoAAgregar) * 100) / 100;
     if (nuevoSaldo < 0) {
         throw new Error('El monedero no puede quedar con saldo negativo.');
     }
 
-    const updated = await prisma.cliente.update({
-        where: { id: clienteId },
-        data: {
-            saldoFavor: nuevoSaldo
-        }
+    const updated = await prisma.$transaction(async (tx) => {
+        const up = await tx.cliente.update({
+            where: { id: clienteId },
+            data: { saldoFavor: nuevoSaldo }
+        });
+        await tx.activityLog.create({
+            data: {
+                organizationId: orgId,
+                userId: dbUser.id,
+                action: montoAAgregar > 0 ? 'MONEDERO_ABONO' : 'MONEDERO_CARGO',
+                module: '/cxc/monedero',
+                description: `${montoAAgregar > 0 ? 'Saldo a favor agregado' : 'Saldo a favor restado'} L. ${Math.abs(montoAAgregar).toFixed(2)} a ${cliente.nombre}. Motivo: ${motivoLimpio}${facturaCorrelativo ? ` (Factura ${facturaCorrelativo})` : ''}`,
+                metadata: {
+                    clienteId,
+                    monto: montoAAgregar,
+                    saldoAnterior: saldoActual,
+                    saldoNuevo: nuevoSaldo,
+                    motivo: motivoLimpio,
+                    facturaId: facturaId || null,
+                    facturaCorrelativo,
+                    usuario: [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ')
+                }
+            }
+        });
+        return up;
     });
 
     revalidatePath('/cxc');

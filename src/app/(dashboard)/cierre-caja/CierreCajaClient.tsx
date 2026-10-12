@@ -1029,6 +1029,15 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                             <span className="text-slate-600 font-semibold">Ventas al Crédito Emitidas (Por Cobrar):</span>
                                             <span className="font-black text-slate-900">{formatCurrency(summaryData?.totals?.totalVentasCredito || 0)}</span>
                                         </div>
+                                        {(summaryData?.totals?.saldoFavorAplicado || 0) > 0 && (
+                                            <div className="sm:col-span-2 p-3 bg-violet-50 border border-violet-200 rounded-xl flex justify-between items-center text-xs shadow-xs">
+                                                <span className="text-violet-900 font-semibold">
+                                                    Saldo a Favor Aplicado (Monedero)
+                                                    <span className="block text-[10px] text-violet-600 font-normal">Parte de facturas pagada con dinero que el cliente ya tenía a favor · no es efectivo de hoy</span>
+                                                </span>
+                                                <span className="font-black text-violet-800">{formatCurrency(summaryData?.totals?.saldoFavorAplicado || 0)}</span>
+                                            </div>
+                                        )}
                                         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs shadow-xs">
                                             <span className="text-emerald-900 font-bold">TOTAL FACTURADO DEL DÍA (Contado + Crédito):</span>
                                             <span className="font-black text-emerald-800 text-sm">{formatCurrency(summaryData?.totals?.totalFacturado || ((summaryData?.totals?.totalVentas || 0) + (summaryData?.totals?.totalVentasCredito || 0)))}</span>
@@ -1601,6 +1610,12 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                             <span className="text-slate-600 font-semibold">Ventas al Crédito (Por Cobrar):</span>
                                             <span className="font-bold text-slate-900">{formatCurrency(pastSummaryData?.totals?.totalVentasCredito || 0)}</span>
                                         </div>
+                                        {(pastSummaryData?.totals?.saldoFavorAplicado || 0) > 0 && (
+                                            <div className="sm:col-span-2 p-2.5 bg-violet-50 border border-violet-200 rounded-xl flex justify-between items-center text-xs">
+                                                <span className="text-violet-900 font-semibold">Saldo a Favor Aplicado (no es efectivo):</span>
+                                                <span className="font-bold text-violet-800">{formatCurrency(pastSummaryData?.totals?.saldoFavorAplicado || 0)}</span>
+                                            </div>
+                                        )}
                                         <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">
                                             <span className="text-emerald-900 font-bold">TOTAL FACTURADO DEL DÍA:</span>
                                             <span className="font-black text-emerald-800">{formatCurrency(pastSummaryData?.totals?.totalFacturado || ((pastSummaryData?.totals?.totalVentas || 0) + (pastSummaryData?.totals?.totalVentasCredito || 0)))}</span>

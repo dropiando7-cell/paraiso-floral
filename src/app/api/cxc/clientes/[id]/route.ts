@@ -171,6 +171,16 @@ export async function GET(
       ...listadoFacturas
     ];
 
+    const logsMonedero = await prisma.activityLog.findMany({
+      where: {
+        organizationId: orgId,
+        module: '/cxc/monedero',
+        metadata: { path: ['clienteId'], equals: cliente.id }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    }).catch(() => []);
+
     return NextResponse.json({
       cliente: {
         id: cliente.id,
@@ -182,8 +192,14 @@ export async function GET(
         limiteCredito: Number(cliente.limiteCredito || 0),
         saldoInicial: sInicial,
         fechaSaldoInicial: cliente.fechaSaldoInicial,
-        diasCredito: cliente.diasCredito || 15
+        diasCredito: cliente.diasCredito || 15,
+        saldoFavor: Number(cliente.saldoFavor || 0)
       },
+      movimientosMonedero: logsMonedero.map(l => ({
+        id: l.id,
+        fecha: l.createdAt,
+        ...((l.metadata as any) || {})
+      })),
       resumen: {
         saldoTotal,
         totalFacturado,

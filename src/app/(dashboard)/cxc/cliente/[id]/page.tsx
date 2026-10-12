@@ -1131,6 +1131,8 @@ ${publicUrl}
         onClose={() => setModalMonederoOpen(false)}
         onSuccess={cargarEstadoCuenta}
         cliente={data?.cliente as any}
+        facturas={(data as any)?.facturas || []}
+        movimientos={(data as any)?.movimientosMonedero || []}
       />
 
       {pagoAEditar && (

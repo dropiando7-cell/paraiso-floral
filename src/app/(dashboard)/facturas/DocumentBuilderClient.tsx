@@ -88,6 +88,7 @@ interface Product {
 }
 
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages, eliminarDocumentoBorrador } from './actions';
+import SaldoFavorBadge from '@/components/facturas/SaldoFavorBadge';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -5615,6 +5616,10 @@ export default function DocumentBuilderClient({
                    )})}
                  </div>
                </div>
+             )}
+
+             {docType === 'factura' && currentCanvasMode === 'document' && (
+               <SaldoFavorBadge clienteId={selectedClient?.id} clienteNombre={(selectedClient as any)?.name || (selectedClient as any)?.nombre} />
              )}
 
              <div ref={templateContainerRef} className="w-[816px] max-w-[816px] mx-auto relative bg-white shrink-0">
