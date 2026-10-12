@@ -28,6 +28,7 @@ import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
 import ModalMonederoVirtual from '@/components/cxc/ModalMonederoVirtual';
 import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
+import ModalVisorExcelHistorico from '@/components/cxc/ModalVisorExcelHistorico';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 
@@ -107,6 +108,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
   const [modalMonederoOpen, setModalMonederoOpen] = useState<boolean>(false);
   const [modalEditarAbonoOpen, setModalEditarAbonoOpen] = useState<boolean>(false);
+  const [modalVisorExcelOpen, setModalVisorExcelOpen] = useState<boolean>(false);
   const [pagoAEditar, setPagoAEditar] = useState<any>(null);
 
   const cargarEstadoCuenta = async () => {
@@ -696,6 +698,14 @@ ${publicUrl}
                 <DollarSign className="w-4 h-4" />
                 <span>Monedero</span>
               </button>
+
+              <button
+                onClick={() => setModalVisorExcelOpen(true)}
+                className="py-2.5 px-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Historial Excel</span>
+              </button>
             </div>
           </div>
 
@@ -1135,6 +1145,12 @@ ${publicUrl}
           clienteNombre={cliente.nombre}
         />
       )}
+
+      <ModalVisorExcelHistorico
+        isOpen={modalVisorExcelOpen}
+        onClose={() => setModalVisorExcelOpen(false)}
+        clienteNombre={cliente.nombre}
+      />
     </>
   );
 }
