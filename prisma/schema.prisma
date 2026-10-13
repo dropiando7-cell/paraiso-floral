@@ -178,6 +178,7 @@ model User {
   activityLogs          ActivityLog[]          @relation("UserActivityLogs")
   mantenimientosRealizados Mantenimiento[]     @relation("MantenimientosRealizados")
   pagosClientesCreados     PagoCliente[]       @relation("PagoClienteCreado")
+  pagosClientesAnulados    PagoCliente[]       @relation("PagoClienteAnulado")
   notasCreditoCreadas      NotaCreditoCliente[] @relation("NotaCreditoCreada")
   auditoriasCreadas        AuditoriaInventario[] @relation("AuditoriaCreadoPor")
   auditoriasAprobadas      AuditoriaInventario[] @relation("AuditoriaAprobadoPor")
@@ -1654,6 +1655,8 @@ model PagoCliente {
   comprobanteUrl String?
   anulado        Boolean              @default(false)
   anuladoAt      DateTime?
+  anuladoPorId    String?             @db.Uuid
+  motivoAnulacion String?
   creadoPorId    String?              @db.Uuid
   cajaSessionId  String?              @db.Uuid
   createdAt      DateTime             @default(now())
@@ -1662,6 +1665,7 @@ model PagoCliente {
   organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cliente        Cliente              @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   creadoPor      User?                @relation("PagoClienteCreado", fields: [creadoPorId], references: [id])
+  anuladoPor     User?                @relation("PagoClienteAnulado", fields: [anuladoPorId], references: [id])
   cajaSession    CorteCajaSession?    @relation(fields: [cajaSessionId], references: [id])
   detalles       PagoDetalleFactura[]
 

@@ -128,10 +128,16 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   };
 
   const handleAnularAbono = async (pagoId: string, correlativo?: string | null) => {
-    if (!confirm(`¿Estás seguro de anular el abono ${correlativo || ''}? El monto descontado volverá a sumarse automáticamente a la deuda del cliente.`)) return;
+    const motivo = window.prompt(`Vas a ANULAR el abono ${correlativo || ''}. El monto volverá a sumarse a la deuda del cliente y quedará registrado quién lo anuló.\n\nEscribe el motivo para confirmar:`);
+    if (motivo === null) return;
+    if (!motivo.trim()) { toast.error('Debes escribir un motivo.'); return; }
     try {
       setLoading(true);
-      const res = await fetch(`/api/cxc/abonos/${pagoId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/cxc/abonos/${pagoId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo: motivo.trim() })
+      });
       const resJson = await res.json();
       if (!res.ok) throw new Error(resJson.error || 'Error al anular abono');
       toast.success('Abono anulado exitosamente');
@@ -187,11 +193,13 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     const list: Array<{
       id: string;
       fecha: Date;
-      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'ABONO' | 'NOTA_CREDITO';
+      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'ABONO' | 'NOTA_CREDITO' | 'ABONO_ANULADO';
       documento: string;
       detalles: string;
       debito: number;
       credito: number;
+      montoAnulado?: number;
+      anuladoInfo?: string;
     }> = [];
 
     // 1. Saldo Inicial (Excel)
@@ -237,6 +245,22 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
         detalles: desc,
         debito: 0,
         credito: p.monto
+      });
+    });
+
+    // 3b. Abonos anulados (solo trazabilidad: no suman ni restan)
+    ((data as any).pagosAnulados || []).forEach((p: any) => {
+      const fechaAnul = p.anuladoAt ? new Date(p.anuladoAt).toLocaleString('es-HN', { dateStyle: 'short', timeStyle: 'short' }) : '';
+      list.push({
+        id: `anulado-${p.id}`,
+        fecha: new Date(p.fecha),
+        tipo: 'ABONO_ANULADO',
+        documento: p.correlativo || 'RECIBO PAGO',
+        detalles: `Abono (${p.metodoPago})${p.referencia ? ` Ref: ${p.referencia}` : ''}`,
+        debito: 0,
+        credito: 0,
+        montoAnulado: p.monto,
+        anuladoInfo: `ANULADO por ${p.anuladoPor || 'usuario no registrado'}${fechaAnul ? ` · ${fechaAnul}` : ''}${p.motivoAnulacion ? ` · Motivo: ${p.motivoAnulacion}` : ''}`
       });
     });
 
@@ -871,13 +895,16 @@ ${publicUrl}
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {movimientosContables.map(m => (
-                        <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                        <tr key={m.id} className={`transition-colors ${m.tipo === 'ABONO_ANULADO' ? 'bg-rose-50/40 hover:bg-rose-50/70' : 'hover:bg-slate-50'}`}>
                           <td className="py-3 px-3 font-medium text-slate-600 whitespace-nowrap">
                             {m.fecha.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
                           </td>
                           <td className="py-3 px-3 font-extrabold text-slate-900 whitespace-nowrap">
                             <span className="inline-flex items-center gap-2">
-                              {m.documento}
+                              <span className={m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}>{m.documento}</span>
+                              {m.tipo === 'ABONO_ANULADO' && (
+                                <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-wider">Anulado</span>
+                              )}
                               {m.tipo === 'SALDO_INICIAL' && (data as any)?.esSuperAdmin && (
                                 <button
                                   type="button"
@@ -888,16 +915,31 @@ ${publicUrl}
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
+                              {m.tipo === 'ABONO' && (data as any)?.esSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAnularAbono(m.id, m.documento)}
+                                  title="Anular abono (solo Super Admin)"
+                                  className="print:hidden p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-slate-700 font-medium max-w-xs truncate">
-                            {m.detalles}
+                          <td className="py-3 px-3 text-slate-700 font-medium max-w-xs">
+                            <span className={`block truncate ${m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}`}>{m.detalles}</span>
+                            {m.anuladoInfo && (
+                              <span className="block text-[10px] font-bold text-rose-600 whitespace-normal mt-0.5">{m.anuladoInfo}</span>
+                            )}
                           </td>
                           <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap font-mono">
                             {m.debito > 0 ? `+ L. ${m.debito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-'}
                           </td>
                           <td className="py-3 px-3 text-right font-bold text-emerald-600 whitespace-nowrap font-mono">
-                            {m.credito > 0 ? `- L. ${m.credito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-'}
+                            {m.tipo === 'ABONO_ANULADO'
+                              ? <span className="line-through text-slate-400">- L. {(m.montoAnulado || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
+                              : (m.credito > 0 ? `- L. ${m.credito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-')}
                           </td>
                           <td className="py-3 px-3 text-right font-mono font-black text-indigo-950 whitespace-nowrap bg-indigo-50/40 text-sm">
                             L. {m.saldoAcumulado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}

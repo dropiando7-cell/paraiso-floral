@@ -188,6 +188,16 @@ export async function GET(
       take: 50
     }).catch(() => []);
 
+    // Abonos anulados: solo para mostrarlos tachados (trazabilidad); NO afectan saldos
+    const pagosAnuladosRaw = await prisma.pagoCliente.findMany({
+      where: { clienteId: cliente.id, organizationId: orgId, anulado: true },
+      include: {
+        creadoPor: { select: { nombre: true, apellido: true } },
+        anuladoPor: { select: { nombre: true, apellido: true } }
+      },
+      orderBy: { fecha: 'desc' }
+    }).catch(() => [] as any[]);
+
     return NextResponse.json({
       esSuperAdmin: dbUser.role === 'SUPER_ADMIN',
       cliente: {
@@ -222,6 +232,19 @@ export async function GET(
       notasCredito: cliente.notasCredito.map(n => ({
         ...n,
         monto: Number(n.monto)
+      })),
+      pagosAnulados: pagosAnuladosRaw.map((p: any) => ({
+        id: p.id,
+        correlativo: p.correlativo,
+        monto: Number(p.monto),
+        fecha: p.fecha,
+        metodoPago: p.metodoPago,
+        banco: p.banco,
+        referencia: p.referencia,
+        anuladoAt: p.anuladoAt,
+        motivoAnulacion: p.motivoAnulacion,
+        creadoPor: p.creadoPor ? [p.creadoPor.nombre, p.creadoPor.apellido].filter(Boolean).join(' ') : null,
+        anuladoPor: p.anuladoPor ? [p.anuladoPor.nombre, p.anuladoPor.apellido].filter(Boolean).join(' ') : null
       }))
     });
   } catch (error: any) {
