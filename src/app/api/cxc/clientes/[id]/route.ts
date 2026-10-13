@@ -18,7 +18,7 @@ export async function GET(
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
-      select: { organizationId: true }
+      select: { organizationId: true, role: true }
     });
 
     if (!dbUser?.organizationId) {
@@ -189,6 +189,7 @@ export async function GET(
     }).catch(() => []);
 
     return NextResponse.json({
+      esSuperAdmin: dbUser.role === 'SUPER_ADMIN',
       cliente: {
         id: cliente.id,
         nombre: cliente.nombre,

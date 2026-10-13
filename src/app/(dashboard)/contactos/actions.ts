@@ -212,6 +212,58 @@ export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoIni
     };
 }
 
+export async function eliminarSaldoInicialCliente(clienteId: string, motivo: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado');
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, organizationId: true, role: true, nombre: true, apellido: true }
+    });
+    if (!dbUser) throw new Error('Usuario no encontrado');
+    if (dbUser.role !== 'SUPER_ADMIN') {
+        throw new Error('Solo el Super Administrador puede eliminar el saldo inicial.');
+    }
+    const motivoLimpio = (motivo || '').trim();
+    if (!motivoLimpio) throw new Error('Debes indicar el motivo.');
+
+    const cliente = await prisma.cliente.findFirst({
+        where: { id: clienteId, organizationId: dbUser.organizationId },
+        select: { id: true, nombre: true, saldoInicial: true, fechaSaldoInicial: true }
+    });
+    if (!cliente) throw new Error('Cliente no encontrado');
+
+    const saldoAnterior = Number(cliente.saldoInicial || 0);
+
+    await prisma.$transaction(async (tx) => {
+        await tx.cliente.update({
+            where: { id: clienteId },
+            data: { saldoInicial: 0, fechaSaldoInicial: null }
+        });
+        await tx.activityLog.create({
+            data: {
+                organizationId: dbUser.organizationId,
+                userId: dbUser.id,
+                action: 'DELETE',
+                module: '/cxc/saldo-inicial',
+                description: `Saldo inicial Excel eliminado (L. ${saldoAnterior.toFixed(2)}) de ${cliente.nombre}. Motivo: ${motivoLimpio}`,
+                metadata: {
+                    clienteId,
+                    saldoInicialAnterior: saldoAnterior,
+                    fechaSaldoInicialAnterior: cliente.fechaSaldoInicial,
+                    motivo: motivoLimpio,
+                    usuario: [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ')
+                }
+            }
+        });
+    });
+
+    revalidatePath('/cxc');
+    revalidatePath('/cxc/cliente/' + clienteId);
+    revalidatePath('/contactos');
+    return { success: true, saldoInicialAnterior: saldoAnterior };
+}
+
 export async function getSaldoFavorCliente(clienteId: string) {
     if (!clienteId) return 0;
     const orgId = await getOrgId();

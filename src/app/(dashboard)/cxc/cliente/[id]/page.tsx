@@ -31,6 +31,7 @@ import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import ModalVisorExcelHistorico from '@/components/cxc/ModalVisorExcelHistorico';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
+import { eliminarSaldoInicialCliente } from '@/app/(dashboard)/contactos/actions';
 
 interface ClienteDetalle {
   cliente: {
@@ -152,6 +153,25 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       cargarEstadoCuenta();
     } catch (err: any) {
       toast.error(err.message || 'Error al anular nota de crédito');
+      setLoading(false);
+    }
+  };
+
+  const handleEliminarSaldoInicial = async () => {
+    if (!data) return;
+    const monto = Number(data.cliente.saldoInicial || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 });
+    const motivo = window.prompt(
+      `Vas a ELIMINAR el Saldo Inicial Excel de L. ${monto} de ${data.cliente.nombre}.\n\nEsto quitará ese monto de la deuda del cliente. Escribe el motivo para confirmar:`
+    );
+    if (motivo === null) return;
+    if (!motivo.trim()) { toast.error('Debes escribir un motivo.'); return; }
+    try {
+      setLoading(true);
+      await eliminarSaldoInicialCliente(clienteId, motivo.trim());
+      toast.success('Saldo inicial eliminado');
+      cargarEstadoCuenta();
+    } catch (err: any) {
+      toast.error(err.message || 'No se pudo eliminar el saldo inicial');
       setLoading(false);
     }
   };
@@ -856,7 +876,19 @@ ${publicUrl}
                             {m.fecha.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
                           </td>
                           <td className="py-3 px-3 font-extrabold text-slate-900 whitespace-nowrap">
-                            {m.documento}
+                            <span className="inline-flex items-center gap-2">
+                              {m.documento}
+                              {m.tipo === 'SALDO_INICIAL' && (data as any)?.esSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={handleEliminarSaldoInicial}
+                                  title="Eliminar saldo inicial (solo Super Admin)"
+                                  className="print:hidden p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </span>
                           </td>
                           <td className="py-3 px-3 text-slate-700 font-medium max-w-xs truncate">
                             {m.detalles}
