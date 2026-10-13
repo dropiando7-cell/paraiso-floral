@@ -84,16 +84,23 @@ export async function GET(
     const sInicial = Number(cliente.saldoInicial || 0);
     let totalFacturado = sInicial;
 
-    // Calcular bolsa total de créditos aplicables (Abonos + Notas de Crédito por mermas)
-    let creditoDisponible = totalAbonado + totalNotasCredito;
+    // Bolsa de crédito LIBRE: solo el dinero de abonos y notas de crédito que NO fue
+    // aplicado a una factura específica. Lo ya aplicado se cuenta directo en su factura
+    // (evita contar el mismo abono dos veces).
+    const abonosAplicados = cliente.pagos.reduce(
+      (sum, p) => sum + p.detalles.reduce((s, d) => s + Number(d.montoAplicado || 0), 0),
+      0
+    );
+    const abonosLibres = Math.max(0, totalAbonado - abonosAplicados);
+    const ncLibres = cliente.notasCredito
+      .filter(n => !n.facturaId)
+      .reduce((sum, n) => sum + Number(n.monto), 0);
+    let creditoDisponible = abonosLibres + ncLibres;
 
-    if (sInicial > 0) {
-      if (creditoDisponible >= sInicial) {
-        creditoDisponible -= sInicial;
-      } else {
-        creditoDisponible = 0;
-      }
-    }
+    // El dinero libre cubre primero el saldo inicial del Excel
+    const aplicadoSaldoInicial = Math.min(sInicial, creditoDisponible);
+    creditoDisponible -= aplicadoSaldoInicial;
+    const saldoInicialPendiente = Math.max(0, sInicial - aplicadoSaldoInicial);
 
     // Ordenar facturas por fecha de emisión ascendente (antiguas primero) para cascarada FIFO
     const facturasAsc = [...cliente.facturas].sort(
@@ -164,8 +171,8 @@ export async function GET(
         fechaEmision: cliente.fechaSaldoInicial || cliente.createdAt,
         fechaVencimiento: null,
         total: sInicial,
-        saldoPendiente: sInicial,
-        estadoPago: 'PENDIENTE',
+        saldoPendiente: saldoInicialPendiente,
+        estadoPago: saldoInicialPendiente <= 0.01 ? 'PAGADA' : (saldoInicialPendiente < sInicial ? 'PARCIAL' : 'PENDIENTE'),
         detalles: []
       }] : []),
       ...listadoFacturas
