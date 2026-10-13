@@ -19,6 +19,7 @@ export async function GET(request: Request) {
         organizationId: true,
         role: true,
         puedeVerTodasCxC: true,
+        accessibleModules: true,
         rutasAsignadas: true,
         customRoleName: true
       }
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
       dbUser.role === 'GERENTE' ||
       dbUser.role === 'ORG_ADMIN' ||
       dbUser.puedeVerTodasCxC === true ||
+      Boolean(dbUser.accessibleModules?.includes('cxc_global')) ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('ADMIN')) ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('GERENTE')) ||
       Boolean(dbUser.customRoleName?.toUpperCase().includes('GERENCIA')) ||

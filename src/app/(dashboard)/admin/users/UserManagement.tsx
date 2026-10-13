@@ -125,6 +125,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/inventario/kardex', label: 'Kardex de Movimientos' },
         { id: '/precios', label: 'Gestor de Precios' },
         { id: '/cxc', label: 'Cuentas por Cobrar' },
+        { id: 'cxc_global', label: 'Cuentas por Cobrar - Acceso Global (ver TODAS las carteras, no solo la propia)' },
         { id: '/inventario-ventas/rutas', label: 'Rutas y Auto-Venta' },
         { id: '/inventario-ventas/pedidos', label: 'Pedidos y Picking (Bandeja / Listado de Pedidos)' },
         { id: '/inventario-ventas/pedidos/preparar', label: 'Pedidos y Picking - Preparar Pedidos / Picking (Auxiliar de Bodega)' },

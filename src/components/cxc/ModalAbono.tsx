@@ -53,6 +53,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
   const [error, setError] = useState<string | null>(null);
   const [localFacturas, setLocalFacturas] = useState<any[] | null>(null);
   const [loadingFacturas, setLoadingFacturas] = useState<boolean>(false);
+  const submittingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (isOpen && cliente) {
@@ -110,6 +111,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     setError(null);
 
     const valMonto = parseFloat(monto);
@@ -118,6 +120,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
       return;
     }
 
+    submittingRef.current = true;
     try {
       setLoading(true);
       const isEfectivo = metodoPago.toLowerCase().trim() === 'efectivo';
@@ -151,6 +154,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
     } catch (err: any) {
       setError(err.message || 'Error registrando el abono');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };

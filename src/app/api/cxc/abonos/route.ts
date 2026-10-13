@@ -63,133 +63,128 @@ export async function POST(request: Request) {
       select: { id: true }
     });
 
-    // Crear el registro del Pago
-    const nuevoPago = await prisma.pagoCliente.create({
-      data: {
-        organizationId: orgId,
-        clienteId,
-        correlativo,
-        monto: montoNum,
-        metodoPago,
-        banco,
-        referencia,
-        notas,
-        comprobanteUrl,
-        creadoPorId: dbUser.id,
-        cajaSessionId: activeSession?.id
-      }
-    });
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Aplicar a facturas
-    if (Array.isArray(facturasSeleccionadas) && facturasSeleccionadas.length > 0) {
-      // Aplicación manual a facturas específicas
-      for (const item of facturasSeleccionadas) {
-        const montoAplicar = Number(item.montoAplicado);
-        if (montoAplicar <= 0) continue;
-
-        const fac = await prisma.factura.findUnique({
-          where: { id: item.facturaId }
-        });
-        if (!fac) continue;
-
-        const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : Number(fac.total);
-        const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
-        const nuevoEstado = nuevoSaldo === 0 ? 'PAGADA' : 'PARCIAL';
-
-        await prisma.factura.update({
-          where: { id: fac.id },
-          data: {
-            saldoPendiente: nuevoSaldo,
-            estadoPago: nuevoEstado
-          }
-        });
-
-        await prisma.pagoDetalleFactura.create({
-          data: {
-            pagoId: nuevoPago.id,
-            facturaId: fac.id,
-            montoAplicado: montoAplicar
-          }
-        });
-      }
-    } else {
-      // Descontar primero del Saldo Inicial Deuda (Excel) si existe, pero manteniéndolo estático en DB
-      const clienteData = await prisma.cliente.findUnique({
-        where: { id: clienteId },
-        select: { saldoInicial: true }
+    const nuevoPago = await prisma.$transaction(async (tx) => {
+      // Crear el registro del Pago
+      const pagoCreado = await tx.pagoCliente.create({
+        data: {
+          organizationId: orgId,
+          clienteId,
+          correlativo,
+          monto: montoNum,
+          metodoPago,
+          banco,
+          referencia,
+          notas,
+          comprobanteUrl,
+          creadoPorId: dbUser.id,
+          cajaSessionId: activeSession?.id
+        }
       });
 
       let saldoDisponible = montoNum;
 
-      if (clienteData && Number(clienteData.saldoInicial || 0) > 0) {
-        // Calcular cuánto del saldoInicial ya fue pagado en abonos anteriores
-        const totalPastPagos = await prisma.pagoCliente.aggregate({
-          where: { clienteId, organizationId: orgId, anulado: false, id: { not: nuevoPago.id } },
-          _sum: { monto: true }
-        });
-        const sumPastPagos = Number(totalPastPagos._sum.monto || 0);
+      // 1. Aplicación manual a facturas REALES seleccionadas (ignora "SALDO INICIAL EXCEL"
+      //    u otros ids que no sean facturas; ese monto sigue el flujo automático de abajo)
+      if (Array.isArray(facturasSeleccionadas) && facturasSeleccionadas.length > 0) {
+        for (const item of facturasSeleccionadas) {
+          if (saldoDisponible <= 0) break;
+          const facturaId = String(item?.facturaId || '');
+          if (!UUID_RE.test(facturaId)) continue;
 
-        const totalPastAllocations = await prisma.pagoDetalleFactura.aggregate({
-          where: {
-            pago: { clienteId, organizationId: orgId, anulado: false, id: { not: nuevoPago.id } }
-          },
-          _sum: { montoAplicado: true }
-        });
-        const sumPastAllocations = Number(totalPastAllocations._sum.montoAplicado || 0);
+          const pedido = Number(item.montoAplicado);
+          if (!(pedido > 0)) continue;
 
-        const pastAppliedToSInicial = Math.max(0, sumPastPagos - sumPastAllocations);
-        const sInicialOriginal = Number(clienteData.saldoInicial);
-        const sInicialActual = Math.max(0, sInicialOriginal - pastAppliedToSInicial);
+          const fac = await tx.factura.findFirst({
+            where: { id: facturaId, clienteId, organizationId: orgId }
+          });
+          if (!fac) continue;
 
-        const deduccion = Math.min(saldoDisponible, sInicialActual);
-        saldoDisponible -= deduccion;
+          const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : Number(fac.total);
+          if (saldoActual <= 0) continue;
+
+          const montoAplicar = Math.min(pedido, saldoActual, saldoDisponible);
+          const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
+
+          await tx.factura.update({
+            where: { id: fac.id },
+            data: {
+              saldoPendiente: nuevoSaldo,
+              estadoPago: nuevoSaldo <= 0 ? 'PAGADA' : 'PARCIAL'
+            }
+          });
+
+          await tx.pagoDetalleFactura.create({
+            data: { pagoId: pagoCreado.id, facturaId: fac.id, montoAplicado: montoAplicar }
+          });
+
+          saldoDisponible -= montoAplicar;
+        }
       }
 
-      // Aplicación FIFO automática a facturas más antiguas no pagadas
-      const facturasPendientes = await prisma.factura.findMany({
-        where: {
-          organizationId: orgId,
-          clienteId,
-          estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
-          OR: [
-            { estadoPago: { not: 'PAGADA' } },
-            { estadoPago: null }
-          ]
-        },
-        orderBy: { fechaEmision: 'asc' }
-      });
-
-      for (const fac of facturasPendientes) {
-        if (saldoDisponible <= 0) break;
-
-        const totalFac = Number(fac.total);
-        const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : totalFac;
-
-        if (saldoActual <= 0) continue;
-
-        const montoAplicar = Math.min(saldoDisponible, saldoActual);
-        const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
-        const nuevoEstado = nuevoSaldo === 0 ? 'PAGADA' : 'PARCIAL';
-
-        await prisma.factura.update({
-          where: { id: fac.id },
-          data: {
-            saldoPendiente: nuevoSaldo,
-            estadoPago: nuevoEstado
-          }
+      // 2. Lo que quede: primero Saldo Inicial Excel (estático en DB), luego FIFO
+      if (saldoDisponible > 0) {
+        const clienteData = await tx.cliente.findUnique({
+          where: { id: clienteId },
+          select: { saldoInicial: true }
         });
 
-        await prisma.pagoDetalleFactura.create({
-          data: {
-            pagoId: nuevoPago.id,
-            facturaId: fac.id,
-            montoAplicado: montoAplicar
-          }
-        });
+        if (clienteData && Number(clienteData.saldoInicial || 0) > 0) {
+          const totalPastPagos = await tx.pagoCliente.aggregate({
+            where: { clienteId, organizationId: orgId, anulado: false, id: { not: pagoCreado.id } },
+            _sum: { monto: true }
+          });
+          const totalPastAllocations = await tx.pagoDetalleFactura.aggregate({
+            where: { pago: { clienteId, organizationId: orgId, anulado: false, id: { not: pagoCreado.id } } },
+            _sum: { montoAplicado: true }
+          });
+          const pastAppliedToSInicial = Math.max(
+            0,
+            Number(totalPastPagos._sum.monto || 0) - Number(totalPastAllocations._sum.montoAplicado || 0)
+          );
+          const sInicialActual = Math.max(0, Number(clienteData.saldoInicial) - pastAppliedToSInicial);
+          saldoDisponible -= Math.min(saldoDisponible, sInicialActual);
+        }
 
-        saldoDisponible -= montoAplicar;
+        if (saldoDisponible > 0) {
+          const facturasPendientes = await tx.factura.findMany({
+            where: {
+              organizationId: orgId,
+              clienteId,
+              estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+              OR: [{ estadoPago: { not: 'PAGADA' } }, { estadoPago: null }]
+            },
+            orderBy: { fechaEmision: 'asc' }
+          });
+
+          for (const fac of facturasPendientes) {
+            if (saldoDisponible <= 0) break;
+            const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : Number(fac.total);
+            if (saldoActual <= 0) continue;
+
+            const montoAplicar = Math.min(saldoDisponible, saldoActual);
+            const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
+
+            await tx.factura.update({
+              where: { id: fac.id },
+              data: {
+                saldoPendiente: nuevoSaldo,
+                estadoPago: nuevoSaldo <= 0 ? 'PAGADA' : 'PARCIAL'
+              }
+            });
+
+            await tx.pagoDetalleFactura.create({
+              data: { pagoId: pagoCreado.id, facturaId: fac.id, montoAplicado: montoAplicar }
+            });
+
+            saldoDisponible -= montoAplicar;
+          }
+        }
       }
-    }
+
+      return pagoCreado;
+    });
 
     return NextResponse.json({
       success: true,
