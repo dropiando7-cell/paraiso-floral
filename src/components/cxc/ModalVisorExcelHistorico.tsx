@@ -39,7 +39,7 @@ export default function ModalVisorExcelHistorico({
       if (!response.ok) throw new Error('No se pudo encontrar el archivo histórico.');
       
       const arrayBuffer = await response.arrayBuffer();
-      const wb = XLSX.read(arrayBuffer, { type: 'buffer' });
+      const wb = XLSX.read(arrayBuffer, { type: 'buffer', cellNF: true });
       setWorkbook(wb);
       setSheets(wb.SheetNames);
       
@@ -70,8 +70,45 @@ export default function ModalVisorExcelHistorico({
     
     try {
       const worksheet = wbToUse.Sheets[sheetName];
-      // Convert to array of arrays (header: 1)
-      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      const ref = worksheet['!ref'];
+      if (!ref) { setSheetData([]); return; }
+      const range = XLSX.utils.decode_range(ref);
+
+      const serialToDate = (serial: number) => {
+        const p = XLSX.SSF.parse_date_code(serial);
+        if (!p) return null;
+        return `${String(p.d).padStart(2, '0')}/${String(p.m).padStart(2, '0')}/${p.y}`;
+      };
+      const looksLikeSerial = (v: any) => typeof v === 'number' && v > 30000 && v < 60000 && Number.isInteger(v);
+
+      const data: any[][] = [];
+      const fechaCols = new Set<number>();
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        const row: any[] = [];
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
+          if (!cell || cell.v === undefined || cell.v === null) { row.push(undefined); continue; }
+
+          // Recordar columnas con encabezado "FECHA"
+          if (typeof cell.v === 'string' && cell.v.trim().toUpperCase().startsWith('FECHA')) {
+            fechaCols.add(c);
+          }
+
+          const esFechaPorFormato = cell.t === 'n' && cell.z && XLSX.SSF.is_date(cell.z as string);
+          const esFechaPorColumna = fechaCols.has(c) && looksLikeSerial(cell.v);
+          if ((esFechaPorFormato || esFechaPorColumna) && typeof cell.v === 'number') {
+            row.push(serialToDate(cell.v) ?? cell.v);
+          } else if (cell.t === 'd' && cell.v instanceof Date) {
+            const d = cell.v as Date;
+            row.push(`${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`);
+          } else {
+            row.push(cell.v);
+          }
+        }
+        // Quitar celdas vacías al final para conservar el ancho real
+        while (row.length && row[row.length - 1] === undefined) row.pop();
+        data.push(row);
+      }
       setSheetData(data);
     } catch (err) {
       setError('Error al leer los datos de la pestaña.');
