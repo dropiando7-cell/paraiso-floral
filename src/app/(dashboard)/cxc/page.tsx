@@ -22,7 +22,8 @@ import {
   Filter,
   MapPin,
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  Printer
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ModalAbono from '@/components/cxc/ModalAbono';
@@ -281,6 +282,16 @@ ${publicUrl}
             <Download className="w-4 h-4 text-emerald-200" />
             <span className="hidden sm:inline">Exportar Excel</span>
           </button>
+
+          {/* Botón Imprimir Hoja de Cobranza (Ruta) */}
+          <Link
+            href={`/cxc/reportes?tipo=HOJA_RUTA${rutaFiltro && rutaFiltro !== 'TODOS' ? `&ruta=${encodeURIComponent(rutaFiltro)}` : ''}${vendedorFiltro && vendedorFiltro !== 'TODOS' ? `&vendedorId=${vendedorFiltro}` : ''}`}
+            className="px-3.5 py-2.5 bg-emerald-900/60 hover:bg-emerald-950 active:scale-95 border border-emerald-400/40 text-emerald-100 rounded-2xl transition-all flex items-center gap-2 text-xs font-bold shadow-sm shrink-0"
+            title="Generar e imprimir hoja de cobro para el vendedor en ruta"
+          >
+            <Printer className="w-4 h-4 text-emerald-300" />
+            <span className="hidden sm:inline">Hoja de Ruta</span>
+          </Link>
 
           {/* Botón Ver Reportes */}
           <Link
