@@ -14,6 +14,17 @@ const sumar = (c: ConteoUnidad, unidad: string, cant: number) => {
 const costoLinea = (unidad: string, cant: number, costo: number) =>
   unidad === 'PAQUETE' ? cant * costo : 0;
 
+/**
+ * Precio base vigente del item en Inventario (Producto.costoBase).
+ * Si el producto aún no tiene precio base, usa el costo guardado al registrar.
+ * Así, al ir completando precios en Inventario, los reportes se valorizan solos.
+ */
+const costoVigente = (r: { costoUnitario: any; producto?: { costoBase: any } | null }) => {
+  const base = r.producto?.costoBase;
+  if (base !== null && base !== undefined && Number(base) > 0) return Number(base);
+  return Number(r.costoUnitario || 0);
+};
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -92,7 +103,8 @@ export async function GET(request: Request) {
       include: {
         usuario: {
           select: { id: true, nombre: true, apellido: true, email: true }
-        }
+        },
+        producto: { select: { costoBase: true } }
       }
     });
 
@@ -115,7 +127,7 @@ export async function GET(request: Request) {
       const unidad = normalizarUnidad(m.unidadMedida);
       sumar(totalesMes, unidad, cant);
 
-      costoTotalEstimado += costoLinea(unidad, cant, Number(m.costoUnitario || 0));
+      costoTotalEstimado += costoLinea(unidad, cant, costoVigente(m));
 
       // Por producto
       const prodKey = m.nombreProducto.trim().toUpperCase();
@@ -150,7 +162,7 @@ export async function GET(request: Request) {
     // Resumen histórico consolidado de todos los reportes mensuales de la organización
     const todosLosRegistros = await prisma.registroMerma.findMany({
       where: { organizationId: orgId },
-      select: { fecha: true, cantidad: true, costoUnitario: true, unidadMedida: true },
+      select: { fecha: true, cantidad: true, costoUnitario: true, unidadMedida: true, producto: { select: { costoBase: true } } },
       orderBy: { fecha: 'desc' }
     });
 
@@ -182,7 +194,7 @@ export async function GET(request: Request) {
       const unidad = normalizarUnidad(r.unidadMedida);
       if (unidad === 'PAQUETE') historicoMap[mesKey].totalPaquetes += cant;
       else historicoMap[mesKey].totalUnidades += cant;
-      historicoMap[mesKey].costoEstimado += costoLinea(unidad, cant, Number(r.costoUnitario || 0));
+      historicoMap[mesKey].costoEstimado += costoLinea(unidad, cant, costoVigente(r));
       historicoMap[mesKey].totalRegistros += 1;
     }
 
@@ -201,7 +213,10 @@ export async function GET(request: Request) {
     const historicoReportes = Object.values(historicoMap).sort((a, b) => b.mes.localeCompare(a.mes));
 
     return NextResponse.json({
-      mermas,
+      mermas: mermas.map(({ producto, ...m }) => ({
+        ...m,
+        costoUnitario: costoVigente({ costoUnitario: m.costoUnitario, producto }) || null
+      })),
       historicoReportes,
       kpis: {
         totalesMes,
