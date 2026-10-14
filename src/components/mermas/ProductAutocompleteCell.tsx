@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useFloating, autoUpdate, offset, flip, shift, FloatingPortal } from '@floating-ui/react';
-import { Search, Sparkles, Box, RefreshCw } from 'lucide-react';
+import { Search, Sparkles, Box, RefreshCw, PlusCircle } from 'lucide-react';
 import { searchProductos } from '@/app/(dashboard)/facturas/actions';
 
 export interface ProductCatalogItem {
@@ -23,6 +23,8 @@ interface ProductAutocompleteCellProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   className?: string;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  /** Si se define, muestra la opción "Crear producto nuevo" al final de la lista */
+  onCreateNew?: (nombre: string) => void;
 }
 
 export function ProductAutocompleteCell({
@@ -33,7 +35,8 @@ export function ProductAutocompleteCell({
   autoFocus = false,
   onKeyDown,
   className = '',
-  inputRef: inputRefProp
+  inputRef: inputRefProp,
+  onCreateNew
 }: ProductAutocompleteCellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<ProductCatalogItem[]>([]);
@@ -109,22 +112,37 @@ export function ProductAutocompleteCell({
     setIsOpen(false);
   };
 
+  const handleCreateNew = () => {
+    setIsOpen(false);
+    onCreateNew?.(value.trim());
+  };
+
+  // Índice extra al final para la opción "Crear producto nuevo"
+  const showCreate = !!onCreateNew && !isLoading && value.trim().length >= 2;
+  const totalOptions = results.length + (showCreate ? 1 : 0);
+  const createIndex = results.length;
+
   const handleKeyDownInternal = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isOpen && results.length > 0) {
+    if (isOpen && totalOptions > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex(prev => (prev + 1) % results.length);
+        setSelectedIndex(prev => (prev + 1) % totalOptions);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex(prev => (prev - 1 + results.length) % results.length);
+        setSelectedIndex(prev => (prev - 1 + totalOptions) % totalOptions);
         return;
       }
       if (e.key === 'Enter') {
         if (results[selectedIndex]) {
           e.preventDefault();
           handleSelect(results[selectedIndex]);
+          return;
+        }
+        if (showCreate && selectedIndex === createIndex) {
+          e.preventDefault();
+          handleCreateNew();
           return;
         }
       }
@@ -254,6 +272,30 @@ export function ProductAutocompleteCell({
                 })
               )}
             </div>
+
+            {/* Opción: Crear producto nuevo */}
+            {showCreate && (
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleCreateNew();
+                }}
+                onMouseEnter={() => setSelectedIndex(createIndex)}
+                className={`mx-1 mb-1 px-3 py-2.5 rounded-lg border border-dashed flex items-center gap-2 cursor-pointer transition-colors text-xs font-black ${
+                  selectedIndex === createIndex
+                    ? 'bg-amber-50 border-amber-400 text-amber-950'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <PlusCircle className="w-4 h-4 text-amber-600" />
+                <span>
+                  Crear producto nuevo: <span className="uppercase">"{value.trim()}"</span>
+                </span>
+                {results.length === 0 && (
+                  <span className="ml-auto text-[10px] font-mono text-slate-400">↵</span>
+                )}
+              </div>
+            )}
           </div>
         </FloatingPortal>
       )}

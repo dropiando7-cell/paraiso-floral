@@ -258,17 +258,27 @@ export async function POST(request: Request) {
     // Soporta registro individual o lote (array)
     const items = Array.isArray(body.items) ? body.items : [body];
 
+    // Regla: la merma SIEMPRE debe estar ligada a un producto del catálogo de Inventario
+    const sinProducto = items.filter((it: any) => !it?.productoId);
+    if (sinProducto.length > 0) {
+      return NextResponse.json(
+        { error: 'Selecciona el producto de la lista del catálogo (o créalo como producto nuevo).' },
+        { status: 400 }
+      );
+    }
+
     const creados = [];
 
     for (const item of items) {
-      if (!item.nombreProducto && !item.productoId) continue;
-
       let productoDb = null;
       if (item.productoId) {
-        productoDb = await prisma.producto.findUnique({
-          where: { id: item.productoId },
+        productoDb = await prisma.producto.findFirst({
+          where: { id: item.productoId, organizationId: orgId },
           select: { id: true, nombre: true, sku: true, categoria: true, costoBase: true }
         });
+      }
+      if (!productoDb) {
+        return NextResponse.json({ error: 'El producto seleccionado no existe en el catálogo.' }, { status: 400 });
       }
 
       const nombreProducto = productoDb?.nombre || item.nombreProducto || 'Producto Floral';

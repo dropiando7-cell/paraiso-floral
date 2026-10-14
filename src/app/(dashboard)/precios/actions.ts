@@ -321,11 +321,20 @@ export async function crearProducto(data: CrearProductoInput) {
                 nombre: data.descripcion,
                 precioVenta: data.precioVenta,
                 costoBase: data.costoBase,
+                categoria: data.categoria?.trim() || null,
                 estado: 'ACTIVO'
             }
         });
 
-        return { success: true, message: 'Producto base creado exitosamente.', producto: nuevo };
+        return {
+            success: true,
+            message: 'Producto base creado exitosamente.',
+            producto: {
+                ...nuevo,
+                precioVenta: Number(nuevo.precioVenta),
+                costoBase: nuevo.costoBase !== null ? Number(nuevo.costoBase) : null
+            }
+        };
     } catch (e: any) {
         return { success: false, message: 'Error interno: ' + e.message };
     }

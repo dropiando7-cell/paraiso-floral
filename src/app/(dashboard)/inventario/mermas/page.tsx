@@ -36,6 +36,7 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { ProductAutocompleteCell, ProductCatalogItem } from '@/components/mermas/ProductAutocompleteCell';
 import { MotivoSelectBadge, getMotivoInfo } from '@/components/mermas/MotivoSelectBadge';
+import { crearProducto } from '@/app/(dashboard)/precios/actions';
 
 interface RegistroMermaItem {
   id: string;
@@ -316,10 +317,84 @@ export default function MermasPage() {
     }, 50);
   };
 
+  // Si el usuario vuelve a escribir, se pierde el vínculo con el catálogo
+  const handleNombreNewRowChange = (val: string) => {
+    setNewProductoNombre(val);
+    if (newProductoId) {
+      setNewProductoId(null);
+      setNewSku(null);
+      setNewCategoria('Misceláneo');
+    }
+  };
+
+  // ===== Modal: Crear producto nuevo en el catálogo de Inventario =====
+  const [crearOpen, setCrearOpen] = useState(false);
+  const [crearNombre, setCrearNombre] = useState('');
+  const [crearCodigo, setCrearCodigo] = useState('');
+  const [crearCategoria, setCrearCategoria] = useState('');
+  const [crearCosto, setCrearCosto] = useState('');
+  const [crearGuardando, setCrearGuardando] = useState(false);
+
+  const abrirCrearProducto = (nombre: string) => {
+    setCrearNombre(nombre.toUpperCase());
+    setCrearCodigo('FLR-' + String(Date.now()).slice(-6));
+    setCrearCategoria('');
+    setCrearCosto('');
+    setCrearOpen(true);
+  };
+
+  const handleCrearProducto = async () => {
+    const nombre = crearNombre.trim().toUpperCase();
+    const codigo = crearCodigo.trim().toUpperCase();
+    if (!nombre || !codigo) {
+      toast.error('Nombre y código son obligatorios');
+      return;
+    }
+    const costo = crearCosto.trim() ? Number(crearCosto) : 0;
+    if (isNaN(costo) || costo < 0) {
+      toast.error('Precio base inválido');
+      return;
+    }
+    try {
+      setCrearGuardando(true);
+      const r = await crearProducto({
+        codigo,
+        descripcion: nombre,
+        categoria: crearCategoria.trim() || undefined,
+        costoBase: costo,
+        precioVenta: 0
+      });
+      if (!r.success || !r.producto) {
+        toast.error(r.message);
+        return;
+      }
+      toast.success(`Producto creado: ${nombre}`);
+      setCrearOpen(false);
+      handleSelectProductNewRow({
+        id: r.producto.id,
+        code: r.producto.sku,
+        name: r.producto.nombre,
+        category: crearCategoria.trim() || 'Misceláneo',
+        stock: 0,
+        costoBase: costo || null
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Error creando producto');
+    } finally {
+      setCrearGuardando(false);
+    }
+  };
+
   // Guardar nueva fila
   const handleGuardarNuevaFila = async () => {
     if (!newProductoNombre.trim()) {
       toast.error('Escribe o selecciona una flor');
+      newFlorInputRef.current?.focus();
+      return;
+    }
+
+    if (!newProductoId) {
+      toast.error('Selecciona la flor de la lista del catálogo, o usa "Crear producto nuevo"');
       newFlorInputRef.current?.focus();
       return;
     }
@@ -349,7 +424,10 @@ export default function MermasPage() {
         })
       });
 
-      if (!res.ok) throw new Error('Error al guardar registro');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || 'Error al guardar registro');
+      }
 
       toast.success(`Merma registrada: ${cantNum} ${labelUnidad(newUnidad, cantNum)} de ${newProductoNombre.toUpperCase()}`);
 
@@ -929,11 +1007,14 @@ export default function MermasPage() {
                 </div>
                 <ProductAutocompleteCell
                   value={newProductoNombre}
-                  onChange={setNewProductoNombre}
+                  onChange={handleNombreNewRowChange}
                   onSelectProduct={handleSelectProductNewRow}
+                  onCreateNew={abrirCrearProducto}
                   inputRef={newFlorInputRef}
-                  placeholder="Escribe flor (ej. Girasol, Rosa)..."
-                  className="!h-10 border-emerald-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                  placeholder="Escribe y elige de la lista (ej. Girasol, Rosa)..."
+                  className={`!h-10 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 shadow-2xs ${
+                    newProductoNombre.trim() && !newProductoId ? 'border-amber-400' : 'border-emerald-300'
+                  }`}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                       e.preventDefault();
@@ -993,7 +1074,7 @@ export default function MermasPage() {
                 </label>
                 <button
                   onClick={handleGuardarNuevaFila}
-                  disabled={isSubmittingNew || !newProductoNombre.trim()}
+                  disabled={isSubmittingNew || !newProductoId}
                   className="w-full h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500"
                   title="Insertar línea de merma (Enter)"
                 >
@@ -1486,6 +1567,97 @@ export default function MermasPage() {
                     );
                   })
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CREAR PRODUCTO NUEVO EN CATÁLOGO */}
+      {/* ========================================================================= */}
+      {crearOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !crearGuardando) setCrearOpen(false); }}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-4"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && !crearGuardando) setCrearOpen(false);
+              if (e.key === 'Enter') { e.preventDefault(); handleCrearProducto(); }
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 bg-amber-100 text-amber-800 rounded-xl border border-amber-300">
+                <Plus className="w-4 h-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Crear producto nuevo</h3>
+                <p className="text-[11px] text-slate-500">Se agrega al catálogo de Inventario y queda seleccionado.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Nombre / Flor *</span>
+                <input
+                  autoFocus
+                  value={crearNombre}
+                  onChange={(e) => setCrearNombre(e.target.value.toUpperCase())}
+                  className="w-full h-10 px-3 text-xs font-bold uppercase text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block space-y-1">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Código / SKU *</span>
+                  <input
+                    value={crearCodigo}
+                    onChange={(e) => setCrearCodigo(e.target.value.toUpperCase())}
+                    className="w-full h-10 px-3 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Categoría</span>
+                  <input
+                    value={crearCategoria}
+                    onChange={(e) => setCrearCategoria(e.target.value)}
+                    placeholder="Ej. Rosas"
+                    className="w-full h-10 px-3 text-xs font-semibold text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+              </div>
+              <label className="block space-y-1">
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Precio base por paquete (L)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={crearCosto}
+                  onChange={(e) => setCrearCosto(e.target.value)}
+                  placeholder="Opcional — se puede completar luego en Inventario"
+                  className="w-full h-10 px-3 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setCrearOpen(false)}
+                disabled={crearGuardando}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer disabled:opacity-40"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCrearProducto}
+                disabled={crearGuardando}
+                className="px-4 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 shadow-md cursor-pointer disabled:opacity-40 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                {crearGuardando ? 'Creando...' : 'Crear y seleccionar'}
+              </button>
             </div>
           </div>
         </div>
