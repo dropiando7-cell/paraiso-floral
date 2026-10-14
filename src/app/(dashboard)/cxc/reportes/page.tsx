@@ -80,6 +80,16 @@ interface ReporteData {
   }>;
 }
 
+interface FacturaPendienteRuta {
+  id: string;
+  correlativo: string;
+  fechaEmision: string | null;
+  total: number;
+  saldoPendiente: number;
+  estadoPago: string;
+  esSaldoInicial?: boolean;
+}
+
 interface ClienteRutaItem {
   id: string;
   nombre: string;
@@ -93,6 +103,7 @@ interface ClienteRutaItem {
   saldoTotal: number;
   saldoVencido: number;
   facturasPendientesCount: number;
+  facturasPendientes?: FacturaPendienteRuta[];
   maxDiasMora: number;
 }
 
@@ -109,6 +120,19 @@ const formatFechaDMY = (dateStr: string | null | undefined): string => {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatFechaCorta = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  const clean = String(dateStr).split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const [, m, d] = parts;
+    return `${d.padStart(2, '0')}/${m.padStart(2, '0')}`;
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit' });
 };
 
 function ReportesCxCContent() {
@@ -599,16 +623,16 @@ function ReportesCxCContent() {
               <thead>
                 <tr className="bg-slate-100 text-slate-800 font-black text-[9px]">
                   <th className="w-7 text-center">#</th>
-                  <th className="text-left py-2 px-2.5">Cliente / Contacto</th>
-                  <th className="text-center py-2 px-1 w-12">Facts.</th>
-                  <th className="text-right py-2 px-2.5 w-32 bg-emerald-50 text-emerald-950 font-black">
+                  <th className="text-left py-2 px-2 w-56">Cliente / Contacto</th>
+                  <th className="text-left py-2 px-2">
+                    Desglose de Facturas Pendientes (Reciente → Antigua)
+                  </th>
+                  <th className="text-right py-2 px-2.5 w-28 bg-emerald-50 text-emerald-950 font-black">
                     Saldo a Cobrar
                   </th>
                   <th className="text-center py-2 px-2.5 w-36 bg-amber-50/60 text-amber-950 font-black">
                     Abono Recibido (L.)
                   </th>
-                  <th className="text-center py-2 px-1 w-28">Forma Pago</th>
-                  <th className="text-left py-2 px-2.5 w-48">No. Depósito / Ref / Notas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-[9px]">
@@ -616,10 +640,10 @@ function ReportesCxCContent() {
                   <tr key={c.id} className="hover:bg-slate-50">
                     <td className="text-center font-bold text-slate-500 py-1.5">{idx + 1}</td>
                     
-                    {/* Cliente + Teléfono + Alias en una sola línea */}
-                    <td className="py-1.5 px-2.5 font-medium">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900 text-[9.5px] truncate">{c.nombre}</span>
+                    {/* Cliente + Teléfono + Alias */}
+                    <td className="py-1.5 px-2 font-medium">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-extrabold text-slate-900 text-[9.5px]">{c.nombre}</span>
                         {c.telefono && <span className="text-[8.5px] text-slate-600 shrink-0 font-medium">📱 {c.telefono}</span>}
                         {c.alias && (
                           <span className="inline-flex items-center gap-0.5 font-bold text-amber-900 bg-amber-100 px-1 py-0.2 rounded border border-amber-300 text-[8px] shrink-0">
@@ -629,34 +653,55 @@ function ReportesCxCContent() {
                       </div>
                     </td>
 
-                    {/* Cantidad de Facturas */}
-                    <td className="py-1.5 px-1 text-center font-bold text-slate-700">
-                      {c.facturasPendientesCount}
+                    {/* Desglose de Facturas Pendientes */}
+                    <td className="py-1.5 px-2">
+                      {c.facturasPendientes && c.facturasPendientes.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-1">
+                          {c.facturasPendientes.map((f, fIdx) => (
+                            <span
+                              key={f.id}
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8.5px] ${
+                                fIdx === 0 && !f.esSaldoInicial
+                                  ? 'bg-emerald-50/90 border-emerald-400 text-slate-950'
+                                  : 'bg-slate-50 border-slate-300 text-slate-800'
+                              }`}
+                            >
+                              {f.esSaldoInicial ? (
+                                <>
+                                  <span className="font-bold text-slate-600">Saldo Ant:</span>
+                                  <span className="font-black font-mono text-slate-900">{fmt(f.saldoPendiente)}</span>
+                                </>
+                              ) : (
+                                <>
+                                  {f.fechaEmision && (
+                                    <span className="font-bold text-emerald-800">{formatFechaCorta(f.fechaEmision)}</span>
+                                  )}
+                                  <span className="font-black font-mono text-slate-950">{fmt(f.saldoPendiente)}</span>
+                                  <span className="text-[7.5px] text-slate-500 font-semibold">
+                                    (#{f.correlativo}{f.estadoPago === 'PARCIAL' ? ' • Saldo' : ''})
+                                  </span>
+                                </>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[8.5px] text-slate-500 italic">
+                          Saldo pendiente: {fmt(c.saldoTotal)}
+                        </span>
+                      )}
                     </td>
 
                     {/* Saldo a Cobrar */}
-                    <td className="py-1.5 px-2.5 text-right font-black text-slate-950 font-mono text-[10px] bg-emerald-50/40">
+                    <td className="py-1.5 px-2.5 text-right font-black text-slate-950 font-mono text-[10px] bg-emerald-50/40 whitespace-nowrap">
                       {fmt(c.saldoTotal)}
                     </td>
 
-                    {/* Recuadro Abono Recibido */}
+                    {/* Recuadro Abono Recibido (Columna Final) */}
                     <td className="py-1.5 px-2.5 text-left bg-amber-50/20">
-                      <div className="w-full h-6 border border-dashed border-slate-400 rounded bg-white flex items-center px-1 text-slate-300 text-[8px] font-bold">
+                      <div className="w-full h-6 border border-dashed border-slate-400 rounded bg-white flex items-center px-1.5 text-slate-400 text-[8px] font-bold">
                         L.
                       </div>
-                    </td>
-
-                    {/* Forma Pago */}
-                    <td className="py-1.5 px-1 text-center text-[8.5px] font-bold text-slate-700">
-                      <div className="flex items-center justify-center gap-2">
-                        <span>[ ] Efec</span>
-                        <span>[ ] Transf</span>
-                      </div>
-                    </td>
-
-                    {/* No. Depósito / Ref / Notas */}
-                    <td className="py-1.5 px-2.5">
-                      <div className="w-full h-5 border-b border-slate-400"></div>
                     </td>
                   </tr>
                 ))}
@@ -666,7 +711,7 @@ function ReportesCxCContent() {
                   <td colSpan={3} className="py-3.5 px-3 text-right uppercase text-slate-800 align-middle">
                     TOTAL CARTERA A COBRAR ({clientesRuta.length} CLIENTES):
                   </td>
-                  <td className="py-3.5 px-2.5 text-right font-mono text-emerald-950 bg-emerald-100 text-[12px] font-black align-middle">
+                  <td className="py-3.5 px-2.5 text-right font-mono text-emerald-950 bg-emerald-100 text-[12px] font-black align-middle whitespace-nowrap">
                     {fmt(totalCarteraRuta)}
                   </td>
                   <td className="py-2.5 px-2.5 text-left font-mono bg-amber-100/70 align-top">
@@ -676,9 +721,6 @@ function ReportesCxCContent() {
                     <div className="text-xs font-black text-slate-400 mt-1 h-6 flex items-center">
                       L.
                     </div>
-                  </td>
-                  <td colSpan={2} className="py-3.5 px-2 text-center text-slate-400 text-[8px] font-normal align-middle">
-                    Espacio para cuadre administrativo
                   </td>
                 </tr>
               </tbody>
@@ -1031,12 +1073,12 @@ function ReportesCxCContent() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase tracking-wider">
                     <th className="py-3 px-3 text-center w-8">#</th>
-                    <th className="py-3 px-3">Cliente / Contacto</th>
-                    <th className="py-3 px-3 text-center">Facts.</th>
-                    <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-950">Saldo a Cobrar</th>
-                    <th className="py-3 px-3 text-center bg-amber-50 text-amber-950">Espacio de Abono (Físico)</th>
-                    <th className="py-3 px-3 text-center">Forma Pago</th>
-                    <th className="py-3 px-3 text-left">No. Depósito / Ref / Notas</th>
+                    <th className="py-3 px-3 w-64">Cliente / Contacto</th>
+                    <th className="py-3 px-3 text-left">
+                      Desglose de Facturas Pendientes (Reciente → Antigua)
+                    </th>
+                    <th className="py-3 px-3 text-right w-36 bg-emerald-50 text-emerald-950">Saldo a Cobrar</th>
+                    <th className="py-3 px-3 text-center w-44 bg-amber-50 text-amber-950">Espacio de Abono (Físico)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1044,7 +1086,7 @@ function ReportesCxCContent() {
                     <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-2.5 px-3 text-center font-bold text-slate-400">{idx + 1}</td>
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-extrabold text-slate-900 text-xs">{c.nombre}</span>
                           {c.telefono && <span className="text-[11px] text-slate-500 shrink-0 font-medium">📱 {c.telefono}</span>}
                           {c.alias && (
@@ -1054,22 +1096,52 @@ function ReportesCxCContent() {
                           )}
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-center font-bold text-slate-700">
-                        {c.facturasPendientesCount} fact(s)
+                      <td className="py-2.5 px-3">
+                        {c.facturasPendientes && c.facturasPendientes.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {c.facturasPendientes.map((f, fIdx) => (
+                              <span
+                                key={f.id}
+                                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] ${
+                                  fIdx === 0 && !f.esSaldoInicial
+                                    ? 'bg-emerald-50 border-emerald-300 text-slate-900 shadow-2xs'
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                                }`}
+                              >
+                                {f.esSaldoInicial ? (
+                                  <>
+                                    <span className="font-bold text-slate-500 text-[10px]">Saldo Ant:</span>
+                                    <span className="font-black font-mono text-slate-900">{fmt(f.saldoPendiente)}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {f.fechaEmision && (
+                                      <span className="font-extrabold text-emerald-700 text-[10px] bg-white px-1 py-0.2 rounded border border-emerald-200">
+                                        {formatFechaCorta(f.fechaEmision)}
+                                      </span>
+                                    )}
+                                    <span className="font-black font-mono text-slate-950">{fmt(f.saldoPendiente)}</span>
+                                    <span className="text-[10px] text-slate-400 font-semibold">
+                                      (#{f.correlativo}{f.estadoPago === 'PARCIAL' ? ' • Saldo' : ''})
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">
+                            Saldo pendiente: {fmt(c.saldoTotal)}
+                          </span>
+                        )}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-black text-slate-900 font-mono text-sm bg-emerald-50/30">
+                      <td className="py-2.5 px-3 text-right font-black text-slate-900 font-mono text-sm bg-emerald-50/30 whitespace-nowrap">
                         {fmt(c.saldoTotal)}
                       </td>
                       <td className="py-2.5 px-3 bg-amber-50/15">
-                        <div className="w-32 mx-auto h-7 border border-dashed border-slate-300 rounded-lg bg-white flex items-center px-2 text-slate-300 text-xs font-bold">
+                        <div className="w-full h-7 border border-dashed border-slate-300 rounded-lg bg-white flex items-center px-2.5 text-slate-400 text-xs font-bold">
                           L.
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-center text-[10px] font-bold text-slate-600">
-                        [ ] Efec &nbsp; [ ] Transf
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <div className="w-full h-6 border-b border-dashed border-slate-300"></div>
                       </td>
                     </tr>
                   ))}
@@ -1079,7 +1151,7 @@ function ReportesCxCContent() {
                     <td colSpan={3} className="py-3 px-3 text-right uppercase text-slate-800 align-middle">
                       TOTAL CARTERA ({clientesRuta.length} CLIENTES):
                     </td>
-                    <td className="py-3 px-3 text-right font-mono text-emerald-950 bg-emerald-100 text-sm font-black align-middle">
+                    <td className="py-3 px-3 text-right font-mono text-emerald-950 bg-emerald-100 text-sm font-black align-middle whitespace-nowrap">
                       {fmt(totalCarteraRuta)}
                     </td>
                     <td className="py-2.5 px-3 text-left font-mono bg-amber-100/70 align-top">
@@ -1089,9 +1161,6 @@ function ReportesCxCContent() {
                       <div className="text-sm font-black text-slate-400 mt-1 h-6 flex items-center">
                         L.
                       </div>
-                    </td>
-                    <td colSpan={2} className="py-3 px-3 text-center text-slate-400 text-xs font-normal align-middle">
-                      Espacio para cuadre administrativo
                     </td>
                   </tr>
                 </tfoot>

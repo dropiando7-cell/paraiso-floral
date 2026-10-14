@@ -144,11 +144,21 @@ export async function GET(request: Request) {
         },
         pagos: {
           where: { anulado: false },
-          select: { id: true, monto: true, fecha: true }
+          select: {
+            id: true,
+            monto: true,
+            fecha: true,
+            detalles: {
+              select: {
+                facturaId: true,
+                montoAplicado: true
+              }
+            }
+          }
         },
         notasCredito: {
           where: { anulado: false },
-          select: { monto: true }
+          select: { monto: true, facturaId: true }
         }
       },
       orderBy: { nombre: 'asc' }
@@ -161,16 +171,64 @@ export async function GET(request: Request) {
       const totalAbonado = c.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
       const totalNotasCredito = c.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
 
+      // Bolsa de crédito libre (abonos/NC no vinculados a una factura específica)
+      const abonosAplicados = c.pagos.reduce(
+        (sum, p) => sum + (p.detalles || []).reduce((s, d) => s + Number(d.montoAplicado || 0), 0),
+        0
+      );
+      const abonosLibres = Math.max(0, totalAbonado - abonosAplicados);
+      const ncLibres = c.notasCredito
+        .filter(n => !n.facturaId)
+        .reduce((sum, n) => sum + Number(n.monto), 0);
+      let creditoDisponible = abonosLibres + ncLibres;
+
+      // El crédito libre cubre primero el saldo inicial
+      const aplicadoSaldoInicial = Math.min(sInicial, creditoDisponible);
+      creditoDisponible -= aplicadoSaldoInicial;
+      const saldoInicialPendiente = Math.max(0, sInicial - aplicadoSaldoInicial);
+
+      // Ordenar facturas de más antigua a más reciente para aplicar cascada FIFO
+      const facturasAsc = [...c.facturas].sort(
+        (a, b) => new Date(a.fechaEmision).getTime() - new Date(b.fechaEmision).getTime()
+      );
+
+      const mapaSaldoFactura: Record<string, { saldoPendiente: number; estadoPago: string }> = {};
+
+      for (const f of facturasAsc) {
+        const total = Number(f.total || 0);
+        const pagosDirectos = c.pagos.reduce((sum, p) => {
+          const det = (p.detalles || []).find(d => d.facturaId === f.id);
+          return sum + (det ? Number(det.montoAplicado) : 0);
+        }, 0);
+        const ncDirectas = c.notasCredito.reduce((sum, nc) => {
+          return sum + (nc.facturaId === f.id ? Number(nc.monto) : 0);
+        }, 0);
+
+        const cubiertoDirecto = pagosDirectos + ncDirectas;
+        let restante = Math.max(0, total - cubiertoDirecto);
+
+        if (restante > 0 && creditoDisponible > 0) {
+          const cubrirConCredito = Math.min(restante, creditoDisponible);
+          restante -= cubrirConCredito;
+          creditoDisponible -= cubrirConCredito;
+        }
+
+        const saldo = restante <= 0.01 ? 0 : Number(restante.toFixed(2));
+        const estadoPago = saldo === 0 ? 'PAGADA' : (saldo < total - 0.01 ? 'PARCIAL' : 'PENDIENTE');
+        mapaSaldoFactura[f.id] = { saldoPendiente: saldo, estadoPago };
+      }
+
       let totalFacturado = sInicial;
       let saldoVencido = 0;
       let maxDiasMora = 0;
 
       c.facturas.forEach(f => {
         const totalFactura = Number(f.total || 0);
-        const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura;
+        const info = mapaSaldoFactura[f.id];
+        const saldo = info ? info.saldoPendiente : (f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura);
         totalFacturado += totalFactura;
 
-        if (f.estadoPago === 'PAGADA' || saldo <= 0) return;
+        if ((info ? info.estadoPago === 'PAGADA' : f.estadoPago === 'PAGADA') || saldo <= 0) return;
 
         let fechaVenc: Date | null = f.fechaVencimiento ? new Date(f.fechaVencimiento) : null;
         if (!fechaVenc && isCredito(f.terminosPago)) {
@@ -193,14 +251,43 @@ export async function GET(request: Request) {
 
       const saldoTotal = totalFacturado - totalAbonado - totalNotasCredito;
 
-      let facturasPendientesCount = c.facturas.filter(f => {
-        const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : Number(f.total);
-        return f.estadoPago !== 'PAGADA' && saldo > 0;
-      }).length;
+      // Construir el desglose de facturas pendientes (ordenadas de más reciente a más antigua)
+      const facturasPendientes: Array<{
+        id: string;
+        correlativo: string;
+        fechaEmision: Date | string | null;
+        total: number;
+        saldoPendiente: number;
+        estadoPago: string;
+        esSaldoInicial?: boolean;
+      }> = c.facturas
+        .map(f => {
+          const total = Number(f.total || 0);
+          const info = mapaSaldoFactura[f.id] || { saldoPendiente: total, estadoPago: 'PENDIENTE' };
+          return {
+            id: f.id,
+            correlativo: f.correlativo,
+            fechaEmision: f.fechaEmision,
+            total,
+            saldoPendiente: info.saldoPendiente,
+            estadoPago: info.estadoPago
+          };
+        })
+        .filter(f => f.saldoPendiente > 0.01);
 
-      if (sInicial > 0 && saldoTotal > 0 && c.facturas.length === 0) {
-        facturasPendientesCount = 1;
+      if (saldoInicialPendiente > 0.01) {
+        facturasPendientes.push({
+          id: 'saldo-inicial',
+          correlativo: 'SALDO ANT.',
+          fechaEmision: c.fechaSaldoInicial || null,
+          total: sInicial,
+          saldoPendiente: Number(saldoInicialPendiente.toFixed(2)),
+          estadoPago: saldoInicialPendiente < sInicial - 0.01 ? 'PARCIAL' : 'PENDIENTE',
+          esSaldoInicial: true
+        });
       }
+
+      const facturasPendientesCount = facturasPendientes.length;
 
       const sortedPagos = [...c.pagos].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
       const ultimoPago = sortedPagos[0] || null;
@@ -225,6 +312,7 @@ export async function GET(request: Request) {
         saldoTotal,
         saldoVencido,
         facturasPendientesCount,
+        facturasPendientes,
         maxDiasMora,
         ultimoPago: ultimoPago ? {
           monto: Number(ultimoPago.monto),
