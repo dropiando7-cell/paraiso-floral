@@ -21,20 +21,61 @@ export default async function ContactosPage() {
 
     const orgId = dbUser.organizationId;
 
-    const [contacts, totalCount] = await Promise.all([
+    const [contacts, totalCount, vendedores, rutasRaw] = await Promise.all([
         prisma.cliente.findMany({
             where: { organizationId: orgId },
+            include: {
+                vendedor: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true,
+                        email: true
+                    }
+                }
+            },
             orderBy: { nombre: 'asc' },
             take: 10,
         }),
         prisma.cliente.count({
             where: { organizationId: orgId }
+        }),
+        prisma.user.findMany({
+            where: { organizationId: orgId, isAssignable: true },
+            select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                email: true,
+                puesto: true,
+                rutasAsignadas: true
+            },
+            orderBy: { nombre: 'asc' }
+        }),
+        prisma.cliente.findMany({
+            where: { organizationId: orgId, ruta: { not: null } },
+            distinct: ['ruta'],
+            select: { ruta: true }
         })
     ]);
+
+    const setRutas = new Set<string>([
+        'Ruta Occidente',
+        'Ruta La Esperanza',
+        'Ruta Guamilito / Progreso',
+        'Cartera Francis Carías',
+        'Nacional / Todas las Rutas'
+    ]);
+    rutasRaw.forEach(c => {
+        if (c.ruta?.trim()) setRutas.add(c.ruta.trim());
+    });
+    const listaRutas = Array.from(setRutas).sort();
 
     const sanitizedContacts = contacts.map(c => ({
         ...c,
         limiteCredito: c.limiteCredito ? Number(c.limiteCredito) : 0,
+        saldoInicial: c.saldoInicial ? Number(c.saldoInicial) : 0,
+        saldoFavor: c.saldoFavor ? Number(c.saldoFavor) : 0,
         diasCredito: c.diasCredito || 15
     }));
 
@@ -43,6 +84,8 @@ export default async function ContactosPage() {
             initialData={sanitizedContacts as any} 
             initialTotalCount={totalCount}
             initialTotalPages={Math.ceil(totalCount / 10)}
+            initialVendedores={vendedores}
+            initialRutas={listaRutas}
         />
     );
 }

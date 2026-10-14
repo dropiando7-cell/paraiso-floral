@@ -89,6 +89,7 @@ export async function GET(request: Request) {
     if (query.trim()) {
       whereCliente.OR = [
         { nombre: { contains: query.trim(), mode: 'insensitive' } },
+        { alias: { contains: query.trim(), mode: 'insensitive' } },
         { telefono: { contains: query.trim(), mode: 'insensitive' } },
         { rtn: { contains: query.trim(), mode: 'insensitive' } },
         { departamento: { contains: query.trim(), mode: 'insensitive' } },
@@ -102,6 +103,7 @@ export async function GET(request: Request) {
       select: {
         id: true,
         nombre: true,
+        alias: true,
         telefono: true,
         email: true,
         direccion: true,
@@ -211,6 +213,7 @@ export async function GET(request: Request) {
         direccion: c.direccion,
         departamento: c.departamento,
         ruta: c.ruta || 'Ruta Occidente',
+        alias: c.alias,
         vendedorId: c.vendedorId,
         vendedorNombre: c.vendedor?.nombre ? `${c.vendedor.nombre} ${c.vendedor.apellido || ''}`.trim() : null,
         rtn: c.rtn,

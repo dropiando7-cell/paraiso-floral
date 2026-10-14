@@ -17,26 +17,60 @@ async function getOrgId() {
     return dbUser.organizationId;
 }
 
-export async function fetchContactos(query: string, page: number = 1) {
+export async function fetchContactos(
+    query: string, 
+    page: number = 1,
+    filtroRuta: string = '',
+    filtroVendedorId: string = ''
+) {
     const orgId = await getOrgId();
 
     const pageSize = 10;
     const skip = (page - 1) * pageSize;
 
-    const where = {
+    const where: any = {
         organizationId: orgId,
-        ...(query ? {
-            OR: [
-                { nombre: { contains: query, mode: 'insensitive' as any } },
-                { email: { contains: query, mode: 'insensitive' as any } },
-                { telefono: { contains: query, mode: 'insensitive' as any } },
-                { rtn: { contains: query, mode: 'insensitive' as any } },
-                { nombreContacto: { contains: query, mode: 'insensitive' as any } },
-                { telefonoContacto: { contains: query, mode: 'insensitive' as any } },
-                { departamento: { contains: query, mode: 'insensitive' as any } },
-            ],
-        } : {}),
     };
+
+    if (filtroRuta && filtroRuta !== 'TODOS') {
+        if (filtroRuta === 'SIN_RUTA') {
+            where.ruta = null;
+        } else {
+            where.ruta = { equals: filtroRuta, mode: 'insensitive' };
+        }
+    }
+
+    if (filtroVendedorId && filtroVendedorId !== 'TODOS') {
+        if (filtroVendedorId === 'SIN_VENDEDOR') {
+            where.vendedorId = null;
+        } else {
+            where.vendedorId = filtroVendedorId;
+        }
+    }
+
+    if (query && query.trim()) {
+        const q = query.trim();
+        where.OR = [
+            { nombre: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
+            { telefono: { contains: q, mode: 'insensitive' } },
+            { rtn: { contains: q, mode: 'insensitive' } },
+            { nombreContacto: { contains: q, mode: 'insensitive' } },
+            { telefonoContacto: { contains: q, mode: 'insensitive' } },
+            { departamento: { contains: q, mode: 'insensitive' } },
+            { ruta: { contains: q, mode: 'insensitive' } },
+            { alias: { contains: q, mode: 'insensitive' } },
+            { direccion: { contains: q, mode: 'insensitive' } },
+            {
+                vendedor: {
+                    OR: [
+                        { nombre: { contains: q, mode: 'insensitive' } },
+                        { apellido: { contains: q, mode: 'insensitive' } },
+                    ]
+                }
+            }
+        ];
+    }
 
     const count = await prisma.cliente.count({ where });
     const data = await prisma.cliente.findMany({
@@ -54,8 +88,20 @@ export async function fetchContactos(query: string, page: number = 1) {
             emailsCC: true,
             limiteCredito: true,
             saldoInicial: true,
+            saldoFavor: true,
             diasCredito: true,
             notas: true,
+            ruta: true,
+            alias: true,
+            vendedorId: true,
+            vendedor: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    apellido: true,
+                    email: true
+                }
+            },
             createdAt: true
         },
         skip,
@@ -68,11 +114,69 @@ export async function fetchContactos(query: string, page: number = 1) {
         ...d,
         limiteCredito: d.limiteCredito ? Number(d.limiteCredito) : 0,
         saldoInicial: d.saldoInicial ? Number(d.saldoInicial) : 0,
+        saldoFavor: d.saldoFavor ? Number(d.saldoFavor) : 0,
         diasCredito: d.diasCredito || 15
       })), 
       totalPages: Math.ceil(count / pageSize), 
       count 
     };
+}
+
+export async function fetchRutasExistentes() {
+    const orgId = await getOrgId();
+    const clientes = await prisma.cliente.findMany({
+        where: { organizationId: orgId, ruta: { not: null } },
+        distinct: ['ruta'],
+        select: { ruta: true }
+    });
+    const set = new Set<string>([
+        'Ruta Occidente',
+        'Ruta La Esperanza',
+        'Ruta Guamilito / Progreso',
+        'Cartera Francis Carías',
+        'Nacional / Todas las Rutas'
+    ]);
+    clientes.forEach(c => {
+        if (c.ruta?.trim()) set.add(c.ruta.trim());
+    });
+    return Array.from(set).sort();
+}
+
+export async function asignarRutaYVendedorMasivo(
+    clienteIds: string[],
+    data: {
+        ruta?: string | null;
+        vendedorId?: string | null;
+    }
+) {
+    if (!clienteIds || clienteIds.length === 0) {
+        throw new Error('No se seleccionaron clientes.');
+    }
+    const orgId = await getOrgId();
+
+    const updateData: any = {};
+    if (data.ruta !== undefined) {
+        updateData.ruta = data.ruta && data.ruta.trim() ? data.ruta.trim() : null;
+    }
+    if (data.vendedorId !== undefined) {
+        updateData.vendedorId = data.vendedorId ? data.vendedorId : null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        return { success: false, count: 0 };
+    }
+
+    await prisma.cliente.updateMany({
+        where: {
+            id: { in: clienteIds },
+            organizationId: orgId
+        },
+        data: updateData
+    });
+
+    revalidatePath('/contactos');
+    revalidatePath('/cxc');
+    return { success: true, count: clienteIds.length };
 }
 
 export async function fetchVendedores() {
@@ -112,11 +216,13 @@ export async function createContacto(data: {
     notas?: string;
     vendedorId?: string | null;
     ruta?: string | null;
+    alias?: string | null;
 }) {
     const orgId = await getOrgId();
 
     const cleanNombre = data.nombre.trim().toUpperCase();
     const cleanNombreContacto = data.nombreContacto?.trim() ? data.nombreContacto.trim().toUpperCase() : null;
+    const cleanAlias = data.alias?.trim() ? data.alias.trim().toUpperCase() : null;
 
     const existe = await prisma.cliente.findFirst({
         where: {
@@ -137,6 +243,7 @@ export async function createContacto(data: {
             ...data,
             nombre: cleanNombre,
             nombreContacto: cleanNombreContacto,
+            alias: cleanAlias,
             organizationId: orgId,
         },
     });
@@ -165,9 +272,11 @@ export async function updateContacto(id: string, data: {
     notas?: string;
     vendedorId?: string | null;
     ruta?: string | null;
+    alias?: string | null;
 }) {
     const cleanNombre = data.nombre.trim().toUpperCase();
     const cleanNombreContacto = data.nombreContacto?.trim() ? data.nombreContacto.trim().toUpperCase() : null;
+    const cleanAlias = data.alias !== undefined ? (data.alias?.trim() ? data.alias.trim().toUpperCase() : null) : undefined;
 
     const updated = await prisma.cliente.update({
         where: { id },
@@ -175,6 +284,7 @@ export async function updateContacto(id: string, data: {
             ...data,
             nombre: cleanNombre,
             nombreContacto: cleanNombreContacto,
+            ...(cleanAlias !== undefined ? { alias: cleanAlias } : {})
         },
     });
 

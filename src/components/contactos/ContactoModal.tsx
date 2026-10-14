@@ -50,6 +50,7 @@ export interface ClienteFormData {
   notas?: string | null;
   vendedorId?: string | null;
   ruta?: string | null;
+  alias?: string | null;
 }
 
 interface ContactoModalProps {
@@ -109,8 +110,9 @@ export default function ContactoModal({
         limiteCredito: formData.limiteCredito !== undefined && formData.limiteCredito !== null ? Number(formData.limiteCredito) : 0,
         diasCredito: formData.diasCredito !== undefined && formData.diasCredito !== null ? Number(formData.diasCredito) : 15,
         notas: formData.notas?.trim() || undefined,
-        vendedorId: formData.vendedorId || undefined,
-        ruta: formData.ruta || undefined
+        vendedorId: formData.vendedorId ? formData.vendedorId : null,
+        ruta: formData.ruta && formData.ruta.trim() ? formData.ruta.trim() : null,
+        alias: formData.alias && formData.alias.trim() ? formData.alias.trim().toUpperCase() : null
       };
 
       if (isEdit && formData.id) {
@@ -163,18 +165,34 @@ export default function ContactoModal({
 
           {/* Bloque 1: Empresa / Nombre */}
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Nombre Comercial / Razón Social <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Ej: Floristería Las Rosas S. de R.L."
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                value={formData.nombre || ''}
-                onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Nombre Comercial / Razón Social <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Floristería Las Rosas S. de R.L."
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  value={formData.nombre || ''}
+                  onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center justify-between">
+                  <span>Alias / Pagador Habitual</span>
+                  <span className="text-[10px] text-amber-700 bg-amber-100 font-bold px-1.5 py-0.2 rounded">Referencia</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Sorelle, Stephany, Yolani Any"
+                  className="w-full px-4 py-2 bg-amber-50/40 border border-amber-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none placeholder:text-slate-400"
+                  value={formData.alias || ''}
+                  onChange={e => setFormData({ ...formData, alias: e.target.value })}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

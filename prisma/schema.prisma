@@ -727,6 +727,7 @@ model Cliente {
   diasCredito        Int            @default(15)
   vendedorId         String?        @db.Uuid
   ruta               String?
+  alias              String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -744,6 +745,7 @@ model Cliente {
   @@index([nombre])
   @@index([vendedorId])
   @@index([ruta])
+  @@index([alias])
   @@map("clientes")
 }
 

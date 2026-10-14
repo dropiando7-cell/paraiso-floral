@@ -40,6 +40,7 @@ interface ClienteCxC {
   direccion: string | null;
   departamento?: string | null;
   ruta?: string | null;
+  alias?: string | null;
   vendedorId?: string | null;
   vendedorNombre?: string | null;
   rtn?: string | null;
@@ -574,6 +575,11 @@ ${publicUrl}
                     <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
                       📱 {c.telefono || 'Sin teléfono'} {c.departamento && `• 📍 ${c.departamento}`}
                     </span>
+                    {c.alias && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200">
+                        🏷️ Alias: {c.alias}
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/60">
                       <MapPin className="w-2.5 h-2.5 text-emerald-600" />
                       {c.ruta || 'Ruta Occidente'}
@@ -714,6 +720,11 @@ ${publicUrl}
                           <span className="text-[11px] text-slate-500 font-medium">
                             📱 {c.telefono || 'Sin teléfono'} {c.departamento && `• 📍 ${c.departamento}`}
                           </span>
+                          {c.alias && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.2 rounded bg-amber-50 text-amber-900 border border-amber-200">
+                              🏷️ Alias: {c.alias}
+                            </span>
+                          )}
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60">
                             <MapPin className="w-2.5 h-2.5 text-emerald-600" />
                             {c.ruta || 'Ruta Occidente'}
