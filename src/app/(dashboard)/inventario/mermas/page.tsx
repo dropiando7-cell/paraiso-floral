@@ -980,6 +980,7 @@ export default function MermasPage() {
                   />
                   <button
                     type="button"
+                    tabIndex={-1}
                     onClick={() => {
                       try {
                         hiddenDatePickerRef.current?.showPicker();
@@ -1036,6 +1037,8 @@ export default function MermasPage() {
                     min="1"
                     value={newCantidad}
                     onChange={(e) => setNewCantidad(e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onMouseUp={(e) => e.preventDefault()}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1177,6 +1180,8 @@ export default function MermasPage() {
                               type="number"
                               min="1"
                               defaultValue={m.cantidad}
+                              onFocus={(e) => e.currentTarget.select()}
+                              onMouseUp={(e) => e.preventDefault()}
                               onBlur={(e) => {
                                 const val = parseInt(e.target.value, 10);
                                 if (val > 0 && val !== m.cantidad) {
