@@ -38,6 +38,7 @@ const searchItems: SearchItem[] = [
     { name: 'Catálogo de Modelos', category: 'Inventario', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'], keywords: ['modelos', 'catalogo', 'marcas', 'devices'] },
     { name: 'Entradas / Compras', category: 'Inventario', href: '/inventario/entradas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['entradas', 'compras', 'proveedores', 'buy', 'incoming'] },
     { name: 'Salidas / Descargas', category: 'Inventario', href: '/inventario/salidas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['salidas', 'descargas', 'entregas', 'outgoing'] },
+    { name: 'Control de Mermas', category: 'Inventario', href: '/inventario/mermas', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR', 'GERENTE', 'AUXILIAR_BODEGA', 'RECEPCION'], keywords: ['mermas', 'merma', 'perdidas', 'desecho', 'flores', 'botrytis', 'marchita', 'cuarto frio'] },
     { name: 'Kardex de Movimientos', category: 'Inventario', href: '/inventario/kardex', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'], keywords: ['kardex', 'movimientos', 'historico', 'transactions'] },
     { name: 'Gestor de Precios', category: 'Inventario', href: '/precios', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['precios', 'tarifas', 'gestor', 'listas', 'prices'] },
     { name: 'Ubicaciones y Sucursales', category: 'Inventario', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ubicaciones', 'sucursales', 'areas', 'bodegas', 'locations'] },

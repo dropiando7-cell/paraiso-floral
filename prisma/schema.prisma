@@ -73,6 +73,7 @@ model Organization {
   notasCreditoClientes  NotaCreditoCliente[]
   reportesHorasExtras  ReporteHorasExtras[]
   registrosCompras      RegistroCompra[]
+  registrosMerma        RegistroMerma[]
 
   @@map("organizations")
 }
@@ -188,6 +189,7 @@ model User {
   pedidosCreados           Pedido[]              @relation("CreatedPedidos")
   pedidosAnulados          Pedido[]              @relation("AnuladoPedidos")
   comprasCreadas           RegistroCompra[]      @relation("ComprasCreadas")
+  mermasRegistradas        RegistroMerma[]       @relation("MermasRegistradas")
 
   @@map("users")
 }
@@ -677,6 +679,7 @@ model Producto {
   organization            Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   pedidoItems             PedidoItem[]           @relation("PedidoItemsProducto")
   pedidoItemsSustituidos  PedidoItem[]           @relation("PedidoItemsSustituto")
+  registrosMerma          RegistroMerma[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -702,6 +705,34 @@ model MovimientoInventario {
   @@index([productoId])
   @@index([tipoMovimiento])
   @@map("movimientos_inventario")
+}
+
+model RegistroMerma {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String       @db.Uuid
+  fecha           DateTime     @default(now())
+  productoId      String?      @db.Uuid
+  nombreProducto  String
+  sku             String?
+  categoria       String?
+  cantidad        Int          @default(1)
+  motivo          String?      @default("MADURACION_MARCHITA")
+  notas           String?
+  costoUnitario   Decimal?     @db.Decimal(12, 2)
+  usuarioId       String?      @db.Uuid
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  producto        Producto?    @relation(fields: [productoId], references: [id], onDelete: SetNull)
+  usuario         User?        @relation("MermasRegistradas", fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([fecha])
+  @@index([productoId])
+  @@index([categoria])
+  @@index([motivo])
+  @@map("registros_merma")
 }
 
 model Cliente {

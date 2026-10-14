@@ -80,6 +80,7 @@ const moduleLabels: Record<string, string> = {
     '/inventario/modelos': 'Catálogo de Modelos',
     '/inventario/entradas': 'Entradas / Compras',
     '/inventario/salidas': 'Salidas / Descargas',
+    '/inventario/mermas': 'Control y Registro de Mermas',
     '/inventario/kardex': 'Kardex de Movimientos',
     '/precios': 'Gestor de Precios',
     '/admin/areas': 'Ubicaciones y Sucursales',

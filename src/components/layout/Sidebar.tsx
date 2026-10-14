@@ -86,6 +86,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Catálogo de Modelos', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
           { name: 'Entradas / Compras', href: '/inventario/entradas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Salidas / Descargas', href: '/inventario/salidas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Control de Mermas', href: '/inventario/mermas', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR', 'GERENTE', 'AUXILIAR_BODEGA', 'RECEPCION'] },
           { name: 'Kardex de Movimientos', href: '/inventario/kardex', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
           { name: 'Gestor de Precios', href: '/precios', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Ubicaciones y Sucursales', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },

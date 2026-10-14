@@ -122,6 +122,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/inventario/modelos', label: 'Catálogo de Modelos' },
         { id: '/inventario/entradas', label: 'Entradas / Compras' },
         { id: '/inventario/salidas', label: 'Salidas / Descargas' },
+        { id: '/inventario/mermas', label: 'Control y Registro de Mermas (Pérdidas de Flor)' },
         { id: '/inventario/kardex', label: 'Kardex de Movimientos' },
         { id: '/precios', label: 'Gestor de Precios' },
         { id: '/cxc', label: 'Cuentas por Cobrar' },
