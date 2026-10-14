@@ -25,6 +25,17 @@ interface UserManagementProps {
     currentUserRole: string;
 }
 
+const normalizeSearch = (text: string) =>
+    (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+const filterModuleByQuery = (m: { id: string; label: string }, query: string) => {
+    if (!query || !query.trim()) return true;
+    const q = normalizeSearch(query);
+    const label = normalizeSearch(m.label);
+    const id = normalizeSearch(m.id);
+    return label.includes(q) || id.includes(q);
+};
+
 export function UserManagement({ initialUsers, organizations, roleTemplates, currentUserId, currentUserRole }: UserManagementProps) {
     const router = useRouter();
     const [users, setUsers] = useState<UserWithOrg[]>(initialUsers);
@@ -190,11 +201,13 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         } else if (newRole === 'MEDICAL_STAFF') {
             setAccessibleModules(['/', '/medico']);
         } else if (newRole === 'INVENTARIO_EDITOR') {
-            setAccessibleModules(['/', '/inventario/historico']);
+            setAccessibleModules(['/', '/inventario', '/inventario/historico', '/inventario/mermas', '/inventario/modelos']);
+        } else if (newRole === 'AUXILIAR_BODEGA') {
+            setAccessibleModules(['/', '/inventario/recepcion', '/inventario/salidas', '/inventario/toma-fisica', '/inventario/mermas', '/inventario-ventas/pedidos', '/inventario-ventas/pedidos/preparar']);
         } else if (newRole === 'RECEPCION' || newRole === 'TECNICO') {
-            setAccessibleModules(['/', '/soporte', '/inventario']);
+            setAccessibleModules(['/', '/soporte', '/inventario', '/inventario/mermas']);
         } else if (newRole === 'GERENTE') {
-            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas', '/inventario/toma-fisica', '/inventario/kardex', '/control-horas']);
+            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas', '/inventario/toma-fisica', '/inventario/kardex', '/control-horas', '/inventario/mermas']);
         } else {
             setAccessibleModules(['/']);
         }
@@ -1026,7 +1039,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
                                         {availableModules
-                                            .filter(m => m.label.toLowerCase().includes(searchModulesQuery.toLowerCase()))
+                                            .filter(m => filterModuleByQuery(m, searchModulesQuery))
                                             .map((module) => (
                                                 <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
                                                     <input
@@ -1283,7 +1296,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
                                         {availableModules
-                                            .filter(m => m.label.toLowerCase().includes(searchRoleModulesQuery.toLowerCase()))
+                                            .filter(m => filterModuleByQuery(m, searchRoleModulesQuery))
                                             .map((module) => (
                                                 <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
                                                     <input

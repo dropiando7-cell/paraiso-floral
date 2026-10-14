@@ -29,6 +29,7 @@ const allAvailableModules = [
     { id: '/boveda', name: 'Bóveda de Contraseñas' },
     { id: '/calendario', name: 'Calendario Centralizado' },
     { id: '/inventario-ventas/rutas', name: 'Rutas y Auto-Venta' },
+    { id: '/inventario/mermas', name: 'Control de Mermas (Pérdidas de Flor)' },
     { id: '/admin/tarjetas-digitales', name: 'Tarjetas Digitales' }
 ];
 
