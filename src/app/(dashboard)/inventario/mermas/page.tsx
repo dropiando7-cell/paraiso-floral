@@ -590,27 +590,27 @@ export default function MermasPage() {
             </select>
           </div>
 
-          {/* Badge de Correlativo Oficial y Estado */}
-          <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl border border-slate-800 shadow-sm">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Reporte:</span>
-            <span className="font-mono font-black text-emerald-300 text-xs tracking-wider">
+          {/* Badge de Correlativo Oficial y Estado (Estilo Reporte Suave) */}
+          <div className="flex items-center gap-2 bg-emerald-50/90 text-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-300 shadow-2xs">
+            <span className="text-[10px] text-emerald-800/80 font-bold uppercase tracking-wider">Reporte:</span>
+            <span className="font-mono font-black text-emerald-950 text-xs tracking-wider">
               {correlativoOficial}
             </span>
             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex items-center gap-1 ${
               estadoReporte === 'ABIERTO'
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                 : estadoReporte === 'CERRADO'
-                  ? 'bg-slate-800 text-slate-300 border-slate-700'
-                  : 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                  ? 'bg-slate-100 text-slate-700 border-slate-300'
+                  : 'bg-amber-100 text-amber-900 border-amber-300'
             }`}>
               {estadoReporte === 'ABIERTO' ? (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
                   <span>ABIERTO</span>
                 </>
               ) : estadoReporte === 'CERRADO' ? (
                 <>
-                  <Lock className="w-2.5 h-2.5 text-slate-400" />
+                  <Lock className="w-2.5 h-2.5 text-slate-600" />
                   <span>CERRADO</span>
                 </>
               ) : (
@@ -694,7 +694,7 @@ export default function MermasPage() {
               </div>
             </div>
 
-            {/* Fila Principal de Entradas */}
+            {/* Fila Principal de Entradas - Altura Uniforme h-10 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
               {/* 1. Fecha (dd/mm/yyyy) */}
               <div className="lg:col-span-2 space-y-1">
@@ -713,7 +713,7 @@ export default function MermasPage() {
                       }
                     }}
                     placeholder="dd/mm/aaaa"
-                    className="w-full pl-3 pr-8 py-2 text-xs font-bold text-slate-900 bg-white border border-emerald-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-mono"
+                    className="w-full h-10 pl-3 pr-8 text-xs font-bold text-slate-900 bg-white border border-emerald-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-mono"
                   />
                   {/* Selector nativo oculto vinculado */}
                   <input
@@ -738,7 +738,7 @@ export default function MermasPage() {
                         hiddenDatePickerRef.current?.focus();
                       }
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer transition-colors"
                     title="Seleccionar fecha en calendario"
                   >
                     <Calendar className="w-4 h-4" />
@@ -762,7 +762,7 @@ export default function MermasPage() {
                   onSelectProduct={handleSelectProductNewRow}
                   inputRef={newFlorInputRef}
                   placeholder="Escribe flor (ej. Girasol, Rosa)..."
-                  className="border-emerald-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                  className="!h-10 border-emerald-300 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 shadow-2xs"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                       e.preventDefault();
@@ -789,7 +789,7 @@ export default function MermasPage() {
                       handleGuardarNuevaFila();
                     }
                   }}
-                  className="w-full text-center py-2 px-3 font-mono font-black text-slate-900 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-2xs"
+                  className="w-full h-10 text-center px-3 font-mono font-black text-slate-900 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-2xs"
                   placeholder="1"
                 />
               </div>
@@ -799,20 +799,22 @@ export default function MermasPage() {
                 <label className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">
                   Causa / Motivo
                 </label>
-                <div className="bg-white rounded-xl p-0.5 shadow-2xs border border-emerald-300">
-                  <MotivoSelectBadge
-                    value={newMotivo}
-                    onChange={setNewMotivo}
-                  />
-                </div>
+                <MotivoSelectBadge
+                  value={newMotivo}
+                  onChange={setNewMotivo}
+                  className="!h-10 text-xs shadow-2xs"
+                />
               </div>
 
               {/* 5. Botón Insertar */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider block opacity-0 select-none hidden lg:block">
+                  &nbsp;
+                </label>
                 <button
                   onClick={handleGuardarNuevaFila}
                   disabled={isSubmittingNew || !newProductoNombre.trim()}
-                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500"
+                  className="w-full h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500"
                   title="Insertar línea de merma (Enter)"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" />

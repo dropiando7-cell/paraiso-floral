@@ -158,7 +158,7 @@ export function ProductAutocompleteCell({
           onKeyDown={handleKeyDownInternal}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className={`w-full px-3 py-1.5 text-xs font-semibold text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${className}`}
+          className={`w-full h-10 px-3 text-xs font-semibold text-slate-900 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${className}`}
         />
         {isLoading && (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">

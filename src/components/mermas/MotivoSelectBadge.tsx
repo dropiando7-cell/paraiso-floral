@@ -24,9 +24,10 @@ interface MotivoSelectBadgeProps {
   value: string;
   onChange: (newMotivo: string) => void;
   disabled?: boolean;
+  className?: string;
 }
 
-export function MotivoSelectBadge({ value, onChange, disabled = false }: MotivoSelectBadgeProps) {
+export function MotivoSelectBadge({ value, onChange, disabled = false, className = '' }: MotivoSelectBadgeProps) {
   const current = getMotivoInfo(value);
 
   return (
@@ -35,7 +36,7 @@ export function MotivoSelectBadge({ value, onChange, disabled = false }: MotivoS
         value={value || 'MADURACION_MARCHITA'}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`w-full appearance-none cursor-pointer px-2.5 py-1 text-[11px] font-black rounded-lg border transition-all outline-none focus:ring-2 focus:ring-emerald-500/50 ${current.bg} ${current.text} ${current.border}`}
+        className={`w-full appearance-none cursor-pointer px-2.5 font-black transition-all outline-none focus:ring-2 focus:ring-emerald-500/50 ${current.bg} ${current.text} ${current.border} ${className ? className : 'py-1 text-[11px] rounded-lg'}`}
       >
         {MOTIVOS_MERMA.map((m) => (
           <option key={m.key} value={m.key} className="bg-white text-slate-900 font-semibold py-1">
