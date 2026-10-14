@@ -132,8 +132,57 @@ export async function GET(request: Request) {
       }
     }
 
+    // Resumen histórico consolidado de todos los reportes mensuales de la organización
+    const todosLosRegistros = await prisma.registroMerma.findMany({
+      where: { organizationId: orgId },
+      select: { fecha: true, cantidad: true, costoUnitario: true },
+      orderBy: { fecha: 'desc' }
+    });
+
+    const historicoMap: Record<string, {
+      mes: string;
+      correlativo: string;
+      totalTallos: number;
+      costoEstimado: number;
+      totalRegistros: number;
+      estado: 'ABIERTO' | 'CERRADO';
+    }> = {};
+
+    for (const r of todosLosRegistros) {
+      const d = new Date(r.fecha);
+      const mesKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!historicoMap[mesKey]) {
+        historicoMap[mesKey] = {
+          mes: mesKey,
+          correlativo: `MRM-${mesKey}`,
+          totalTallos: 0,
+          costoEstimado: 0,
+          totalRegistros: 0,
+          estado: mesKey >= currentYearMonth ? 'ABIERTO' : 'CERRADO'
+        };
+      }
+      const cant = Number(r.cantidad || 0);
+      historicoMap[mesKey].totalTallos += cant;
+      historicoMap[mesKey].costoEstimado += cant * Number(r.costoUnitario || 0);
+      historicoMap[mesKey].totalRegistros += 1;
+    }
+
+    if (!historicoMap[currentYearMonth]) {
+      historicoMap[currentYearMonth] = {
+        mes: currentYearMonth,
+        correlativo: `MRM-${currentYearMonth}`,
+        totalTallos: 0,
+        costoEstimado: 0,
+        totalRegistros: 0,
+        estado: 'ABIERTO'
+      };
+    }
+
+    const historicoReportes = Object.values(historicoMap).sort((a, b) => b.mes.localeCompare(a.mes));
+
     return NextResponse.json({
       mermas,
+      historicoReportes,
       kpis: {
         totalMermasMes,
         florMayorMerma,

@@ -26,7 +26,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Unlock
+  Unlock,
+  FolderArchive,
+  Eye,
+  ArrowLeft,
+  ArrowUpRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -61,8 +65,34 @@ interface MermasKPIs {
   mesSeleccionado: string;
 }
 
+interface ReporteMensualHistorico {
+  mes: string;
+  totalRegistros: number;
+  totalTallos: number;
+  costoEstimado: number;
+  correlativo: string;
+  estado: 'ABIERTO' | 'CERRADO';
+}
+
 const fmtLps = (n: number) =>
   n.toLocaleString('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 });
+
+const formatMonthName = (mesStr: string): string => {
+  if (!mesStr || mesStr === 'TODOS') return 'Todos los Períodos';
+  const parts = mesStr.split('-');
+  if (parts.length < 2) return mesStr;
+  const year = parts[0];
+  const month = parts[1];
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const mIndex = parseInt(month, 10) - 1;
+  if (mIndex >= 0 && mIndex < 12) {
+    return `${monthNames[mIndex]} ${year}`;
+  }
+  return mesStr;
+};
 
 const formatFechaDMY = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '';
@@ -77,6 +107,7 @@ const formatFechaDMY = (dateStr: string | null | undefined): string => {
 
 export default function MermasPage() {
   const [mermas, setMermas] = useState<RegistroMermaItem[]>([]);
+  const [historicoReportes, setHistoricoReportes] = useState<ReporteMensualHistorico[]>([]);
   const [kpis, setKpis] = useState<MermasKPIs>({
     totalMermasMes: 0,
     florMayorMerma: { nombre: 'Ninguna', cantidad: 0 },
@@ -88,7 +119,7 @@ export default function MermasPage() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'PLANILLA' | 'ANALISIS'>('PLANILLA');
+  const [activeTab, setActiveTab] = useState<'PLANILLA' | 'HISTORICO' | 'ANALISIS'>('PLANILLA');
   const [showCards, setShowCards] = useState<boolean>(false); // Ocultas por defecto
   const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
 
@@ -187,6 +218,7 @@ export default function MermasPage() {
       const data = await res.json();
       setMermas(data.mermas || []);
       if (data.kpis) setKpis(data.kpis);
+      if (data.historicoReportes) setHistoricoReportes(data.historicoReportes);
     } catch (err) {
       console.error(err);
       toast.error('Error cargando registros de merma');
@@ -354,14 +386,18 @@ export default function MermasPage() {
     toast.success('Reporte Excel descargado');
   };
 
-  // Meses disponibles para el selector rápido
-  const mesesOpciones = [
-    { value: '2026-10', label: 'Octubre 2026' },
-    { value: '2026-09', label: 'Septiembre 2026' },
-    { value: '2026-08', label: 'Agosto 2026' },
-    { value: '2026-07', label: 'Julio 2026' },
-    { value: 'TODOS', label: 'Todos los Períodos' }
-  ];
+    // Meses disponibles para el selector rápido (dinámicos desde el histórico)
+    const mesesOpciones = [
+      ...(historicoReportes.length > 0
+        ? historicoReportes.map(r => ({
+            value: r.mes,
+            label: `${formatMonthName(r.mes)} (${r.correlativo})`
+          }))
+        : [
+            { value: currentMonthValue, label: `${formatMonthName(currentMonthValue)} (MRM-${currentMonthValue})` }
+          ]),
+      { value: 'TODOS', label: 'Todos los Períodos (Histórico Completo)' }
+    ];
 
   // Cálculos de Paginación
   const totalItems = mermas.length;
@@ -450,17 +486,44 @@ export default function MermasPage() {
             )}
           </button>
 
-          <button
-            onClick={() => setActiveTab(activeTab === 'PLANILLA' ? 'ANALISIS' : 'PLANILLA')}
-            className={`px-3.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-sm ${
-              activeTab === 'ANALISIS'
-                ? 'bg-emerald-700 text-white shadow-emerald-700/20'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 text-emerald-600" />
-            <span>{activeTab === 'ANALISIS' ? 'Ver Planilla' : 'Análisis y Factores'}</span>
-          </button>
+          {/* Navegación por Pestañas */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
+            <button
+              onClick={() => setActiveTab('PLANILLA')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'PLANILLA'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Planilla</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('HISTORICO')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'HISTORICO'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FolderArchive className="w-3.5 h-3.5 text-blue-600" />
+              <span>Histórico {historicoReportes.length > 0 && `(${historicoReportes.length})`}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ANALISIS')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'ANALISIS'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Análisis</span>
+            </button>
+          </div>
 
           <button
             onClick={handleExportarExcel}
@@ -659,6 +722,45 @@ export default function MermasPage() {
       {/* ========================================================================= */}
       {activeTab === 'PLANILLA' && (
         <div className="space-y-4">
+          {/* Banner Informativo cuando se está consultando un Mes Histórico Pasado */}
+          {selectedMes !== currentMonthValue && selectedMes !== 'TODOS' && (
+            <div className="bg-amber-50/90 border-2 border-amber-300 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+                  <FolderArchive className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black uppercase text-amber-900 tracking-wider">
+                      Consultando Reporte Histórico:
+                    </span>
+                    <span className="font-mono font-bold text-xs bg-amber-200/90 text-amber-950 px-2 py-0.5 rounded-md border border-amber-300">
+                      {correlativoOficial} • {formatMonthName(selectedMes)}
+                    </span>
+                    <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-300 flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5 text-slate-500" />
+                      <span>Reporte Cerrado</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-800/90 font-medium mt-1">
+                    Estás auditando los registros de este período anterior. Tu reporte del mes actual sigue 100% a salvo e intacto.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedMes(currentMonthValue);
+                  toast.success(`Regresando al mes activo: ${formatMonthName(currentMonthValue)}`);
+                }}
+                className="px-4 py-2.5 bg-white hover:bg-amber-100 active:scale-95 text-amber-950 border border-amber-300 rounded-2xl text-xs font-black shadow-xs transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4 text-amber-700" />
+                <span>Volver al Mes en Curso ({formatMonthName(currentMonthValue)})</span>
+              </button>
+            </div>
+          )}
+
           {/* ========================================================================= */}
           {/* BARRA SUPERIOR FIJA DE CAPTURA RÁPIDA (DISEÑO VERDE SUAVE TIPO REPORTE) */}
           {/* ========================================================================= */}
@@ -1055,6 +1157,150 @@ export default function MermasPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VISTA 3: HISTÓRICO DE REPORTES MENSUALES (BANDEJA DE REPORTES MRM) */}
+      {/* ========================================================================= */}
+      {activeTab === 'HISTORICO' && (
+        <div className="space-y-5 animate-in fade-in duration-200">
+          {/* Banner explicativo del Archivo Histórico */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0">
+                <FolderArchive className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <span>Archivo Histórico de Reportes de Merma (MRM)</span>
+                </h3>
+                <p className="text-xs text-slate-500 max-w-2xl font-medium leading-relaxed">
+                  Al llegar la medianoche de cada fin de mes, el reporte mensual se consolida automáticamente. Al iniciar el nuevo mes, la planilla comienza en limpio para los nuevos registros sin perder ningún dato anterior. Haz clic en <strong>Cargar Planilla</strong> para revisar cualquier mes previo.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start md:self-center shrink-0 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600">
+              <span>Total de Reportes:</span>
+              <span className="font-mono font-black text-slate-900 text-sm">
+                {historicoReportes.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Grilla de Tarjetas de Reportes Mensuales */}
+          {historicoReportes.length === 0 ? (
+            <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3">
+              <FolderArchive className="w-12 h-12 text-slate-300 mx-auto" />
+              <h4 className="text-base font-bold text-slate-700">No se encontraron reportes anteriores</h4>
+              <p className="text-xs text-slate-400">A medida que registres mermas, aparecerán aquí agrupados por cada mes calendario.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {historicoReportes.map((rep) => {
+                const esMesActual = rep.mes === currentMonthValue;
+                const estaSeleccionado = selectedMes === rep.mes;
+
+                return (
+                  <div
+                    key={rep.mes}
+                    className={`bg-white rounded-3xl p-5 border transition-all duration-200 flex flex-col justify-between shadow-xs hover:shadow-md ${
+                      estaSeleccionado
+                        ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200/90 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      {/* Encabezado de la Tarjeta */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-slate-900 text-sm tracking-wider">
+                            {rep.correlativo}
+                          </span>
+                          {estaSeleccionado && (
+                            <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                              En Pantalla
+                            </span>
+                          )}
+                        </div>
+
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${
+                          rep.estado === 'ABIERTO'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : 'bg-slate-100 text-slate-700 border-slate-300'
+                        }`}>
+                          {rep.estado === 'ABIERTO' ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span>EN CURSO</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-2.5 h-2.5 text-slate-500" />
+                              <span>CERRADO</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Nombre del Mes */}
+                      <div>
+                        <h4 className="text-lg font-black text-slate-900 capitalize">
+                          {formatMonthName(rep.mes)}
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {esMesActual ? 'Período actual en proceso de llenado' : 'Período archivado en historial'}
+                        </p>
+                      </div>
+
+                      {/* Métricas del Reporte */}
+                      <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 text-center">
+                        <div className="bg-slate-50 p-2 rounded-xl">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Tallos</span>
+                          <span className="text-sm font-black text-slate-900 font-mono">
+                            {rep.totalTallos}
+                          </span>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-xl">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Filas</span>
+                          <span className="text-sm font-black text-slate-900 font-mono">
+                            {rep.totalRegistros}
+                          </span>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-xl">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Costo</span>
+                          <span className="text-xs font-black text-purple-900 font-mono">
+                            {fmtLps(rep.costoEstimado)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botón para Cargar en la Planilla */}
+                    <div className="pt-4">
+                      <button
+                        onClick={() => {
+                          setSelectedMes(rep.mes);
+                          setActiveTab('PLANILLA');
+                          toast.success(`Cargando reporte ${rep.correlativo} (${formatMonthName(rep.mes)})`);
+                        }}
+                        className={`w-full py-2.5 px-4 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-xs ${
+                          estaSeleccionado
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white active:scale-95'
+                        }`}
+                      >
+                        <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{estaSeleccionado ? 'Ver Planilla Detallada (Activo)' : 'Cargar y Ver Planilla Detallada'}</span>
+                        <ArrowUpRight className="w-3.5 h-3.5 opacity-70" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
