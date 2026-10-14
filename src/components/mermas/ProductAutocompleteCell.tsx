@@ -22,6 +22,7 @@ interface ProductAutocompleteCellProps {
   autoFocus?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   className?: string;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export function ProductAutocompleteCell({
@@ -31,14 +32,16 @@ export function ProductAutocompleteCell({
   placeholder = 'Buscar flor o producto...',
   autoFocus = false,
   onKeyDown,
-  className = ''
+  className = '',
+  inputRef: inputRefProp
 }: ProductAutocompleteCellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<ProductCatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const inputRef = useRef<HTMLInputElement>(null);
+  const internalRef = useRef<HTMLInputElement>(null);
+  const inputRef = inputRefProp || internalRef;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Configuración de Floating UI para el Smart Flip (Arriba / Abajo)

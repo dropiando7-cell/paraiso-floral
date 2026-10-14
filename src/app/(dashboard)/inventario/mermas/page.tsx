@@ -21,7 +21,12 @@ import {
   Info,
   Maximize2,
   Minimize2,
-  LayoutDashboard
+  LayoutDashboard,
+  Zap,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -124,7 +129,19 @@ export default function MermasPage() {
   const [motivoFiltro, setMotivoFiltro] = useState('TODOS');
   const [categoriaFiltro, setCategoriaFiltro] = useState('TODOS');
 
-  // Fila de Entrada Rápida (Nueva Fila al final)
+  // Paginación
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Correlativo Oficial del Reporte Mensual
+  const correlativoOficial = selectedMes === 'TODOS' ? 'MRM-HISTÓRICO' : `MRM-${selectedMes}`;
+  const estadoReporte = selectedMes === 'TODOS'
+    ? 'HISTÓRICO'
+    : selectedMes >= currentMonthValue
+      ? 'ABIERTO'
+      : 'CERRADO';
+
+  // Fila de Entrada Rápida Superior
   const todayStr = new Date().toISOString().split('T')[0];
   const [newFecha, setNewFecha] = useState(todayStr);
   const [newProductoNombre, setNewProductoNombre] = useState('');
@@ -136,6 +153,7 @@ export default function MermasPage() {
   const [newNotas, setNewNotas] = useState('');
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
 
+  const newFlorInputRef = useRef<HTMLInputElement>(null);
   const newCantidadInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar datos desde la API
@@ -163,12 +181,14 @@ export default function MermasPage() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     cargarDatos();
   }, [selectedMes, motivoFiltro, categoriaFiltro]);
 
   // Manejar búsqueda con debounce leve
   useEffect(() => {
     const timer = setTimeout(() => {
+      setCurrentPage(1);
       cargarDatos();
     }, 250);
     return () => clearTimeout(timer);
@@ -192,12 +212,14 @@ export default function MermasPage() {
   const handleGuardarNuevaFila = async () => {
     if (!newProductoNombre.trim()) {
       toast.error('Escribe o selecciona una flor');
+      newFlorInputRef.current?.focus();
       return;
     }
 
     const cantNum = parseInt(newCantidad, 10);
     if (isNaN(cantNum) || cantNum <= 0) {
       toast.error('Ingresa una cantidad válida mayor a 0');
+      newCantidadInputRef.current?.focus();
       return;
     }
 
@@ -230,8 +252,16 @@ export default function MermasPage() {
       setNewCantidad('1');
       setNewNotas('');
 
+      // Regresar a la página 1 para ver el registro arriba inmediatamente
+      setCurrentPage(1);
+
       // Recargar datos
-      cargarDatos();
+      await cargarDatos();
+
+      // Devolver foco automático a la flor para captura continua
+      setTimeout(() => {
+        newFlorInputRef.current?.focus();
+      }, 60);
     } catch (err: any) {
       toast.error(err.message || 'Error guardando merma');
     } finally {
@@ -317,6 +347,14 @@ export default function MermasPage() {
     { value: '2026-07', label: 'Julio 2026' },
     { value: 'TODOS', label: 'Todos los Períodos' }
   ];
+
+  // Cálculos de Paginación
+  const totalItems = mermas.length;
+  const totalPages = itemsPerPage === 9999 ? 1 : Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * itemsPerPage;
+  const endIndex = itemsPerPage === 9999 ? totalItems : Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedMermas = itemsPerPage === 9999 ? mermas : mermas.slice(startIndex, endIndex);
 
   return (
     <div className={isKioskMode 
@@ -518,9 +556,9 @@ export default function MermasPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* BARRA DE FILTROS & SELECTOR DE MES */}
+      {/* BARRA DE FILTROS, CORRELATIVO OFICIAL & SELECTOR DE MES */}
       {/* ========================================================================= */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap flex-1">
           {/* Selector de Mes Rápido */}
           <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">
@@ -535,6 +573,35 @@ export default function MermasPage() {
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
+          </div>
+
+          {/* Badge de Correlativo Oficial y Estado */}
+          <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl border border-slate-800 shadow-sm">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Reporte:</span>
+            <span className="font-mono font-black text-emerald-300 text-xs tracking-wider">
+              {correlativoOficial}
+            </span>
+            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+              estadoReporte === 'ABIERTO'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                : estadoReporte === 'CERRADO'
+                  ? 'bg-slate-800 text-slate-300 border-slate-700'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+            }`}>
+              {estadoReporte === 'ABIERTO' ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>ABIERTO</span>
+                </>
+              ) : estadoReporte === 'CERRADO' ? (
+                <>
+                  <Lock className="w-2.5 h-2.5 text-slate-400" />
+                  <span>CERRADO</span>
+                </>
+              ) : (
+                <span>HISTÓRICO</span>
+              )}
+            </span>
           </div>
 
           {/* Filtro por Motivo */}
@@ -567,8 +634,8 @@ export default function MermasPage() {
           </div>
         </div>
 
-        <div className="text-right text-xs font-bold text-slate-500">
-          Mostrando <span className="text-slate-900 font-extrabold">{mermas.length}</span> registros
+        <div className="text-right text-xs font-bold text-slate-500 self-center">
+          Total registros: <span className="text-slate-900 font-extrabold">{totalItems}</span>
         </div>
       </div>
 
@@ -576,218 +643,369 @@ export default function MermasPage() {
       {/* VISTA 1: PLANILLA TIPO HOJA DE CÁLCULO ÁGIL */}
       {/* ========================================================================= */}
       {activeTab === 'PLANILLA' && (
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-100/80 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase tracking-wider">
-                  <th className="py-3 px-3 text-center w-10">#</th>
-                  <th className="py-3 px-3 w-28">Fecha</th>
-                  <th className="py-3 px-3 min-w-[240px]">Producto / Flor (Catálogo)</th>
-                  <th className="py-3 px-3 w-28">Categoría</th>
-                  <th className="py-3 px-3 text-center w-28">Cantidad (Tallos)</th>
-                  <th className="py-3 px-3 w-44">Motivo de Pérdida</th>
-                  <th className="py-3 px-3 min-w-[160px]">Observaciones / Notas</th>
-                  <th className="py-3 px-3 text-center w-12"></th>
-                </tr>
-              </thead>
+        <div className="space-y-4">
+          {/* ========================================================================= */}
+          {/* BARRA SUPERIOR FIJA DE CAPTURA RÁPIDA (DIGITACIÓN CONTINUA EN BODEGA) */}
+          {/* ========================================================================= */}
+          <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white p-4 sm:p-5 rounded-3xl shadow-lg border border-emerald-500/30 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                  <Zap className="w-4 h-4 animate-pulse" />
+                </span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black tracking-wide uppercase text-white flex items-center gap-2">
+                    <span>Ingreso Rápido de Merma</span>
+                    <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                      {correlativoOficial}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Escribe la flor, digita la cantidad y presiona <kbd className="px-1.5 py-0.5 bg-white/10 text-emerald-300 rounded font-mono font-bold border border-white/10">Enter</kbd> para guardar.
+                  </p>
+                </div>
+              </div>
 
-              <tbody className="divide-y divide-slate-100">
-                {/* Filas Existentes */}
-                {mermas.map((m, idx) => (
-                  <tr key={m.id} className="hover:bg-slate-50/80 transition-colors group">
-                    {/* # */}
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-400">
-                      {idx + 1}
-                    </td>
+              {/* Indicador de atajos de teclado */}
+              <div className="hidden sm:flex items-center gap-2 text-[11px] text-slate-400">
+                <span>Atajos:</span>
+                <kbd className="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono font-bold">
+                  Enter ↵
+                </kbd>
+                <span>o</span>
+                <kbd className="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono font-bold">
+                  Ctrl + Enter
+                </kbd>
+              </div>
+            </div>
 
-                    {/* Fecha */}
-                    <td className="py-2.5 px-3 font-semibold text-slate-800">
-                      <span className="font-mono">{formatFechaDMY(m.fecha)}</span>
-                    </td>
+            {/* Fila Principal de Entradas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+              {/* 1. Fecha */}
+              <div className="lg:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">
+                  Fecha
+                </label>
+                <input
+                  type="date"
+                  value={newFecha}
+                  onChange={(e) => setNewFecha(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      handleGuardarNuevaFila();
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs font-bold text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer shadow-sm"
+                />
+              </div>
 
-                    {/* Producto */}
-                    <td className="py-2.5 px-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900 text-xs uppercase">
-                          {m.nombreProducto}
-                        </span>
-                        {m.sku && (
-                          <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-bold">
-                            {m.sku}
+              {/* 2. Flor / Producto (con Buscador Inteligente Coincidencias) */}
+              <div className="lg:col-span-4 space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                  <span>Flor / Producto</span>
+                  {newSku && (
+                    <span className="font-mono text-emerald-300 text-[10px]">
+                      SKU: {newSku}
+                    </span>
+                  )}
+                </div>
+                <ProductAutocompleteCell
+                  value={newProductoNombre}
+                  onChange={setNewProductoNombre}
+                  onSelectProduct={handleSelectProductNewRow}
+                  inputRef={newFlorInputRef}
+                  placeholder="Escribe flor (ej. Girasol, Rosa)..."
+                  className="border-white/20 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-400 shadow-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      handleGuardarNuevaFila();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* 3. Cantidad */}
+              <div className="lg:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">
+                  Cantidad (Tallos)
+                </label>
+                <input
+                  ref={newCantidadInputRef}
+                  type="number"
+                  min="1"
+                  value={newCantidad}
+                  onChange={(e) => setNewCantidad(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleGuardarNuevaFila();
+                    }
+                  }}
+                  className="w-full text-center py-2 px-3 font-mono font-black text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-400 outline-none text-sm shadow-sm"
+                  placeholder="1"
+                />
+              </div>
+
+              {/* 4. Causa / Motivo */}
+              <div className="lg:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">
+                  Causa / Motivo
+                </label>
+                <div className="bg-white rounded-xl p-0.5 shadow-sm">
+                  <MotivoSelectBadge
+                    value={newMotivo}
+                    onChange={setNewMotivo}
+                  />
+                </div>
+              </div>
+
+              {/* 5. Botón Insertar */}
+              <div className="lg:col-span-2">
+                <button
+                  onClick={handleGuardarNuevaFila}
+                  disabled={isSubmittingNew || !newProductoNombre.trim()}
+                  className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-300"
+                  title="Insertar línea de merma (Enter)"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>{isSubmittingNew ? 'Guardando...' : 'Insertar (Enter)'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Fila Secundaria: Categoría y Notas */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 text-xs">
+              <div className="flex items-center gap-2 text-slate-300 text-[11px] whitespace-nowrap">
+                <span>Categoría:</span>
+                <span className="bg-white/10 text-emerald-300 font-bold px-2 py-0.5 rounded-lg border border-white/10">
+                  {newCategoria}
+                </span>
+              </div>
+              <div className="flex-1 w-full">
+                <input
+                  type="text"
+                  value={newNotas}
+                  onChange={(e) => setNewNotas(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleGuardarNuevaFila();
+                    }
+                  }}
+                  placeholder="Observación / nota opcional (ej: tallo roto en descarga)..."
+                  className="w-full py-1.5 px-3 text-xs text-slate-100 bg-white/10 border border-white/10 rounded-xl focus:bg-slate-900 focus:border-emerald-400 outline-none placeholder:text-slate-400 transition"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* TABLA PRINCIPAL DE REGISTROS DE MERMAS */}
+          {/* ========================================================================= */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100/80 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                    <th className="py-3 px-3 text-center w-12">#</th>
+                    <th className="py-3 px-3 w-28">Fecha</th>
+                    <th className="py-3 px-3 min-w-[240px]">Producto / Flor (Catálogo)</th>
+                    <th className="py-3 px-3 w-28">Categoría</th>
+                    <th className="py-3 px-3 text-center w-28">Cantidad (Tallos)</th>
+                    <th className="py-3 px-3 w-44">Motivo de Pérdida</th>
+                    <th className="py-3 px-3 min-w-[160px]">Observaciones / Notas</th>
+                    <th className="py-3 px-3 text-center w-12"></th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedMermas.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400 italic">
+                        {loading ? 'Cargando registros...' : 'No hay registros de merma para este período o filtro.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedMermas.map((m, idx) => (
+                      <tr key={m.id} className="hover:bg-slate-50/80 transition-colors group">
+                        {/* # Global */}
+                        <td className="py-2.5 px-3 text-center font-bold text-slate-400">
+                          {startIndex + idx + 1}
+                        </td>
+
+                        {/* Fecha */}
+                        <td className="py-2.5 px-3 font-semibold text-slate-800">
+                          <span className="font-mono">{formatFechaDMY(m.fecha)}</span>
+                        </td>
+
+                        {/* Producto */}
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900 text-xs uppercase">
+                              {m.nombreProducto}
+                            </span>
+                            {m.sku && (
+                              <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-bold">
+                                {m.sku}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Categoría */}
+                        <td className="py-2.5 px-3">
+                          <span className="inline-block text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md">
+                            {m.categoria || 'Misceláneo'}
                           </span>
-                        )}
-                      </div>
-                    </td>
+                        </td>
 
-                    {/* Categoría */}
-                    <td className="py-2.5 px-3">
-                      <span className="inline-block text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md">
-                        {m.categoria || 'Misceláneo'}
-                      </span>
-                    </td>
+                        {/* Cantidad Editable */}
+                        <td className="py-2.5 px-3 text-center">
+                          <input
+                            type="number"
+                            min="1"
+                            defaultValue={m.cantidad}
+                            onBlur={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (val > 0 && val !== m.cantidad) {
+                                handleUpdateItem(m.id, { cantidad: val });
+                              }
+                            }}
+                            className="w-20 text-center py-1 px-2 font-mono font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                          />
+                        </td>
 
-                    {/* Cantidad Editable */}
-                    <td className="py-2.5 px-3 text-center">
-                      <input
-                        type="number"
-                        min="1"
-                        defaultValue={m.cantidad}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          if (val > 0 && val !== m.cantidad) {
-                            handleUpdateItem(m.id, { cantidad: val });
-                          }
-                        }}
-                        className="w-20 text-center py-1 px-2 font-mono font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                      />
-                    </td>
+                        {/* Motivo de Pérdida */}
+                        <td className="py-2.5 px-3">
+                          <MotivoSelectBadge
+                            value={m.motivo}
+                            onChange={(newMotivo) => handleUpdateItem(m.id, { motivo: newMotivo })}
+                          />
+                        </td>
 
-                    {/* Motivo de Pérdida */}
-                    <td className="py-2.5 px-3">
-                      <MotivoSelectBadge
-                        value={m.motivo}
-                        onChange={(newMotivo) => handleUpdateItem(m.id, { motivo: newMotivo })}
-                      />
-                    </td>
+                        {/* Observaciones */}
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="text"
+                            defaultValue={m.notas || ''}
+                            placeholder="Sin notas..."
+                            onBlur={(e) => {
+                              if (e.target.value !== (m.notas || '')) {
+                                handleUpdateItem(m.id, { notas: e.target.value });
+                              }
+                            }}
+                            className="w-full py-1 px-2 text-xs text-slate-700 bg-transparent hover:bg-slate-50 border border-transparent hover:border-slate-200 rounded-lg focus:bg-white focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300"
+                          />
+                        </td>
 
-                    {/* Observaciones */}
-                    <td className="py-2.5 px-3">
-                      <input
-                        type="text"
-                        defaultValue={m.notas || ''}
-                        placeholder="Sin notas..."
-                        onBlur={(e) => {
-                          if (e.target.value !== (m.notas || '')) {
-                            handleUpdateItem(m.id, { notas: e.target.value });
-                          }
-                        }}
-                        className="w-full py-1 px-2 text-xs text-slate-700 bg-transparent hover:bg-slate-50 border border-transparent hover:border-slate-200 rounded-lg focus:bg-white focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300"
-                      />
-                    </td>
+                        {/* Botón Eliminar */}
+                        <td className="py-2.5 px-3 text-center">
+                          <button
+                            onClick={() => handleDeleteItem(m.id, m.nombreProducto)}
+                            className="p-1.5 text-slate-300 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
 
-                    {/* Botón Eliminar */}
-                    <td className="py-2.5 px-3 text-center">
-                      <button
-                        onClick={() => handleDeleteItem(m.id, m.nombreProducto)}
-                        className="p-1.5 text-slate-300 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                        title="Eliminar registro"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                {/* Fila Totalizadora */}
+                <tfoot>
+                  <tr className="bg-slate-100 font-black text-xs border-t-2 border-slate-300">
+                    <td colSpan={4} className="py-3 px-3 text-right uppercase text-slate-700">
+                      TOTAL MERMAS EN EL PERÍODO:
+                    </td>
+                    <td className="py-3 px-3 text-center font-mono text-emerald-950 bg-emerald-100 text-sm font-black">
+                      {kpis.totalMermasMes} tallos
+                    </td>
+                    <td colSpan={3} className="py-3 px-3 text-slate-500 text-[11px] font-semibold">
+                      Costo base estimado: <span className="font-bold text-slate-900">{fmtLps(kpis.costoTotalEstimado)}</span>
                     </td>
                   </tr>
-                ))}
+                </tfoot>
+              </table>
+            </div>
 
-                {/* ========================================================================= */}
-                {/* FILA DE ENTRADA RÁPIDA (NUEVO REGISTRO EN TIEMPO REAL - TECLADO CONTINUO) */}
-                {/* ========================================================================= */}
-                <tr className="bg-emerald-50/50 border-t-2 border-emerald-300">
-                  {/* # */}
-                  <td className="py-2 px-3 text-center font-black text-emerald-800">
-                    <Plus className="w-4 h-4 mx-auto text-emerald-600" />
-                  </td>
-
-                  {/* Fecha */}
-                  <td className="py-2 px-3">
-                    <input
-                      type="date"
-                      value={newFecha}
-                      onChange={(e) => setNewFecha(e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs font-bold text-slate-800 bg-white border border-emerald-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                    />
-                  </td>
-
-                  {/* Producto con Buscador Inteligente Coincidencias */}
-                  <td className="py-2 px-3">
-                    <ProductAutocompleteCell
-                      value={newProductoNombre}
-                      onChange={setNewProductoNombre}
-                      onSelectProduct={handleSelectProductNewRow}
-                      placeholder="Escribe para buscar flor (ej: Girasol, Rosa)..."
-                      className="border-emerald-300 focus:ring-emerald-600"
-                    />
-                  </td>
-
-                  {/* Categoría (se auto-asigna) */}
-                  <td className="py-2 px-3">
-                    <span className="inline-block text-[11px] font-extrabold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg">
-                      {newCategoria}
-                    </span>
-                  </td>
-
-                  {/* Cantidad */}
-                  <td className="py-2 px-3 text-center">
-                    <input
-                      ref={newCantidadInputRef}
-                      type="number"
-                      min="1"
-                      value={newCantidad}
-                      onChange={(e) => setNewCantidad(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleGuardarNuevaFila();
-                        }
-                      }}
-                      className="w-20 text-center py-1.5 px-2 font-mono font-black text-slate-900 bg-white border border-emerald-400 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
-                  </td>
-
-                  {/* Motivo */}
-                  <td className="py-2 px-3">
-                    <MotivoSelectBadge
-                      value={newMotivo}
-                      onChange={setNewMotivo}
-                    />
-                  </td>
-
-                  {/* Notas */}
-                  <td className="py-2 px-3">
-                    <input
-                      type="text"
-                      value={newNotas}
-                      placeholder="Nota opcional..."
-                      onChange={(e) => setNewNotas(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleGuardarNuevaFila();
-                        }
-                      }}
-                      className="w-full py-1.5 px-2.5 text-xs text-slate-800 bg-white border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-slate-400"
-                    />
-                  </td>
-
-                  {/* Botón Guardar Fila */}
-                  <td className="py-2 px-3 text-center">
+            {/* ========================================================================= */}
+            {/* CONTROLES DE PAGINACIÓN */}
+            {/* ========================================================================= */}
+            <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
+              {/* Selector de registros por página */}
+              <div className="flex items-center gap-2">
+                <span>Por página:</span>
+                <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-slate-200 shadow-xs">
+                  {[10, 25, 50, 100].map((num) => (
                     <button
-                      onClick={handleGuardarNuevaFila}
-                      disabled={isSubmittingNew || !newProductoNombre.trim()}
-                      className="p-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg transition-all shadow cursor-pointer disabled:opacity-40"
-                      title="Guardar fila de merma (o presiona Enter)"
+                      key={num}
+                      onClick={() => {
+                        setItemsPerPage(num);
+                        setCurrentPage(1);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        itemsPerPage === num
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
                     >
-                      <Plus className="w-4 h-4" />
+                      {num}
                     </button>
-                  </td>
-                </tr>
-              </tbody>
+                  ))}
+                  <button
+                    onClick={() => {
+                      setItemsPerPage(9999);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      itemsPerPage === 9999
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                </div>
+              </div>
 
-              {/* Fila Totalizadora */}
-              <tfoot>
-                <tr className="bg-slate-100 font-black text-xs border-t-2 border-slate-300">
-                  <td colSpan={4} className="py-3 px-3 text-right uppercase text-slate-700">
-                    TOTAL MERMAS EN EL PERÍODO:
-                  </td>
-                  <td className="py-3 px-3 text-center font-mono text-emerald-950 bg-emerald-100 text-sm font-black">
-                    {kpis.totalMermasMes} tallos
-                  </td>
-                  <td colSpan={3} className="py-3 px-3 text-slate-500 text-[11px] font-semibold">
-                    Costo base estimado: <span className="font-bold text-slate-900">{fmtLps(kpis.costoTotalEstimado)}</span>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+              {/* Rango numérico */}
+              <div className="text-slate-500 font-medium">
+                Mostrando{' '}
+                <span className="font-bold text-slate-900">
+                  {totalItems === 0 ? 0 : startIndex + 1} - {endIndex}
+                </span>{' '}
+                de <span className="font-bold text-slate-900">{totalItems}</span> registros
+              </div>
+
+              {/* Botones de Navegación */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 active:scale-95 text-slate-700 rounded-xl font-bold transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer border border-slate-200 shadow-xs"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Anterior</span>
+                </button>
+
+                <span className="px-2 font-mono font-bold text-slate-800">
+                  Pág. {safePage} de {totalPages}
+                </span>
+
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 active:scale-95 text-slate-700 rounded-xl font-bold transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer border border-slate-200 shadow-xs"
+                >
+                  <span>Siguiente</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
