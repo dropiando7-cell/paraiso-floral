@@ -716,6 +716,7 @@ model RegistroMerma {
   sku             String?
   categoria       String?
   cantidad        Int          @default(1)
+  unidadMedida    String       @default("UNIDAD") // UNIDAD | PAQUETE
   motivo          String?      @default("MADURACION_MARCHITA")
   notas           String?
   costoUnitario   Decimal?     @db.Decimal(12, 2)

@@ -45,6 +45,7 @@ interface RegistroMermaItem {
   sku: string | null;
   categoria: string | null;
   cantidad: number;
+  unidadMedida: UnidadMedida;
   motivo: string;
   notas: string | null;
   costoUnitario: number | null;
@@ -55,23 +56,82 @@ interface RegistroMermaItem {
   } | null;
 }
 
+type UnidadMedida = 'UNIDAD' | 'PAQUETE';
+type ConteoUnidad = { unidades: number; paquetes: number };
+const conteoVacio: ConteoUnidad = { unidades: 0, paquetes: 0 };
+
 interface MermasKPIs {
-  totalMermasMes: number;
-  florMayorMerma: { nombre: string; cantidad: number };
-  perdidasHoy: number;
+  totalesMes: ConteoUnidad;
+  florMayorMerma: { nombre: string } & ConteoUnidad;
+  perdidasHoy: ConteoUnidad;
   costoTotalEstimado: number;
-  desglosePorMotivo: Record<string, number>;
-  desglosePorCategoria: Record<string, number>;
+  desglosePorMotivo: Record<string, ConteoUnidad>;
+  desglosePorCategoria: Record<string, ConteoUnidad>;
   mesSeleccionado: string;
 }
 
 interface ReporteMensualHistorico {
   mes: string;
   totalRegistros: number;
-  totalTallos: number;
+  totalUnidades: number;
+  totalPaquetes: number;
   costoEstimado: number;
   correlativo: string;
   estado: 'ABIERTO' | 'CERRADO';
+}
+
+const labelUnidad = (u: UnidadMedida, n: number) =>
+  u === 'PAQUETE' ? (n === 1 ? 'paquete' : 'paquetes') : (n === 1 ? 'unidad' : 'unidades');
+
+/** "12 uds · 3 paq" — unidades y paquetes nunca se suman entre sí */
+const fmtConteo = (c?: ConteoUnidad | null) => {
+  const u = c?.unidades || 0;
+  const p = c?.paquetes || 0;
+  if (!u && !p) return '0';
+  return [u ? `${u} uds` : null, p ? `${p} paq` : null].filter(Boolean).join(' · ');
+};
+
+const pesoConteo = (c: ConteoUnidad) => c.paquetes * 1000 + c.unidades;
+
+/** Selector segmentado Unidades / Paquetes */
+function UnidadToggle({
+  value,
+  onChange,
+  size = 'md'
+}: {
+  value: UnidadMedida;
+  onChange: (u: UnidadMedida) => void;
+  size?: 'sm' | 'md';
+}) {
+  const base = size === 'sm' ? 'px-2 py-1 text-[10px]' : 'px-2.5 h-full text-[11px]';
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Unidad de medida"
+      className={`inline-flex items-stretch bg-white border border-emerald-300 rounded-xl p-0.5 shadow-2xs ${size === 'md' ? 'h-10' : ''}`}
+    >
+      {(['UNIDAD', 'PAQUETE'] as UnidadMedida[]).map(u => (
+        <button
+          key={u}
+          type="button"
+          role="radio"
+          aria-checked={value === u}
+          tabIndex={-1}
+          onClick={() => onChange(u)}
+          title={u === 'UNIDAD' ? 'Unidades sueltas (atajo: U)' : 'Paquetes completos (atajo: P)'}
+          className={`${base} rounded-lg font-black uppercase tracking-wide transition-all cursor-pointer flex items-center ${
+            value === u
+              ? u === 'PAQUETE'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          {u === 'UNIDAD' ? 'Uds' : 'Paq'}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 const fmtLps = (n: number) =>
@@ -109,9 +169,9 @@ export default function MermasPage() {
   const [mermas, setMermas] = useState<RegistroMermaItem[]>([]);
   const [historicoReportes, setHistoricoReportes] = useState<ReporteMensualHistorico[]>([]);
   const [kpis, setKpis] = useState<MermasKPIs>({
-    totalMermasMes: 0,
-    florMayorMerma: { nombre: 'Ninguna', cantidad: 0 },
-    perdidasHoy: 0,
+    totalesMes: conteoVacio,
+    florMayorMerma: { nombre: 'Ninguna', ...conteoVacio },
+    perdidasHoy: conteoVacio,
     costoTotalEstimado: 0,
     desglosePorMotivo: {},
     desglosePorCategoria: {},
@@ -195,6 +255,7 @@ export default function MermasPage() {
   const [newSku, setNewSku] = useState<string | null>(null);
   const [newCategoria, setNewCategoria] = useState('Misceláneo');
   const [newCantidad, setNewCantidad] = useState<string>('1');
+  const [newUnidad, setNewUnidad] = useState<UnidadMedida>('UNIDAD');
   const [newMotivo, setNewMotivo] = useState('MADURACION_MARCHITA');
   const [newNotas, setNewNotas] = useState('');
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
@@ -282,6 +343,7 @@ export default function MermasPage() {
           sku: newSku,
           categoria: newCategoria,
           cantidad: cantNum,
+          unidadMedida: newUnidad,
           motivo: newMotivo,
           notas: newNotas.trim() || null
         })
@@ -289,7 +351,7 @@ export default function MermasPage() {
 
       if (!res.ok) throw new Error('Error al guardar registro');
 
-      toast.success(`Merma registrada: ${cantNum} de ${newProductoNombre.toUpperCase()}`);
+      toast.success(`Merma registrada: ${cantNum} ${labelUnidad(newUnidad, cantNum)} de ${newProductoNombre.toUpperCase()}`);
 
       // Limpiar campos de la fila de entrada rápida
       setNewProductoNombre('');
@@ -369,10 +431,13 @@ export default function MermasPage() {
       'Código / SKU': m.sku || 'N/A',
       'Producto / Flor': m.nombreProducto,
       'Categoría': m.categoria || 'Misceláneo',
-      'Cantidad (Tallos/Uds)': m.cantidad,
+      'Cantidad': m.cantidad,
+      'Unidad': m.unidadMedida === 'PAQUETE' ? 'Paquete' : 'Unidad',
       'Motivo': getMotivoInfo(m.motivo).label,
-      'Costo Unitario (HNL)': m.costoUnitario ? Number(m.costoUnitario).toFixed(2) : '0.00',
-      'Costo Total Merma (HNL)': m.costoUnitario ? (m.cantidad * Number(m.costoUnitario)).toFixed(2) : '0.00',
+      'Costo Paquete (HNL)': m.costoUnitario ? Number(m.costoUnitario).toFixed(2) : '0.00',
+      'Costo Total Merma (HNL)': m.costoUnitario && m.unidadMedida === 'PAQUETE'
+        ? (m.cantidad * Number(m.costoUnitario)).toFixed(2)
+        : '',
       'Observaciones': m.notas || ''
     }));
 
@@ -561,7 +626,9 @@ export default function MermasPage() {
           </div>
           <div className="mt-3">
             <h3 className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">
-              {kpis.totalMermasMes} <span className="text-sm font-semibold text-slate-500">tallos</span>
+              {kpis.totalesMes.unidades} <span className="text-sm font-semibold text-slate-500">uds</span>
+              {' '}
+              <span className="text-amber-700">{kpis.totalesMes.paquetes}</span> <span className="text-sm font-semibold text-slate-500">paq</span>
             </h3>
             <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
               Acumulado de pérdidas en {selectedMes === 'TODOS' ? 'todo el histórico' : selectedMes}
@@ -584,8 +651,8 @@ export default function MermasPage() {
               {kpis.florMayorMerma.nombre}
             </h3>
             <p className="text-[11px] text-amber-800 font-semibold mt-0.5">
-              {kpis.florMayorMerma.cantidad > 0
-                ? `${kpis.florMayorMerma.cantidad} tallos perdidos este mes`
+              {pesoConteo(kpis.florMayorMerma) > 0
+                ? `${fmtConteo(kpis.florMayorMerma)} perdidos en el período`
                 : 'Sin pérdidas registradas'}
             </p>
           </div>
@@ -603,7 +670,9 @@ export default function MermasPage() {
           </div>
           <div className="mt-3">
             <h3 className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">
-              {kpis.perdidasHoy} <span className="text-sm font-semibold text-slate-500">uds</span>
+              {kpis.perdidasHoy.unidades} <span className="text-sm font-semibold text-slate-500">uds</span>
+              {' '}
+              <span className="text-amber-700">{kpis.perdidasHoy.paquetes}</span> <span className="text-sm font-semibold text-slate-500">paq</span>
             </h3>
             <p className="text-[11px] text-rose-700 font-semibold mt-0.5">
               Reportadas en la fecha actual
@@ -626,7 +695,7 @@ export default function MermasPage() {
               {fmtLps(kpis.costoTotalEstimado)}
             </h3>
             <p className="text-[11px] text-purple-800 font-semibold mt-0.5">
-              Valorizado según costo base de compra
+              Valorizado según costo por paquete (solo líneas en paquetes)
             </p>
           </div>
         </div>
@@ -778,7 +847,7 @@ export default function MermasPage() {
                     </span>
                   </h3>
                   <p className="text-[11px] text-emerald-800/80 font-medium">
-                    Escribe la flor, digita la cantidad y presiona <kbd className="px-1.5 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300 shadow-2xs">Enter</kbd> para guardar.
+                    Escribe la flor, digita la cantidad, elige <strong>Uds</strong> o <strong>Paq</strong> (teclas <kbd className="px-1 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300">U</kbd>/<kbd className="px-1 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300">P</kbd>) y presiona <kbd className="px-1.5 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300 shadow-2xs">Enter</kbd> para guardar.
                   </p>
                 </div>
               </div>
@@ -849,7 +918,7 @@ export default function MermasPage() {
               </div>
 
               {/* 2. Flor / Producto (con Buscador Inteligente Coincidencias) */}
-              <div className="lg:col-span-4 space-y-1">
+              <div className="lg:col-span-3 space-y-1">
                 <div className="flex items-center justify-between text-[10px] font-bold text-emerald-900 uppercase tracking-wider">
                   <span>Flor / Producto</span>
                   {newSku && (
@@ -874,26 +943,35 @@ export default function MermasPage() {
                 />
               </div>
 
-              {/* 3. Cantidad */}
-              <div className="lg:col-span-2 space-y-1">
+              {/* 3. Cantidad + Unidad de medida */}
+              <div className="lg:col-span-3 space-y-1">
                 <label className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">
-                  Cantidad (Tallos)
+                  Cantidad ({newUnidad === 'PAQUETE' ? 'Paquetes' : 'Unidades'})
                 </label>
-                <input
-                  ref={newCantidadInputRef}
-                  type="number"
-                  min="1"
-                  value={newCantidad}
-                  onChange={(e) => setNewCantidad(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleGuardarNuevaFila();
-                    }
-                  }}
-                  className="w-full h-10 text-center px-3 font-mono font-black text-slate-900 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-2xs"
-                  placeholder="1"
-                />
+                <div className="flex items-stretch gap-1.5">
+                  <input
+                    ref={newCantidadInputRef}
+                    type="number"
+                    min="1"
+                    value={newCantidad}
+                    onChange={(e) => setNewCantidad(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleGuardarNuevaFila();
+                      } else if (e.key.toLowerCase() === 'u') {
+                        e.preventDefault();
+                        setNewUnidad('UNIDAD');
+                      } else if (e.key.toLowerCase() === 'p') {
+                        e.preventDefault();
+                        setNewUnidad('PAQUETE');
+                      }
+                    }}
+                    className="flex-1 min-w-0 h-10 text-center px-3 font-mono font-black text-slate-900 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-2xs"
+                    placeholder="1"
+                  />
+                  <UnidadToggle value={newUnidad} onChange={setNewUnidad} />
+                </div>
               </div>
 
               {/* 4. Causa / Motivo */}
@@ -963,7 +1041,7 @@ export default function MermasPage() {
                     <th className="py-3 px-3 w-28">Fecha</th>
                     <th className="py-3 px-3 min-w-[240px]">Producto / Flor (Catálogo)</th>
                     <th className="py-3 px-3 w-28">Categoría</th>
-                    <th className="py-3 px-3 text-center w-28">Cantidad (Tallos)</th>
+                    <th className="py-3 px-3 text-center w-40">Cantidad / Unidad</th>
                     <th className="py-3 px-3 w-44">Motivo de Pérdida</th>
                     <th className="py-3 px-3 min-w-[160px]">Observaciones / Notas</th>
                     <th className="py-3 px-3 text-center w-12"></th>
@@ -1011,20 +1089,29 @@ export default function MermasPage() {
                           </span>
                         </td>
 
-                        {/* Cantidad Editable */}
+                        {/* Cantidad + Unidad Editables */}
                         <td className="py-2.5 px-3 text-center">
-                          <input
-                            type="number"
-                            min="1"
-                            defaultValue={m.cantidad}
-                            onBlur={(e) => {
-                              const val = parseInt(e.target.value, 10);
-                              if (val > 0 && val !== m.cantidad) {
-                                handleUpdateItem(m.id, { cantidad: val });
-                              }
-                            }}
-                            className="w-20 text-center py-1 px-2 font-mono font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                          />
+                          <div className="inline-flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="1"
+                              defaultValue={m.cantidad}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (val > 0 && val !== m.cantidad) {
+                                  handleUpdateItem(m.id, { cantidad: val });
+                                }
+                              }}
+                              className="w-16 text-center py-1 px-2 font-mono font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                            />
+                            <UnidadToggle
+                              size="sm"
+                              value={m.unidadMedida === 'PAQUETE' ? 'PAQUETE' : 'UNIDAD'}
+                              onChange={(u) => {
+                                if (u !== m.unidadMedida) handleUpdateItem(m.id, { unidadMedida: u });
+                              }}
+                            />
+                          </div>
                         </td>
 
                         {/* Motivo de Pérdida */}
@@ -1071,8 +1158,10 @@ export default function MermasPage() {
                     <td colSpan={4} className="py-3 px-3 text-right uppercase text-slate-700">
                       TOTAL MERMAS EN EL PERÍODO:
                     </td>
-                    <td className="py-3 px-3 text-center font-mono text-emerald-950 bg-emerald-100 text-sm font-black">
-                      {kpis.totalMermasMes} tallos
+                    <td className="py-3 px-3 text-center font-mono text-emerald-950 bg-emerald-100 text-sm font-black whitespace-nowrap">
+                      {kpis.totalesMes.unidades} uds
+                      <span className="text-slate-400 mx-1">·</span>
+                      <span className="text-amber-800">{kpis.totalesMes.paquetes} paq</span>
                     </td>
                     <td colSpan={3} className="py-3 px-3 text-slate-500 text-[11px] font-semibold">
                       Costo base estimado: <span className="font-bold text-slate-900">{fmtLps(kpis.costoTotalEstimado)}</span>
@@ -1257,9 +1346,9 @@ export default function MermasPage() {
                       {/* Métricas del Reporte */}
                       <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 text-center">
                         <div className="bg-slate-50 p-2 rounded-xl">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Tallos</span>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Uds / Paq</span>
                           <span className="text-sm font-black text-slate-900 font-mono">
-                            {rep.totalTallos}
+                            {rep.totalUnidades}<span className="text-slate-400"> / </span><span className="text-amber-700">{rep.totalPaquetes}</span>
                           </span>
                         </div>
                         <div className="bg-slate-50 p-2 rounded-xl">
@@ -1326,19 +1415,20 @@ export default function MermasPage() {
                 <p className="text-xs text-slate-400 italic py-4 text-center">No hay registros suficientes</p>
               ) : (
                 Object.entries(kpis.desglosePorMotivo)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([motivoKey, cantidad]) => {
+                  .sort((a, b) => pesoConteo(b[1]) - pesoConteo(a[1]))
+                  .map(([motivoKey, conteo]) => {
                     const info = getMotivoInfo(motivoKey);
-                    const pct = kpis.totalMermasMes > 0 
-                      ? Math.round((cantidad / kpis.totalMermasMes) * 100) 
-                      : 0;
+                    const totalRef = kpis.totalesMes.paquetes > 0
+                      ? { val: conteo.paquetes, tot: kpis.totalesMes.paquetes }
+                      : { val: conteo.unidades, tot: kpis.totalesMes.unidades };
+                    const pct = totalRef.tot > 0 ? Math.round((totalRef.val / totalRef.tot) * 100) : 0;
 
                     return (
                       <div key={motivoKey} className="space-y-1">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-slate-800">{info.label}</span>
                           <span className="font-mono font-black text-slate-900">
-                            {cantidad} tallos ({pct}%)
+                            {fmtConteo(conteo)} ({pct}%)
                           </span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -1371,18 +1461,19 @@ export default function MermasPage() {
                 <p className="text-xs text-slate-400 italic py-4 text-center">No hay registros suficientes</p>
               ) : (
                 Object.entries(kpis.desglosePorCategoria)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([cat, cantidad]) => {
-                    const pct = kpis.totalMermasMes > 0 
-                      ? Math.round((cantidad / kpis.totalMermasMes) * 100) 
-                      : 0;
+                  .sort((a, b) => pesoConteo(b[1]) - pesoConteo(a[1]))
+                  .map(([cat, conteo]) => {
+                    const totalRef = kpis.totalesMes.paquetes > 0
+                      ? { val: conteo.paquetes, tot: kpis.totalesMes.paquetes }
+                      : { val: conteo.unidades, tot: kpis.totalesMes.unidades };
+                    const pct = totalRef.tot > 0 ? Math.round((totalRef.val / totalRef.tot) * 100) : 0;
 
                     return (
                       <div key={cat} className="space-y-1">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-slate-800">{cat}</span>
                           <span className="font-mono font-black text-slate-900">
-                            {cantidad} tallos ({pct}%)
+                            {fmtConteo(conteo)} ({pct}%)
                           </span>
                         </div>
                         <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">

@@ -2,6 +2,18 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 
+const UNIDADES_VALIDAS = ['UNIDAD', 'PAQUETE'] as const;
+const normalizarUnidad = (u: unknown): 'UNIDAD' | 'PAQUETE' =>
+  String(u || '').toUpperCase() === 'PAQUETE' ? 'PAQUETE' : 'UNIDAD';
+
+type ConteoUnidad = { unidades: number; paquetes: number };
+const sumar = (c: ConteoUnidad, unidad: string, cant: number) => {
+  if (unidad === 'PAQUETE') c.paquetes += cant; else c.unidades += cant;
+};
+// costoBase del producto es POR PAQUETE: solo los registros en paquetes se valorizan
+const costoLinea = (unidad: string, cant: number, costo: number) =>
+  unidad === 'PAQUETE' ? cant * costo : 0;
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -85,64 +97,68 @@ export async function GET(request: Request) {
     });
 
     // Calcular KPIs del mes / periodo seleccionado
-    let totalMermasMes = 0;
+    // Unidades y paquetes se contabilizan por separado (no se convierten entre sí)
+    const totalesMes: ConteoUnidad = { unidades: 0, paquetes: 0 };
+    const perdidasHoy: ConteoUnidad = { unidades: 0, paquetes: 0 };
     let costoTotalEstimado = 0;
-    const conteoPorProducto: Record<string, number> = {};
-    const desglosePorMotivo: Record<string, number> = {};
-    const desglosePorCategoria: Record<string, number> = {};
+    const conteoPorProducto: Record<string, ConteoUnidad> = {};
+    const desglosePorMotivo: Record<string, ConteoUnidad> = {};
+    const desglosePorCategoria: Record<string, ConteoUnidad> = {};
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
-    let perdidasHoy = 0;
-
     for (const m of mermas) {
       const cant = Number(m.cantidad || 0);
-      totalMermasMes += cant;
+      const unidad = normalizarUnidad(m.unidadMedida);
+      sumar(totalesMes, unidad, cant);
 
-      const costo = Number(m.costoUnitario || 0);
-      costoTotalEstimado += cant * costo;
+      costoTotalEstimado += costoLinea(unidad, cant, Number(m.costoUnitario || 0));
 
       // Por producto
       const prodKey = m.nombreProducto.trim().toUpperCase();
-      conteoPorProducto[prodKey] = (conteoPorProducto[prodKey] || 0) + cant;
+      sumar((conteoPorProducto[prodKey] ||= { unidades: 0, paquetes: 0 }), unidad, cant);
 
       // Por motivo
       const motivoKey = m.motivo || 'OTRO';
-      desglosePorMotivo[motivoKey] = (desglosePorMotivo[motivoKey] || 0) + cant;
+      sumar((desglosePorMotivo[motivoKey] ||= { unidades: 0, paquetes: 0 }), unidad, cant);
 
       // Por categoría
       const catKey = m.categoria || 'Misceláneo';
-      desglosePorCategoria[catKey] = (desglosePorCategoria[catKey] || 0) + cant;
+      sumar((desglosePorCategoria[catKey] ||= { unidades: 0, paquetes: 0 }), unidad, cant);
 
       // Hoy
       const itemDate = new Date(m.fecha);
       if (itemDate >= startOfToday && itemDate <= endOfToday) {
-        perdidasHoy += cant;
+        sumar(perdidasHoy, unidad, cant);
       }
     }
 
-    // Flor con mayor merma
-    let florMayorMerma = { nombre: 'Ninguna', cantidad: 0 };
-    for (const [nombre, cant] of Object.entries(conteoPorProducto)) {
-      if (cant > florMayorMerma.cantidad) {
-        florMayorMerma = { nombre, cantidad: cant };
+    // Flor con mayor merma (prioriza paquetes perdidos, luego unidades)
+    let florMayorMerma = { nombre: 'Ninguna', unidades: 0, paquetes: 0 };
+    for (const [nombre, c] of Object.entries(conteoPorProducto)) {
+      if (
+        c.paquetes > florMayorMerma.paquetes ||
+        (c.paquetes === florMayorMerma.paquetes && c.unidades > florMayorMerma.unidades)
+      ) {
+        florMayorMerma = { nombre, ...c };
       }
     }
 
     // Resumen histórico consolidado de todos los reportes mensuales de la organización
     const todosLosRegistros = await prisma.registroMerma.findMany({
       where: { organizationId: orgId },
-      select: { fecha: true, cantidad: true, costoUnitario: true },
+      select: { fecha: true, cantidad: true, costoUnitario: true, unidadMedida: true },
       orderBy: { fecha: 'desc' }
     });
 
     const historicoMap: Record<string, {
       mes: string;
       correlativo: string;
-      totalTallos: number;
+      totalUnidades: number;
+      totalPaquetes: number;
       costoEstimado: number;
       totalRegistros: number;
       estado: 'ABIERTO' | 'CERRADO';
@@ -155,15 +171,18 @@ export async function GET(request: Request) {
         historicoMap[mesKey] = {
           mes: mesKey,
           correlativo: `MRM-${mesKey}`,
-          totalTallos: 0,
+          totalUnidades: 0,
+          totalPaquetes: 0,
           costoEstimado: 0,
           totalRegistros: 0,
           estado: mesKey >= currentYearMonth ? 'ABIERTO' : 'CERRADO'
         };
       }
       const cant = Number(r.cantidad || 0);
-      historicoMap[mesKey].totalTallos += cant;
-      historicoMap[mesKey].costoEstimado += cant * Number(r.costoUnitario || 0);
+      const unidad = normalizarUnidad(r.unidadMedida);
+      if (unidad === 'PAQUETE') historicoMap[mesKey].totalPaquetes += cant;
+      else historicoMap[mesKey].totalUnidades += cant;
+      historicoMap[mesKey].costoEstimado += costoLinea(unidad, cant, Number(r.costoUnitario || 0));
       historicoMap[mesKey].totalRegistros += 1;
     }
 
@@ -171,7 +190,8 @@ export async function GET(request: Request) {
       historicoMap[currentYearMonth] = {
         mes: currentYearMonth,
         correlativo: `MRM-${currentYearMonth}`,
-        totalTallos: 0,
+        totalUnidades: 0,
+        totalPaquetes: 0,
         costoEstimado: 0,
         totalRegistros: 0,
         estado: 'ABIERTO'
@@ -184,7 +204,7 @@ export async function GET(request: Request) {
       mermas,
       historicoReportes,
       kpis: {
-        totalMermasMes,
+        totalesMes,
         florMayorMerma,
         perdidasHoy,
         costoTotalEstimado,
@@ -264,6 +284,7 @@ export async function POST(request: Request) {
           sku,
           categoria,
           cantidad: Math.max(1, parseInt(item.cantidad, 10) || 1),
+          unidadMedida: normalizarUnidad(item.unidadMedida),
           motivo: item.motivo || 'MADURACION_MARCHITA',
           notas: item.notas?.trim() || null,
           costoUnitario: costoUnitario ? Number(costoUnitario) : null,
@@ -300,7 +321,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, cantidad, motivo, notas, fecha, categoria } = body;
+    const { id, cantidad, motivo, notas, fecha, categoria, unidadMedida } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID de registro requerido' }, { status: 400 });
@@ -309,6 +330,9 @@ export async function PUT(request: Request) {
     const updateData: any = {};
     if (cantidad !== undefined) updateData.cantidad = Math.max(1, parseInt(cantidad, 10) || 1);
     if (motivo !== undefined) updateData.motivo = motivo;
+    if (unidadMedida !== undefined && UNIDADES_VALIDAS.includes(String(unidadMedida).toUpperCase() as any)) {
+      updateData.unidadMedida = normalizarUnidad(unidadMedida);
+    }
     if (notas !== undefined) updateData.notas = notas;
     if (categoria !== undefined) updateData.categoria = categoria;
 
