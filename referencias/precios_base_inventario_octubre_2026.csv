@@ -1,0 +1,395 @@
+﻿id_qr,descripcion,clasificacion,producto_lista_precios,unidad_venta,precio_base,precio_sugerido_confirmar,confianza,nota
+010119,ERYNGIUM,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010118,PINOCHO COLORES,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010117,ROSAS INGLESA ECUADOR,Flor / Perecedero,Rosa Inglesa,24 Unid.,400,,ALTA,Garden rose = inglesa
+010116,PINOCHO ROSADO,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010115,ARREGLO FUNEBRE,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+010114,PANDAS MIXTO,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010113,ROSAS INMORTAL,Flor / Perecedero,,,,,SIN,Rosa preservada: no está en la lista
+010112,SPRAY DE ROSAS,Flor / Perecedero,Minirosa Spray Rose Ecuador (Colores),10 Unid.,450,,ALTA,
+010111,ROSAS BLANCAS ECUADOR,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+010110,CAMPANA DE BELEN,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010109,BLOQUE DE OASIS,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+010108,GERBERA POMPON,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+010107,CAJA DE OASIS,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+010106,CRISANTEMO LILA,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010105,Rosa rosada ecuador,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010104,ROSA DE ECUADOR,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010103,Rosa Bluez sh,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,,850,BAJA,¿Rosa azul tinturada o variedad Blues natural? confirmar
+010102,ROJA TALLO ALTO,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+010101,Miniclavel peach,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+010100,Minigerberas roja,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+010099,Minigerberas pompon,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+010098,HORTENCIAS BLANCAS,Flor / Perecedero,Hortencias Guatemala,1 Unid.,,150,BAJA,"Origen no indicado, confirmar"
+010097,Claveles peach,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+010096,Claveles matizado,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+010095,Claveles surtido,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+010094,Miniclavel matizado,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+010093,Miniclavel verde,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+010092,Miniclavel amarillo,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+010091,REBAJA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010090,ANARANJADAS,Flor / Perecedero,Rosa Color,24 Unid.,350,,MEDIA,Se asume rosa de color
+010089,ERUL PEQUEÑO,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010088,ROSAS DE ECUADOR MERMA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010087,ROSAS MERMA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010086,CRASPEDIA MERMA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010085,ROSA ECUADOR MERMA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010084,MINI ROSA MERMA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010083,ROSA MERMA,Flor / Perecedero,,,,,SIN,Merma/rebaja: no lleva precio base
+010082,ROSAS MORADAS,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010081,CORONA FUNEBRE,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+010080,TRIPIE FLORAL,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+010079,ROSAS FUCSIA,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010077,MINI GERBERA PEACH,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+010076,Rosa esperance sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010075,Rosa bonita sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010074,Rosa mágic Times sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010073,Rosa boulevard sh,Flor / Perecedero,Rosa Boulevard,24 Unid.,350,,ALTA,
+010072,Rosa quick sand sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010071,Rosa blush sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010070,Rosa circus sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010069,Rosas geraldinas sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010068,Rosas colores sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010067,Rosa salmón sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010066,Rosa surtida sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010065,Rosa inglesa sh,Flor / Perecedero,Rosa Inglesa,24 Unid.,400,,ALTA,Garden rose = inglesa
+010064,Rosa Angelika sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010063,Rosa morada sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010062,Rosa fucsia SH,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010061,Rosita vendela sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010060,HORTENCIA NACIONAL,Flor / Perecedero,Hortencias Guatemala,1 Unid.,,150,BAJA,"Origen no indicado, confirmar"
+010059,Rosas azules sh,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,850,,ALTA,Rosa azul = tinturada
+010058,Rosas amarillas sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010057,MINIROSA COLORES,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+010056,Rosas blancas sh,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+010055,Rosas rojas sh,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+010054,GErberas naranja,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+010053,Mini rosas amarillas,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+010052,Mini rosa candy,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+010051,Mini rosa naranja,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+010050,Minigerberas blancas,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+010049,Lirios rosaly rosado,Flor / Perecedero,"Lirios Rosaly (Blanco, Tinturado)",5 Unid.,400,,ALTA,
+010048,Lirios rosaly blanco,Flor / Perecedero,"Lirios Rosaly (Blanco, Tinturado)",5 Unid.,400,,ALTA,
+010047,Panda morado,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010046,Panda amarillo,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010045,Stock blanco gt,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010044,Margaritas anaranjadas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+010043,BABY NORMAL,Flor / Perecedero,Baby Guatemala,1 Manojo,,250,BAJA,"Origen no indicado, confirmar"
+010042,STOCK,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010041,SHASTAS COLORES,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+010040,GERBERA ESPECIAL,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+010039,HORTENCIAS HOLANDA,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010038,ROSAS AMARILLAS,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010037,DRAGON COLORES,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010036,ROSAS ROJAS ECUADOR,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+010035,MANZANILLA MZ,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010033,CLAVEL BLANCO,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+010032,DRAGON ECUADOR,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010031,ROSA MODERADA,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010030,STOCK GT,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010029,ROSAS COLORES ECUADOR,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010028,TULIPAN ROSADO,Flor / Perecedero,Tulipanes Holanda,10 Unid.,1500,,ALTA,
+010027,MINI GERBERA,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+010026,OASIS CAJA,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+010025,MEXICANOS,Flor / Perecedero,Mexicano,1 Manojo,250,,ALTA,
+010024,LIRIOS ROSALY COLORES,Flor / Perecedero,"Lirios Rosaly (Blanco, Tinturado)",5 Unid.,400,,ALTA,
+010023,LIRIOS BLANCOS,Flor / Perecedero,Lirios Blancos,5 Unid.,300,,ALTA,
+010022,MANO DE LEON MEDIANA,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010021,ROSAS AZULES,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,850,,ALTA,Rosa azul = tinturada
+010020,MINIGERBERAS COLORES,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+010019,HORTENCIAS ECUADOR,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010018,HORTENCIAS COLORES,Flor / Perecedero,Hortencias Guatemala,1 Unid.,,150,BAJA,"Origen no indicado, confirmar"
+010017,LOM0NIUM,Flor / Perecedero,Estaticia Colores,1 Manojo,,250,BAJA,"Limonium ≈ estaticia, confirmar"
+010016,DRAGON AMARILLO ECUADOR,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010015,DRAGON ROSADO,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010014,ESTAFICIA TINTURADA,Flor / Perecedero,Estaticia Colores,1 Manojo,250,,ALTA,
+010013,ROSA INGLESA,Flor / Perecedero,Rosa Inglesa,24 Unid.,400,,ALTA,Garden rose = inglesa
+010012,DRAGON BLANCO,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010011,Masageana,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010010,saisoco,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010009,STOCK MORADO GT,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010008,ROSAS ROSADAS,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+010007,LIRIO ROSADO,Flor / Perecedero,Lirios Rosado,5 Unid.,350,,ALTA,
+010006,PANDA BLANCO,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+010005,Pompones ocres,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+0000293,Claveles sandia,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+010004,Claveles amarillos,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+0000292,Minirosa rosada,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+010003,MINICLAVEL COLORES,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+010002,SPRAY ROSE ECUADOR,Flor / Perecedero,Minirosa Spray Rose Ecuador (Colores),10 Unid.,450,,ALTA,
+010001,PROTEA KING HOLANDA,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+010000,TULIPANES HOLANDA,Flor / Perecedero,Tulipanes Holanda,10 Unid.,1500,,ALTA,
+000291,Lisianthus amarillo,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000290,Purple pink,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,,850,BAJA,"Nombre ambiguo; posible rosa tinturada, confirmar"
+000289,Raimbow,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,,850,BAJA,"Posible rosa arcoíris tinturada, confirmar"
+000288,Black,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,,850,BAJA,"Nombre ambiguo; posible rosa tinturada, confirmar"
+000287,Blue white,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,,850,BAJA,"Nombre ambiguo; posible rosa tinturada, confirmar"
+000286,Raymbow lovely,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,,850,BAJA,"Posible rosa arcoíris tinturada, confirmar"
+000285,Shocking blue 70cm,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000284,Antonia garden 40 cm v2,Flor / Perecedero,Rosa Inglesa,24 Unid.,400,,ALTA,Garden rose = inglesa
+000283,ANTONIA GARDEN 40 CM V1,Flor / Perecedero,Rosa Inglesa,24 Unid.,400,,ALTA,Garden rose = inglesa
+000282,FULL MONTY 60 CM,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000281,ORNITHOGALUM - WHITE STAR 50CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000280,ERYNGIUM - BLUE LAGOON 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000278,MATHIOLA - MIXED COLORS 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000277,MOLUCELLA - BELLS OF IRELAND 80CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000276,MATHIOLA - RED RUBY 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000275,MATHIOLA - PURPLE 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000274,MATHIOLA - LAVENDER 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000273,MATHIOLA - PEACH 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000272,MATHIOLA - WHITE 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000271,MATHIOLA - PINK 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000270,VERONICA - SALMON 70CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000269,CRISANTEMO - ROSSANO ORANGE 70CM,Suministro / Insumo,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar; Clasificado como Insumo en inventario"
+000268,CRISANTEMO - PRISTINE 70CM,Suministro / Insumo,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar; Clasificado como Insumo en inventario"
+000267,CRISANTEMO - LAMIRA 70CM,Suministro / Insumo,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar; Clasificado como Insumo en inventario"
+000266,ROSA - BE SWEET 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000265,DELPHINIUM - CELESTE 60CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000264,RANUNCULUS - WHITE 35CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000263,RANUNCULUS - LIGHT PINK 35CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000262,RANUNCULUS - LIGHT PINK 30CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000261,RANUNCULUS - ORANGE 35CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000260,RANUNCULUS - ORANGE 30CM,Suministro / Insumo,,,,,SIN,Sin coincidencia en la lista de precios
+000259,ROSA - HERMOSA 50CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000258,ROSA - HERMOSA 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000257,ROSA - PASION TURCA 70CM,Suministro / Insumo,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural; Clasificado como Insumo en inventario
+000256,ROSA - PASION TURCA 80CM,Suministro / Insumo,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural; Clasificado como Insumo en inventario
+000255,ROSA - FREEDOM 80CM,Suministro / Insumo,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural; Clasificado como Insumo en inventario
+000254,ROSA - PLAYA BLANCA 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000253,ROSA - WHITE CHOCOLATE 70CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000252,ROSA - SWEET UNIQUE 70CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000251,ROSA - MOONSTONE 70CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000250,ROSA - MOODY BLUES 70CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000249,ROSA - MANDARIN X-PRESSION 70CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000248,ROSA - FREEDOM 70CM,Suministro / Insumo,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural; Clasificado como Insumo en inventario
+000247,ROSA - BE SWEET 70CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000246,ROSA - SWEET MEMORY 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000245,ROSA - PINK X-PRESSION 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000244,ROSA - MANDALA 50CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000243,ROSA - MANDALA 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000242,ROSA - SWEET UNIQUE 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000241,ROSA - SWEET MONDIAL 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000240,ROSA - MANDARIN X-PRESSION 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000239,ROSA - GERALDINE 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000238,ROSA - COUNTRY BLUES 50CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000237,ROSA - MELON X-PRESSION 50CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000236,ROSA - MANDARIN X-PRESSION 50CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000235,ROSA - STARDUST 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000234,ROSA - PINK X-PRESSION 50CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000233,ROSA - KARMA 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000232,ROSA - CRYSTAL FLAME 60CM,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000231,SF - CALLAS LIGHT PINK,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000230,SF - CALLAS BLACK,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000229,SF - CALLA LILIES WHITE,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000228,ANTONIA garden 50cm,Flor / Perecedero,Rosa Inglesa,24 Unid.,400,,ALTA,Garden rose = inglesa
+000227,CHR - MAGNUM WHITE,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000226,CHR - LINETTE,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000225,CHR - ROSSETA,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000224,ROSA - LEMONADE,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000223,HYD - HYD. MAGICAL TENDER,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000222,HYD - HYD. MAGICAL CHARM,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000221,SF - CAMPANULLA WHITE,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000220,SF - CAMPANULA LILA,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000219,Rosa Florida,Suministro / Insumo,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color; Clasificado como Insumo en inventario
+000218,Pinocho Morado,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000217,Pinocho AnaRanjado,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000216,Pinocho Amarillo,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000215,Pinocho Blanco,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000214,Lagrimas,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000213,CANTOS DE INDIA,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000212,RUBELINAS,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000211,PINOS,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000210,MACENLLANA MIXTOS,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000209,PALMERITA,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000011,Blue Mate,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000208,VENDELA,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000207,WOW,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000206,BLUE MATE,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000205,ROCK STAR,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000202,Cotton,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000201,Mini Puma,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000200,Dustin,Flor / Perecedero,Dusty Miller,1 Manojo,220,,MEDIA,Se asume Dusty Miller
+000199,Manzanilla,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000198,Oasis,Flor / Perecedero,,,,,SIN,No es flor de venta por lista
+000196,Green Ball,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000195,Cala,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000194,Jacinto,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000193,Estrella de Belen,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000192,Delfinium Ecuador,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000191,Campana de Irlanda,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000190,HYPERICUM COLORES,Flor / Perecedero,Hypericum,1 Manojo,250,,ALTA,
+000188,Gladiola,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000187,Dragon,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000186,Minigirasol,Flor / Perecedero,Minigirasol,1 Manojo,200,,ALTA,
+000185,Amarantus Caido,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000184,Rubelina,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000183,Protea Ecuador,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000182,Orquideas Guatemala,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000181,Cartuchos,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000180,Mansageana,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000179,Pinillos,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000178,Pacaya,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000177,Renanculos,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000175,Hiperycum Ecuador,Flor / Perecedero,Hypericum,1 Manojo,250,,ALTA,
+000174,Hiperycum Guatemala,Flor / Perecedero,Hypericum,1 Manojo,250,,ALTA,
+000173,Craspedia,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000172,Ruscus,Flor / Perecedero,Ruscus,1 Manojo,200,,ALTA,
+000171,Erul Mediano,Flor / Perecedero,Erul Mediano,1 Manojo,80,,ALTA,
+000170,Erul Grande,Flor / Perecedero,Erul Grande,1 Manojo,90,,ALTA,
+000169,Eringio Ecuador,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000168,Stock Ecuador,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000167,Peoneas,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000166,Tulipan Holanda,Flor / Perecedero,Tulipanes Holanda,10 Unid.,1500,,ALTA,
+000165,Eucalipto Silver,Flor / Perecedero,Eucalipto,1 Manojo,,200,BAJA,"Silver no está en la lista, confirmar"
+000164,Eucalipto Dólar,Flor / Perecedero,Eucalipto Dollar,1 Manojo,250,,ALTA,
+000163,Eucalipto Normal,Flor / Perecedero,Eucalipto,1 Manojo,200,,ALTA,
+000162,Pithusforo,Flor / Perecedero,Pitusforus,1 Manojo,250,,ALTA,
+000161,Solidago Ecuador,Flor / Perecedero,Solidago,1 Manojo,150,,ALTA,
+000160,Solidago,Flor / Perecedero,Solidago,1 Manojo,150,,ALTA,
+000159,Aster,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000158,Anemonas,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000157,Clavelinaa,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000156,Delfiniun,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000155,MiniRosa Fucsia,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+000154,Lirio Roseli,Flor / Perecedero,"Lirios Rosaly (Blanco, Tinturado)",5 Unid.,400,,ALTA,
+000153,Pinocho Verde,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000152,Quinceañeras,Flor / Perecedero,Rosa Color,24 Unid.,,350,BAJA,"Nombre de variedad de rosa, confirmar"
+000151,Pandas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000150,Fichitas Amarillas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000149,Fichitas Blancas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000147,Crisantemos Colores Ecuador,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000146,Crisantemos Blanco Guatemala,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,,150,BAJA,"Tipo crisantemo/pompón, confirmar"
+000144,Fuji Amarillo con Malla,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000143,Fuji Blanco con Malla,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000142,Fuji Amarillo,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000141,Fuji Blanco,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000139,Margaritas Ocre,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000138,Margaritas Colores,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000137,Margaritas Lila,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000136,Margaritas Moradas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000135,Margaritas Rosadas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000134,Margaritas Amarillas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000133,Margaritas Blancas,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000131,Pompones Colores,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000130,Pompones Morado,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000129,Pompones Amarillo,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000128,Pompones Blanco,Flor / Perecedero,"Shasta, Pompones, Fuji, Margaritas",1 Manojo,150,,ALTA,
+000126,Lirios Colores,Flor / Perecedero,Lirios Rosado,5 Unid.,350,,MEDIA,"Lirio de color, mismo precio que rosado"
+000125,Lirios Rosados,Flor / Perecedero,Lirios Rosado,5 Unid.,350,,ALTA,
+000124,Lirios Blanco,Flor / Perecedero,Lirios Blancos,5 Unid.,300,,ALTA,
+000122,Miniclavel Colores,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+000121,Miniclavel Rojo,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+000120,Miniclavel Fucsia,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+000119,Miniclavel Blanco,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+000118,Miniclavel Rosado,Flor / Perecedero,Miniclavel,12 Unid.,200,,ALTA,
+000116,Claveles Colores,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+000115,Claveles Rojo,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+000114,Claveles Fucsia,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+000113,Claveles Blanco,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+000112,Claveles Rosado,Flor / Perecedero,Clavel Grande,24 Unid.,250,,ALTA,
+000110,Gerberas Roja,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+000109,Lisianthus Colores,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000108,Lisianthus Rosado,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000107,Lisianthus Morado,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000106,Lisianthus Blanco,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000105,Dusty Miller,Flor / Perecedero,Dusty Miller,1 Manojo,220,,ALTA,
+000104,Hortensia e. Colores,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000103,Hortensia e. Morada,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000102,Hortensia e. Azul,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000101,Hortensia e. Blanca,Flor / Perecedero,,,,,SIN,Sin coincidencia en la lista de precios
+000100,Hortensia Guatemala Colores,Flor / Perecedero,Hortencias Guatemala,1 Unid.,150,,ALTA,
+000099,Hortensia Guatemala Morada,Flor / Perecedero,Hortencias Guatemala,1 Unid.,150,,ALTA,
+000098,Hortensia Guatemala Azul,Flor / Perecedero,Hortencias Guatemala,1 Unid.,150,,ALTA,
+000097,Hortensia Guatemala Blanca,Flor / Perecedero,Hortencias Guatemala,1 Unid.,150,,ALTA,
+000096,Estaticia Colores,Flor / Perecedero,Estaticia Colores,1 Manojo,250,,ALTA,
+000095,Estaticia Lila,Flor / Perecedero,Estaticia Colores,1 Manojo,250,,ALTA,
+000094,Estaticia Blanca,Flor / Perecedero,Estaticia Colores,1 Manojo,250,,ALTA,
+000093,Estaticias Rosada,Flor / Perecedero,Estaticia Colores,1 Manojo,250,,ALTA,
+000092,Estaticias Morada,Flor / Perecedero,Estaticia Colores,1 Manojo,250,,ALTA,
+000091,Astromelias Colores,Flor / Perecedero,Astromelias,1 Manojo,220,,ALTA,
+000090,Astromelias Moradas,Flor / Perecedero,Astromelias,1 Manojo,220,,ALTA,
+000089,Astromelias Rosadas,Flor / Perecedero,Astromelias,1 Manojo,220,,ALTA,
+000088,Astromelias Blanca,Flor / Perecedero,Astromelias,1 Manojo,220,,ALTA,
+000087,Piña Colada,Flor / Perecedero,Rosa Color,24 Unid.,,350,BAJA,"Nombre de variedad de rosa, confirmar"
+000086,Limonium Lila,Flor / Perecedero,Estaticia Colores,1 Manojo,,250,BAJA,"Limonium ≈ estaticia, confirmar"
+000085,Limonium Rosado,Flor / Perecedero,Estaticia Colores,1 Manojo,,250,BAJA,"Limonium ≈ estaticia, confirmar"
+000084,Limonium Morado,Flor / Perecedero,Estaticia Colores,1 Manojo,,250,BAJA,"Limonium ≈ estaticia, confirmar"
+000083,Mini Rosa Ecuador Colores,Flor / Perecedero,Minirosa Spray Rose Ecuador (Colores),10 Unid.,450,,ALTA,
+000082,Mini Rosa Ecuador Rosada,Flor / Perecedero,Minirosa Spray Rose Ecuador (Colores),10 Unid.,450,,ALTA,
+000081,Mini Rosa Ecuador Blanca,Flor / Perecedero,Minirosa Spray Rose Ecuador (Colores),10 Unid.,450,,ALTA,
+000080,Minirosas Colores,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+000079,Minirosas Blancas,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+000078,Minirosas Rosada,Flor / Perecedero,Minirosa Natural,10 Unid.,280,,ALTA,
+000077,Minigerberas Blancas,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+000076,Minigerberas Fucsia,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+000075,Minigerberas Rosadas,Flor / Perecedero,Gerberas,12 Unid.,,180,BAJA,La lista no tiene minigerbera; confirmar precio
+000074,Gerberas Colores,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+000073,Gerberas Amarillas,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+000072,Gerberas Blancas,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+000071,Gerberas Fucsias,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+000070,Gerberas Rosadas,Flor / Perecedero,Gerberas,12 Unid.,180,,ALTA,
+000069,Baby Ecuador,Flor / Perecedero,Baby Breath Ecuador,1 Manojo,350,,ALTA,
+000068,Baby Guatemala,Flor / Perecedero,Baby Guatemala,1 Manojo,250,,ALTA,
+000067,Girasoles,Flor / Perecedero,Girasoles,12 Unid.,250,,ALTA,
+000066,Rosa D Tres,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000065,Mondial,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000064,Rosa Tres D,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000063,Rosa Pink Panther,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000062,Rosa Coffe,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000061,Rosa A.p,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000060,Rosa Vip,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000059,Rosa Hermosa sh,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000058,Rosa Isla Bonita,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000057,Rosa Blue Dreams,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000056,Rosa Mandala,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000055,Rosa Lorena,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000054,Rosa Sweet Unique,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000053,Rosa Cool Water,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000052,Rosa Magic Time,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000051,Rosa Esperance,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000050,Rosa Candy Expression,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000049,Rosa High Booming,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000048,Rosa Green Romance(verde),Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000046,Rosa Engagement,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000045,Rosa Special Blue,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000044,Rosa Perla,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000043,Rosa Stunning,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000041,Rosa Bryghton,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000040,Rosa Pink Mundial,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000039,Rosa Nautica,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000038,Rosa Malibu,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000037,Rosa Marandina,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000036,Rosa Coral Reef,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000035,Rosa Purpul Moon,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000034,Rosa High Magic,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000033,Rosa Atomic,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000032,Rosa Topaz,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000031,Rosa Sweet Memory,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000030,Rosa Nena,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000029,Rosa Quick Sand,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000028,Rosa Rosita Vendela,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000027,Rosa Confidence,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000026,Rosa Circus,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000025,Deep Purple,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000024,Rosa Tormenta,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000023,High Yellow,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000022,PURPLE HAZE,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000021,ANGELIKA,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000020,Rosa Gold Star,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000019,Rosa Bonita,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000018,Rosa Mohana,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000017,Rosa Geraldine,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000016,Rosa Opala,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000015,Rosa Boulevard,Flor / Perecedero,Rosa Boulevard,24 Unid.,350,,ALTA,
+000014,Rosa Star 2000,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000013,Rosa Pink Floyd,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000012,Rosa Titanic,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000010,Rosa Blush,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000009,Rosa Exotic,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000008,Rosa Azul,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,850,,ALTA,Rosa azul = tinturada
+000007,SURTIDO,Flor / Perecedero,Rosa Color,24 Unid.,350,,MEDIA,Se asume rosa de color
+000006,Rosa Blancas,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+000005,ROJA FREEDOM CARTÓN,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural
+000004,Rosa Ecuador Tinturadas,Flor / Perecedero,Rosa Azul Tinturada,24 Unid.,850,,MEDIA,Rosa tinturada: se usa precio de rosa azul tinturada
+000003,Rosa Ecuador Colores,Flor / Perecedero,Rosa Color,24 Unid.,350,,ALTA,Variedad de rosa de color
+000002,Rosa Ecuador Rojo,Flor / Perecedero,Rosas Naturales,24 Unid.,350,,ALTA,Rosa roja/blanca natural

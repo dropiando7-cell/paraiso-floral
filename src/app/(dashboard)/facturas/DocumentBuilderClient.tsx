@@ -54,6 +54,8 @@ interface LineItem {
     align: 'left' | 'center' | 'right';
   };
   _isNew?: boolean;
+  priceOrigin?: 'historial' | 'base' | 'manual';
+  priceOriginLabel?: string;
 }
 
 interface Client {
@@ -87,7 +89,8 @@ interface Product {
   isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages, eliminarDocumentoBorrador } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages, eliminarDocumentoBorrador, getClientPriceHistory, ClientProductPriceInfo } from './actions';
+import { resolveProductPrice } from '@/utils/productPricing';
 import SaldoFavorBadge from '@/components/facturas/SaldoFavorBadge';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
@@ -939,12 +942,14 @@ function ProductSearchItem({
   product, 
   onAdd, 
   onSelect,
-  isSelected = false 
+  isSelected = false,
+  clientPriceHistory
 }: { 
   product: Product; 
   onAdd: (p: Product) => void;
   onSelect?: () => void;
   isSelected?: boolean;
+  clientPriceHistory?: Record<string, ClientProductPriceInfo>;
 }) {
   const catColors: Record<string, string> = {
     'Diagnóstico': 'text-blue-600 bg-blue-50',
@@ -957,6 +962,7 @@ function ProductSearchItem({
     'Cirugía': 'text-pink-600 bg-pink-50',
   };
   const cc = catColors[product.category] || 'text-slate-600 bg-slate-100';
+  const priceInfo = resolveProductPrice(product, clientPriceHistory);
 
   const handleCardClick = (e: React.MouseEvent | React.TouchEvent) => {
     // Al hacer clic o tocar con el dedo se agrega directamente al documento (1 solo toque)
@@ -995,10 +1001,17 @@ function ProductSearchItem({
           </p>
           <div className="text-right shrink-0">
             <span className={`block text-xs sm:text-sm font-black ${
-              isSelected ? 'text-emerald-800 font-black' : 'text-slate-800 group-hover:text-emerald-700'
+              priceInfo.priceOrigin === 'historial'
+                ? 'text-emerald-700'
+                : isSelected ? 'text-emerald-800 font-black' : 'text-slate-800 group-hover:text-emerald-700'
             }`}>
-              {fmt(product.price)}
+              {fmt(priceInfo.unitPrice)}
             </span>
+            {priceInfo.priceOrigin === 'historial' && (
+              <span className="inline-block text-[8px] font-bold text-emerald-700 bg-emerald-100/80 px-1 py-0.5 rounded mt-0.5">
+                ⭐ Histórico
+              </span>
+            )}
             {isSelected ? (
               <span className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase bg-emerald-600 text-white px-1.5 py-0.5 rounded shadow-2xs mt-0.5">
                 Agregar · Enter ↵
@@ -1388,7 +1401,10 @@ function LineItemRow({
       }
     }
 
-    if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', product.price);
+    const priceRes = resolveProductPrice(product, settings?.clientPriceHistory || {});
+    onChange(item.id, 'unitPrice', priceRes.unitPrice);
+    onChange(item.id, 'priceOrigin', priceRes.priceOrigin);
+    onChange(item.id, 'priceOriginLabel', priceRes.priceOriginLabel);
     
     if (product.type === 'producto') {
        onChange(item.id, 'productoId', product.id);
@@ -1483,7 +1499,10 @@ function LineItemRow({
                 }
               }
 
-              if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+              const priceRes = resolveProductPrice(res, settings?.clientPriceHistory || {});
+              onChange(item.id, 'unitPrice', priceRes.unitPrice);
+              onChange(item.id, 'priceOrigin', priceRes.priceOrigin);
+              onChange(item.id, 'priceOriginLabel', priceRes.priceOriginLabel);
               if (res.type === 'producto') {
                 onChange(item.id, 'productoId', res.id);
                 onChange(item.id, 'activoId', undefined);
@@ -1675,9 +1694,25 @@ function LineItemRow({
                   </div>
 
                   {/* Columna 4: PRECIO */}
-                  <span className="text-xs font-black text-blue-600 bg-blue-50/90 px-2 py-0.5 rounded-md border border-blue-100 text-right font-mono">
-                    {fmt(p.price)}
-                  </span>
+                  {(() => {
+                    const priceInfo = resolveProductPrice(p, settings?.clientPriceHistory || {});
+                    return (
+                      <div className="flex flex-col items-end">
+                        <span className={`text-xs font-black px-2 py-0.5 rounded-md border text-right font-mono ${
+                          priceInfo.priceOrigin === 'historial'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : 'text-blue-600 bg-blue-50/90 border-blue-100'
+                        }`}>
+                          {fmt(priceInfo.unitPrice)}
+                        </span>
+                        {priceInfo.priceOrigin === 'historial' && (
+                          <span className="text-[7.5px] font-bold text-emerald-600 uppercase tracking-tight">
+                            Histórico
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Columna 5: EDITAR */}
                   <div className="flex justify-center items-center">
@@ -1759,9 +1794,25 @@ function LineItemRow({
                     }`}>
                       {p.name ? p.name.toUpperCase() : ''}
                     </p>
-                    <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md shrink-0 border border-blue-100">
-                      {fmt(p.price)}
-                    </span>
+                    {(() => {
+                      const priceInfo = resolveProductPrice(p, settings?.clientPriceHistory || {});
+                      return (
+                        <div className="flex flex-col items-end shrink-0">
+                          <span className={`text-xs font-black px-2 py-0.5 rounded-md border ${
+                            priceInfo.priceOrigin === 'historial'
+                              ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                              : 'text-blue-600 bg-blue-50 border border-blue-100'
+                          }`}>
+                            {priceInfo.priceOrigin === 'historial' ? '⭐ ' : ''}{fmt(priceInfo.unitPrice)}
+                          </span>
+                          {priceInfo.priceOrigin === 'historial' && (
+                            <span className="text-[7.5px] font-bold text-emerald-600 uppercase tracking-tight">
+                              Histórico
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -2058,7 +2109,10 @@ function LineItemRow({
                                   if (res) {
                                     onChange(item.id, 'shortDesc', (res.name || '').toUpperCase());
                                     if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                                    if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+                                    const priceRes = resolveProductPrice(res, settings?.clientPriceHistory || {});
+                                    onChange(item.id, 'unitPrice', priceRes.unitPrice);
+                                    onChange(item.id, 'priceOrigin', priceRes.priceOrigin);
+                                    onChange(item.id, 'priceOriginLabel', priceRes.priceOriginLabel);
                                     if (res.type === 'producto') {
                                       onChange(item.id, 'productoId', res.id);
                                       onChange(item.id, 'activoId', undefined);
@@ -2172,12 +2226,30 @@ function LineItemRow({
                     id={`unitPrice-desktop-${item.id}`}
                     type="number"
                     value={item.unitPrice}
-                    onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    onChange={e => {
+                      onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0));
+                      onChange(item.id, 'priceOrigin', 'manual');
+                      onChange(item.id, 'priceOriginLabel', undefined);
+                    }}
                     onFocus={e => { const t = e.target as HTMLInputElement; setTimeout(() => t.select(), 10); }}
                     onKeyDown={handleKeyDown}
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
                   />
+                  {item.priceOriginLabel && (
+                    <div 
+                      className="absolute -bottom-3 right-0.5 pointer-events-none print:hidden z-10 flex items-center"
+                      title={item.priceOrigin === 'historial' ? 'Precio obtenido del último documento a este cliente' : 'Precio base del catálogo/inventario'}
+                    >
+                      <span className={`text-[8px] leading-tight px-1 py-0.5 rounded font-bold whitespace-nowrap shadow-xs flex items-center gap-0.5 ${
+                        item.priceOrigin === 'historial' 
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                          : 'bg-blue-50 text-blue-700 border border-blue-200'
+                      }`}>
+                        {item.priceOrigin === 'historial' ? '⭐ ' : '🏷️ '}{item.priceOriginLabel}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : null}
               <span className={`${descSizeClass} font-semibold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
@@ -2453,6 +2525,21 @@ export default function DocumentBuilderClient({
     }
   }, [docType, editMode, viewMode, isLocked]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientPriceHistory, setClientPriceHistory] = useState<Record<string, ClientProductPriceInfo>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    if (selectedClient?.id) {
+      getClientPriceHistory(selectedClient.id).then(res => {
+        if (isMounted) setClientPriceHistory(res || {});
+      }).catch(() => {
+        if (isMounted) setClientPriceHistory({});
+      });
+    } else {
+      setClientPriceHistory({});
+    }
+    return () => { isMounted = false; };
+  }, [selectedClient?.id]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
@@ -5058,6 +5145,8 @@ export default function DocumentBuilderClient({
         productLongDesc = productLongDesc ? `${productLongDesc}\n[PRODUCTO VENCIDO]` : "[PRODUCTO VENCIDO]";
     }
 
+    const priceRes = resolveProductPrice(product, clientPriceHistory);
+
     const newLine: LineItem = {
       id: uid(),
       code: product.code,
@@ -5066,7 +5155,7 @@ export default function DocumentBuilderClient({
       richDesc: '',
       showLongDesc: false,
       qty: 1,
-      unitPrice: product.price,
+      unitPrice: priceRes.unitPrice,
       tax: 'isv15',
       discount: 0,
       discountType: 'percentage',
@@ -5074,6 +5163,8 @@ export default function DocumentBuilderClient({
       activoId: product.type === 'activo' ? product.id : undefined,
       imageUrl: (product as any).imageUrl || undefined,
       serie: product.serie || null,
+      priceOrigin: priceRes.priceOrigin,
+      priceOriginLabel: priceRes.priceOriginLabel,
     };
     setLineItems(prev => {
       // 1. Si hay una línea activa específica vacía (ej. seleccionada en escritorio), reemplazar esa fila vacía
@@ -5096,7 +5187,7 @@ export default function DocumentBuilderClient({
     setProductSearch('');
     setSelectedProductIndex(0);
     toast.success(`Agregado: ${sanitizedShortDesc.toUpperCase()}`, { icon: '🌸' });
-  }, [activeLineId]);
+  }, [activeLineId, clientPriceHistory]);
 
   const handleSave = async () => {
     if (isSavingRef.current || isSaving) return;
@@ -5363,6 +5454,11 @@ export default function DocumentBuilderClient({
 
   const resolvedNombreUsuario = (initialData?.creadoPor ? [initialData.creadoPor.nombre, initialData.creadoPor.apellido].filter(Boolean).join(' ') : null) || initialData?.nombreUsuario || currentUser?.fullName || 'Administrador (BEA)';
 
+  const augmentedSettings = useMemo(() => ({
+    ...settings,
+    clientPriceHistory
+  }), [settings, clientPriceHistory]);
+
   return (
     <div className={`${isKioskMode ? 'fixed inset-0 z-[5000] bg-slate-50 overflow-y-auto' : (embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : `min-h-[calc(100vh-140px)] bg-slate-50 relative ${isLocked ? 'overflow-hidden' : 'overflow-x-hidden'}`)} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
       <MixedPaymentsModal
@@ -5525,7 +5621,7 @@ export default function DocumentBuilderClient({
                 setShowMobilePreviewModal(true);
               }
             }}
-            settings={settings}
+            settings={augmentedSettings}
             setSettings={setSettings}
             handleEditClick={handleEditClick}
             isDocLockedForEdit={esFacturaEmitidaExpirada && !isGerenteIlimitado}
@@ -5658,7 +5754,7 @@ export default function DocumentBuilderClient({
               <>
                 {currentCanvasMode === 'document' && searchParams.get('print') === 'ticket' && (
                   <TicketTemplate
-                    settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                    settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                     nombreUsuario={resolvedNombreUsuario}
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -5671,7 +5767,7 @@ export default function DocumentBuilderClient({
                   />
                 )}
                 {currentCanvasMode === 'document' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && <ModernTemplate 
-                  settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                  settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                   nombreUsuario={resolvedNombreUsuario}
                   docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                   today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -5694,7 +5790,7 @@ export default function DocumentBuilderClient({
                   isSar={isDocumentoFiscal}
                 />}
                 {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
-                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -5717,7 +5813,7 @@ export default function DocumentBuilderClient({
                    isSar={isDocumentoFiscal}
                 />}
                 {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
-                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -5740,7 +5836,7 @@ export default function DocumentBuilderClient({
                    isSar={isDocumentoFiscal}
                 />}
                 {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
-                   settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                   settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -7246,6 +7342,7 @@ export default function DocumentBuilderClient({
                       isSelected={idx === selectedProductIndex}
                       onSelect={() => setSelectedProductIndex(idx)}
                       onAdd={addProduct} 
+                      clientPriceHistory={clientPriceHistory}
                     />
                   ))}
                 </div>
@@ -8780,7 +8877,7 @@ export default function DocumentBuilderClient({
               <>
                 {currentCanvasMode === 'document' && (mobilePreviewFormat === 'ticket' || searchParams.get('print') === 'ticket') && (
                   <TicketTemplate
-                    settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                    settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                     nombreUsuario={resolvedNombreUsuario}
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -8794,7 +8891,7 @@ export default function DocumentBuilderClient({
                 )}
                 {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && (
                   <ModernTemplate 
-                    settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                    settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                     nombreUsuario={resolvedNombreUsuario}
                     docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                     today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -8817,7 +8914,7 @@ export default function DocumentBuilderClient({
                 )}
                 {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && settings.template === 'classic' && (
                   <ClassicTemplate 
-                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                     settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                      nombreUsuario={resolvedNombreUsuario}
                      docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                      today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -8840,7 +8937,7 @@ export default function DocumentBuilderClient({
                 )}
                 {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && settings.template === 'minimalist' && (
                   <MinimalistTemplate 
-                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                     settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                      nombreUsuario={resolvedNombreUsuario}
                      docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                      today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
@@ -8863,7 +8960,7 @@ export default function DocumentBuilderClient({
                 )}
                 {currentCanvasMode === 'document' && mobilePreviewFormat === 'carta' && settings.template === 'legacy' && (
                   <LegacyTemplate 
-                     settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+                     settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
                      nombreUsuario={resolvedNombreUsuario}
                      docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                      today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 

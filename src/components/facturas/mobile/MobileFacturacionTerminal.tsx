@@ -43,6 +43,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { playTactileClick, playSuccessChime, triggerHaptic, playErrorBuzz } from '@/utils/audioAlerts';
 import { searchClientes, searchProductos } from '@/app/(dashboard)/facturas/actions';
+import { resolveProductPrice } from '@/utils/productPricing';
 import BandejaPedidosCediModal from '@/components/facturacion/BandejaPedidosCediModal';
 
 // Helper to resolve flower images from public/flores or fallback
@@ -672,6 +673,7 @@ export default function MobileFacturacionTerminal({
 
   const handleLinkProductToLine = (product: any) => {
     if (!linkingLineId) return;
+    const priceRes = resolveProductPrice(product, settings?.clientPriceHistory || {});
     setLineItems(prev => prev.map(item => {
       if (item.id === linkingLineId) {
         return {
@@ -680,7 +682,9 @@ export default function MobileFacturacionTerminal({
           shortDesc: product.name,
           productoId: product.type === 'producto' ? product.id : undefined,
           activoId: product.type === 'activo' ? product.id : undefined,
-          unitPrice: item.unitPrice && Number(item.unitPrice) > 0 ? item.unitPrice : product.price,
+          unitPrice: priceRes.unitPrice,
+          priceOrigin: priceRes.priceOrigin,
+          priceOriginLabel: priceRes.priceOriginLabel,
           imageUrl: product.imageUrl || resolveFlowerImage(product.name)
         };
       }
@@ -1274,12 +1278,26 @@ export default function MobileFacturacionTerminal({
                     onChange={(e) => {
                       const val = e.target.value;
                       handleLineChange(item.id, 'unitPrice', val === '' ? 0 : parseFloat(val) || 0);
+                      handleLineChange(item.id, 'priceOrigin', 'manual');
+                      handleLineChange(item.id, 'priceOriginLabel', undefined);
                     }}
                     className="w-16 sm:w-20 text-right text-xs sm:text-sm font-black text-slate-900 bg-transparent focus:outline-none font-mono no-spin [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {item.priceOriginLabel && (
+                    <span 
+                      title={item.priceOrigin === 'historial' ? 'Último precio facturado a este cliente' : 'Precio base del inventario'}
+                      className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded leading-none ${
+                        item.priceOrigin === 'historial' 
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                          : 'bg-blue-50 text-blue-700 border border-blue-200'
+                      }`}
+                    >
+                      {item.priceOrigin === 'historial' ? '⭐ Hist.' : '🏷️ Base'}
+                    </span>
+                  )}
                   {isLinked ? (
                     <span className="text-[9px] font-black uppercase bg-[#2d6a4f] text-white px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xs">
                       <Check size={9} strokeWidth={3} /> OK
@@ -2117,9 +2135,21 @@ export default function MobileFacturacionTerminal({
                       <p className="text-[10px] text-slate-500 font-mono">SKU: {prod.code || prod.sku || 'N/A'}</p>
                     </div>
                   </div>
-                  <span className="text-xs font-black text-emerald-800">
-                    {fmt(prod.price)}
-                  </span>
+                  {(() => {
+                    const priceInfo = resolveProductPrice(prod, settings?.clientPriceHistory || {});
+                    return (
+                      <div className="text-right shrink-0">
+                        <span className={`text-xs font-black block ${
+                          priceInfo.priceOrigin === 'historial' ? 'text-emerald-700' : 'text-emerald-800'
+                        }`}>
+                          {fmt(priceInfo.unitPrice)}
+                        </span>
+                        {priceInfo.priceOrigin === 'historial' && (
+                          <span className="text-[8px] font-bold text-emerald-600 block">⭐ Historial</span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

@@ -291,7 +291,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
             sku: a.idQr,
             nombre: a.descripcionCorta,
             descripcion: a.descripcionDetallada || (a.esConsumible ? '' : `Serie: ${a.serie || 'N/A'} - Modelo: ${a.modelo || 'N/A'}`),
-            precioVenta: formatDecimal(a.producto?.precioVenta || a.costoAdq || 0),
+            precioVenta: formatDecimal(a.producto?.precioVenta || 0),
             costoBase: formatDecimal(a.costoAdq || 0),
             marca: a.marca || a.area || 'Activo Fijo',
             stockActual: a.stock || 1,
@@ -3158,3 +3158,76 @@ export async function revertirPagoFactura(facturaId: string) {
         return { success: false, error: error.message || 'Error desconocido' };
     }
 }
+
+export type ClientProductPriceInfo = {
+    price: number;
+    correlativo: string;
+    fecha: string;
+};
+
+export async function getClientPriceHistory(clienteId: string): Promise<Record<string, ClientProductPriceInfo>> {
+    try {
+        if (!clienteId) return {};
+        const user = await getAuthenticatedUser();
+        const orgId = user.organizationId;
+
+        const detalles = await prisma.detalleFactura.findMany({
+            where: {
+                factura: {
+                    organizationId: orgId,
+                    clienteId: clienteId,
+                    estado: { not: 'ANULADA' },
+                    tipoDocumento: { in: ['FACTURA', 'NOTA_CREDITO'] }
+                }
+            },
+            select: {
+                productoId: true,
+                activoId: true,
+                descripcion: true,
+                precioUnitario: true,
+                factura: {
+                    select: {
+                        correlativo: true,
+                        fechaEmision: true
+                    }
+                }
+            },
+            orderBy: {
+                factura: {
+                    fechaEmision: 'desc'
+                }
+            }
+        });
+
+        const historyMap: Record<string, ClientProductPriceInfo> = {};
+
+        for (const d of detalles) {
+            const price = Number(d.precioUnitario);
+            if (price <= 0) continue;
+
+            const info: ClientProductPriceInfo = {
+                price,
+                correlativo: d.factura.correlativo,
+                fecha: d.factura.fechaEmision.toISOString().split('T')[0]
+            };
+
+            if (d.productoId && !historyMap[`prod:${d.productoId}`]) {
+                historyMap[`prod:${d.productoId}`] = info;
+            }
+            if (d.activoId && !historyMap[`act:${d.activoId}`]) {
+                historyMap[`act:${d.activoId}`] = info;
+            }
+
+            const cleanName = d.descripcion.split('\n')[0].replace(/__METADATA__.*$/, '').trim().toUpperCase();
+            if (cleanName && !historyMap[`desc:${cleanName}`]) {
+                historyMap[`desc:${cleanName}`] = info;
+            }
+        }
+
+        return historyMap;
+    } catch (e: any) {
+        console.error("Error in getClientPriceHistory:", e);
+        return {};
+    }
+}
+
