@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { SignatureItem } from '@/types/invoice';
-import { isCredito } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
 
 // Register Inter font
 Font.register({
@@ -275,7 +275,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
   } = data;
 
   const totalItemsQty = (lineItems || [])
-    .filter((item: any) => !item.isSection && !item.itemType?.includes('section'))
+    .filter((item: any) => !item.isSection && !item.itemType?.includes('section') && !isEnvioItem(item))
     .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
   const formattedTotalQty = Number.isInteger(totalItemsQty) ? String(totalItemsQty) : totalItemsQty.toFixed(2);
 

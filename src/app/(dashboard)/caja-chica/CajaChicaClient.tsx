@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession, getClosedSessions, getCajaVentasStatus } from './actions';
 import toast from 'react-hot-toast';
 import {
@@ -151,6 +151,8 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   }>({ abierta: false, disponibleEfectivo: 0, cargando: true });
   const [editandoMovimientoId, setEditandoMovimientoId] = useState<string | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [guardandoMovimiento, setGuardandoMovimiento] = useState(false);
+  const guardandoMovimientoRef = useRef(false);
   const [modalEliminar, setModalEliminar] = useState<{show: boolean, id: string | null}>({show: false, id: null});
   const [showModalEditSaldo, setShowModalEditSaldo] = useState(false);
   const [nuevoSaldoApertura, setNuevoSaldoApertura] = useState('');
@@ -426,6 +428,8 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     }).format(valor);
 
   const handleAgregarMovimiento = async () => {
+    if (guardandoMovimientoRef.current || guardandoMovimiento) return;
+
     const importeNum = parseFloat(form.importe);
 
     if (isNaN(importeNum) || importeNum <= 0) {
@@ -489,39 +493,53 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       return;
     }
 
-    let res;
-    const payload = {
-      categoria: form.categoria,
-      cuentaContable: tipoMovimiento === 'SALIDA' ? form.cuentaContable : undefined,
-      descripcion: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? (form.descripcion || `${form.categoria} desde ${form.origenFondos}`) : form.descripcion,
-      documento: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : form.documento,
-      nroDoc: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? (form.referenciaTransferencia || undefined) : (form.nroDoc || undefined),
-      importe: importeNum,
-      moneda: form.moneda,
-      tipoCambio: 1,
-      total,
-      adjuntoUrl: form.adjuntoUrl || undefined,
-      beneficiario: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? undefined : (form.beneficiario || undefined),
-      origenFondos: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.origenFondos : undefined,
-      metodoPago: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : undefined,
-      referenciaTransferencia: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.referenciaTransferencia : undefined,
-      autorizadoPor: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.autorizadoPor : undefined,
-    };
+    guardandoMovimientoRef.current = true;
+    setGuardandoMovimiento(true);
 
-    if (editandoMovimientoId) {
-      res = await updateCajaChicaMovimiento(editandoMovimientoId, payload, dbUser.id);
-    } else if (tipoMovimiento === 'APERTURA') {
-      res = await openAndFundCajaChicaSession(organization?.id || dbUser?.organizationId, payload, dbUser.id);
-    } else {
-      res = await registerCajaChicaMovimiento(sesionActiva.id, tipoMovimiento as any, payload, dbUser.id);
-    }
+    try {
+      let res;
+      const payload = {
+        categoria: form.categoria,
+        cuentaContable: tipoMovimiento === 'SALIDA' ? form.cuentaContable : undefined,
+        descripcion: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? (form.descripcion || `${form.categoria} desde ${form.origenFondos}`) : form.descripcion,
+        documento: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : form.documento,
+        nroDoc: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? (form.referenciaTransferencia || undefined) : (form.nroDoc || undefined),
+        importe: importeNum,
+        moneda: form.moneda,
+        tipoCambio: 1,
+        total,
+        adjuntoUrl: form.adjuntoUrl || undefined,
+        beneficiario: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? undefined : (form.beneficiario || undefined),
+        origenFondos: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.origenFondos : undefined,
+        metodoPago: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : undefined,
+        referenciaTransferencia: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.referenciaTransferencia : undefined,
+        autorizadoPor: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.autorizadoPor : undefined,
+      };
 
-    if (res.success) {
-      await cargarSesion();
-      toast.success(editandoMovimientoId ? 'Movimiento actualizado' : (tipoMovimiento === 'APERTURA' ? 'Caja abierta con fondo inicial' : 'Movimiento registrado correctamente'));
-      cerrarModalNuevo();
-    } else {
-      toast.error(res.error || 'Error al guardar el movimiento');
+      if (editandoMovimientoId) {
+        res = await updateCajaChicaMovimiento(editandoMovimientoId, payload, dbUser.id);
+      } else if (tipoMovimiento === 'APERTURA') {
+        res = await openAndFundCajaChicaSession(organization?.id || dbUser?.organizationId, payload, dbUser.id);
+      } else {
+        res = await registerCajaChicaMovimiento(sesionActiva.id, tipoMovimiento as any, payload, dbUser.id);
+      }
+
+      if (res.success) {
+        const msgExito = editandoMovimientoId
+          ? 'Movimiento actualizado'
+          : (tipoMovimiento === 'APERTURA' ? 'Caja abierta con fondo inicial' : 'Movimiento registrado correctamente');
+        cerrarModalNuevo();
+        toast.success(msgExito);
+        await cargarSesion();
+      } else {
+        toast.error(res.error || 'Error al guardar el movimiento');
+      }
+    } catch (err) {
+      console.error('Error al guardar movimiento:', err);
+      toast.error('Error inesperado al guardar el movimiento');
+    } finally {
+      guardandoMovimientoRef.current = false;
+      setGuardandoMovimiento(false);
     }
   };
 
@@ -1668,24 +1686,45 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
               <button
                 onClick={cerrarModalNuevo}
-                className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={guardandoMovimiento}
+                className={`px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg transition-colors ${
+                  guardandoMovimiento ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
+                }`}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleAgregarMovimiento}
+                disabled={guardandoMovimiento || uploadingDoc}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-sm ${
-                  editandoMovimientoId
-                    ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
-                    : (tipoMovimiento === 'INGRESO'
-                        ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20'
-                        : 'bg-red-600 hover:bg-red-700 shadow-red-600/20')
+                  (guardandoMovimiento || uploadingDoc)
+                    ? 'opacity-60 cursor-not-allowed pointer-events-none ' + (
+                        editandoMovimientoId
+                          ? 'bg-blue-600'
+                          : (tipoMovimiento === 'INGRESO' ? 'bg-green-600' : 'bg-red-600')
+                      )
+                    : (editandoMovimientoId
+                        ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                        : (tipoMovimiento === 'INGRESO'
+                            ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20'
+                            : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'))
                 }`}
               >
-                {editandoMovimientoId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {editandoMovimientoId 
-                  ? 'Guardar Cambios' 
-                  : (tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto')}
+                {guardandoMovimiento ? (
+                  <>
+                    <RefreshCcw className="w-4 h-4 animate-spin" />
+                    {editandoMovimientoId
+                      ? 'Guardando...'
+                      : (tipoMovimiento === 'INGRESO' ? 'Recargando...' : 'Guardando Gasto...')}
+                  </>
+                ) : (
+                  <>
+                    {editandoMovimientoId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {editandoMovimientoId 
+                      ? 'Guardar Cambios' 
+                      : (tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto')}
+                  </>
+                )}
               </button>
             </div>
           </div>

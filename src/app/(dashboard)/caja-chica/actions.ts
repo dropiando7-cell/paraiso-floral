@@ -366,6 +366,24 @@ export async function registerCajaChicaMovimiento(
       return { success: false, error: 'El monto debe ser mayor a 0.' };
     }
 
+    // Protección en servidor contra doble clic / envíos duplicados en los últimos 15 segundos
+    const ventanaAntiduplicado = new Date(Date.now() - 15000);
+    const duplicadoReciente = await prisma.cajaChicaMovimiento.findFirst({
+      where: {
+        sessionId,
+        tipo,
+        categoria: data.categoria,
+        descripcion: data.descripcion,
+        importe: montoNum,
+        estado: 'REGISTRADO',
+        createdAt: { gte: ventanaAntiduplicado }
+      }
+    });
+
+    if (duplicadoReciente) {
+      return { success: true, movimiento: duplicadoReciente };
+    }
+
     const esDeCajaVentas =
       tipo === 'INGRESO' &&
       (data.categoria === 'Cobro de venta' ||

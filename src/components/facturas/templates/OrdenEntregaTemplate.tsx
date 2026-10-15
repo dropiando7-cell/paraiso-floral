@@ -4,6 +4,7 @@ import React from 'react';
 import { X, CheckSquare, Square, Package, Camera, Info } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { InvoiceSettings } from '@/types/invoice';
+import { isEnvioItem } from '@/utils/facturaUtils';
 
 interface OrdenEntregaTemplateProps {
   settings: InvoiceSettings;
@@ -248,7 +249,7 @@ export default function OrdenEntregaTemplate({
               </td>
               <td className="py-2 px-2 text-center text-xs font-black">
                 {items
-                  .filter(it => !excludedIds.includes(it.id))
+                  .filter(it => !excludedIds.includes(it.id) && !isEnvioItem(it))
                   .reduce((acc, it) => acc + (Number(it.qty) || 0), 0)}
               </td>
             </tr>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { isEnvioItem } from '@/utils/facturaUtils';
 
 // Register Inter font
 Font.register({
@@ -543,7 +544,7 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
               </View>
               <View style={[styles.tableCell, styles.colQty]}>
                 <Text style={[styles.tdText, { fontWeight: 700 }]}>
-                  {validItems.reduce((acc: number, it: any) => acc + (Number(it.qty) || 0), 0)}
+                  {validItems.filter((it: any) => !isEnvioItem(it)).reduce((acc: number, it: any) => acc + (Number(it.qty) || 0), 0)}
                 </Text>
               </View>
             </View>

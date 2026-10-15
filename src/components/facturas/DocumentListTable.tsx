@@ -10,7 +10,7 @@ import SendEmailModal from '@/components/facturas/SendEmailModal';
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
-import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
+import { isCredito, getDiasCredito, calcularFechaVencimiento, isEnvioItem } from '@/utils/facturaUtils';
 
 export interface DocumentRecord {
   id: string;
@@ -1690,6 +1690,7 @@ export default function DocumentListTable({
                           })}
                           {(() => {
                               const tQty = (ticketPreview.detalles || [])
+                                  .filter((it: any) => !isEnvioItem(it))
                                   .reduce((sum: number, it: any) => sum + (Number(it.cantidad || it.qty) || 0), 0);
                               const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
                               return (
@@ -1703,6 +1704,7 @@ export default function DocumentListTable({
                       <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
                           {(() => {
                               const tQty = (ticketPreview.detalles || [])
+                                  .filter((it: any) => !isEnvioItem(it))
                                   .reduce((sum: number, it: any) => sum + (Number(it.cantidad || it.qty) || 0), 0);
                               const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
                               return (

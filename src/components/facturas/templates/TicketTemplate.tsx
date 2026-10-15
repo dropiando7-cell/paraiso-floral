@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TemplateProps } from './TemplateProps';
+import { isEnvioItem } from '@/utils/facturaUtils';
 
 export default function TicketTemplate(props: TemplateProps) {
   const {
@@ -19,7 +20,7 @@ export default function TicketTemplate(props: TemplateProps) {
   const fechaLimiteFormatted = fechaLimiteEmision ? (typeof fechaLimiteEmision === 'string' ? fechaLimiteEmision.split('T')[0] : new Date(fechaLimiteEmision).toLocaleDateString('es-HN')) : null;
 
   const totalItemsQty = (lineItems || [])
-    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .filter((item: any) => !item.isSection && item.itemType !== 'section' && !isEnvioItem(item))
     .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
   const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
 

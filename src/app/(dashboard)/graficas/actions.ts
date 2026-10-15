@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { isEnvioItem } from '@/utils/facturaUtils';
 
 export async function getAuthenticatedUser() {
     const supabase = await createClient();
@@ -291,8 +292,10 @@ export async function getGraficasReportData(
                 const cleanName = extractCleanProductName(d.descripcion);
                 const cant = Number(d.cantidad) || 0;
                 const monto = Number(d.totalLinea) || 0;
-                totalPaquetesVendidos += cant;
-                sData.unidadesVendidas += cant;
+                if (!isEnvioItem(cleanName)) {
+                    totalPaquetesVendidos += cant;
+                    sData.unidadesVendidas += cant;
+                }
 
                 const prodKey = cleanName.toUpperCase();
                 if (!productStatsMap.has(prodKey)) {

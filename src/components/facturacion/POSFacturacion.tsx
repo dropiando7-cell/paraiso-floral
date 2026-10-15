@@ -18,6 +18,7 @@ import ContactoModal from '@/components/contactos/ContactoModal';
 import { PosCameraScannerModal } from './PosCameraScannerModal';
 import BandejaPedidosCediModal, { PedidoListoCedi } from './BandejaPedidosCediModal';
 import { marcarPedidoFacturado, getPedidosListosParaFacturar } from '@/app/(dashboard)/inventario-ventas/pedidos/actions';
+import { isEnvioItem } from '@/utils/facturaUtils';
 
 export interface POSProduct {
   id: string;
@@ -2396,14 +2397,14 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-dashed border-black font-bold text-[10px]">
-                    <td className="py-1">{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</td>
+                    <td className="py-1">{activeTicketItems.filter(it => !isEnvioItem(it)).reduce((s, it) => s + (Number(it.qty) || 0), 0)}</td>
                     <td className="py-1 px-1 uppercase" colSpan={2}>TOTAL ÍTEMS / PAQUETES</td>
                   </tr>
                 </tfoot>
               </table>
 
               <div className="space-y-0.5 text-right text-[11px] font-mono border-b border-dashed border-slate-400 pb-2">
-                <div className="flex justify-between font-bold border-b border-dashed border-slate-200 pb-0.5 mb-0.5"><span>Total Ítems:</span><span>{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</span></div>
+                <div className="flex justify-between font-bold border-b border-dashed border-slate-200 pb-0.5 mb-0.5"><span>Total Ítems:</span><span>{activeTicketItems.filter(it => !isEnvioItem(it)).reduce((s, it) => s + (Number(it.qty) || 0), 0)}</span></div>
                 <div className="flex justify-between"><span>Subtotal:</span><span>{fmt(activeTicketTotals.subTotal)}</span></div>
                 {activeTicketTotals.descuentos > 0 && <div className="flex justify-between"><span>Descuentos:</span><span>-{fmt(activeTicketTotals.descuentos)}</span></div>}
                 {activeTicketTotals.exonerado > 0 && <div className="flex justify-between"><span>Exonerado:</span><span>{fmt(activeTicketTotals.exonerado)}</span></div>}
@@ -2500,7 +2501,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
              </tbody>
               <tfoot>
                 <tr className="border-t border-dashed border-black font-bold text-[10px]">
-                  <td className="pt-1.5">{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</td>
+                  <td className="pt-1.5">{activeTicketItems.filter(it => !isEnvioItem(it)).reduce((s, it) => s + (Number(it.qty) || 0), 0)}</td>
                   <td className="pt-1.5 px-1 uppercase" colSpan={2}>TOTAL ÍTEMS / PAQUETES</td>
                 </tr>
               </tfoot>
@@ -2509,7 +2510,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
            <div className="text-[10px] border-t border-dashed border-black pt-1.5 flex flex-col gap-0.5 w-full items-end pb-3 border-b">
              <div className="flex w-[85%] justify-between text-slate-800 font-semibold mb-0.5 pb-0.5 border-b border-dashed border-gray-300">
                 <span className="uppercase">Total Ítems:</span>
-                <span>{activeTicketItems.reduce((s, it) => s + (Number(it.qty) || 0), 0)}</span>
+                <span>{activeTicketItems.filter(it => !isEnvioItem(it)).reduce((s, it) => s + (Number(it.qty) || 0), 0)}</span>
               </div>
               <div className="flex w-[85%] justify-between"><span className="uppercase">Sub Total:</span><span>{fmt(activeTicketTotals.subTotal)}</span></div>
              {activeTicketTotals.descuentos > 0 && <div className="flex w-[85%] justify-between"><span className="uppercase">Descuentos:</span><span>-{fmt(activeTicketTotals.descuentos)}</span></div>}

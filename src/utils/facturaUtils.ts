@@ -35,3 +35,34 @@ export function calcularFechaVencimiento(
   const base = new Date(fechaEmision);
   return new Date(base.getTime() + dias * 24 * 60 * 60 * 1000);
 }
+
+/**
+ * Determina si un ítem de factura/documento corresponde a un cargo de envío o flete
+ * ("ENVIO", "ENVIOS", "ENVÍO", "FLETE", etc.) para excluirlo del conteo de bultos/paquetes.
+ */
+export function isEnvioItem(itemOrDesc: any): boolean {
+  if (!itemOrDesc) return false;
+  const rawText =
+    typeof itemOrDesc === 'string'
+      ? itemOrDesc
+      : itemOrDesc.shortDesc ||
+        itemOrDesc.nombre ||
+        itemOrDesc.productoNombre ||
+        itemOrDesc.descripcion ||
+        '';
+  if (!rawText) return false;
+
+  const firstLine = String(rawText)
+    .split('\n')[0]
+    .split('__METADATA__')[0]
+    .split('Producto registrado')[0]
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  if (!firstLine) return false;
+
+  return /\b(envi[oa]\w*|emvi[oa]\w*|enbi[oa]\w*|flete\w*|delivery)\b/.test(firstLine);
+}
+

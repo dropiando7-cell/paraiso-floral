@@ -20,7 +20,7 @@ import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import { captureAndProcessInvoiceImage } from '@/utils/invoiceImageUtils';
 import SignatureCanvas from 'react-signature-canvas';
-import { isCredito } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
 import Fuse from 'fuse.js';
 import { useFloating, autoUpdate, flip, shift, offset, FloatingPortal } from '@floating-ui/react';
 
@@ -8175,7 +8175,7 @@ export default function DocumentBuilderClient({
                          })}
                          {(() => {
                              const tQty = (lineItems || [])
-                                 .filter((it: any) => !it.isSection && it.itemType !== 'section')
+                                 .filter((it: any) => !it.isSection && it.itemType !== 'section' && !isEnvioItem(it))
                                  .reduce((sum: number, it: any) => sum + (Number(it.qty || it.cantidad) || 0), 0);
                              const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
                              return (
@@ -8189,7 +8189,7 @@ export default function DocumentBuilderClient({
                      <div className="flex flex-col items-end text-sm mb-4 uppercase space-y-1">
                          {(() => {
                              const tQty = (lineItems || [])
-                                 .filter((it: any) => !it.isSection && it.itemType !== 'section')
+                                 .filter((it: any) => !it.isSection && it.itemType !== 'section' && !isEnvioItem(it))
                                  .reduce((sum: number, it: any) => sum + (Number(it.qty || it.cantidad) || 0), 0);
                              const fQty = Number.isInteger(tQty) ? tQty : Number(tQty.toFixed(2));
                              return (

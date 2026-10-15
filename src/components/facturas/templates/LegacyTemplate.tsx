@@ -4,7 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
-import { isCredito } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
 
 export default function LegacyTemplate(props: TemplateProps) {
   const {
@@ -119,7 +119,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   const timePart = timeParts.join(' ');
 
   const totalItemsQty = (lineItems || [])
-    .filter((item: any) => !item.isSection && item.itemType !== 'section')
+    .filter((item: any) => !item.isSection && item.itemType !== 'section' && !isEnvioItem(item))
     .reduce((sum: number, item: any) => sum + (Number(item.qty || item.cantidad) || 0), 0);
   const formattedTotalQty = Number.isInteger(totalItemsQty) ? totalItemsQty : Number(totalItemsQty.toFixed(2));
 
