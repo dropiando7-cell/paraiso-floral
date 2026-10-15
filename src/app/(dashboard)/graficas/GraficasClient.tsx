@@ -1,29 +1,31 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import { 
     TrendingUp, 
     TrendingDown, 
     Users, 
-    Box, 
-    Wallet, 
+    Package, 
     Calendar, 
     RefreshCw, 
     DollarSign, 
-    Wrench,
     FileText,
     ArrowUpRight,
-    ArrowDownRight,
     Award,
-    Activity,
     AlertCircle,
-    Printer,
-    ExternalLink,
-    MapPin,
-    User,
-    Clock
+    Eye,
+    Search,
+    Flame,
+    Sparkles,
+    CheckCircle2,
+    ShieldAlert,
+    Clock,
+    X,
+    Filter,
+    ChevronRight,
+    ArrowRight
 } from 'lucide-react';
-import { getGraficasReportData, anularFactura, anularRenta, anularOrden } from './actions';
+import { getGraficasReportData, TimeRangeType } from './actions';
 
 interface GraficasClientProps {
     initialData: any;
@@ -32,1189 +34,1050 @@ interface GraficasClientProps {
 }
 
 export default function GraficasClient({ initialData, initialMonth, initialYear }: GraficasClientProps) {
+    const [period, setPeriod] = useState<TimeRangeType>('15d');
     const [month, setMonth] = useState(initialMonth);
     const [year, setYear] = useState(initialYear);
-    const [reportData, setReportData] = useState(initialData);
+    const [data, setData] = useState(initialData);
     const [isPending, startTransition] = useTransition();
-    const [activeHoverDay, setActiveHoverDay] = useState<number | null>(null);
-    const [activeModal, setActiveModal] = useState<'ventas' | 'rentas' | 'soporte' | 'cajachica' | 'cotizaciones' | null>(null);
-    const [modalSearch, setModalSearch] = useState('');
-    const [actionPending, setActionPending] = useState(false);
-    const [previewDocId, setPreviewDocId] = useState<string | null>(null);
-    const [previewDocCorrelativo, setPreviewDocCorrelativo] = useState<string>('');
 
-    const formatCurrency = (val: number) => {
+    // Active Navigation Tab
+    const [activeTab, setActiveTab] = useState<'flores' | 'abastecimiento' | 'vendedores' | 'clientes' | 'tendencia'>('flores');
+
+    // Sub-filters inside tabs
+    const [flowerSortBy, setFlowerSortBy] = useState<'volumen' | 'monto'>('volumen');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
+
+    // Drilldown Modals
+    const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+    const [selectedSeller, setSelectedSeller] = useState<any | null>(null);
+    const [selectedClient, setSelectedClient] = useState<any | null>(null);
+    const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+
+    const formatLempiras = (val: number) => {
         return new Intl.NumberFormat('es-HN', {
             style: 'currency',
-            currency: 'HNL'
-        }).format(val);
+            currency: 'HNL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(val || 0);
     };
 
-    const handleRefresh = () => {
+    const formatNumber = (val: number) => {
+        return new Intl.NumberFormat('es-HN').format(val || 0);
+    };
+
+    const handleRefresh = (newPeriod: TimeRangeType = period, newMonth: number = month, newYear: number = year) => {
         startTransition(async () => {
             try {
-                const data = await getGraficasReportData(month, year);
-                setReportData(data);
-            } catch (e) {
-                console.error("Error al refrescar datos:", e);
+                const res = await getGraficasReportData(newPeriod, newMonth, newYear);
+                setData(res);
+            } catch (err) {
+                console.error("Error refreshing data:", err);
             }
         });
     };
 
-    // Refetch data when month/year changes
-    useEffect(() => {
-        handleRefresh();
-    }, [month, year]);
-
-    // Data for charts
-    const {
-        responsable = 'Cargando...',
-        ventasCount = 0,
-        ventasMonto = 0,
-        cotizacionesCount = 0,
-        cotizacionesMonto = 0,
-        cotizacionesConvertidasCount = 0,
-        rentasCount = 0,
-        rentasMonto = 0,
-        soporteCount = 0,
-        soporteMonto = 0,
-        cajaChicaIngresos = 0,
-        cajaChicaEgresos = 0,
-        cajaChicaMovimientos = [],
-        dailyStats = [],
-        employeeStats = [],
-        cajaGastosPorCategoria = [],
-        rawFacturas = [],
-        rawCotizaciones = [],
-        rawRentas = [],
-        rawOrdenes = []
-    } = reportData || {};
-
-    const totalIngresos = ventasMonto + rentasMonto + soporteMonto;
-
-    // Donut chart calculations
-    const pVentas = totalIngresos > 0 ? (ventasMonto / totalIngresos) * 100 : 0;
-    const pRentas = totalIngresos > 0 ? (rentasMonto / totalIngresos) : 0; // standard fraction
-    const pRentasPct = pRentas * 100;
-    const pSoporte = totalIngresos > 0 ? (soporteMonto / totalIngresos) * 100 : 0;
-
-    // SVG Donut settings
-    const radius = 50;
-    const circ = 2 * Math.PI * radius; // ~314.16
-    const dashVentas = `${(pVentas / 100) * circ} ${circ}`;
-    const dashRentas = `${(pRentasPct / 100) * circ} ${circ}`;
-    const dashSoporte = `${(pSoporte / 100) * circ} ${circ}`;
-
-    const offsetVentas = 0;
-    const offsetRentas = -((pVentas / 100) * circ);
-    const offsetSoporte = -(((pVentas + pRentasPct) / 100) * circ);
-
-    // Wave Line Chart calculations (similar to home page but dynamic)
-    const chartHeight = 220;
-    const chartWidth = 800;
-    const maxDailyIncome = Math.max(...dailyStats.map((d: any) => d.ventas + d.rentas + d.soporte), 1000);
-
-    const getCoordinates = (statsArray: typeof dailyStats, type: 'total' | 'rentasSoporte') => {
-        if (!statsArray || statsArray.length === 0) return [];
-        return statsArray.map((d: any, index: number) => {
-            const x = (index / (statsArray.length - 1)) * (chartWidth - 60) + 30;
-            const val = type === 'total' 
-                ? (d.ventas + d.rentas + d.soporte)
-                : (d.rentas + d.soporte);
-            const y = chartHeight - ((val / maxDailyIncome) * (chartHeight - 60)) - 30;
-            return { x, y, val, dia: d.dia, d };
-        });
+    const handlePeriodChange = (p: TimeRangeType) => {
+        setPeriod(p);
+        handleRefresh(p, month, year);
     };
 
-    const pointsTotal = getCoordinates(dailyStats, 'total');
-    const pointsRentasSoporte = getCoordinates(dailyStats, 'rentasSoporte');
+    const {
+        totalVentasMonto = 0,
+        facturasCount = 0,
+        ticketPromedio = 0,
+        totalPaquetesVendidos = 0,
+        totalVentasContado = 0,
+        totalVentasCredito = 0,
+        pctContado = 0,
+        pctCredito = 0,
+        metodosPago = [],
+        timelineStats = [],
+        topProductosPorVolumen = [],
+        topProductosPorMonto = [],
+        categoriasList = [],
+        sugerenciasReabastecimiento = [],
+        vendedoresList = [],
+        clientesList = [],
+        clientesParetoCount = 0,
+        totalMermasUnidades = 0,
+        topMermasFlores = [],
+        rawFacturas = []
+    } = data || {};
 
-    // Build SVG paths
-    const linePathTotal = pointsTotal.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const areaPathTotal = pointsTotal.length > 0 
-        ? `${linePathTotal} L ${pointsTotal[pointsTotal.length - 1].x} ${chartHeight - 20} L ${pointsTotal[0].x} ${chartHeight - 20} Z` 
-        : '';
+    // Filtered lists based on search
+    const filteredProducts = useMemo(() => {
+        const list = flowerSortBy === 'volumen' ? topProductosPorVolumen : topProductosPorMonto;
+        if (!searchQuery.trim()) return list;
+        const q = searchQuery.toLowerCase();
+        return list.filter((p: any) => p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q));
+    }, [flowerSortBy, topProductosPorVolumen, topProductosPorMonto, searchQuery]);
 
-    const linePathRentasSoporte = pointsRentasSoporte.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const areaPathRentasSoporte = pointsRentasSoporte.length > 0 
-        ? `${linePathRentasSoporte} L ${pointsRentasSoporte[pointsRentasSoporte.length - 1].x} ${chartHeight - 20} L ${pointsRentasSoporte[0].x} ${chartHeight - 20} Z` 
-        : '';
+    const filteredSuggestions = useMemo(() => {
+        if (!searchQuery.trim()) return sugerenciasReabastecimiento;
+        const q = searchQuery.toLowerCase();
+        return sugerenciasReabastecimiento.filter((p: any) => p.nombre.toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q));
+    }, [sugerenciasReabastecimiento, searchQuery]);
 
-    // Active hover day values
-    const hoverDayData = activeHoverDay !== null ? dailyStats[activeHoverDay - 1] : null;
-    const totalDays = new Date(year, month, 0).getDate();
+    const filteredClients = useMemo(() => {
+        if (!searchQuery.trim()) return clientesList;
+        const q = searchQuery.toLowerCase();
+        return clientesList.filter((c: any) => c.nombre.toLowerCase().includes(q) || (c.telefono && c.telefono.includes(q)));
+    }, [clientesList, searchQuery]);
 
-    // Months translation
-    const meses = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
+    // Timeline SVG computations
+    const timelineSvg = useMemo(() => {
+        if (!timelineStats || timelineStats.length === 0) return null;
+        const width = 850;
+        const height = 240;
+        const padding = { top: 30, right: 30, bottom: 40, left: 60 };
+        const maxVal = Math.max(...timelineStats.map((d: any) => d.totalVentas), 1000);
+
+        const chartW = width - padding.left - padding.right;
+        const chartH = height - padding.top - padding.bottom;
+
+        const points = timelineStats.map((d: any, idx: number) => {
+            const x = padding.left + (idx / Math.max(1, timelineStats.length - 1)) * chartW;
+            const y = padding.top + chartH - (d.totalVentas / maxVal) * chartH;
+            return { x, y, ...d };
+        });
+
+        const linePath = points.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        const areaPath = points.length > 0 
+            ? `${linePath} L ${points[points.length - 1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`
+            : '';
+
+        return { width, height, padding, maxVal, points, linePath, areaPath };
+    }, [timelineStats]);
+
+    // Donut chart calculations for categories
+    const donutData = useMemo(() => {
+        const colors = ['#f43f5e', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
+        const total = categoriasList.reduce((acc: number, c: any) => acc + c.monto, 0);
+        if (total === 0) return [];
+
+        let currentOffset = 0;
+        const circumference = 2 * Math.PI * 45; // r=45
+
+        return categoriasList.map((c: any, i: number) => {
+            const pct = c.monto / total;
+            const dashLength = pct * circumference;
+            const strokeDasharray = `${dashLength} ${circumference - dashLength}`;
+            const strokeDashoffset = -currentOffset;
+            currentOffset += dashLength;
+            return {
+                ...c,
+                pct: (pct * 100).toFixed(1),
+                color: colors[i % colors.length],
+                strokeDasharray,
+                strokeDashoffset
+            };
+        });
+    }, [categoriasList]);
 
     return (
-        <div className="flex flex-col animate-in fade-in duration-500 ease-out py-6 px-8 w-full max-w-7xl mx-auto space-y-6">
+        <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 space-y-8 font-sans selection:bg-rose-500 selection:text-white">
             
-            {/* Header section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                        <Activity className="w-6 h-6 text-brand-600" />
-                        Gráficas e Informes de Bioelectrónica
-                    </h1>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                        <p className="text-xs text-slate-500">
-                            Estadísticas financieras, flujos de caja chica y rendimientos de personal del mes seleccionado.
+            {/* ============================================================== */}
+            {/* 1. HEADER EXECUTIVE BAR WITH CONTROLS */}
+            {/* ============================================================== */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-rose-950/40 to-slate-900 border border-rose-500/20 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+                <div className="absolute -top-24 -right-24 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/30">
+                                <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                                Inteligencia de Ventas & Inventario
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                En Vivo
+                            </span>
+                        </div>
+                        <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                            Paraíso Floral <span className="text-rose-400 font-light">Analytics</span>
+                        </h1>
+                        <p className="text-sm text-slate-400 mt-1 max-w-xl">
+                            Centro de decisiones comerciales: rotación de rosas, qué variedades pedir al proveedor, clientes clave y desempeño de vendedores.
                         </p>
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 hidden md:inline" />
-                        <p className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Users className="w-3.5 h-3.5 text-slate-500" />
-                            Responsable: {responsable}
-                        </p>
-                    </div>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-                        <Calendar className="w-4 h-4 text-slate-400 ml-1" />
-                        <select 
-                            className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-                            value={month}
-                            onChange={(e) => setMonth(Number(e.target.value))}
-                        >
-                            {meses.map((m, idx) => (
-                                <option key={m} value={idx + 1}>{m}</option>
-                            ))}
-                        </select>
-                        <select 
-                            className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer border-l border-slate-200 pl-1.5"
-                            value={year}
-                            onChange={(e) => setYear(Number(e.target.value))}
-                        >
-                            {[2025, 2026, 2027].map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
                     </div>
 
+                    {/* Controls & Period Selector */}
+                    <div className="flex flex-wrap items-center gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                        <button
+                            onClick={() => handlePeriodChange('15d')}
+                            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
+                                period === '15d'
+                                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/30 scale-102'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                            }`}
+                        >
+                            <Flame className="w-3.5 h-3.5" />
+                            Últimos 15 Días
+                        </button>
+                        <button
+                            onClick={() => handlePeriodChange('30d')}
+                            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                                period === '30d'
+                                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/30 scale-102'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                            }`}
+                        >
+                            Últimos 30 Días
+                        </button>
+                        <button
+                            onClick={() => handlePeriodChange('month')}
+                            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 ${
+                                period === 'month'
+                                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/30 scale-102'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                            }`}
+                        >
+                            <Calendar className="w-3.5 h-3.5" />
+                            Mes Calendario
+                        </button>
+                        <button
+                            onClick={() => handlePeriodChange('all')}
+                            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                                period === 'all'
+                                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/30 scale-102'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                            }`}
+                        >
+                            Trimestre
+                        </button>
+
+                        <button
+                            onClick={() => handleRefresh(period, month, year)}
+                            disabled={isPending}
+                            title="Actualizar datos"
+                            className="p-2 ml-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 rounded-xl transition-all disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isPending ? 'animate-spin text-rose-400' : ''}`} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ============================================================== */}
+            {/* 2. EXECUTIVE METRIC CARDS (Top KPI Grid) */}
+            {/* ============================================================== */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                
+                {/* KPI 1: Facturación Total */}
+                <div className="relative group bg-slate-900/80 rounded-3xl border border-slate-800/80 hover:border-rose-500/40 p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <span>Total Facturado</span>
+                        <div className="w-9 h-9 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
+                            <DollarSign className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <span className="text-3xl font-black text-white tracking-tight">
+                            {formatLempiras(totalVentasMonto)}
+                        </span>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            Contado: {pctContado}%
+                        </span>
+                        <span className="text-amber-400 font-semibold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                            Crédito: {pctCredito}%
+                        </span>
+                    </div>
+                </div>
+
+                {/* KPI 2: Flores & Paquetes Vendidos */}
+                <div className="relative group bg-slate-900/80 rounded-3xl border border-slate-800/80 hover:border-emerald-500/40 p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <span>Paquetes Despachados</span>
+                        <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                            <Package className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <span className="text-3xl font-black text-white tracking-tight">
+                            {formatNumber(totalPaquetesVendidos)} <span className="text-lg font-bold text-slate-400">paq.</span>
+                        </span>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                        <span>Precio prom./paquete:</span>
+                        <span className="text-emerald-300 font-bold">
+                            {formatLempiras(totalPaquetesVendidos > 0 ? totalVentasMonto / totalPaquetesVendidos : 0)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* KPI 3: Facturas & Ticket Promedio */}
+                <div className="relative group bg-slate-900/80 rounded-3xl border border-slate-800/80 hover:border-blue-500/40 p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <span>Pedidos Facturados</span>
+                        <div className="w-9 h-9 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                            <FileText className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <span className="text-3xl font-black text-white tracking-tight">
+                            {formatNumber(facturasCount)} <span className="text-lg font-bold text-slate-400">tickets</span>
+                        </span>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                        <span>Ticket promedio:</span>
+                        <span className="text-blue-300 font-bold">{formatLempiras(ticketPromedio)}</span>
+                    </div>
+                </div>
+
+                {/* KPI 4: Mermas Registradas */}
+                <div className="relative group bg-slate-900/80 rounded-3xl border border-slate-800/80 hover:border-amber-500/40 p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <span>Pérdida por Merma</span>
+                        <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                            <ShieldAlert className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <span className="text-3xl font-black text-amber-300 tracking-tight">
+                            {formatNumber(totalMermasUnidades)} <span className="text-lg font-bold text-slate-400">flores/paq.</span>
+                        </span>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                        <span>Ratio descarte:</span>
+                        <span className="text-amber-400 font-bold">
+                            {totalPaquetesVendidos > 0 ? ((totalMermasUnidades / (totalPaquetesVendidos + totalMermasUnidades)) * 100).toFixed(1) : '0.0'}%
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            {/* ============================================================== */}
+            {/* 3. TABS NAVIGATION */}
+            {/* ============================================================== */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2 overflow-x-auto gap-4">
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={handleRefresh}
-                        disabled={isPending}
-                        className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition disabled:opacity-50 cursor-pointer"
-                        title="Refrescar datos"
+                        onClick={() => { setActiveTab('flores'); setSearchQuery(''); }}
+                        className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap ${
+                            activeTab === 'flores'
+                                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
                     >
-                        <RefreshCw className={`w-4 h-4 ${isPending ? 'animate-spin' : ''}`} />
+                        <span>🌹</span>
+                        Rosas & Flores Estrella
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('abastecimiento'); setSearchQuery(''); }}
+                        className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap ${
+                            activeTab === 'abastecimiento'
+                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
+                    >
+                        <span>📦</span>
+                        ¿Qué Pedir Más? (Compras)
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('vendedores'); setSearchQuery(''); }}
+                        className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap ${
+                            activeTab === 'vendedores'
+                                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
+                    >
+                        <span>👥</span>
+                        Vendedores & Rutas
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('clientes'); setSearchQuery(''); }}
+                        className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap ${
+                            activeTab === 'clientes'
+                                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/25'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
+                    >
+                        <span>🏆</span>
+                        Clientes VIP (Pareto)
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('tendencia'); setSearchQuery(''); }}
+                        className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap ${
+                            activeTab === 'tendencia'
+                                ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                        }`}
+                    >
+                        <span>📈</span>
+                        Curva de Ventas Diarias
                     </button>
                 </div>
-            </div>
 
-            {/* KPI Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                {/* KPI 1 - Ventas POS */}
-                <div 
-                    onClick={() => { setActiveModal('ventas'); setModalSearch(''); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ventas / POS</span>
-                        <div className="p-1.5 bg-blue-50 rounded-lg">
-                            <FileText className="w-4 h-4 text-brand-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <span className="text-[10px] text-slate-400 font-semibold block">Total Facturado</span>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{formatCurrency(ventasMonto)}</h2>
-                        <div className="mt-4 flex items-center justify-between text-[10px] border-t border-slate-100 pt-2.5">
-                            <span className="text-slate-500">Documentos emitidos:</span>
-                            <span className="font-bold text-slate-800">{ventasCount}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* KPI - Cotizaciones */}
-                <div 
-                    onClick={() => { setActiveModal('cotizaciones'); setModalSearch(''); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Cotizaciones</span>
-                        <div className="p-1.5 bg-amber-50 rounded-lg">
-                            <FileText className="w-4 h-4 text-amber-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <span className="text-[10px] text-slate-400 font-semibold block">Total Cotizado</span>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{formatCurrency(cotizacionesMonto)}</h2>
-                        <div className="mt-4 flex items-center justify-between text-[10px] border-t border-slate-100 pt-2.5">
-                            <span className="text-slate-500">Convertidas a Factura:</span>
-                            <span className="font-bold text-emerald-700">{cotizacionesConvertidasCount} / {cotizacionesCount}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* KPI 2 - Alquileres */}
-                <div 
-                    onClick={() => { setActiveModal('rentas'); setModalSearch(''); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Alquileres</span>
-                        <div className="p-1.5 bg-emerald-50 rounded-lg">
-                            <Box className="w-4 h-4 text-emerald-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <span className="text-[10px] text-slate-400 font-semibold block">Contratos en el Mes</span>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{formatCurrency(rentasMonto)}</h2>
-                        <div className="mt-4 flex items-center justify-between text-[10px] border-t border-slate-100 pt-2.5">
-                            <span className="text-slate-500">Equipos rentados:</span>
-                            <span className="font-bold text-slate-800">{rentasCount}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* KPI 3 - Soporte Técnico */}
-                <div 
-                    onClick={() => { setActiveModal('soporte'); setModalSearch(''); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Soporte Técnico</span>
-                        <div className="p-1.5 bg-indigo-50 rounded-lg">
-                            <Wrench className="w-4 h-4 text-indigo-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <span className="text-[10px] text-slate-400 font-semibold block">Revisiones & Reparación</span>
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{formatCurrency(soporteMonto)}</h2>
-                        <div className="mt-4 flex items-center justify-between text-[10px] border-t border-slate-100 pt-2.5">
-                            <span className="text-slate-500">Órdenes atendidas:</span>
-                            <span className="font-bold text-slate-800">{soporteCount}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* KPI 4 - Caja Chica */}
-                <div 
-                    onClick={() => { setActiveModal('cajachica'); setModalSearch(''); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Caja Chica</span>
-                        <div className="p-1.5 bg-purple-50 rounded-lg">
-                            <Wallet className="w-4 h-4 text-purple-600" />
-                        </div>
-                    </div>
-                    <div>
-                        <span className="text-[10px] text-slate-400 font-semibold block">Egresos de Caja Chica</span>
-                        <h2 className="text-2xl font-black text-rose-700 tracking-tight mt-0.5">{formatCurrency(cajaChicaEgresos)}</h2>
-                        <div className="mt-4 flex items-center justify-between text-[10px] border-t border-slate-100 pt-2.5">
-                            <span className="text-slate-500">Fondeos / Ingresos:</span>
-                            <span className="font-bold text-emerald-700">+{formatCurrency(cajaChicaIngresos)}</span>
-                        </div>
-                    </div>
+                {/* Quick Search inside active tab */}
+                <div className="relative min-w-[220px] hidden md:block">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                        type="text"
+                        placeholder={`Buscar en ${activeTab}...`}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-colors"
+                    />
                 </div>
             </div>
 
-            {/* Graphics Section Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Wave Area Graph - Left 2 Columns */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[380px]">
-                    <div className="p-6 pb-2 flex justify-between items-center border-b border-slate-100">
-                        <div>
-                            <h3 className="font-bold text-slate-900 text-sm">Flujo de Ingresos Diario</h3>
-                            <p className="text-[11px] text-slate-500">Evolución temporal de ingresos combinados por día en Lempiras</p>
-                        </div>
-                        {hoverDayData && (
-                            <div className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-right">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Día {hoverDayData.dia}</span>
-                                <span className="text-[11px] font-black text-brand-700">{formatCurrency(hoverDayData.ventas + hoverDayData.rentas + hoverDayData.soporte)}</span>
+            {/* ============================================================== */}
+            {/* TAB 1: ROSAS & FLORES ESTRELLA */}
+            {/* ============================================================== */}
+            {activeTab === 'flores' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Left: Top Varieties Horizontal Bar Chart */}
+                    <div className="lg:col-span-2 bg-slate-900/90 rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-2xl">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+                            <div>
+                                <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                                    <span>🌹</span> Flores Más Vendidas
+                                </h2>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    Ordenado por preferencia de compra en floristerías
+                                </p>
                             </div>
-                        )}
-                    </div>
-
-                    <div className="flex-1 relative w-full flex items-end px-4 pb-12 pt-6">
-                        {/* Y-Axis guide lines */}
-                        <div className="absolute inset-x-8 top-6 bottom-12 flex flex-col justify-between pointer-events-none select-none">
-                            <div className="border-t border-dashed border-slate-100 w-full text-[9px] text-slate-300 pt-1">
-                                {formatCurrency(maxDailyIncome)}
+                            
+                            {/* Toggle Volume vs Revenue */}
+                            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                                <button
+                                    onClick={() => setFlowerSortBy('volumen')}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                        flowerSortBy === 'volumen'
+                                            ? 'bg-rose-500 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    Por Paquetes
+                                </button>
+                                <button
+                                    onClick={() => setFlowerSortBy('monto')}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                                        flowerSortBy === 'monto'
+                                            ? 'bg-rose-500 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    Por Monto (L.)
+                                </button>
                             </div>
-                            <div className="border-t border-dashed border-slate-100 w-full text-[9px] text-slate-300 pt-1">
-                                {formatCurrency(maxDailyIncome * 0.5)}
-                            </div>
-                            <div className="border-t border-dashed border-slate-100 w-full text-[9px] text-slate-300 pt-1">
-                                0.00
-                            </div>
-                        </div>
-
-                        {/* Interactive Wave SVG Chart */}
-                        <div className="w-full h-full relative z-10">
-                            <svg 
-                                viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
-                                className="w-full h-full"
-                                preserveAspectRatio="none"
-                            >
-                                <defs>
-                                    <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-                                    </linearGradient>
-                                    <linearGradient id="chartGradientRentas" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.12" />
-                                        <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                                    </linearGradient>
-                                </defs>
-
-                                {/* Back Wave (Rentas + Soporte) */}
-                                {areaPathRentasSoporte && (
-                                    <path 
-                                        d={areaPathRentasSoporte} 
-                                        fill="url(#chartGradientRentas)"
-                                        className="stroke-emerald-400 stroke-1.5 opacity-80"
-                                    />
-                                )}
-
-                                {/* Front Main Wave (Total) */}
-                                {areaPathTotal && (
-                                    <path 
-                                        d={areaPathTotal} 
-                                        fill="url(#chartGradient)"
-                                        className="stroke-brand-500 stroke-2.5"
-                                    />
-                                )}
-
-                                {/* Interactive circles on hover */}
-                                {pointsTotal.map((p: any, idx: number) => (
-                                    <circle
-                                        key={idx}
-                                        cx={p.x}
-                                        cy={p.y}
-                                        r={activeHoverDay === p.dia ? 5 : 2}
-                                        fill={activeHoverDay === p.dia ? "#3b82f6" : "#ffffff"}
-                                        stroke="#3b82f6"
-                                        strokeWidth={activeHoverDay === p.dia ? 2.5 : 1}
-                                        className="cursor-pointer transition-all duration-150"
-                                        onMouseEnter={() => setActiveHoverDay(p.dia)}
-                                        onMouseLeave={() => setActiveHoverDay(null)}
-                                    />
-                                ))}
-                            </svg>
                         </div>
 
-                        {/* X-Axis labels */}
-                        <div className="absolute bottom-3 inset-x-8 flex justify-between text-[10px] font-bold text-slate-400 z-20">
-                            <span>Día 1</span>
-                            <span>Día 10</span>
-                            <span>Día 20</span>
-                            <span>Día {totalDays}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Donut Chart - Right Column */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col h-[380px] justify-between">
-                    <div>
-                        <h3 className="font-bold text-slate-900 text-sm">Distribución de Ingresos</h3>
-                        <p className="text-[11px] text-slate-500">Participación porcentual de facturación por servicio</p>
-                    </div>
-
-                    <div className="flex justify-center items-center relative my-4">
-                        {totalIngresos > 0 ? (
-                            <>
-                                <svg width="150" height="150" viewBox="0 0 120 120" className="transform -rotate-90">
-                                    {/* Background Ring */}
-                                    <circle cx="60" cy="60" r={radius} fill="none" stroke="#f1f5f9" strokeWidth="12" />
-                                    
-                                    {/* Ventas Slice */}
-                                    <circle cx="60" cy="60" r={radius} fill="none" stroke="#3b82f6" strokeWidth="12" 
-                                            strokeDasharray={dashVentas} strokeDashoffset={offsetVentas} strokeLinecap="round" />
-                                            
-                                    {/* Rentas Slice */}
-                                    <circle cx="60" cy="60" r={radius} fill="none" stroke="#10b981" strokeWidth="12" 
-                                            strokeDasharray={dashRentas} strokeDashoffset={offsetRentas} strokeLinecap="round" />
-
-                                    {/* Soporte Slice */}
-                                    <circle cx="60" cy="60" r={radius} fill="none" stroke="#6366f1" strokeWidth="12" 
-                                            strokeDasharray={dashSoporte} strokeDashoffset={offsetSoporte} strokeLinecap="round" />
-                                </svg>
-                                <div className="absolute flex flex-col items-center">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingreso Neto</span>
-                                    <span className="text-sm font-black text-slate-900">{formatCurrency(totalIngresos).split(',')[0]}</span>
+                        {/* List with Progress Bars */}
+                        <div className="mt-6 space-y-4">
+                            {filteredProducts.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500 text-sm">
+                                    No se encontraron variedades en este período.
                                 </div>
-                            </>
-                        ) : (
-                            <div className="h-32 flex flex-col justify-center items-center text-slate-400 text-xs">
-                                <AlertCircle className="w-8 h-8 text-slate-300 mb-2" />
-                                Sin transacciones registradas
-                            </div>
-                        )}
-                    </div>
+                            ) : (
+                                filteredProducts.map((p: any, idx: number) => {
+                                    const maxVal = flowerSortBy === 'volumen' 
+                                        ? (topProductosPorVolumen[0]?.cantidadVendida || 1)
+                                        : (topProductosPorMonto[0]?.montoTotal || 1);
+                                    const currentVal = flowerSortBy === 'volumen' ? p.cantidadVendida : p.montoTotal;
+                                    const pct = Math.min(100, Math.max(5, (currentVal / maxVal) * 100));
 
-                    <div className="space-y-2 border-t border-slate-100 pt-4">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                <span>Ventas / POS</span>
-                            </div>
-                            <span>{pVentas.toFixed(1)}%</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                                <span>Alquileres</span>
-                            </div>
-                            <span>{pRentasPct.toFixed(1)}%</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                                <span>Soporte Técnico</span>
-                            </div>
-                            <span>{pSoporte.toFixed(1)}%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom Row - Employee Matrix & Caja Chica gastos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Employee performance card - 2 Columns */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col">
-                    <div className="mb-4">
-                        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                            <Award className="w-4 h-4 text-yellow-600" /> Matriz de Actividad y Desempeño
-                        </h3>
-                        <p className="text-[11px] text-slate-500">Métricas acumuladas del personal registradas en base de datos</p>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs text-slate-600">
-                            <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200">
-                                <tr>
-                                    <th className="px-4 py-2.5">Empleado</th>
-                                    <th className="px-4 py-2.5 text-center">Rol</th>
-                                    <th className="px-4 py-2.5 text-center" title="Facturas Creadas">Ventas</th>
-                                    <th className="px-4 py-2.5 text-center" title="Alquileres Creados">Rentas</th>
-                                    <th className="px-4 py-2.5 text-center" title="Órdenes Reparadas o Recibidas">Soporte</th>
-                                    <th className="px-4 py-2.5 text-center" title="Movimientos de Caja Chica">Caja Chica</th>
-                                    <th className="px-4 py-2.5 text-center">Score</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium">
-                                {employeeStats.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                                            No hay personal registrado en esta organización.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    employeeStats.map((emp: any) => {
-                                        // Dynamic score calculation
-                                        const score = Math.min(
-                                            (emp.ventasCount * 5) + (emp.rentasCount * 8) + (emp.soporteCount * 4) + (emp.cajaChicaCount * 2),
-                                            100
-                                        );
-                                        return (
-                                            <tr key={emp.id} className="hover:bg-slate-50/50 transition">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800">{emp.nombre}</span>
-                                                        <span className="text-[9px] text-slate-400">{emp.email}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 text-[9px] font-bold rounded uppercase">
-                                                        {emp.role.replace('ORG_', '')}
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={() => setSelectedProduct(p)}
+                                            className="group p-3.5 rounded-2xl bg-slate-950/60 hover:bg-slate-800/50 border border-slate-800/80 hover:border-rose-500/40 transition-all cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-[11px] ${
+                                                        idx === 0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                        idx === 1 ? 'bg-slate-400/20 text-slate-300 border border-slate-400/30' :
+                                                        idx === 2 ? 'bg-amber-700/20 text-amber-600 border border-amber-700/30' :
+                                                        'bg-slate-800 text-slate-500'
+                                                    }`}>
+                                                        #{idx + 1}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800">{emp.ventasCount}</span>
-                                                        <span className="text-[9px] text-slate-400">{formatCurrency(emp.ventasMonto).split(',')[0]}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800">{emp.rentasCount}</span>
-                                                        <span className="text-[9px] text-slate-400">{formatCurrency(emp.rentasMonto).split(',')[0]}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800">{emp.soporteCount}</span>
-                                                        <span className="text-[9px] text-slate-400">{formatCurrency(emp.soporteMonto).split(',')[0]}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center font-bold text-slate-700">
-                                                    {emp.cajaChicaCount}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <span className={`text-[10px] font-black ${score > 60 ? 'text-emerald-700' : score > 20 ? 'text-brand-700' : 'text-slate-400'}`}>
-                                                            {score}%
+                                                    <div>
+                                                        <span className="font-extrabold text-sm text-white group-hover:text-rose-400 transition-colors">
+                                                            {p.nombre}
                                                         </span>
-                                                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div 
-                                                                className={`h-full rounded-full ${score > 60 ? 'bg-emerald-500' : score > 20 ? 'bg-brand-500' : 'bg-slate-300'}`}
-                                                                style={{ width: `${score}%` }}
-                                                            />
-                                                        </div>
+                                                        <span className="ml-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-400">
+                                                            {p.categoria}
+                                                        </span>
                                                     </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                                </div>
 
-                {/* Caja chica expenses list */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col h-[350px] justify-between">
-                    <div>
-                        <h3 className="font-bold text-slate-900 text-sm">Categoría de Gastos (Caja Chica)</h3>
-                        <p className="text-[11px] text-slate-500">Distribución de egresos menores en este mes</p>
-                    </div>
+                                                <div className="text-right">
+                                                    <span className="font-black text-sm text-white">
+                                                        {flowerSortBy === 'volumen' ? `${formatNumber(p.cantidadVendida)} paq.` : formatLempiras(p.montoTotal)}
+                                                    </span>
+                                                    <div className="text-[11px] text-slate-400">
+                                                        {flowerSortBy === 'volumen' ? formatLempiras(p.montoTotal) : `${formatNumber(p.cantidadVendida)} paq.`}
+                                                        {' • '}
+                                                        <span className="text-emerald-400 font-semibold">Prom: {formatLempiras(p.precioPromedio)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                    <div className="flex-1 my-4 overflow-y-auto space-y-3 pr-1">
-                        {cajaGastosPorCategoria.length === 0 ? (
-                            <div className="h-full flex flex-col justify-center items-center text-slate-400 text-xs">
-                                <Wallet className="w-8 h-8 text-slate-300 mb-2" />
-                                Sin egresos de caja chica registrados.
-                            </div>
-                        ) : (
-                            cajaGastosPorCategoria.map((item: any, idx: number) => {
-                                const pct = cajaChicaEgresos > 0 ? (item.total / cajaChicaEgresos) * 100 : 0;
-                                return (
-                                    <div key={idx} className="space-y-1">
-                                        <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                            <span className="truncate max-w-[120px]">{item.categoria}</span>
-                                            <span>{formatCurrency(item.total).split(',')[0]}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            {/* Bar */}
+                                            <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden">
                                                 <div 
-                                                    className="h-full bg-purple-500 rounded-full"
+                                                    className="h-full rounded-full bg-gradient-to-r from-rose-600 to-pink-500 transition-all duration-500 group-hover:from-rose-500 group-hover:to-pink-400"
                                                     style={{ width: `${pct}%` }}
                                                 />
                                             </div>
-                                            <span className="text-[10px] text-slate-400 font-bold w-8 text-right">
-                                                {pct.toFixed(0)}%
-                                            </span>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right: Category Distribution Donut */}
+                    <div className="space-y-6">
+                        <div className="bg-slate-900/90 rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-2xl flex flex-col justify-between">
+                            <div>
+                                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                                    <span>🍩</span> Participación por Categoría
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Distribución de ingresos por tipo de flor
+                                </p>
+                            </div>
+
+                            {/* SVG Donut */}
+                            <div className="my-8 flex justify-center items-center relative">
+                                <svg width="220" height="220" viewBox="0 0 120 120" className="transform -rotate-90">
+                                    <circle cx="60" cy="60" r="45" fill="none" stroke="#1e293b" strokeWidth="14" />
+                                    {donutData.map((d: any, i: number) => (
+                                        <circle
+                                            key={i}
+                                            cx="60"
+                                            cy="60"
+                                            r="45"
+                                            fill="none"
+                                            stroke={d.color}
+                                            strokeWidth="14"
+                                            strokeDasharray={d.strokeDasharray}
+                                            strokeDashoffset={d.strokeDashoffset}
+                                            className="transition-all duration-500 hover:opacity-80"
+                                        />
+                                    ))}
+                                </svg>
+
+                                <div className="absolute flex flex-col items-center justify-center text-center">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total</span>
+                                    <span className="text-sm font-black text-white">{formatLempiras(totalVentasMonto).split(',')[0]}</span>
+                                </div>
+                            </div>
+
+                            {/* Legend */}
+                            <div className="space-y-2.5 pt-4 border-t border-slate-800">
+                                {donutData.map((d: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                                            <span className="text-slate-300 font-semibold">{d.categoria}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="font-extrabold text-white">{d.pct}%</span>
+                                            <span className="text-slate-500 text-[10px] ml-1.5">({formatLempiras(d.monto).split(',')[0]})</span>
                                         </div>
                                     </div>
-                                );
-                            })
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Top Mermas Alert Box */}
+                        {topMermasFlores.length > 0 && (
+                            <div className="bg-slate-900/90 rounded-3xl border border-amber-500/20 p-6 shadow-xl">
+                                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                                    <ShieldAlert className="w-4 h-4" />
+                                    Flores con Mayor Pérdida (Merma)
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Variedades descartadas por marchitamiento en este período:
+                                </p>
+                                <div className="mt-3 space-y-2">
+                                    {topMermasFlores.slice(0, 4).map((m: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between text-xs bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                                            <span className="text-slate-300 font-medium">{m.nombre}</span>
+                                            <span className="text-amber-400 font-bold">{m.cantidad} descartadas</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Petty cash audit movement log */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <div className="mb-4">
-                    <h3 className="font-bold text-slate-900 text-sm">Registro Auditor de Caja Chica</h3>
-                    <p className="text-[11px] text-slate-500">Últimos movimientos del mes detallados por sucursal</p>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-600">
-                        <thead className="bg-slate-50 text-[10px] text-slate-500 uppercase font-bold border-b border-slate-200">
-                            <tr>
-                                <th className="px-4 py-2.5">Fecha</th>
-                                <th className="px-4 py-2.5">Tipo</th>
-                                <th className="px-4 py-2.5">Categoría</th>
-                                <th className="px-4 py-2.5">Descripción / Concepto</th>
-                                <th className="px-4 py-2.5">Registrado por</th>
-                                <th className="px-4 py-2.5 text-right">Monto</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-medium">
-                            {cajaChicaMovimientos.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                                        No hay movimientos de caja chica en este mes.
-                                    </td>
-                                </tr>
-                            ) : (
-                                cajaChicaMovimientos.slice(0, 10).map((mov: any) => (
-                                    <tr key={mov.id} className="hover:bg-slate-50/50 transition">
-                                        <td className="px-4 py-3 text-slate-400" suppressHydrationWarning>
-                                            {new Date(mov.createdAt).toLocaleDateString('es-HN', {
-                                                day: '2-digit',
-                                                month: 'short',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                                mov.tipo === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                            }`}>
-                                                {mov.tipo}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 font-semibold text-slate-700">
-                                            {mov.categoria}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-800">
-                                            {mov.descripcion}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-500">
-                                            {mov.creadorPor}
-                                        </td>
-                                        <td className={`px-4 py-3 text-right font-bold ${
-                                            mov.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'
-                                        }`}>
-                                            {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(mov.total)}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Modal de Detalle */}
-            {activeModal && (() => {
-                // Calcular stats para el header
-                const modalItems = activeModal === 'cotizaciones' ? rawCotizaciones
-                    : activeModal === 'ventas' ? rawFacturas
-                    : activeModal === 'rentas' ? rawRentas
-                    : activeModal === 'soporte' ? rawOrdenes
-                    : cajaChicaMovimientos;
-
-                const filtered = modalItems.filter((item: any) => {
-                    const q = modalSearch.toLowerCase();
-                    if (!q) return true;
-                    const fields = [item.correlativo, item.cliente, item.creadoPor, item.equipo, item.tecnico, item.categoria, item.descripcion, item.recepcionadoPor].filter(Boolean);
-                    return fields.some((f: string) => f.toLowerCase().includes(q));
-                });
-
-                const totalMonto = activeModal === 'ventas' ? filtered.filter((f:any) => f.estado !== 'ANULADA').reduce((a:number,f:any) => a + (f.total||0), 0)
-                    : activeModal === 'cotizaciones' ? filtered.filter((c:any) => c.estado !== 'ANULADA').reduce((a:number,c:any) => a + (c.total||0), 0)
-                    : activeModal === 'rentas' ? filtered.filter((r:any) => r.estado !== 'ANULADA').reduce((a:number,r:any) => a + (r.costoRenta||0), 0)
-                    : activeModal === 'soporte' ? filtered.filter((o:any) => o.estado !== 'ANULADA').reduce((a:number,o:any) => a + (o.costoRevision||0) + (o.aprobado ? (o.costoReparacion||0) : 0), 0)
-                    : filtered.filter((m:any) => m.tipo === 'EGRESO').reduce((a:number,m:any) => a + (m.total||0), 0);
-
-                const anuladas = filtered.filter((item: any) => item.estado === 'ANULADA').length;
-                const activas = filtered.length - anuladas;
-
-                const modalLabel = activeModal === 'ventas' ? 'Ventas / POS' : activeModal === 'rentas' ? 'Alquileres' : activeModal === 'soporte' ? 'Soporte Técnico' : activeModal === 'cotizaciones' ? 'Cotizaciones' : 'Caja Chica';
-                const modalColor = activeModal === 'ventas' ? 'blue' : activeModal === 'rentas' ? 'emerald' : activeModal === 'soporte' ? 'indigo' : activeModal === 'cotizaciones' ? 'amber' : 'purple';
-
-                return (
-                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6" onClick={(e) => { if (e.target === e.currentTarget) setActiveModal(null); }}>
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                        
-                        {/* Header rico con stats */}
-                        <div className={`px-6 pt-5 pb-4 bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200`}>
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2.5 rounded-xl ${
-                                        modalColor === 'blue' ? 'bg-blue-100' : 
-                                        modalColor === 'emerald' ? 'bg-emerald-100' : 
-                                        modalColor === 'indigo' ? 'bg-indigo-100' : 
-                                        modalColor === 'amber' ? 'bg-amber-100' : 'bg-purple-100'
-                                    }`}>
-                                        <FileText className={`w-5 h-5 ${
-                                            modalColor === 'blue' ? 'text-blue-700' : 
-                                            modalColor === 'emerald' ? 'text-emerald-700' : 
-                                            modalColor === 'indigo' ? 'text-indigo-700' : 
-                                            modalColor === 'amber' ? 'text-amber-700' : 'text-purple-700'
-                                        }`} />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-black text-slate-900 text-base tracking-tight">
-                                            Detalle de {modalLabel}
-                                        </h3>
-                                        <p className="text-[10px] text-slate-500 font-medium">
-                                            Período: {new Date(year, month - 1).toLocaleString('es-HN', { month: 'long', year: 'numeric' })}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={() => setActiveModal(null)}
-                                    className="text-slate-400 hover:text-slate-700 font-bold bg-white hover:bg-slate-100 p-2 rounded-xl border border-slate-200 transition cursor-pointer shadow-sm shrink-0"
-                                >
-                                    ✕
-                                </button>
+            {/* ============================================================== */}
+            {/* TAB 2: ¿QUÉ PEDIR MÁS? (ABASTECIMIENTO INTELIGENTE) */}
+            {/* ============================================================== */}
+            {activeTab === 'abastecimiento' && (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/20 rounded-3xl p-6 sm:p-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 mb-2">
+                                    <Sparkles className="w-3.5 h-3.5" /> Algoritmo de Pedido para Próximo Camión
+                                </span>
+                                <h2 className="text-xl sm:text-2xl font-black text-white">
+                                    Sugerencia de Reabastecimiento a Proveedores
+                                </h2>
+                                <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                                    Calculado con base en la velocidad de venta diaria (Run-Rate) de los últimos 15 días frente al stock actual. Ayuda a no quedarse sin las rosas clave y evitar sobre-comprar lo que rota lento.
+                                </p>
                             </div>
-
-                            {/* Stats row */}
-                            <div className="mt-4 grid grid-cols-3 gap-3">
-                                <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
-                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Registros</div>
-                                    <div className="text-lg font-black text-slate-900 mt-0.5">{filtered.length}</div>
-                                </div>
-                                <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
-                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Activos</div>
-                                    <div className={`text-lg font-black mt-0.5 ${
-                                        modalColor === 'blue' ? 'text-blue-700' : 
-                                        modalColor === 'emerald' ? 'text-emerald-700' : 
-                                        modalColor === 'indigo' ? 'text-indigo-700' : 
-                                        modalColor === 'amber' ? 'text-amber-700' : 'text-purple-700'
-                                    }`}>{activas}</div>
-                                </div>
-                                <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
-                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Neto</div>
-                                    <div className="text-sm font-black text-slate-900 mt-0.5 truncate">{formatCurrency(totalMonto).split(',')[0]}</div>
-                                </div>
+                            <div className="flex items-center gap-2 text-xs">
+                                <span className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">
+                                    🔴 Crítico / Agotado
+                                </span>
+                                <span className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                                    🟡 Stock &lt; 3 días
+                                </span>
+                                <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                                    🟢 Estable
+                                </span>
                             </div>
-                        </div>
-
-                        {/* Search */}
-                        <div className="px-5 py-3 border-b border-slate-100 bg-white flex items-center gap-3">
-                            <div className="relative flex-1">
-                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                <input 
-                                    type="text"
-                                    placeholder="Buscar por código, cliente, técnico o creador..."
-                                    className="w-full bg-slate-50 border border-slate-200 text-xs pl-9 pr-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 font-medium text-slate-800 transition-all"
-                                    value={modalSearch}
-                                    onChange={(e) => setModalSearch(e.target.value)}
-                                />
-                            </div>
-                            {anuladas > 0 && (
-                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1.5 rounded-lg shrink-0">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                                    {anuladas} anulada{anuladas !== 1 ? 's' : ''}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Content Area */}
-                        <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-slate-50/40">
-
-                            {/* ── COTIZACIONES ── */}
-                            {activeModal === 'cotizaciones' && (
-                                <>
-                                    {filtered.length === 0 && (
-                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
-                                    )}
-                                    {filtered.map((c: any) => (
-                                        <div key={c.id} className={`rounded-2xl border transition-all ${
-                                            c.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
-                                            c.estado === 'CONVERTIDA' ? 'bg-emerald-50/40 border-emerald-200 shadow-sm' :
-                                            'bg-white border-slate-200 hover:border-amber-300 hover:shadow-md shadow-sm'
-                                        }`}>
-                                            {/* Top row */}
-                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
-                                                <div className="flex items-center gap-2.5 flex-wrap">
-                                                    <span className="font-black text-sm text-slate-900 font-mono">{c.correlativo}</span>
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                                        c.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 
-                                                        c.estado === 'CONVERTIDA' ? 'bg-emerald-100 text-emerald-800' :
-                                                        'bg-amber-100 text-amber-800'
-                                                    }`}>{c.estado}</span>
-                                                </div>
-                                                <span className={`font-black text-base ${c.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
-                                                    {formatCurrency(c.total)}
-                                                </span>
-                                            </div>
-                                            {/* Info grid */}
-                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {c.cliente}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Creado por:</span> {c.creadoPor}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Fecha:</span> {new Date(c.fechaEmision).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                </div>
-                                            </div>
-                                            {/* Status notes */}
-                                            {c.estado === 'CONVERTIDA' && c.convertidoAt && (
-                                                <div className="mx-4 mb-3 text-emerald-700 text-[10px] font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-100 flex items-center gap-1.5">
-                                                    ✓ Convertida a factura el {new Date(c.convertidoAt).toLocaleDateString('es-HN')}
-                                                </div>
-                                            )}
-                                            {c.estado === 'ANULADA' && (
-                                                <div className="mx-4 mb-3 text-rose-700 text-[10px] font-bold bg-rose-50 p-2 rounded-lg border border-rose-100 flex items-center gap-1.5">
-                                                    🚫 Anulada por: {c.anuladaPor || 'Sistema'} {c.anuladaAt ? `· ${new Date(c.anuladaAt).toLocaleDateString('es-HN')}` : ''}
-                                                </div>
-                                            )}
-                                            {/* Actions */}
-                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
-                                                <a
-                                                    href={`/facturas/${c.id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
-                                                >
-                                                    <ExternalLink className="w-3 h-3" />
-                                                    Ver Detalle
-                                                </a>
-                                                <button
-                                                    onClick={() => { setPreviewDocId(c.id); setPreviewDocCorrelativo(c.correlativo); }}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg transition cursor-pointer shadow-sm"
-                                                >
-                                                    <Printer className="w-3 h-3" />
-                                                    Vista Previa
-                                                </button>
-                                                {c.estado !== 'ANULADA' && c.estado !== 'CONVERTIDA' && (
-                                                    <button
-                                                        disabled={actionPending}
-                                                        onClick={async () => {
-                                                            if (confirm(`¿Anular cotización ${c.correlativo}?`)) {
-                                                                setActionPending(true);
-                                                                const res = await anularFactura(c.id);
-                                                                setActionPending(false);
-                                                                if (res.success) handleRefresh();
-                                                                else alert(res.error || 'Error al anular');
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                    >
-                                                        Anular
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
-
-                            {/* ── VENTAS ── */}
-                            {activeModal === 'ventas' && (
-                                <>
-                                    {filtered.length === 0 && (
-                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
-                                    )}
-                                    {filtered.map((f: any) => (
-                                        <div key={f.id} className={`rounded-2xl border transition-all ${
-                                            f.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
-                                            'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md shadow-sm'
-                                        }`}>
-                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
-                                                <div className="flex items-center gap-2.5 flex-wrap">
-                                                    <span className="font-black text-sm text-slate-900 font-mono">{f.correlativo}</span>
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                                        f.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
-                                                    }`}>{f.estado}</span>
-                                                </div>
-                                                <span className={`font-black text-base ${f.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
-                                                    {formatCurrency(f.total)}
-                                                </span>
-                                            </div>
-                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {f.cliente}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Creado por:</span> {f.creadoPor}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Fecha:</span> {new Date(f.fechaEmision).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                </div>
-                                            </div>
-                                            {f.estado === 'ANULADA' && (
-                                                <div className="mx-4 mb-3 text-rose-700 text-[10px] font-bold bg-rose-50 p-2 rounded-lg border border-rose-100">
-                                                    🚫 Anulada por: {f.anuladaPor || 'Sistema'} {f.anuladaAt ? `· ${new Date(f.anuladaAt).toLocaleDateString('es-HN')}` : ''}
-                                                </div>
-                                            )}
-                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
-                                                <a
-                                                    href={`/facturas/${f.id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
-                                                >
-                                                    <ExternalLink className="w-3 h-3" />
-                                                    Ver Detalle
-                                                </a>
-                                                <button
-                                                    onClick={() => { setPreviewDocId(f.id); setPreviewDocCorrelativo(f.correlativo); }}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg transition cursor-pointer shadow-sm"
-                                                >
-                                                    <Printer className="w-3 h-3" />
-                                                    Vista Previa
-                                                </button>
-                                                {f.estado !== 'ANULADA' && (
-                                                    <button
-                                                        disabled={actionPending}
-                                                        onClick={async () => {
-                                                            if (confirm(`¿Anular factura ${f.correlativo}?`)) {
-                                                                setActionPending(true);
-                                                                const res = await anularFactura(f.id);
-                                                                setActionPending(false);
-                                                                if (res.success) handleRefresh();
-                                                                else alert(res.error || 'Error al anular');
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                    >
-                                                        Anular
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
-
-                            {/* ── RENTAS ── */}
-                            {activeModal === 'rentas' && (
-                                <>
-                                    {filtered.length === 0 && (
-                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
-                                    )}
-                                    {filtered.map((r: any) => (
-                                        <div key={r.id} className={`rounded-2xl border transition-all ${
-                                            r.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
-                                            'bg-white border-slate-200 hover:border-emerald-300 hover:shadow-md shadow-sm'
-                                        }`}>
-                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
-                                                <div className="flex items-center gap-2.5 flex-wrap">
-                                                    <span className="font-black text-sm text-slate-900">{r.equipo}</span>
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                                        r.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                                                    }`}>{r.estado}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`font-black text-base ${r.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
-                                                        {formatCurrency(r.costoRenta)}
-                                                    </span>
-                                                    <span className="text-[9px] text-slate-400 block">+ depósito {formatCurrency(r.deposito)}</span>
-                                                </div>
-                                            </div>
-                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {r.cliente}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Creado por:</span> {r.creadoPor}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Inicio:</span> {new Date(r.fechaInicio).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                </div>
-                                            </div>
-                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
-                                                <a
-                                                    href={`/rentas/${r.id}/contrato`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
-                                                >
-                                                    <ExternalLink className="w-3 h-3" />
-                                                    Ver Contrato
-                                                </a>
-                                                    {r.estado !== 'ANULADA' && (
-                                                    <button
-                                                        disabled={actionPending}
-                                                        onClick={async () => {
-                                                            if (confirm(`¿Anular contrato de renta de ${r.equipo}?`)) {
-                                                                setActionPending(true);
-                                                                const res = await anularRenta(r.id);
-                                                                setActionPending(false);
-                                                                if (res.success) handleRefresh();
-                                                                else alert(res.error || 'Error al anular');
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                    >
-                                                        Anular
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
-
-                            {/* ── SOPORTE ── */}
-                            {activeModal === 'soporte' && (
-                                <>
-                                    {filtered.length === 0 && (
-                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
-                                    )}
-                                    {filtered.map((o: any) => (
-                                        <div key={o.id} className={`rounded-2xl border transition-all ${
-                                            o.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
-                                            'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md shadow-sm'
-                                        }`}>
-                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
-                                                <div className="flex items-center gap-2.5 flex-wrap">
-                                                    <span className="font-black text-sm text-slate-900">{o.equipo}</span>
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                                        o.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-800'
-                                                    }`}>{o.estado}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-[9px] text-slate-400 block font-bold">Revisión + Reparación</span>
-                                                    <span className={`font-black text-base ${o.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
-                                                        {formatCurrency(o.costoRevision + (o.aprobado ? o.costoReparacion : 0))}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {o.cliente}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Wrench className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Técnico:</span> {o.tecnico}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Recepción:</span> {o.recepcionadoPor}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
-                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Fecha:</span> {new Date(o.fechaRecibido).toLocaleDateString('es-HN', { day: '2-digit', month: 'short' })}</span>
-                                                </div>
-                                            </div>
-                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
-                                                <a
-                                                    href={`/soporte/${o.id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
-                                                >
-                                                    <ExternalLink className="w-3 h-3" />
-                                                    Ver Orden
-                                                </a>
-                                                {o.estado !== 'ANULADA' && (
-                                                    <button
-                                                        disabled={actionPending}
-                                                        onClick={async () => {
-                                                            if (confirm(`¿Anular orden de trabajo para ${o.equipo}?`)) {
-                                                                setActionPending(true);
-                                                                const res = await anularOrden(o.id);
-                                                                setActionPending(false);
-                                                                if (res.success) handleRefresh();
-                                                                else alert(res.error || 'Error al anular');
-                                                            }
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                    >
-                                                        Anular
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
-
-                            {/* ── CAJA CHICA ── */}
-                            {activeModal === 'cajachica' && (
-                                <>
-                                    {filtered.length === 0 && (
-                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
-                                    )}
-                                    {filtered.map((m: any) => (
-                                        <div key={m.id} className={`rounded-2xl border shadow-sm transition-all ${
-                                            m.tipo === 'INGRESO' ? 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300' : 
-                                            'bg-white border-slate-200 hover:border-rose-200 hover:shadow-md'
-                                        }`}>
-                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
-                                                <div className="flex items-center gap-2.5">
-                                                    <span className="font-black text-sm text-slate-900">{m.categoria}</span>
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                                        m.tipo === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                                    }`}>{m.tipo}</span>
-                                                </div>
-                                                <span className={`font-black text-base ${
-                                                    m.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'
-                                                }`}>
-                                                    {m.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(m.total)}
-                                                </span>
-                                            </div>
-                                            <p className="px-4 pb-2 text-[11px] text-slate-700 font-medium">{m.descripcion}</p>
-                                            <div className="px-4 pb-4 flex items-center gap-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="w-3 h-3 text-slate-300" />
-                                                    <span className="text-[10px] text-slate-400 font-semibold">{m.creadorPor}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="w-3 h-3 text-slate-300" />
-                                                    <span className="text-[10px] text-slate-400 font-semibold">{new Date(m.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
                         </div>
                     </div>
-                </div>
-                );
-            })()}
-            {/* Modal de Vista Previa de Factura/Cotización */}
-            {previewDocId && (
-                <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-6">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[94vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
-                        {/* Header */}
-                        <div className="px-5 py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-between shadow-lg">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
-                                    <FileText className="w-4 h-4 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
-                                        Vista Previa
-                                        <span className="font-mono text-xs bg-white/10 text-white/90 px-2 py-0.5 rounded border border-white/20">
-                                            {previewDocCorrelativo}
-                                        </span>
-                                    </h3>
-                                    <p className="text-[10px] text-slate-400">Listo para imprimir o compartir</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        const iframe = document.querySelector('iframe[title="preview-doc"]') as HTMLIFrameElement;
-                                        if (iframe?.contentWindow) iframe.contentWindow.print();
-                                        else window.open(`/print/${previewDocId}`, '_blank');
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
-                                >
-                                    <Printer className="w-3.5 h-3.5" />
-                                    Imprimir
-                                </button>
-                                <a 
-                                    href={`/print/${previewDocId}`} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                    Abrir
-                                </a>
-                                <button 
-                                    onClick={() => { setPreviewDocId(null); setPreviewDocCorrelativo(''); }}
-                                    className="text-slate-400 hover:text-white font-extrabold text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl transition cursor-pointer border border-white/10"
-                                >
-                                    ✕ Cerrar
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* Content Area (Iframe) */}
-                        <div className="flex-1 bg-slate-100 relative">
-                            <iframe 
-                                src={`/api/pdf/${previewDocId}`} 
-                                className="w-full h-full border-none"
-                                title="preview-doc"
-                            />
+                    {/* Table / Cards Grid */}
+                    <div className="bg-slate-900/90 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-extrabold border-b border-slate-800">
+                                    <tr>
+                                        <th className="py-4 px-6">Variedad / Flor</th>
+                                        <th className="py-4 px-4 text-center">Velocidad Diaria</th>
+                                        <th className="py-4 px-4 text-center">Stock Actual</th>
+                                        <th className="py-4 px-4 text-center">Días de Cobertura</th>
+                                        <th className="py-4 px-4 text-center">Sugerencia (Pedido 7 Días)</th>
+                                        <th className="py-4 px-6 text-right">Diagnóstico</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/60 font-medium">
+                                    {filteredSuggestions.map((item: any, idx: number) => {
+                                        return (
+                                            <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                                                <td className="py-4 px-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-3 h-3 rounded-full ${
+                                                            item.nivelPrioridad === 'CRITICA' ? 'bg-rose-500 animate-ping' :
+                                                            item.nivelPrioridad === 'ALTA' ? 'bg-amber-400' :
+                                                            item.nivelPrioridad === 'MODERADA' ? 'bg-blue-400' :
+                                                            item.nivelPrioridad === 'EXCESO' ? 'bg-purple-400' :
+                                                            'bg-emerald-400'
+                                                        }`} />
+                                                        <div>
+                                                            <span className="font-extrabold text-sm text-white block">
+                                                                {item.nombre}
+                                                            </span>
+                                                            <span className="text-[11px] text-slate-500">
+                                                                {item.categoria}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-center">
+                                                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 font-bold text-slate-200 border border-slate-800">
+                                                        ~{item.velocidadDiaria} paq./día
+                                                    </span>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-center">
+                                                    <span className={`font-black text-sm ${item.stockActual <= 0 ? 'text-rose-400' : 'text-white'}`}>
+                                                        {item.stockActual} paq.
+                                                    </span>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-center">
+                                                    <span className={`px-2.5 py-1 rounded-lg font-bold text-xs ${
+                                                        item.diasCobertura <= 0 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                                                        item.diasCobertura < 3 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                                                        item.diasCobertura > 15 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                                                        'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                                    }`}>
+                                                        {item.diasCobertura <= 0 ? 'Sin Cobertura' : `~${item.diasCobertura} días`}
+                                                    </span>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-center">
+                                                    <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-black text-sm">
+                                                        +{item.cantidadRecomendadaPedir} paq.
+                                                    </span>
+                                                </td>
+
+                                                <td className="py-4 px-6 text-right">
+                                                    <span className="text-slate-400 text-xs font-semibold">
+                                                        {item.sugerenciaTexto}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* ============================================================== */}
+            {/* TAB 3: VENDEDORES & RUTAS */}
+            {/* ============================================================== */}
+            {activeTab === 'vendedores' && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {vendedoresList.map((v: any, idx: number) => {
+                            return (
+                                <div 
+                                    key={idx}
+                                    onClick={() => setSelectedSeller(v)}
+                                    className="group relative bg-slate-900/90 rounded-3xl border border-slate-800 hover:border-blue-500/40 p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-blue-500/20">
+                                                    {v.nombre.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-extrabold text-base text-white group-hover:text-blue-400 transition-colors">
+                                                        {v.nombre}
+                                                    </h3>
+                                                    <span className="text-xs text-slate-400">
+                                                        {v.facturasCount} pedidos despachados
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs font-black text-blue-400 bg-blue-500/10 border border-blue-500/30 px-2.5 py-1 rounded-full">
+                                                #{idx + 1}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-4 pt-4 border-t border-slate-800 space-y-2.5 text-xs">
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-400">Total Vendido:</span>
+                                                <span className="font-black text-sm text-white">{formatLempiras(v.montoTotal)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-400">Flores / Paquetes:</span>
+                                                <span className="font-bold text-slate-200">{formatNumber(v.unidadesVendidas)} paq.</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-400">Ticket Promedio:</span>
+                                                <span className="font-bold text-blue-300">{formatLempiras(v.ticketPromedio)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Breakdown Contado vs Credito */}
+                                    <div className="mt-6 pt-3 border-t border-slate-800">
+                                        <div className="flex justify-between text-[11px] font-semibold mb-1">
+                                            <span className="text-emerald-400">Contado ({v.pctContado}%)</span>
+                                            <span className="text-amber-400">Crédito ({(100 - v.pctContado).toFixed(1)}%)</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden flex">
+                                            <div className="h-full bg-emerald-500" style={{ width: `${v.pctContado}%` }} />
+                                            <div className="h-full bg-amber-500" style={{ width: `${100 - v.pctContado}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* TAB 4: CLIENTES VIP & PARETO (80/20) */}
+            {/* ============================================================== */}
+            {activeTab === 'clientes' && (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/20 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 mb-2">
+                                <Award className="w-3.5 h-3.5" /> Principio de Pareto (80/20)
+                            </span>
+                            <h2 className="text-xl sm:text-2xl font-black text-white">
+                                Clientes & Floristerías Estratégicas
+                            </h2>
+                            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                                Hay <span className="text-amber-400 font-bold">{clientesParetoCount} clientes clave</span> que generan aproximadamente el 80% de toda la facturación de Paraíso Floral.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="bg-slate-900/90 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider font-extrabold border-b border-slate-800">
+                                    <tr>
+                                        <th className="py-4 px-6">Ranking & Cliente</th>
+                                        <th className="py-4 px-4 text-center">Frecuencia</th>
+                                        <th className="py-4 px-4 text-right">Total Facturado</th>
+                                        <th className="py-4 px-4 text-right">Ticket Promedio</th>
+                                        <th className="py-4 px-4 text-right">Saldo en Cartera</th>
+                                        <th className="py-4 px-6 text-center">Categoría VIP</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/60 font-medium">
+                                    {filteredClients.map((c: any, idx: number) => {
+                                        return (
+                                            <tr 
+                                                key={idx}
+                                                onClick={() => setSelectedClient(c)}
+                                                className="hover:bg-slate-800/40 transition-colors cursor-pointer"
+                                            >
+                                                <td className="py-4 px-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-[11px]">
+                                                            #{c.ranking}
+                                                        </span>
+                                                        <div>
+                                                            <span className="font-extrabold text-sm text-white block hover:text-amber-400 transition-colors">
+                                                                {c.nombre}
+                                                            </span>
+                                                            <span className="text-[11px] text-slate-500">
+                                                                {c.telefono || c.direccion || 'Sin contacto'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-center">
+                                                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 font-bold text-slate-200 border border-slate-800">
+                                                        {c.facturasCount} pedidos
+                                                    </span>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-right">
+                                                    <span className="font-black text-sm text-white">
+                                                        {formatLempiras(c.montoTotal)}
+                                                    </span>
+                                                    <div className="text-[10px] text-slate-400">{c.pctDelTotal}% del total</div>
+                                                </td>
+
+                                                <td className="py-4 px-4 text-right font-bold text-slate-300">
+                                                    {formatLempiras(c.ticketPromedio)}
+                                                </td>
+
+                                                <td className="py-4 px-4 text-right">
+                                                    <span className={`font-bold ${c.saldoPendiente > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+                                                        {formatLempiras(c.saldoPendiente)}
+                                                    </span>
+                                                </td>
+
+                                                <td className="py-4 px-6 text-center">
+                                                    {c.esPareto80 ? (
+                                                        <span className="px-3 py-1 rounded-full text-[11px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                                            ⭐ VIP Pareto 80
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400">
+                                                            Regular
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* TAB 5: CURVA DE VENTAS DIARIAS */}
+            {/* ============================================================== */}
+            {activeTab === 'tendencia' && (
+                <div className="bg-slate-900/90 rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+                        <div>
+                            <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                                <span>📈</span> Evolución Diaria de Facturación
+                            </h2>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                Identifica los días pico de venta (llegada de camiones y abastecimiento a floristerías)
+                            </p>
+                        </div>
+                        {hoveredDayIndex !== null && timelineStats[hoveredDayIndex] && (
+                            <div className="bg-slate-950 px-4 py-2 rounded-2xl border border-rose-500/30 text-xs">
+                                <span className="text-slate-400 font-medium">{timelineStats[hoveredDayIndex].diaLabel}: </span>
+                                <span className="text-rose-400 font-black ml-1">{formatLempiras(timelineStats[hoveredDayIndex].totalVentas)}</span>
+                                <span className="text-slate-400 ml-2">({timelineStats[hoveredDayIndex].unidades} paq. / {timelineStats[hoveredDayIndex].facturasCount} facturas)</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SVG Spline Chart */}
+                    {timelineSvg && (
+                        <div className="mt-8 relative overflow-x-auto">
+                            <svg 
+                                viewBox={`0 0 ${timelineSvg.width} ${timelineSvg.height}`} 
+                                className="w-full h-64 sm:h-80"
+                            >
+                                <defs>
+                                    <linearGradient id="roseGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.3" />
+                                        <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.0" />
+                                    </linearGradient>
+                                </defs>
+
+                                {/* Area */}
+                                {timelineSvg.areaPath && (
+                                    <path d={timelineSvg.areaPath} fill="url(#roseGradient)" />
+                                )}
+
+                                {/* Line */}
+                                {timelineSvg.linePath && (
+                                    <path 
+                                        d={timelineSvg.linePath} 
+                                        fill="none" 
+                                        stroke="#f43f5e" 
+                                        strokeWidth="3" 
+                                        strokeLinecap="round" 
+                                    />
+                                )}
+
+                                {/* Points */}
+                                {timelineSvg.points.map((p: any, idx: number) => (
+                                    <circle
+                                        key={idx}
+                                        cx={p.x}
+                                        cy={p.y}
+                                        r={hoveredDayIndex === idx ? 6 : 3}
+                                        fill={hoveredDayIndex === idx ? "#ffffff" : "#f43f5e"}
+                                        stroke="#f43f5e"
+                                        strokeWidth={hoveredDayIndex === idx ? 3 : 1}
+                                        className="cursor-pointer transition-all duration-150"
+                                        onMouseEnter={() => setHoveredDayIndex(idx)}
+                                        onMouseLeave={() => setHoveredDayIndex(null)}
+                                    />
+                                ))}
+                            </svg>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* DRILLDOWN MODAL: DETALLES DE FLOR / VARIEDAD */}
+            {/* ============================================================== */}
+            {selectedProduct && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl text-left space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div>
+                                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">
+                                    {selectedProduct.categoria}
+                                </span>
+                                <h3 className="text-xl font-black text-white">
+                                    {selectedProduct.nombre}
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => setSelectedProduct(null)}
+                                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                                <span className="text-slate-400 block mb-1">Paquetes Vendidos</span>
+                                <span className="text-xl font-black text-white">{formatNumber(selectedProduct.cantidadVendida)}</span>
+                            </div>
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                                <span className="text-slate-400 block mb-1">Total Generado</span>
+                                <span className="text-xl font-black text-emerald-400">{formatLempiras(selectedProduct.montoTotal)}</span>
+                            </div>
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                                <span className="text-slate-400 block mb-1">Precio Promedio Real</span>
+                                <span className="text-base font-bold text-blue-300">{formatLempiras(selectedProduct.precioPromedio)} / paq.</span>
+                            </div>
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                                <span className="text-slate-400 block mb-1">Stock Actual en Bodega</span>
+                                <span className="text-base font-bold text-amber-300">{selectedProduct.stockActual} paq.</span>
+                            </div>
+                        </div>
+
+                        <div className="pt-2 text-right">
+                            <button
+                                onClick={() => setSelectedProduct(null)}
+                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* DRILLDOWN MODAL: DETALLES DE VENDEDOR O CLIENTE */}
+            {/* ============================================================== */}
+            {(selectedSeller || selectedClient) && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl text-left space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <div>
+                                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                                    {selectedSeller ? 'Desempeño de Vendedor' : 'Ficha de Cliente'}
+                                </span>
+                                <h3 className="text-xl font-black text-white">
+                                    {selectedSeller ? selectedSeller.nombre : selectedClient.nombre}
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => { setSelectedSeller(null); setSelectedClient(null); }}
+                                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                                <span className="text-slate-400 block mb-1">Facturas Registradas</span>
+                                <span className="text-xl font-black text-white">
+                                    {selectedSeller ? selectedSeller.facturasCount : selectedClient.facturasCount} pedidos
+                                </span>
+                            </div>
+                            <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                                <span className="text-slate-400 block mb-1">Monto Acumulado</span>
+                                <span className="text-xl font-black text-emerald-400">
+                                    {formatLempiras(selectedSeller ? selectedSeller.montoTotal : selectedClient.montoTotal)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="pt-2 text-right">
+                            <button
+                                onClick={() => { setSelectedSeller(null); setSelectedClient(null); }}
+                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

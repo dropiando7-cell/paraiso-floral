@@ -16,384 +16,546 @@ export async function getAuthenticatedUser() {
     return { ...dbUser, fullName };
 }
 
-export async function getGraficasReportData(month: number, year: number) {
+function extractCleanProductName(raw: string): string {
+    if (!raw) return 'Variedad General';
+    const firstLine = raw.split('\n')[0].trim();
+    return firstLine.replace(/__METADATA__.*$/, '').trim();
+}
+
+function detectFlowerCategory(name: string): string {
+    const upper = name.toUpperCase();
+    if (upper.includes('ROSA') || upper.includes('FREEDOM') || upper.includes('EXPLORER') || upper.includes('MONDIAL') || upper.includes('SURTID')) {
+        return 'Rosas';
+    }
+    if (upper.includes('POMPON') || upper.includes('MARGARITA') || upper.includes('FUJI') || upper.includes('CRISANTEMO')) {
+        return 'Pompones y Crisantemos';
+    }
+    if (upper.includes('GERBERA') || upper.includes('TULIPAN') || upper.includes('GIRASOL') || upper.includes('LIRIO') || upper.includes('CLAVEL') || upper.includes('ALSTROEMERIA') || upper.includes('DRAGON') || upper.includes('MANZANILLA') || upper.includes('ORQUIDEA')) {
+        return 'Flores Exóticas y Corte';
+    }
+    if (upper.includes('ERUL') || upper.includes('EUCALIPTO') || upper.includes('SOLIDAGO') || upper.includes('RUSCUS') || upper.includes('PINOCHO') || upper.includes('HELECHO') || upper.includes('GYPSO') || upper.includes('BABY')) {
+        return 'Follajes y Rellenos';
+    }
+    return 'Otras Variedades';
+}
+
+export type TimeRangeType = '15d' | '30d' | 'month' | 'all';
+
+export async function getGraficasReportData(
+    period: TimeRangeType = '15d',
+    month?: number,
+    year?: number
+) {
     try {
         const user = await getAuthenticatedUser();
         const orgId = user.organizationId;
 
-        // Boundaries of selected month
-        const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
-        const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+        const now = new Date();
+        const selMonth = month || (now.getMonth() + 1);
+        const selYear = year || now.getFullYear();
 
-        // 1. Fetch sales (Factura)
+        let startDate: Date;
+        let endDate: Date = new Date();
+
+        if (period === '15d') {
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 15);
+            startDate.setHours(0, 0, 0, 0);
+        } else if (period === '30d') {
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            startDate.setHours(0, 0, 0, 0);
+        } else if (period === 'month') {
+            startDate = new Date(selYear, selMonth - 1, 1, 0, 0, 0, 0);
+            endDate = new Date(selYear, selMonth, 0, 23, 59, 59, 999);
+        } else {
+            // All-time or last 90 days
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 90);
+            startDate.setHours(0, 0, 0, 0);
+        }
+
+        const daysSpan = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        // 1. Fetch Invoices with details, client, seller
         const facturas = await prisma.factura.findMany({
             where: {
                 organizationId: orgId,
                 fechaEmision: {
-                    gte: startOfMonth,
-                    lte: endOfMonth
-                }
+                    gte: startDate,
+                    lte: endDate
+                },
+                estado: { not: 'ANULADA' },
+                tipoDocumento: { in: ['FACTURA', 'NOTA_CREDITO'] }
             },
             include: {
-                creadoPor: {
-                    select: { nombre: true, apellido: true }
-                },
-                anuladaPor: {
-                    select: { nombre: true, apellido: true }
+                detalles: {
+                    include: {
+                        producto: {
+                            select: {
+                                id: true,
+                                nombre: true,
+                                stockActual: true,
+                                precioVenta: true,
+                                costoBase: true,
+                                categoria: true,
+                                imagenWeb: true
+                            }
+                        }
+                    }
                 },
                 cliente: {
-                    select: { nombre: true }
-                }
+                    select: {
+                        id: true,
+                        nombre: true,
+                        telefono: true,
+                        direccion: true,
+                        limiteCredito: true,
+                        saldoInicial: true,
+                        saldoFavor: true
+                    }
+                },
+                creadoPor: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true,
+                        email: true
+                    }
+                },
+                pagosMixtos: true
             },
             orderBy: {
                 fechaEmision: 'desc'
             }
         });
 
-        // 2. Fetch rental equipment (RentaEquipo)
-        const rentas = await prisma.rentaEquipo.findMany({
+        // 2. Fetch Mermas in the same period
+        const mermas = await prisma.registroMerma.findMany({
             where: {
                 organizationId: orgId,
-                fechaInicio: {
-                    gte: startOfMonth,
-                    lte: endOfMonth
-                }
-            },
-            include: {
-                creadoPor: {
-                    select: { nombre: true, apellido: true }
-                },
-                cliente: {
-                    select: { nombre: true }
-                },
-                activoFijo: {
-                    select: { descripcionCorta: true }
+                fecha: {
+                    gte: startDate,
+                    lte: endDate
                 }
             },
             orderBy: {
-                fechaInicio: 'desc'
+                fecha: 'desc'
             }
         });
 
-        // 3. Fetch rental payments (RentaPago) to compute cash flow
-        const rentasPagos = await prisma.rentaPago.findMany({
+        // 3. Fetch Master Products for stock matching & suggestions
+        const masterProducts = await prisma.producto.findMany({
             where: {
                 organizationId: orgId,
-                fechaPago: {
-                    gte: startOfMonth,
-                    lte: endOfMonth
-                }
-            },
-            select: {
-                id: true,
-                monto: true,
-                creadoPorId: true
-            }
-        });
-
-        // 4. Fetch support tickets (OrdenTrabajo)
-        const ordenes = await prisma.ordenTrabajo.findMany({
-            where: {
-                organizationId: orgId,
-                fechaRecibido: {
-                    gte: startOfMonth,
-                    lte: endOfMonth
-                }
-            },
-            include: {
-                cliente: {
-                    select: { nombre: true }
-                },
-                usuarioRecepcion: {
-                    select: { nombre: true, apellido: true }
-                },
-                tecnicoReparacion: {
-                    select: { nombre: true, apellido: true }
-                }
-            },
-            orderBy: {
-                fechaRecibido: 'desc'
-            }
-        });
-
-        // 5. Fetch Petty cash movements (CajaChicaMovimiento)
-        const cajaMovimientos = await prisma.cajaChicaMovimiento.findMany({
-            where: {
-                session: {
-                    organizationId: orgId
-                },
-                estado: { not: 'ANULADO' },
-                createdAt: {
-                    gte: startOfMonth,
-                    lte: endOfMonth
-                }
-            },
-            select: {
-                id: true,
-                tipo: true,
-                categoria: true,
-                descripcion: true,
-                total: true,
-                createdAt: true,
-                creadoPorId: true,
-                creadoPor: {
-                    select: {
-                        nombre: true,
-                        apellido: true
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
-
-        // 6. Fetch all employees (User)
-        const employees = await prisma.user.findMany({
-            where: {
-                organizationId: orgId
+                estado: 'ACTIVO'
             },
             select: {
                 id: true,
                 nombre: true,
-                apellido: true,
-                email: true,
-                role: true
+                stockActual: true,
+                stockMinimo: true,
+                precioVenta: true,
+                costoBase: true,
+                categoria: true,
+                imagenWeb: true
             }
         });
 
-        // Calculations & aggregates (excluding 'ANULADA' status)
-        const activeFacturas = facturas.filter(f => f.estado !== 'ANULADA' && f.tipoDocumento === 'FACTURA');
-        const activeRentas = rentas.filter(r => r.estado !== 'ANULADA');
-        const activeOrdenes = ordenes.filter(o => o.estado !== 'ANULADA');
+        // ==========================================
+        // AGGREGATIONS & METRICS
+        // ==========================================
 
-        // Cotizaciones
-        const activeCotizaciones = facturas.filter(f => f.tipoDocumento === 'COTIZACION' && f.estado !== 'ANULADA');
-        const totalCotizaciones = activeCotizaciones.reduce((sum, f) => sum + Number(f.total), 0);
-        const convertedCotizacionesCount = activeCotizaciones.filter(c => c.estado === 'CONVERTIDA').length;
+        const totalVentasMonto = facturas.reduce((sum, f) => sum + Number(f.total), 0);
+        const facturasCount = facturas.length;
+        const ticketPromedio = facturasCount > 0 ? (totalVentasMonto / facturasCount) : 0;
 
-        const totalVentas = activeFacturas.reduce((sum, f) => sum + Number(f.total), 0);
-        const totalRentas = activeRentas.reduce((sum, r) => sum + Number(r.costoRenta), 0);
-        
-        let totalSoporte = 0;
-        activeOrdenes.forEach(o => {
-            totalSoporte += Number(o.costoRevision);
-            if (o.aprobado && o.costoReparacion) {
-                totalSoporte += Number(o.costoReparacion);
+        let totalPaquetesVendidos = 0;
+        let totalVentasContado = 0;
+        let totalVentasCredito = 0;
+
+        // Payment methods tracking
+        const metodosPagoMap: Record<string, number> = {
+            'Efectivo': 0,
+            'Transferencia': 0,
+            'Crédito': 0,
+            'Otros': 0
+        };
+
+        // Aggregation maps
+        const productStatsMap = new Map<string, {
+            nombre: string;
+            categoria: string;
+            cantidadVendida: number;
+            montoTotal: number;
+            facturasSet: Set<string>;
+            imagenWeb?: string | null;
+            productoId?: string | null;
+            dbStockActual?: number;
+            dbPrecio?: number;
+        }>();
+
+        const vendedorStatsMap = new Map<string, {
+            vendedorId?: string;
+            nombre: string;
+            facturasCount: number;
+            montoTotal: number;
+            unidadesVendidas: number;
+            montoContado: number;
+            montoCredito: number;
+        }>();
+
+        const clienteStatsMap = new Map<string, {
+            clienteId: string;
+            nombre: string;
+            telefono?: string | null;
+            direccion?: string | null;
+            facturasCount: number;
+            montoTotal: number;
+            saldoPendiente: number;
+            ultimaCompra: string;
+        }>();
+
+        // Process Facturas & Details
+        facturas.forEach(f => {
+            const isCredito = Number(f.saldoPendiente) > 0 || (f.metodoPago && f.metodoPago.toLowerCase().includes('credito'));
+            if (isCredito) {
+                totalVentasCredito += Number(f.total);
+            } else {
+                totalVentasContado += Number(f.total);
             }
-        });
 
-        let totalCajaSalidas = 0;
-        let totalCajaIngresos = 0;
-        const cajaGastosPorCategoria: Record<string, number> = {};
-
-        cajaMovimientos.forEach(m => {
-            if (m.tipo === 'SALIDA') {
-                totalCajaSalidas += m.total;
-                cajaGastosPorCategoria[m.categoria] = (cajaGastosPorCategoria[m.categoria] || 0) + m.total;
-            } else if (m.tipo === 'INGRESO') {
-                totalCajaIngresos += m.total;
+            // Metodo de pago
+            if (f.pagosMixtos && f.pagosMixtos.length > 0) {
+                f.pagosMixtos.forEach(p => {
+                    const mp = p.metodoPago || 'Otros';
+                    metodosPagoMap[mp] = (metodosPagoMap[mp] || 0) + Number(p.monto);
+                });
+            } else {
+                const mp = f.metodoPago || (isCredito ? 'Crédito' : 'Efectivo');
+                metodosPagoMap[mp] = (metodosPagoMap[mp] || 0) + Number(f.total);
             }
-        });
 
-        // Compute daily breakdown for line chart
-        const totalDays = new Date(year, month, 0).getDate();
-        const dailyStats = Array.from({ length: totalDays }, (_, i) => ({
-            dia: i + 1,
-            ventas: 0,
-            rentas: 0,
-            soporte: 0
-        }));
+            // Vendedor
+            const sellerName = f.vendedorNombre?.trim() || 
+                ([f.creadoPor?.nombre, f.creadoPor?.apellido].filter(Boolean).join(' ').trim()) || 
+                'Ventas Central';
 
-        activeFacturas.forEach(f => {
-            const day = new Date(f.fechaEmision).getDate();
-            if (day >= 1 && day <= totalDays) {
-                dailyStats[day - 1].ventas += Number(f.total);
+            const sellerKey = sellerName.toUpperCase();
+            if (!vendedorStatsMap.has(sellerKey)) {
+                vendedorStatsMap.set(sellerKey, {
+                    vendedorId: f.creadoPorId || undefined,
+                    nombre: sellerName,
+                    facturasCount: 0,
+                    montoTotal: 0,
+                    unidadesVendidas: 0,
+                    montoContado: 0,
+                    montoCredito: 0
+                });
             }
-        });
-
-        activeRentas.forEach(r => {
-            const day = new Date(r.fechaInicio).getDate();
-            if (day >= 1 && day <= totalDays) {
-                dailyStats[day - 1].rentas += Number(r.costoRenta);
+            const sData = vendedorStatsMap.get(sellerKey)!;
+            sData.facturasCount += 1;
+            sData.montoTotal += Number(f.total);
+            if (isCredito) {
+                sData.montoCredito += Number(f.total);
+            } else {
+                sData.montoContado += Number(f.total);
             }
-        });
 
-        activeOrdenes.forEach(o => {
-            const day = new Date(o.fechaRecibido).getDate();
-            if (day >= 1 && day <= totalDays) {
-                let revenue = Number(o.costoRevision);
-                if (o.aprobado && o.costoReparacion) {
-                    revenue += Number(o.costoReparacion);
+            // Cliente
+            if (f.cliente) {
+                const cKey = f.cliente.id;
+                if (!clienteStatsMap.has(cKey)) {
+                    clienteStatsMap.set(cKey, {
+                        clienteId: f.cliente.id,
+                        nombre: f.cliente.nombre,
+                        telefono: f.cliente.telefono,
+                        direccion: f.cliente.direccion,
+                        facturasCount: 0,
+                        montoTotal: 0,
+                        saldoPendiente: 0,
+                        ultimaCompra: f.fechaEmision.toISOString()
+                    });
                 }
-                dailyStats[day - 1].soporte += revenue;
+                const cData = clienteStatsMap.get(cKey)!;
+                cData.facturasCount += 1;
+                cData.montoTotal += Number(f.total);
+                cData.saldoPendiente += Number(f.saldoPendiente || 0);
+                if (new Date(f.fechaEmision) > new Date(cData.ultimaCompra)) {
+                    cData.ultimaCompra = f.fechaEmision.toISOString();
+                }
             }
-        });
 
-        // Compute employee performance matrix
-        const employeeStats = employees.map(emp => {
-            const empFacturas = activeFacturas.filter(f => f.creadoPorId === emp.id);
-            const empRentas = activeRentas.filter(r => r.creadoPorId === emp.id);
-            const empRecepcion = activeOrdenes.filter(o => o.usuarioRecepcionId === emp.id);
-            const empReparaciones = activeOrdenes.filter(o => o.tecnicoReparacionId === emp.id && ['REPARADA', 'LISTO', 'ENTREGADO'].includes(o.estado));
-            const empCaja = cajaMovimientos.filter(m => m.creadoPorId === emp.id);
+            // Detalle Factura (Productos / Flores)
+            f.detalles.forEach(d => {
+                const cleanName = extractCleanProductName(d.descripcion);
+                const cant = Number(d.cantidad) || 0;
+                const monto = Number(d.totalLinea) || 0;
+                totalPaquetesVendidos += cant;
+                sData.unidadesVendidas += cant;
 
-            const vTotal = empFacturas.reduce((sum, f) => sum + Number(f.total), 0);
-            const rTotal = empRentas.reduce((sum, r) => sum + Number(r.costoRenta), 0);
-
-            let sTotal = 0;
-            activeOrdenes.filter(o => o.tecnicoReparacionId === emp.id).forEach(o => {
-                if (o.aprobado && o.costoReparacion) {
-                    sTotal += Number(o.costoReparacion);
+                const prodKey = cleanName.toUpperCase();
+                if (!productStatsMap.has(prodKey)) {
+                    productStatsMap.set(prodKey, {
+                        nombre: cleanName,
+                        categoria: detectFlowerCategory(cleanName),
+                        cantidadVendida: 0,
+                        montoTotal: 0,
+                        facturasSet: new Set(),
+                        imagenWeb: d.producto?.imagenWeb || null,
+                        productoId: d.productoId,
+                        dbStockActual: d.producto?.stockActual,
+                        dbPrecio: d.producto?.precioVenta ? Number(d.producto.precioVenta) : undefined
+                    });
+                }
+                const pData = productStatsMap.get(prodKey)!;
+                pData.cantidadVendida += cant;
+                pData.montoTotal += monto;
+                pData.facturasSet.add(f.id);
+                if (!pData.imagenWeb && d.producto?.imagenWeb) {
+                    pData.imagenWeb = d.producto.imagenWeb;
                 }
             });
+        });
+
+        // Connect masterProducts stock to productStatsMap if not connected
+        masterProducts.forEach(mp => {
+            const key = mp.nombre.trim().toUpperCase();
+            if (productStatsMap.has(key)) {
+                const item = productStatsMap.get(key)!;
+                item.dbStockActual = mp.stockActual;
+                item.dbPrecio = Number(mp.precioVenta);
+                if (!item.imagenWeb && mp.imagenWeb) item.imagenWeb = mp.imagenWeb;
+            }
+        });
+
+        // 4. Products Array & Rankings
+        const productsList = Array.from(productStatsMap.values()).map(p => ({
+            nombre: p.nombre,
+            categoria: p.categoria,
+            cantidadVendida: p.cantidadVendida,
+            montoTotal: p.montoTotal,
+            precioPromedio: p.cantidadVendida > 0 ? (p.montoTotal / p.cantidadVendida) : 0,
+            frecuenciaFacturas: p.facturasSet.size,
+            imagenWeb: p.imagenWeb || null,
+            stockActual: p.dbStockActual ?? 0,
+            // Run-rate per day in current period
+            velocidadDiaria: Number((p.cantidadVendida / daysSpan).toFixed(1)),
+            // Days of stock left based on current sales speed
+            diasCobertura: (p.cantidadVendida > 0 && (p.dbStockActual ?? 0) > 0)
+                ? Number(((p.dbStockActual ?? 0) / (p.cantidadVendida / daysSpan)).toFixed(1))
+                : 0
+        }));
+
+        // Sortings
+        const topProductosPorVolumen = [...productsList].sort((a, b) => b.cantidadVendida - a.cantidadVendida);
+        const topProductosPorMonto = [...productsList].sort((a, b) => b.montoTotal - a.montoTotal);
+
+        // 5. Categorías Breakdown (Donut)
+        const categoriaTotals: Record<string, { cantidad: number; monto: number }> = {};
+        productsList.forEach(p => {
+            if (!categoriaTotals[p.categoria]) {
+                categoriaTotals[p.categoria] = { cantidad: 0, monto: 0 };
+            }
+            categoriaTotals[p.categoria].cantidad += p.cantidadVendida;
+            categoriaTotals[p.categoria].monto += p.montoTotal;
+        });
+
+        const categoriasList = Object.entries(categoriaTotals).map(([categoria, val]) => ({
+            categoria,
+            cantidad: val.cantidad,
+            monto: val.monto,
+            pctMonto: totalVentasMonto > 0 ? Number(((val.monto / totalVentasMonto) * 100).toFixed(1)) : 0,
+            pctVolumen: totalPaquetesVendidos > 0 ? Number(((val.cantidad / totalPaquetesVendidos) * 100).toFixed(1)) : 0
+        })).sort((a, b) => b.monto - a.monto);
+
+        // 6. Intelligent Reorder Suggestions (¿Qué pedir más?)
+        const sugerenciasReabastecimiento = productsList.map(p => {
+            const rotacion = p.velocidadDiaria;
+            let nivelPrioridad: 'CRITICA' | 'ALTA' | 'MODERADA' | 'ESTABLE' | 'EXCESO' = 'MODERADA';
+            let sugerenciaTexto = 'Stock normal';
+            let cantidadRecomendadaPedir = Math.ceil(rotacion * 7); // Pedir para 7 días
+
+            if (p.stockActual <= 0 && rotacion > 0) {
+                nivelPrioridad = 'CRITICA';
+                sugerenciaTexto = 'Agotado con alta demanda. Pedir prioritariamente.';
+            } else if (p.diasCobertura > 0 && p.diasCobertura < 3) {
+                nivelPrioridad = 'ALTA';
+                sugerenciaTexto = `Quedan ~${p.diasCobertura} días de stock. Solicitar reabastecimiento urgente.`;
+            } else if (p.diasCobertura >= 3 && p.diasCobertura <= 7) {
+                nivelPrioridad = 'MODERADA';
+                sugerenciaTexto = `Cobertura de ${p.diasCobertura} días. Planificar próximo envío.`;
+            } else if (p.diasCobertura > 15) {
+                nivelPrioridad = 'EXCESO';
+                sugerenciaTexto = `Sobre-inventario (~${p.diasCobertura} días). Pausar compras y promocionar.`;
+                cantidadRecomendadaPedir = 0;
+            } else {
+                nivelPrioridad = 'ESTABLE';
+                sugerenciaTexto = 'Flujo balanceado de inventario.';
+            }
 
             return {
-                id: emp.id,
-                nombre: [emp.nombre, emp.apellido].filter(Boolean).join(' ') || emp.email.split('@')[0],
-                email: emp.email,
-                role: emp.role,
-                ventasCount: empFacturas.length,
-                ventasMonto: vTotal,
-                rentasCount: empRentas.length,
-                rentasMonto: rTotal,
-                soporteCount: empRecepcion.length + empReparaciones.length,
-                soporteMonto: sTotal,
-                cajaChicaCount: empCaja.length
+                ...p,
+                nivelPrioridad,
+                sugerenciaTexto,
+                cantidadRecomendadaPedir
+            };
+        }).sort((a, b) => {
+            const rank: Record<string, number> = { 'CRITICA': 5, 'ALTA': 4, 'MODERADA': 3, 'ESTABLE': 2, 'EXCESO': 1 };
+            return (rank[b.nivelPrioridad] || 0) - (rank[a.nivelPrioridad] || 0);
+        });
+
+        // 7. Vendedores Ranking
+        const vendedoresList = Array.from(vendedorStatsMap.values()).map(v => ({
+            ...v,
+            ticketPromedio: v.facturasCount > 0 ? (v.montoTotal / v.facturasCount) : 0,
+            pctTotal: totalVentasMonto > 0 ? Number(((v.montoTotal / totalVentasMonto) * 100).toFixed(1)) : 0,
+            pctContado: v.montoTotal > 0 ? Number(((v.montoContado / v.montoTotal) * 100).toFixed(1)) : 0
+        })).sort((a, b) => b.montoTotal - a.montoTotal);
+
+        // 8. Clientes Ranking & Pareto (80/20)
+        let accumulatedMonto = 0;
+        const clientesSorted = Array.from(clienteStatsMap.values()).sort((a, b) => b.montoTotal - a.montoTotal);
+        const clientesList = clientesSorted.map((c, index) => {
+            accumulatedMonto += c.montoTotal;
+            const pctAcumulado = totalVentasMonto > 0 ? (accumulatedMonto / totalVentasMonto) * 100 : 0;
+            return {
+                ...c,
+                ranking: index + 1,
+                ticketPromedio: c.facturasCount > 0 ? (c.montoTotal / c.facturasCount) : 0,
+                pctDelTotal: totalVentasMonto > 0 ? Number(((c.montoTotal / totalVentasMonto) * 100).toFixed(1)) : 0,
+                esPareto80: pctAcumulado <= 85 // Part of the 80% key volume
             };
         });
 
-        // Serialize full data including raw list for details modals
-        return {
-            responsable: user.fullName,
-            ventasCount: activeFacturas.length,
-            ventasMonto: totalVentas,
-            cotizacionesCount: activeCotizaciones.length,
-            cotizacionesMonto: totalCotizaciones,
-            cotizacionesConvertidasCount: convertedCotizacionesCount,
-            rentasCount: activeRentas.length,
-            rentasMonto: totalRentas,
-            soporteCount: activeOrdenes.length,
-            soporteMonto: totalSoporte,
-            cajaChicaIngresos: totalCajaIngresos,
-            cajaChicaEgresos: totalCajaSalidas,
-            dailyStats,
-            employeeStats,
-            cajaGastosPorCategoria: Object.entries(cajaGastosPorCategoria).map(([categoria, total]) => ({
-                categoria,
-                total
-            })),
-            // Raw arrays for modals
-            rawFacturas: facturas.filter(f => f.tipoDocumento === 'FACTURA' || f.tipoDocumento === 'NOTA_CREDITO').map(f => ({
-                id: f.id,
-                correlativo: f.correlativo,
-                total: Number(f.total),
-                fechaEmision: f.fechaEmision.toISOString(),
-                estado: f.estado,
-                creadoPor: f.creadoPor ? [f.creadoPor.nombre, f.creadoPor.apellido].filter(Boolean).join(' ') : 'Usuario',
-                anuladaPor: f.anuladaPor ? [f.anuladaPor.nombre, f.anuladaPor.apellido].filter(Boolean).join(' ') : null,
-                anuladaAt: f.anuladaAt ? f.anuladaAt.toISOString() : null,
-                cliente: f.cliente?.nombre || 'Cliente General'
-            })),
-            rawCotizaciones: facturas.filter(f => f.tipoDocumento === 'COTIZACION').map(f => ({
-                id: f.id,
-                correlativo: f.correlativo,
-                total: Number(f.total),
-                fechaEmision: f.fechaEmision.toISOString(),
-                estado: f.estado,
-                creadoPor: f.creadoPor ? [f.creadoPor.nombre, f.creadoPor.apellido].filter(Boolean).join(' ') : 'Usuario',
-                anuladaPor: f.anuladaPor ? [f.anuladaPor.nombre, f.anuladaPor.apellido].filter(Boolean).join(' ') : null,
-                anuladaAt: f.anuladaAt ? f.anuladaAt.toISOString() : null,
-                cliente: f.cliente?.nombre || 'Cliente General',
-                convertidoAt: f.convertidoAt ? f.convertidoAt.toISOString() : null
-            })),
-            rawRentas: rentas.map(r => ({
-                id: r.id,
-                equipo: r.activoFijo?.descripcionCorta || 'Equipo',
-                costoRenta: Number(r.costoRenta),
-                deposito: Number(r.deposito),
-                fechaInicio: r.fechaInicio.toISOString(),
-                estado: r.estado,
-                creadoPor: r.creadoPor ? [r.creadoPor.nombre, r.creadoPor.apellido].filter(Boolean).join(' ') : 'Usuario',
-                cliente: r.cliente?.nombre || 'Cliente General'
-            })),
-            rawOrdenes: ordenes.map(o => ({
-                id: o.id,
-                equipo: o.equipoDano,
-                costoRevision: Number(o.costoRevision),
-                costoReparacion: o.costoReparacion ? Number(o.costoReparacion) : 0,
-                aprobado: o.aprobado,
-                estado: o.estado,
-                fechaRecibido: o.fechaRecibido.toISOString(),
-                cliente: o.cliente?.nombre || 'Cliente General',
-                recepcionadoPor: o.usuarioRecepcion ? [o.usuarioRecepcion.nombre, o.usuarioRecepcion.apellido].filter(Boolean).join(' ') : 'Usuario',
-                tecnico: o.tecnicoReparacion ? [o.tecnicoReparacion.nombre, o.tecnicoReparacion.apellido].filter(Boolean).join(' ') : 'Sin asignar'
-            })),
-            cajaChicaMovimientos: cajaMovimientos.map(m => ({
-                id: m.id,
-                tipo: m.tipo,
-                categoria: m.categoria,
-                descripcion: m.descripcion,
-                total: m.total,
-                createdAt: m.createdAt.toISOString(),
-                creadorPor: m.creadoPor ? [m.creadoPor.nombre, m.creadoPor.apellido].filter(Boolean).join(' ') : 'Usuario'
+        // 9. Timeline Spline Chart (Ventas día por día)
+        const dailyTimelineMap = new Map<string, { fecha: string; diaLabel: string; totalVentas: number; facturasCount: number; unidades: number }>();
+        
+        // Populate all days in the range
+        const iterDate = new Date(startDate);
+        while (iterDate <= endDate) {
+            const key = iterDate.toISOString().split('T')[0];
+            const diaNum = iterDate.getDate();
+            const mesNombre = iterDate.toLocaleDateString('es-HN', { month: 'short' });
+            dailyTimelineMap.set(key, {
+                fecha: key,
+                diaLabel: `${diaNum} ${mesNombre}`,
+                totalVentas: 0,
+                facturasCount: 0,
+                unidades: 0
+            });
+            iterDate.setDate(iterDate.getDate() + 1);
+        }
+
+        facturas.forEach(f => {
+            const key = new Date(f.fechaEmision).toISOString().split('T')[0];
+            if (dailyTimelineMap.has(key)) {
+                const item = dailyTimelineMap.get(key)!;
+                item.totalVentas += Number(f.total);
+                item.facturasCount += 1;
+                f.detalles.forEach(d => {
+                    item.unidades += (Number(d.cantidad) || 0);
+                });
+            }
+        });
+
+        const timelineStats = Array.from(dailyTimelineMap.values());
+
+        // 10. Mermas Analysis
+        const totalMermasUnidades = mermas.reduce((sum, m) => sum + m.cantidad, 0);
+        const mermasPorFlorMap: Record<string, number> = {};
+        mermas.forEach(m => {
+            const name = extractCleanProductName(m.nombreProducto);
+            mermasPorFlorMap[name] = (mermasPorFlorMap[name] || 0) + m.cantidad;
+        });
+        const topMermasFlores = Object.entries(mermasPorFlorMap)
+            .map(([nombre, cantidad]) => ({ nombre, cantidad }))
+            .sort((a, b) => b.cantidad - a.cantidad)
+            .slice(0, 10);
+
+        // 11. Raw Facturas for detail modal
+        const rawFacturas = facturas.slice(0, 100).map(f => ({
+            id: f.id,
+            correlativo: f.correlativo,
+            total: Number(f.total),
+            fechaEmision: f.fechaEmision.toISOString(),
+            estado: f.estado,
+            estadoPago: f.estadoPago,
+            metodoPago: f.metodoPago,
+            saldoPendiente: Number(f.saldoPendiente || 0),
+            cliente: f.cliente?.nombre || 'Cliente General',
+            vendedor: f.vendedorNombre || [f.creadoPor?.nombre, f.creadoPor?.apellido].filter(Boolean).join(' ') || 'Ventas',
+            itemsCount: f.detalles.length,
+            detalles: f.detalles.map(d => ({
+                descripcion: extractCleanProductName(d.descripcion),
+                cantidad: d.cantidad,
+                precioUnitario: Number(d.precioUnitario),
+                totalLinea: Number(d.totalLinea)
             }))
+        }));
+
+        return {
+            period,
+            daysSpan,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            responsable: user.fullName,
+            // KPIs
+            totalVentasMonto,
+            facturasCount,
+            ticketPromedio,
+            totalPaquetesVendidos,
+            totalVentasContado,
+            totalVentasCredito,
+            pctContado: totalVentasMonto > 0 ? Number(((totalVentasContado / totalVentasMonto) * 100).toFixed(1)) : 0,
+            pctCredito: totalVentasMonto > 0 ? Number(((totalVentasCredito / totalVentasMonto) * 100).toFixed(1)) : 0,
+            metodosPago: Object.entries(metodosPagoMap).map(([metodo, total]) => ({ metodo, total })).filter(m => m.total > 0),
+            // Charts & Tables
+            timelineStats,
+            topProductosPorVolumen: topProductosPorVolumen.slice(0, 20),
+            topProductosPorMonto: topProductosPorMonto.slice(0, 20),
+            categoriasList,
+            sugerenciasReabastecimiento: sugerenciasReabastecimiento.slice(0, 25),
+            vendedoresList,
+            clientesList: clientesList.slice(0, 30),
+            clientesParetoCount: clientesList.filter(c => c.esPareto80).length,
+            // Mermas
+            totalMermasUnidades,
+            topMermasFlores,
+            // Raw list for drilldown
+            rawFacturas
         };
-    } catch (e) {
-        console.error("Error en getGraficasReportData:", e);
-        throw e;
+    } catch (e: any) {
+        console.error("Error in getGraficasReportData:", e);
+        throw new Error(e.message || "Error al generar reporte de inteligencia comercial");
     }
 }
 
-export async function anularFactura(id: string) {
+export async function anularFactura(facturaId: string, motivo: string) {
     try {
         const user = await getAuthenticatedUser();
+        const factura = await prisma.factura.findUnique({
+            where: { id: facturaId },
+            include: { detalles: true }
+        });
+
+        if (!factura) throw new Error("Factura no encontrada");
+        if (factura.estado === 'ANULADA') throw new Error("La factura ya se encuentra anulada");
+
         await prisma.factura.update({
-            where: { id, organizationId: user.organizationId },
+            where: { id: facturaId },
             data: {
                 estado: 'ANULADA',
                 anuladaPorId: user.id,
-                anuladaAt: new Date()
+                anuladaAt: new Date(),
+                notas: factura.notas ? `${factura.notas} | Motivo de anulación: ${motivo}` : `Motivo de anulación: ${motivo}`
             }
         });
-        revalidatePath('/graficas');
-        return { success: true };
-    } catch (e: any) {
-        console.error("Error al anular factura:", e);
-        return { success: false, error: e.message };
-    }
-}
 
-export async function anularRenta(id: string) {
-    try {
-        const user = await getAuthenticatedUser();
-        await prisma.rentaEquipo.update({
-            where: { id, organizationId: user.organizationId },
-            data: {
-                estado: 'ANULADA'
-            }
-        });
         revalidatePath('/graficas');
+        revalidatePath('/facturas');
         return { success: true };
     } catch (e: any) {
-        console.error("Error al anular renta:", e);
-        return { success: false, error: e.message };
-    }
-}
-
-export async function anularOrden(id: string) {
-    try {
-        const user = await getAuthenticatedUser();
-        await prisma.ordenTrabajo.update({
-            where: { id, organizationId: user.organizationId },
-            data: {
-                estado: 'ANULADA'
-            }
-        });
-        revalidatePath('/graficas');
-        return { success: true };
-    } catch (e: any) {
-        console.error("Error al anular orden de trabajo:", e);
         return { success: false, error: e.message };
     }
 }

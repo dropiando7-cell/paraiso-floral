@@ -10,7 +10,7 @@ export default async function GraficasPage() {
 
     let initialData = null;
     try {
-        initialData = await getGraficasReportData(currentMonth, currentYear);
+        initialData = await getGraficasReportData('15d', currentMonth, currentYear);
     } catch (e) {
         console.error("Error loading initial graficas data server-side:", e);
     }
