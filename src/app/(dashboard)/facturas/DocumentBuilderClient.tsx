@@ -2226,6 +2226,7 @@ function LineItemRow({
                     id={`unitPrice-desktop-${item.id}`}
                     type="number"
                     value={item.unitPrice}
+                    title={item.priceOriginLabel ? `${item.priceOriginLabel} (${item.priceOrigin === 'historial' ? 'Último precio facturado al cliente' : 'Precio base del inventario'})` : undefined}
                     onChange={e => {
                       onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0));
                       onChange(item.id, 'priceOrigin', 'manual');
@@ -2236,7 +2237,7 @@ function LineItemRow({
                     className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                     style={descStyle}
                   />
-                  {item.priceOriginLabel && (
+                  {item.priceOriginLabel && settings?.showPriceOriginBadge && (
                     <div 
                       className="absolute -bottom-3 right-0.5 pointer-events-none print:hidden z-10 flex items-center"
                       title={item.priceOrigin === 'historial' ? 'Precio obtenido del último documento a este cliente' : 'Precio base del catálogo/inventario'}
