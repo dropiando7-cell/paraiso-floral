@@ -174,7 +174,21 @@ export default function DocumentListTable({
 
   // Pagination state for main invoice table
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Helper para generar el rango de páginas con elipsis (...)
+  const getPaginationRange = (current: number, total: number) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  };
 
   // Pagination state for product breakdown table
   const [productPage, setProductPage] = useState(1);
@@ -460,7 +474,7 @@ export default function DocumentListTable({
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredData.slice(start, start + itemsPerPage);
-  }, [filteredData, currentPage]);
+  }, [filteredData, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
@@ -831,20 +845,30 @@ export default function DocumentListTable({
                     Anterior
                   </button>
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: productTotalPages }, (_, i) => i + 1).map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setProductPage(p)}
-                        className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold rounded-lg transition cursor-pointer ${
-                          productPage === p
-                            ? 'bg-blue-600 text-white shadow-2xs'
-                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
+                    {getPaginationRange(productPage, productTotalPages).map((p, idx) => {
+                      if (p === '...') {
+                        return (
+                          <span key={`pdots-${idx}`} className="w-6 h-6 flex items-center justify-center text-[10px] font-bold text-slate-400 select-none">
+                            ...
+                          </span>
+                        );
+                      }
+                      const pNum = Number(p);
+                      return (
+                        <button
+                          key={pNum}
+                          type="button"
+                          onClick={() => setProductPage(pNum)}
+                          className={`w-6 h-6 flex items-center justify-center text-[10px] font-bold rounded-lg transition cursor-pointer ${
+                            productPage === pNum
+                              ? 'bg-blue-600 text-white shadow-2xs'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          {pNum}
+                        </button>
+                      );
+                    })}
                   </div>
                   <button
                     type="button"
@@ -1300,44 +1324,103 @@ export default function DocumentListTable({
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="px-3 py-3 sm:px-5 sm:py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50/50">
-          <p className="text-xs text-slate-500 font-semibold text-center sm:text-left">
-            Mostrando <span className="font-bold text-slate-700">{((currentPage - 1) * itemsPerPage) + 1}</span> a{' '}
-            <span className="font-bold text-slate-700">
-              {Math.min(currentPage * itemsPerPage, filteredData.length)}
-            </span>{' '}
-            de <span className="font-bold text-slate-700">{filteredData.length}</span> resultados
-          </p>
-          <div className="flex items-center gap-2">
+        <div className="px-3 py-3 sm:px-5 sm:py-4 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3 bg-slate-50/70">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs text-slate-500 font-semibold text-center sm:text-left">
+              Mostrando <span className="font-bold text-slate-700">{((currentPage - 1) * itemsPerPage) + 1}</span> a{' '}
+              <span className="font-bold text-slate-700">
+                {Math.min(currentPage * itemsPerPage, filteredData.length)}
+              </span>{' '}
+              de <span className="font-bold text-slate-700">{filteredData.length}</span> resultados
+            </p>
+
+            {/* Selector de cantidad por página */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium border-l border-slate-200 pl-3">
+              <span>Filas:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {/* Botón Anterior */}
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+              className="px-2.5 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
             >
               Anterior
             </button>
+
+            {/* Botones numéricos con Elipsis */}
             <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-7 h-7 flex items-center justify-center text-xs font-black rounded-lg transition ${
-                    currentPage === page
-                      ? 'bg-blue-600 text-white shadow-2xs'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
+              {getPaginationRange(currentPage, totalPages).map((item, idx) => {
+                if (item === '...') {
+                  return (
+                    <span key={`dots-${idx}`} className="w-7 h-7 flex items-center justify-center text-xs font-bold text-slate-400 select-none">
+                      ...
+                    </span>
+                  );
+                }
+                const pageNum = Number(item);
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 flex items-center justify-center text-xs font-bold rounded-lg transition cursor-pointer ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Botón Siguiente */}
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+              className="px-2.5 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-2xs cursor-pointer"
             >
               Siguiente
             </button>
+
+            {/* Salto Rápido a Página */}
+            {totalPages > 5 && (
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium border-l border-slate-200 pl-2 ml-1">
+                <span className="hidden sm:inline">Ir a:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  placeholder={String(currentPage)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const val = parseInt((e.target as HTMLInputElement).value, 10);
+                      if (val >= 1 && val <= totalPages) {
+                        setCurrentPage(val);
+                        (e.target as HTMLInputElement).value = '';
+                      }
+                    }
+                  }}
+                  className="w-12 px-1.5 py-1 bg-white border border-slate-200 rounded-lg text-center text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
