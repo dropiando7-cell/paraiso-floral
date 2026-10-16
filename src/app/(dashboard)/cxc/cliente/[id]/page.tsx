@@ -1190,7 +1190,15 @@ ${publicUrl}
         isOpen={modalNCOpen}
         onClose={() => setModalNCOpen(false)}
         onSuccess={cargarEstadoCuenta}
-        cliente={data?.cliente as any}
+        cliente={
+          data?.cliente
+            ? {
+                ...data.cliente,
+                saldoTotal: data.resumen.saldoTotal,
+                facturas: data.facturas,
+              }
+            : null
+        }
       />
 
       <ModalSaldoInicial
