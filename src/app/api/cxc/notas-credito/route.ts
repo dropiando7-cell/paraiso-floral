@@ -53,6 +53,24 @@ export async function POST(request: Request) {
     });
     const correlativo = `NC-${String(countNC + 1).padStart(5, '0')}`;
 
+    // Resolver fecha en zona horaria de Honduras (America/Tegucigalpa, UTC-6)
+    // Si la fecha elegida es el día de hoy en Honduras, usar el timestamp actual exacto
+    // para que aparezca al final del Libro Mayor Contable del día de hoy.
+    let fechaFinal = new Date();
+    if (fecha && typeof fecha === 'string') {
+      const soloFecha = fecha.slice(0, 10);
+      const hoyHn = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Tegucigalpa',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+
+      if (soloFecha !== hoyHn && /^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) {
+        fechaFinal = new Date(`${soloFecha}T23:59:00-06:00`);
+      }
+    }
+
     // Crear la Nota de Crédito
     const nuevaNC = await prisma.notaCreditoCliente.create({
       data: {
@@ -64,7 +82,7 @@ export async function POST(request: Request) {
         motivo,
         descripcion,
         fotos: fotos || [],
-        fecha: fecha ? new Date(fecha) : new Date(),
+        fecha: fechaFinal,
         creadoPorId: dbUser.id
       }
     });
@@ -86,7 +104,8 @@ export async function POST(request: Request) {
         });
       }
     } else {
-      // Descontar primero del Saldo Inicial Deuda (Excel) si existe
+      // Importante: NO modificar cliente.saldoInicial en la BD (es estático como cargo histórico en el Libro Mayor).
+      // Calculamos cuánto del Saldo Inicial sigue descubierto antes de esta NC, y el remanente se aplica FIFO a facturas.
       const clienteData = await prisma.cliente.findUnique({
         where: { id: clienteId },
         select: { saldoInicial: true }
@@ -95,54 +114,70 @@ export async function POST(request: Request) {
       let saldoDisponible = montoNum;
 
       if (clienteData && Number(clienteData.saldoInicial || 0) > 0) {
-        const sInicialActual = Number(clienteData.saldoInicial);
-        const deduccion = Math.min(saldoDisponible, sInicialActual);
-        const nuevoSInicial = Math.max(0, sInicialActual - deduccion);
+        const [totalPastPagos, totalPastAllocations, totalPastNCsLibres] = await Promise.all([
+          prisma.pagoCliente.aggregate({
+            where: { clienteId, organizationId: orgId, anulado: false },
+            _sum: { monto: true }
+          }),
+          prisma.pagoDetalleFactura.aggregate({
+            where: { pago: { clienteId, organizationId: orgId, anulado: false } },
+            _sum: { montoAplicado: true }
+          }),
+          prisma.notaCreditoCliente.aggregate({
+            where: { clienteId, organizationId: orgId, anulado: false, facturaId: null, id: { not: nuevaNC.id } },
+            _sum: { monto: true }
+          })
+        ]);
 
-        await prisma.cliente.update({
-          where: { id: clienteId },
-          data: { saldoInicial: nuevoSInicial }
-        });
+        const abonosLibresPrevios = Math.max(
+          0,
+          Number(totalPastPagos._sum.monto || 0) - Number(totalPastAllocations._sum.montoAplicado || 0)
+        );
+        const ncLibresPrevias = Number(totalPastNCsLibres._sum.monto || 0);
+        const creditoLibrePrevio = abonosLibresPrevios + ncLibresPrevias;
 
-        saldoDisponible -= deduccion;
+        const sInicialRestante = Math.max(0, Number(clienteData.saldoInicial) - creditoLibrePrevio);
+        saldoDisponible -= Math.min(saldoDisponible, sInicialRestante);
       }
 
-      // Aplicación FIFO automática si no se especificó factura
-      const facturasPendientes = await prisma.factura.findMany({
-        where: {
-          organizationId: orgId,
-          clienteId,
-          estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
-          tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] },
-          OR: [
-            { estadoPago: { not: 'PAGADA' } },
-            { estadoPago: null }
-          ]
-        },
-        orderBy: { fechaEmision: 'asc' }
-      });
-
-      for (const fac of facturasPendientes) {
-        if (saldoDisponible <= 0) break;
-
-        const totalFac = Number(fac.total);
-        const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : totalFac;
-
-        if (saldoActual <= 0) continue;
-
-        const montoAplicar = Math.min(saldoDisponible, saldoActual);
-        const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
-        const nuevoEstado = nuevoSaldo === 0 ? 'PAGADA' : 'PARCIAL';
-
-        await prisma.factura.update({
-          where: { id: fac.id },
-          data: {
-            saldoPendiente: nuevoSaldo,
-            estadoPago: nuevoEstado
-          }
+      // Aplicación FIFO automática a facturas si queda saldo por aplicar
+      if (saldoDisponible > 0) {
+        const facturasPendientes = await prisma.factura.findMany({
+          where: {
+            organizationId: orgId,
+            clienteId,
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] },
+            OR: [
+              { estadoPago: { not: 'PAGADA' } },
+              { estadoPago: null }
+            ]
+          },
+          orderBy: { fechaEmision: 'asc' }
         });
 
-        saldoDisponible -= montoAplicar;
+        for (const fac of facturasPendientes) {
+          if (saldoDisponible <= 0) break;
+
+          const totalFac = Number(fac.total);
+          const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : totalFac;
+
+          if (saldoActual <= 0) continue;
+
+          const montoAplicar = Math.min(saldoDisponible, saldoActual);
+          const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
+          const nuevoEstado = nuevoSaldo === 0 ? 'PAGADA' : 'PARCIAL';
+
+          await prisma.factura.update({
+            where: { id: fac.id },
+            data: {
+              saldoPendiente: nuevoSaldo,
+              estadoPago: nuevoEstado
+            }
+          });
+
+          saldoDisponible -= montoAplicar;
+        }
       }
     }
 

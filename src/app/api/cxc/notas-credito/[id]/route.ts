@@ -48,7 +48,24 @@ export async function PATCH(
       return NextResponse.json({ error: 'Monto inválido' }, { status: 400 });
     }
 
-    const fechaObj = fecha ? new Date(fecha) : nc.fecha;
+    let fechaObj = nc.fecha;
+    if (fecha && typeof fecha === 'string') {
+      const soloFecha = fecha.slice(0, 10);
+      const hoyHn = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Tegucigalpa',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+
+      if (soloFecha === hoyHn) {
+        fechaObj = new Date();
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) {
+        fechaObj = new Date(`${soloFecha}T23:59:00-06:00`);
+      } else {
+        fechaObj = new Date(fecha);
+      }
+    }
 
     const ncActualizada = await prisma.notaCreditoCliente.update({
       where: { id: ncId },

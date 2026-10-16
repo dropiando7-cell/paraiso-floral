@@ -128,7 +128,7 @@ export default async function PublicCxCPage({ params }: PageProps) {
   const totalAbonado = cliente.pagos.reduce((sum, p) => sum + Number(p.monto || 0), 0);
   const totalNotasCredito = cliente.notasCredito.reduce((sum, n) => sum + Number(n.monto || 0), 0);
 
-  const saldoTotalFinal = Math.max(0, sInicial + totalFacturasPendientes - totalAbonado - totalNotasCredito);
+  const saldoTotalFinal = Math.max(0, sInicial + totalFacturadoNuevos - totalAbonado - totalNotasCredito);
 
   const dataProps = {
     cliente: {

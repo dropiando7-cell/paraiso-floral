@@ -266,10 +266,31 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
 
     // 4. Notas de Crédito / Mermas
     (data.notasCredito || []).forEach(n => {
-      const desc = `Ajuste (${n.motivo || 'Flor Dañada'})${n.descripcion ? ` - ${n.descripcion}` : ''}`;
+      const motivoLegible =
+        n.motivo === 'FLOR_DANADA'
+          ? 'Flor Dañada'
+          : n.motivo === 'ERROR_FACTURACION'
+          ? 'Error de Cobro'
+          : n.motivo === 'DESCUENTO_ESPECIAL'
+          ? 'Descuento / Rebaja'
+          : n.motivo || 'Ajuste Flor';
+      const desc = `Ajuste (${motivoLegible})${n.descripcion ? ` — ${n.descripcion}` : ''}`;
+
+      let fechaNC = new Date(n.fecha);
+      const rawFecha = String(n.fecha || '');
+      if (rawFecha.endsWith('T00:00:00.000Z')) {
+        const soloDia = rawFecha.slice(0, 10);
+        const createdRaw = String((n as any).createdAt || '');
+        if (createdRaw && createdRaw.slice(0, 10) === soloDia) {
+          fechaNC = new Date(createdRaw);
+        } else {
+          fechaNC = new Date(`${soloDia}T23:59:00-06:00`);
+        }
+      }
+
       list.push({
         id: n.id,
-        fecha: new Date(n.fecha),
+        fecha: fechaNC,
         tipo: 'NOTA_CREDITO',
         documento: n.correlativo || 'NOTA CREDITO',
         detalles: desc,
@@ -895,13 +916,18 @@ ${publicUrl}
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {movimientosContables.map(m => (
-                        <tr key={m.id} className={`transition-colors ${m.tipo === 'ABONO_ANULADO' ? 'bg-rose-50/40 hover:bg-rose-50/70' : 'hover:bg-slate-50'}`}>
+                        <tr key={m.id} className={`transition-colors ${m.tipo === 'ABONO_ANULADO' ? 'bg-rose-50/40 hover:bg-rose-50/70' : m.tipo === 'NOTA_CREDITO' ? 'bg-amber-50/30 hover:bg-amber-50/60' : 'hover:bg-slate-50'}`}>
                           <td className="py-3 px-3 font-medium text-slate-600 whitespace-nowrap">
-                            {m.fecha.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                            {m.fecha.toLocaleDateString('es-HN', { timeZone: 'America/Tegucigalpa', year: 'numeric', month: 'short', day: 'numeric' })}
                           </td>
                           <td className="py-3 px-3 font-extrabold text-slate-900 whitespace-nowrap">
                             <span className="inline-flex items-center gap-2">
                               <span className={m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}>{m.documento}</span>
+                              {m.tipo === 'NOTA_CREDITO' && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[9px] font-black uppercase tracking-wider">
+                                  Ajuste Flor
+                                </span>
+                              )}
                               {m.tipo === 'ABONO_ANULADO' && (
                                 <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-wider">Anulado</span>
                               )}
@@ -925,10 +951,20 @@ ${publicUrl}
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
+                              {m.tipo === 'NOTA_CREDITO' && (data as any)?.esSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAnularNotaCredito(m.id, m.documento)}
+                                  title="Anular nota de crédito (solo Super Admin)"
+                                  className="print:hidden p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-slate-700 font-medium max-w-xs">
-                            <span className={`block truncate ${m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}`}>{m.detalles}</span>
+                          <td className="py-3 px-3 text-slate-700 font-medium max-w-md">
+                            <span className={`block ${m.tipo === 'NOTA_CREDITO' ? 'whitespace-normal text-amber-950 font-semibold' : 'truncate'} ${m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}`}>{m.detalles}</span>
                             {m.anuladoInfo && (
                               <span className="block text-[10px] font-bold text-rose-600 whitespace-normal mt-0.5">{m.anuladoInfo}</span>
                             )}

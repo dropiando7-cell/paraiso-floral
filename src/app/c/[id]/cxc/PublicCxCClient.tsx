@@ -147,9 +147,14 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
     // 4. Notas de Crédito
     (notasCredito || []).forEach(n => {
       const desc = `Ajuste (${n.motivo || 'Flor Dañada'})${n.descripcion ? ` - ${n.descripcion}` : (n.notas ? ` - ${n.notas}` : '')}`;
+      let fechaNC = new Date(n.fecha);
+      const rawFecha = String(n.fecha || '');
+      if (rawFecha.endsWith('T00:00:00.000Z')) {
+        fechaNC = new Date(`${rawFecha.slice(0, 10)}T23:59:00-06:00`);
+      }
       list.push({
         id: n.id,
-        fecha: new Date(n.fecha),
+        fecha: fechaNC,
         tipo: 'NOTA_CREDITO',
         documento: n.correlativo || 'NC-001',
         detalles: desc,
