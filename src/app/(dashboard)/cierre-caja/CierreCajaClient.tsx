@@ -30,10 +30,12 @@ import {
     Copy,
     Check,
     Calculator,
-    X
+    X,
+    Printer
 } from 'lucide-react';
 import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession, getPendingDeposits, registrarCorteMovimiento, anularCorteMovimiento } from './actions';
 import CalculadoraArqueoModal from './CalculadoraArqueoModal';
+import ComprobanteRemesaModal, { parseRemesaMetadata } from './ComprobanteRemesaModal';
 
 interface CierreCajaClientProps {
     initialActiveSession: any;
@@ -89,9 +91,12 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [montoRetiro, setMontoRetiro] = useState('');
     const [descripcionRetiro, setDescripcionRetiro] = useState('');
     const [referenciaRetiro, setReferenciaRetiro] = useState('');
+    const [bancoDestinoRetiro, setBancoDestinoRetiro] = useState('BAC CREDOMATIC');
+    const [entregadoARetiro, setEntregadoARetiro] = useState('');
     const [metodoPagoRetiro, setMetodoPagoRetiro] = useState('Efectivo');
     const [destinoRetiro, setDestinoRetiro] = useState('RETIRO_BANCARIO');
     const [isSavingRetiro, setIsSavingRetiro] = useState(false);
+    const [comprobanteRemesaData, setComprobanteRemesaData] = useState<{ movimiento: any; session: any } | null>(null);
 
     // States for manual cash register income/adjustment
     const [showModalIngreso, setShowModalIngreso] = useState(false);
@@ -265,20 +270,35 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         }
         setIsSavingRetiro(true);
         try {
-            await registrarCorteMovimiento({
+            const structuredRef = destinoRetiro === 'RETIRO_BANCARIO'
+                ? `BANCO:${bancoDestinoRetiro || 'BAC CREDOMATIC'}|ENTREGADO:${(entregadoARetiro || 'ENCARGADO DE DEPÓSITO').trim()}|REF:${referenciaRetiro.trim()}`
+                : (referenciaRetiro || undefined);
+
+            const defaultDesc = destinoRetiro === 'TRASPASO_CAJA_CHICA'
+                ? 'Fondeo a Caja Chica'
+                : `Entrega de efectivo para depósito en ${bancoDestinoRetiro || 'Banco'}${entregadoARetiro.trim() ? ` (Responsable: ${entregadoARetiro.trim()})` : ''}`;
+
+            const res: any = await registrarCorteMovimiento({
                 sessionId: activeSession.id,
                 tipo: 'EGRESO',
                 concepto: destinoRetiro as any,
-                descripcion: descripcionRetiro || (destinoRetiro === 'TRASPASO_CAJA_CHICA' ? 'Fondeo a Caja Chica' : 'Retiro Bancario / Remesa'),
+                descripcion: descripcionRetiro.trim() || defaultDesc,
                 monto: amt,
                 metodoPago: metodoPagoRetiro,
-                referenciaId: referenciaRetiro || undefined
+                referenciaId: structuredRef
             });
-            toast.success("Retiro registrado correctamente");
+            toast.success("Retiro / Remesa registrado correctamente");
             setShowModalRetiro(false);
             setMontoRetiro('');
             setDescripcionRetiro('');
             setReferenciaRetiro('');
+            setEntregadoARetiro('');
+            if (res?.movimiento) {
+                setComprobanteRemesaData({
+                    movimiento: res.movimiento,
+                    session: summaryData?.session || activeSession
+                });
+            }
             await fetchActiveSessionDetails(activeSession.id);
             router.refresh();
         } catch (err: any) {
@@ -1116,6 +1136,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                 <tbody className="divide-y divide-slate-100 font-medium">
                                                     {summaryData.session.movimientos.map((mov: any) => {
                                                         const isAnulado = !!mov.anuladaAt;
+                                                        const meta = parseRemesaMetadata(mov);
+                                                        const isRemesaOrTraslado = mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'TRASPASO_CAJA_CHICA';
                                                         return (
                                                             <tr key={mov.id} className={`hover:bg-slate-50/80 transition ${isAnulado ? 'opacity-50 line-through bg-slate-50/20' : ''}`}>
                                                                 <td className="px-6 py-3 text-xs text-slate-500" suppressHydrationWarning>
@@ -1132,8 +1154,14 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                     {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs">
-                                                                    <div className="flex flex-col">
+                                                                    <div className="flex flex-col gap-0.5">
                                                                         <span className="text-slate-800 font-semibold">{mov.descripcion}</span>
+                                                                        {mov.concepto === 'RETIRO_BANCARIO' && (
+                                                                            <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-600 font-bold">
+                                                                                <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">🏦 {meta.bancoDestino}</span>
+                                                                                <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded">👤 {meta.entregadoA}</span>
+                                                                            </div>
+                                                                        )}
                                                                         <span className="text-[10px] text-slate-400">Creado por: {mov.creadoPor?.nombre || 'Usuario'}</span>
                                                                         {isAnulado && <span className="text-[10px] text-rose-600 font-bold">Anulado por: {mov.anuladaPor?.nombre || 'Usuario'}</span>}
                                                                     </div>
@@ -1145,15 +1173,28 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                     {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(mov.monto)}
                                                                 </td>
                                                                 <td className="px-6 py-3 text-center">
-                                                                    {!isAnulado && (
-                                                                        <button
-                                                                            onClick={() => handleAnularMovimiento(mov.id)}
-                                                                            className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
-                                                                            title="Anular Movimiento"
-                                                                        >
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                        </button>
-                                                                    )}
+                                                                    <div className="flex items-center justify-center gap-1.5">
+                                                                        {!isAnulado && isRemesaOrTraslado && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setComprobanteRemesaData({ movimiento: mov, session: summaryData.session })}
+                                                                                className="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-2xs"
+                                                                                title="Imprimir Acta / Comprobante de Entrega de Efectivo"
+                                                                            >
+                                                                                <Printer className="w-3.5 h-3.5" />
+                                                                                <span>Comprobante</span>
+                                                                            </button>
+                                                                        )}
+                                                                        {!isAnulado && (
+                                                                            <button
+                                                                                onClick={() => handleAnularMovimiento(mov.id)}
+                                                                                className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                                                                                title="Anular Movimiento"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         );
@@ -1635,11 +1676,13 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                             <th className="px-4 py-2">Descripción</th>
                                                             <th className="px-4 py-2">Método</th>
                                                             <th className="px-4 py-2 text-right">Monto</th>
+                                                            <th className="px-4 py-2 text-center">Soporte</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-100 font-medium">
                                                         {pastSummaryData.session.movimientos.map((mov: any) => {
                                                             const isAnulado = !!mov.anuladaAt;
+                                                            const isRemesaOrTraslado = mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'TRASPASO_CAJA_CHICA';
                                                             return (
                                                                 <tr key={mov.id} className={`${isAnulado ? 'opacity-50 line-through bg-slate-50/20' : ''}`}>
                                                                     <td className="px-4 py-2 text-slate-500" suppressHydrationWarning>{formatDate(mov.createdAt)}</td>
@@ -1662,6 +1705,19 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                     <td className="px-4 py-2 text-slate-600">{mov.metodoPago}</td>
                                                                     <td className={`px-4 py-2 text-right font-bold ${mov.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'}`}>
                                                                         {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(mov.monto)}
+                                                                    </td>
+                                                                    <td className="px-4 py-2 text-center">
+                                                                        {!isAnulado && isRemesaOrTraslado && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setComprobanteRemesaData({ movimiento: mov, session: pastSummaryData.session })}
+                                                                                className="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                                                                title="Reimprimir Comprobante de Remesa"
+                                                                            >
+                                                                                <Printer className="w-3 h-3" />
+                                                                                <span>Imprimir</span>
+                                                                            </button>
+                                                                        )}
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -1693,58 +1749,115 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
             {/* MODAL RETIRO / REMESA BANCARIA */}
             {showModalRetiro && (
                 <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-md w-full animate-scale-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-lg w-full animate-scale-in">
                         <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
-                            <h3 className="font-bold text-base">Registrar Retiro / Remesa Bancaria</h3>
+                            <div>
+                                <h3 className="font-bold text-base">Registrar Entrega de Efectivo / Remesa Bancaria</h3>
+                                <p className="text-[11px] text-slate-400">Registra la salida de caja y emite el acta de entrega para firma</p>
+                            </div>
                             <button
                                 onClick={() => setShowModalRetiro(false)}
-                                className="text-slate-400 hover:text-white transition"
+                                className="text-slate-400 hover:text-white transition cursor-pointer"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleSaveRetiro} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                    Destino del Retiro
-                                </label>
-                                <select
-                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-4"
-                                    value={destinoRetiro}
-                                    onChange={(e) => setDestinoRetiro(e.target.value)}
-                                >
-                                    <option value="RETIRO_BANCARIO">Retiro a Banco / Remesa</option>
-                                    <option value="TRASPASO_CAJA_CHICA">Traslado a Caja Chica</option>
-                                </select>
+                        <form onSubmit={handleSaveRetiro} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                        Destino del Efectivo
+                                    </label>
+                                    <select
+                                        className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                        value={destinoRetiro}
+                                        onChange={(e) => setDestinoRetiro(e.target.value)}
+                                    >
+                                        <option value="RETIRO_BANCARIO">Depósito a Banco (Remesa)</option>
+                                        <option value="TRASPASO_CAJA_CHICA">Traslado a Caja Chica</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                        Método de Salida
+                                    </label>
+                                    <select
+                                        className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                        value={metodoPagoRetiro}
+                                        onChange={(e) => setMetodoPagoRetiro(e.target.value)}
+                                    >
+                                        <option value="Efectivo">Efectivo (Billetes de Gaveta)</option>
+                                        <option value="Transferencia">Transferencia Bancaria</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                    Método de Retiro
-                                </label>
-                                <select
-                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                    value={metodoPagoRetiro}
-                                    onChange={(e) => setMetodoPagoRetiro(e.target.value)}
-                                >
-                                    <option value="Efectivo">Efectivo (Gaveta diaria)</option>
-                                    <option value="Transferencia">Transferencia Bancaria</option>
-                                </select>
-                            </div>
+                            {destinoRetiro === 'RETIRO_BANCARIO' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                            Banco / Cuenta Destino
+                                        </label>
+                                        <select
+                                            className="block w-full bg-white border border-slate-300 rounded-lg text-xs font-bold px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                            value={bancoDestinoRetiro}
+                                            onChange={(e) => setBancoDestinoRetiro(e.target.value)}
+                                        >
+                                            <option value="BAC CREDOMATIC">BAC CREDOMATIC</option>
+                                            <option value="BANCO DE OCCIDENTE">BANCO DE OCCIDENTE</option>
+                                            <option value="BANPAÍS">BANPAÍS</option>
+                                            <option value="BANCO ATLÁNTIDA">BANCO ATLÁNTIDA</option>
+                                            <option value="BANCO FICOHSA">BANCO FICOHSA</option>
+                                            <option value="DAVIVIENDA">DAVIVIENDA</option>
+                                            <option value="BANHCAFÉ">BANHCAFÉ</option>
+                                            <option value="CUSTODIA GERENCIA GENERAL">CUSTODIA / GERENCIA GENERAL</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                            Entregado a (Quien deposita) <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="block w-full bg-white border border-slate-300 rounded-lg text-xs font-bold px-3 py-2 text-slate-900 uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                            placeholder="Ej. MARCIO BARAHONA / MENSAJERO"
+                                            value={entregadoARetiro}
+                                            onChange={(e) => setEntregadoARetiro(e.target.value.toUpperCase())}
+                                            required={destinoRetiro === 'RETIRO_BANCARIO'}
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                    Monto del Retiro (Lempiras)
-                                </label>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                        Monto a Entregar (Lempiras) <span className="text-rose-500">*</span>
+                                    </label>
+                                    {(summaryData?.totals?.ventasEfectivo || 0) > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const efectivoVentas = (summaryData?.totals?.ventasEfectivo || 0) + (summaryData?.totals?.abonosEfectivo || 0);
+                                                setMontoRetiro(efectivoVentas.toFixed(2));
+                                            }}
+                                            className="text-[10px] font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-md transition cursor-pointer"
+                                        >
+                                            Usar Efectivo Recaudado Hoy ({formatCurrency((summaryData?.totals?.ventasEfectivo || 0) + (summaryData?.totals?.abonosEfectivo || 0))})
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="relative rounded-lg shadow-sm">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="text-slate-400 font-medium">L.</span>
+                                        <span className="text-slate-400 font-bold">L.</span>
                                     </div>
                                     <input
                                         type="number"
                                         step="0.01"
                                         min="0.01"
-                                        className="block w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                        className="block w-full pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg text-base font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                         placeholder="0.00"
                                         value={montoRetiro}
                                         onChange={(e) => setMontoRetiro(e.target.value)}
@@ -1755,12 +1868,12 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                    Referencia Bancaria / Cuenta (Opcional)
+                                    N° de Boleta Bancaria / Referencia (Opcional si aún va al banco)
                                 </label>
                                 <input
                                     type="text"
                                     className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                    placeholder="Ej. Depósito BAC #123456"
+                                    placeholder="Se puede anotar en el acta impresa al regresar del banco"
                                     value={referenciaRetiro}
                                     onChange={(e) => setReferenciaRetiro(e.target.value)}
                                 />
@@ -1768,12 +1881,12 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-                                    Notas / Observaciones
+                                    Concepto / Observaciones
                                 </label>
                                 <textarea
                                     className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                     rows={2}
-                                    placeholder="Detalles sobre el retiro de efectivo o remesa..."
+                                    placeholder="Ej. Entrega de efectivo de facturas de contado para depósito del día..."
                                     value={descripcionRetiro}
                                     onChange={(e) => setDescripcionRetiro(e.target.value)}
                                 />
@@ -1783,17 +1896,21 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <button
                                     type="button"
                                     onClick={() => setShowModalRetiro(false)}
-                                    className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg text-xs transition duration-200 cursor-pointer text-center"
+                                    className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-4 rounded-xl text-xs transition duration-200 cursor-pointer text-center"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSavingRetiro}
-                                    className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 px-4 rounded-lg text-xs transition duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                    className="w-2/3 bg-slate-900 hover:bg-slate-800 text-white font-black py-2.5 px-4 rounded-xl text-xs transition duration-200 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer shadow-md"
                                 >
-                                    {isSavingRetiro && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                                    Guardar Retiro
+                                    {isSavingRetiro ? (
+                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Printer className="w-4 h-4 text-emerald-400" />
+                                    )}
+                                    <span>Guardar y Emitir Comprobante</span>
                                 </button>
                             </div>
                         </form>
@@ -2257,6 +2374,15 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* MODAL COMPROBANTE DE ENTREGA DE EFECTIVO / REMESA IMPRIMIBLE */}
+            {comprobanteRemesaData && (
+                <ComprobanteRemesaModal
+                    movimiento={comprobanteRemesaData.movimiento}
+                    session={comprobanteRemesaData.session}
+                    onClose={() => setComprobanteRemesaData(null)}
+                />
             )}
         </div>
     );

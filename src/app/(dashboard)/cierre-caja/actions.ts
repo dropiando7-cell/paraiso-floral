@@ -976,6 +976,7 @@ export async function registrarCorteMovimiento(payload: {
             throw new Error("No se puede realizar el traslado porque no hay una sesión de Caja Chica abierta.");
         }
 
+        let createdMov: any = null;
         await prisma.$transaction(async (tx) => {
             const movChica = await tx.cajaChicaMovimiento.create({
                 data: {
@@ -993,7 +994,7 @@ export async function registrarCorteMovimiento(payload: {
                 }
             });
 
-            await tx.corteCajaMovimiento.create({
+            createdMov = await tx.corteCajaMovimiento.create({
                 data: {
                     organizationId: user.organizationId,
                     sessionId: session.id,
@@ -1009,9 +1010,24 @@ export async function registrarCorteMovimiento(payload: {
         });
 
         revalidatePath('/caja-chica');
+        revalidatePath('/cierre-caja');
+        return {
+            success: true,
+            movimiento: createdMov ? {
+                id: createdMov.id,
+                tipo: createdMov.tipo,
+                concepto: createdMov.concepto,
+                descripcion: createdMov.descripcion,
+                monto: Number(createdMov.monto),
+                metodoPago: createdMov.metodoPago,
+                referenciaId: createdMov.referenciaId,
+                createdAt: createdMov.createdAt.toISOString(),
+                creadoPor: { nombre: user.fullName, email: user.email }
+            } : null
+        };
     } else {
         // Register standard movement (e.g. Bank withdrawal/drop)
-        await prisma.corteCajaMovimiento.create({
+        const createdMov = await prisma.corteCajaMovimiento.create({
             data: {
                 organizationId: user.organizationId,
                 sessionId: session.id,
@@ -1024,6 +1040,22 @@ export async function registrarCorteMovimiento(payload: {
                 creadoPorId: user.id
             }
         });
+
+        revalidatePath('/cierre-caja');
+        return {
+            success: true,
+            movimiento: {
+                id: createdMov.id,
+                tipo: createdMov.tipo,
+                concepto: createdMov.concepto,
+                descripcion: createdMov.descripcion,
+                monto: Number(createdMov.monto),
+                metodoPago: createdMov.metodoPago,
+                referenciaId: createdMov.referenciaId,
+                createdAt: createdMov.createdAt.toISOString(),
+                creadoPor: { nombre: user.fullName, email: user.email }
+            }
+        };
     }
 
     revalidatePath('/cierre-caja');
