@@ -330,9 +330,30 @@ export default function MobileFacturacionTerminal({
       const newItemsToAdd: any[] = [];
 
       for (const item of extractedItems) {
-        const desc = item.descripcion || 'Producto';
-        const qty = item.cantidad || 1;
-        const price = item.precioUnitario || 0;
+        const desc = (item.descripcion || item.descripcionOriginal || 'Producto').trim();
+        const qty = Number(item.cantidad) || 1;
+        const price = Number(item.precioUnitario) || 0;
+
+        if (item.productoId) {
+          newItemsToAdd.push({
+            id: Math.random().toString(36).slice(2, 9),
+            code: item.sku || '',
+            shortDesc: desc,
+            longDesc: item.descripcionLarga || '',
+            richDesc: '',
+            showLongDesc: false,
+            qty: qty,
+            unitPrice: price,
+            tax: 'isv15',
+            discount: 0,
+            discountType: 'percentage',
+            productoId: item.productoId,
+            activoId: undefined,
+            imageUrl: item.imageUrl || resolveFlowerImage(desc),
+            _isNew: true
+          });
+          continue;
+        }
 
         // Try fuzzy match in database products
         let matchedProduct: any = null;
@@ -345,15 +366,20 @@ export default function MobileFacturacionTerminal({
           console.warn('Error fetching matching product', e);
         }
 
+        const matchedName = matchedProduct?.nombre || matchedProduct?.name || '';
+        const matchedCode = matchedProduct?.sku || matchedProduct?.code || '';
+        const matchedDesc = matchedProduct?.descripcion || matchedProduct?.description || '';
+        const matchedPrice = Number(matchedProduct?.precioVenta ?? matchedProduct?.price ?? 0);
+
         newItemsToAdd.push({
           id: Math.random().toString(36).slice(2, 9),
-          code: matchedProduct ? matchedProduct.code : '',
-          shortDesc: matchedProduct ? matchedProduct.name : desc,
-          longDesc: matchedProduct ? (matchedProduct.description || '') : '',
+          code: matchedCode,
+          shortDesc: matchedName || desc,
+          longDesc: matchedDesc,
           richDesc: '',
           showLongDesc: false,
           qty: qty,
-          unitPrice: price > 0 ? price : (matchedProduct ? matchedProduct.price : 0),
+          unitPrice: price > 0 ? price : matchedPrice,
           tax: 'isv15',
           discount: 0,
           discountType: 'percentage',

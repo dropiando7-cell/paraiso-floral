@@ -937,8 +937,8 @@ function ReportesCxCContent() {
                         type="text"
                         placeholder="Filtrar clientes en la lista..."
                         value={clientSearchQuery}
-                        onChange={(e) => setClientSearchQuery(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] placeholder:text-slate-400 outline-none focus:bg-white focus:ring-1 focus:ring-emerald-500"
+                        onChange={(e) => setClientSearchQuery(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] uppercase placeholder:normal-case placeholder:text-slate-400 outline-none focus:bg-white focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
                   )}

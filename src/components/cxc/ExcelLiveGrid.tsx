@@ -690,9 +690,9 @@ export default function ExcelLiveGrid({
           <input
             type="text"
             value={searchTab}
-            onChange={(e) => setSearchTab(e.target.value)}
+            onChange={(e) => setSearchTab(e.target.value.toUpperCase())}
             placeholder="Buscar hoja de cliente..."
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 uppercase placeholder:normal-case outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
 

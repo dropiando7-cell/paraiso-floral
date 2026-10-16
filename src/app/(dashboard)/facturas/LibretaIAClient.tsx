@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Loader2, Sparkles, AlertCircle, Copy, Share2, X, ImageIcon, 
-  FileText, CheckCircle2, Receipt, ChevronDown 
+  FileText, CheckCircle2, Receipt, ChevronDown, Upload 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
@@ -69,6 +69,7 @@ export default function LibretaIAClient({ organization }: Props) {
     return organization?.invoiceSettings?.pricesIncludeTax !== false;
   });
   const menuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Cerrar menú desplegable al hacer clic afuera
   useEffect(() => {
@@ -83,13 +84,27 @@ export default function LibretaIAClient({ organization }: Props) {
     }
   }, [showDocTypeMenu]);
 
-  const handleProcess = async () => {
-    if (!selectedClienteId) {
-      toast.error('Por favor selecciona un cliente primero');
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor selecciona un archivo de imagen válido');
       return;
     }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setImageB64(event.target.result as string);
+        toast.success('Imagen cargada correctamente');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleProcess = async () => {
     if (!text.trim() && !imageB64) {
-      toast.error('Por favor ingresa el texto o pega una imagen del pedido');
+      toast.error('Por favor ingresa el texto o sube/pega una imagen del pedido');
       return;
     }
 
@@ -103,17 +118,54 @@ export default function LibretaIAClient({ organization }: Props) {
       const aiData = await res.json();
       if (aiData.error) throw new Error(aiData.error);
 
+      let finalClienteId = selectedClienteId;
+      if (!finalClienteId && aiData.clienteEncontrado?.id) {
+        finalClienteId = aiData.clienteEncontrado.id;
+        setSelectedClienteId(aiData.clienteEncontrado.id);
+        setSelectedCliente(aiData.clienteEncontrado);
+        toast.success(`Cliente detectado en factura: ${aiData.clienteEncontrado.nombre}`);
+      }
+
+      if (!finalClienteId) {
+        toast.error(
+          aiData.clienteNombre
+            ? `Se detectó "${aiData.clienteNombre}" en la factura, pero no está registrado aún. Selecciónalo o créalo en el paso 1.`
+            : 'Por favor selecciona un cliente en el paso 1 para continuar'
+        );
+        setIsLoading(false);
+        return;
+      }
+
       const extractedItems = aiData.items || [];
       if (extractedItems.length === 0) {
         throw new Error('No se detectaron flores ni productos claros en el texto/imagen');
       }
 
-      // Buscar automáticamente coincidencias en el catálogo de inventario
+      // Usar el emparejamiento inteligente del servidor con el catálogo o hacer búsqueda secundaria
       const validItems = await Promise.all(
         extractedItems.map(async (item: any, idx: number) => {
-          const desc = item.descripcion || 'Producto';
+          const desc = (item.descripcion || item.descripcionOriginal || 'Producto').trim();
           const qty = Number(item.cantidad) || 1;
           const userPrice = Number(item.precioUnitario) || 0;
+
+          if (item.productoId) {
+            return {
+              id: `ai-item-${idx}-${Date.now()}`,
+              code: item.sku || '',
+              shortDesc: desc,
+              longDesc: item.descripcionLarga || '',
+              richDesc: '',
+              showLongDesc: false,
+              qty,
+              unitPrice: userPrice,
+              tax: 'isv15',
+              discount: 0,
+              discountType: 'percentage',
+              productoId: item.productoId,
+              activoId: undefined,
+              imageUrl: item.imageUrl || undefined
+            };
+          }
 
           let matchedProduct: any = null;
           try {
@@ -125,13 +177,17 @@ export default function LibretaIAClient({ organization }: Props) {
             console.warn('Error al buscar producto coincidente en inventario:', e);
           }
 
-          const finalPrice = userPrice > 0 ? userPrice : (Number(matchedProduct?.price) || 0);
+          const matchedName = matchedProduct?.nombre || matchedProduct?.name || '';
+          const matchedCode = matchedProduct?.sku || matchedProduct?.code || '';
+          const matchedDesc = matchedProduct?.descripcion || matchedProduct?.description || '';
+          const matchedPrice = Number(matchedProduct?.precioVenta ?? matchedProduct?.price ?? 0);
+          const finalPrice = userPrice > 0 ? userPrice : matchedPrice;
 
           return {
             id: `ai-item-${idx}-${Date.now()}`,
-            code: matchedProduct ? (matchedProduct.code || '') : '',
-            shortDesc: matchedProduct ? matchedProduct.name : desc.toUpperCase(),
-            longDesc: matchedProduct ? (matchedProduct.description || '') : '',
+            code: matchedCode,
+            shortDesc: matchedName || desc,
+            longDesc: matchedDesc,
             richDesc: '',
             showLongDesc: false,
             qty: qty,
@@ -172,13 +228,15 @@ export default function LibretaIAClient({ organization }: Props) {
         }
       }
 
+      const isCredito = aiData.condicionPago === 'credito';
+
       const data = {
-        clienteId: selectedClienteId,
+        clienteId: finalClienteId,
         tipoDocumento: targetDocType,
         estado: targetDocType === 'FACTURA' ? 'BORRADOR' : undefined,
         notas: aiData.notas || '',
-        terminosPago: 'Contado',
-        metodoPago: 'Efectivo',
+        terminosPago: isCredito ? '15 días netos' : 'Contado',
+        metodoPago: isCredito ? 'Crédito' : 'Efectivo',
         aliasVenta: 'Paraíso Floral',
         transferenciaConfirmada: false,
         validezDias: targetDocType === 'COTIZACION' ? 15 : 30,
@@ -251,7 +309,7 @@ export default function LibretaIAClient({ organization }: Props) {
               <h2 className="text-2xl font-black tracking-tight">Libreta Mágica IA</h2>
             </div>
             <p className="text-fuchsia-100 font-medium max-w-lg leading-relaxed">
-              Pega la lista del pedido de WhatsApp aquí. La IA lo leerá, extraerá los productos de tu inventario, y generará una {DOC_TYPE_CONFIG[targetDocType].label.toLowerCase()} lista para emitir o compartir.
+              Pega el pedido de WhatsApp o sube la foto de una factura/nota escrita a mano. La IA interpretará los productos contra tu inventario real y generará una {DOC_TYPE_CONFIG[targetDocType].label.toLowerCase()} lista para emitir.
             </p>
           </div>
         </div>
@@ -263,6 +321,7 @@ export default function LibretaIAClient({ organization }: Props) {
           <div className="space-y-2">
             <label className="flex items-center justify-between text-sm font-bold text-slate-800">
               <span>1. ¿Para quién es este pedido?</span>
+              <span className="text-xs font-semibold text-slate-400">Opcional si aparece en la foto</span>
             </label>
             <div className="relative">
               <ClienteSearchSwitcher 
@@ -308,27 +367,44 @@ export default function LibretaIAClient({ organization }: Props) {
             </div>
           </div>
 
-          {/* 3. Text Area */}
+          {/* 3. Text Area / Image Upload */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-sm font-bold text-slate-800">
-              <span>3. Pega el pedido aquí</span>
-              <button 
-                type="button"
-                onClick={async () => {
-                  try {
-                    const clipboardText = await navigator.clipboard.readText();
-                    setText(clipboardText);
-                    toast.success('Texto pegado del portapapeles');
-                  } catch (e) {
-                    toast.error('No se pudo acceder al portapapeles');
-                  }
-                }}
-                className="flex items-center gap-1.5 text-xs text-fuchsia-600 hover:text-fuchsia-700 bg-fuchsia-50 hover:bg-fuchsia-100 px-3 py-1.5 rounded-lg transition-colors font-bold cursor-pointer"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                Pegar
-              </button>
-            </label>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-sm font-bold text-slate-800">3. Pega el pedido o sube foto de la factura</span>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition-colors font-bold cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Subir Foto
+                </button>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const clipboardText = await navigator.clipboard.readText();
+                      setText(clipboardText);
+                      toast.success('Texto pegado del portapapeles');
+                    } catch (e) {
+                      toast.error('No se pudo acceder al portapapeles');
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-fuchsia-600 hover:text-fuchsia-700 bg-fuchsia-50 hover:bg-fuchsia-100 px-3 py-1.5 rounded-lg transition-colors font-bold cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Pegar Texto
+                </button>
+              </div>
+            </div>
             <div className="relative group">
               {imageB64 ? (
                 <div className="relative w-full h-64 p-2 bg-slate-50 border-2 border-slate-200 rounded-2xl flex items-center justify-center overflow-hidden group">
@@ -359,7 +435,7 @@ export default function LibretaIAClient({ organization }: Props) {
                           <Share2 className="w-8 h-8 text-slate-400" />
                           <ImageIcon className="w-8 h-8 text-slate-400" />
                         </div>
-                        <p className="text-sm font-bold text-slate-500">Pega texto o capturas desde WhatsApp (Ctrl+V)</p>
+                        <p className="text-sm font-bold text-slate-500">Pega texto, capturas (Ctrl+V) o usa el botón &ldquo;Subir Foto&rdquo;</p>
                       </div>
                     </div>
                   )}
@@ -406,7 +482,7 @@ export default function LibretaIAClient({ organization }: Props) {
             <button
               type="button"
               onClick={handleProcess}
-              disabled={isLoading || (!text.trim() && !imageB64) || !selectedClienteId}
+              disabled={isLoading || (!text.trim() && !imageB64)}
               className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 text-white font-bold text-xs sm:text-sm transition-all rounded-l-xl active:scale-[0.99] disabled:opacity-50 cursor-pointer ${
                 DOC_TYPE_CONFIG[targetDocType].buttonBg
               }`}
