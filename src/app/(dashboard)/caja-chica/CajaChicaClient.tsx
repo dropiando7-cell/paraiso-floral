@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession, getClosedSessions, getCajaVentasStatus } from './actions';
+import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession, getClosedSessions, getCajaVentasStatus, getNextCorrelativoReciboCajaChica } from './actions';
+import TicketCajaChicaModal from './TicketCajaChicaModal';
 import toast from 'react-hot-toast';
 import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
@@ -252,8 +253,25 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     }
   };
 
+  const [ticketMovimiento, setTicketMovimiento] = useState<any | null>(null);
+  const [nextCorrelativoRC, setNextCorrelativoRC] = useState<string>('RC-00001');
+
+  const cargarNextCorrelativoRC = async () => {
+    try {
+      const res = await getNextCorrelativoReciboCajaChica(organization?.id || dbUser?.organizationId);
+      if (res.success && res.correlativo) {
+        setNextCorrelativoRC(res.correlativo);
+        return res.correlativo;
+      }
+    } catch (e) {
+      console.error('Error al obtener correlativo RC:', e);
+    }
+    return nextCorrelativoRC;
+  };
+
   useEffect(() => {
     cargarSesion();
+    cargarNextCorrelativoRC();
   }, []);
 
   // -------------------- FORMULARIO NUEVO MOVIMIENTO --------------------
@@ -386,6 +404,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
         autorizadoPor: ''
       });
     } else {
+      cargarNextCorrelativoRC();
       setForm(formVacio);
     }
     setShowModalNuevo(true);
@@ -496,8 +515,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     guardandoMovimientoRef.current = true;
     setGuardandoMovimiento(true);
 
+    const esTicketRecibo = tipoMovimiento === 'SALIDA' && (form.documento === 'RECIBO INTERNO' || form.documento === 'VALE DE CAJA');
+    const cuentaGuardada = form.cuentaContable;
+
     try {
-      let res;
+      let res: any;
       const payload = {
         categoria: form.categoria,
         cuentaContable: tipoMovimiento === 'SALIDA' ? form.cuentaContable : undefined,
@@ -514,6 +536,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
         metodoPago: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : undefined,
         referenciaTransferencia: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.referenciaTransferencia : undefined,
         autorizadoPor: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.autorizadoPor : undefined,
+        generarTicketRecibo: esTicketRecibo
       };
 
       if (editandoMovimientoId) {
@@ -531,6 +554,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
         cerrarModalNuevo();
         toast.success(msgExito);
         await cargarSesion();
+        await cargarNextCorrelativoRC();
+
+        if (!editandoMovimientoId && esTicketRecibo && res.movimiento) {
+          setTicketMovimiento({
+            ...res.movimiento,
+            cuentaContable: cuentaGuardada || res.movimiento.cuentaContable
+          });
+        }
       } else {
         toast.error(res.error || 'Error al guardar el movimiento');
       }
@@ -975,6 +1006,15 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
+                        {m.tipo === 'SALIDA' && (
+                          <button
+                            onClick={() => setTicketMovimiento(m)}
+                            className="p-1.5 hover:bg-amber-50 text-amber-600 hover:text-amber-700 rounded transition-colors"
+                            title="Imprimir Ticket / Recibo de Caja Chica (80mm)"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button 
                           onClick={() => iniciarEdicion(m)}
                           className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded transition-colors" 
@@ -982,9 +1022,25 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        <button className="p-1.5 hover:bg-gray-50 text-gray-400 hover:text-gray-600 rounded transition-colors" title="Ver documento">
-                          <FileText className="w-3.5 h-3.5" />
-                        </button>
+                        {m.adjuntoUrl ? (
+                          <a
+                            href={m.adjuntoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 hover:bg-gray-50 text-blue-500 hover:text-blue-700 rounded transition-colors"
+                            title="Ver comprobante adjunto"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => m.tipo === 'SALIDA' ? setTicketMovimiento(m) : undefined}
+                            className="p-1.5 hover:bg-gray-50 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                            title="Ver recibo / documento"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => eliminarMovimiento(m.id)}
                           className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded transition-colors"
@@ -1507,6 +1563,93 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               {/* ============================================ */}
               {tipoMovimiento === 'SALIDA' && (
                 <>
+                  {/* Accesos Rápidos: Emitir Recibo Interno / Ticket en Impresora Térmica */}
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Printer className="w-4 h-4 text-amber-600" />
+                        <span className="text-xs font-bold text-amber-900">
+                          Emitir Ticket / Recibo Interno (Gastos sin factura externa)
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-[10px] font-black font-mono bg-amber-200/80 text-amber-950 rounded-full">
+                        Correlativo: {nextCorrelativoRC}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800/80 mb-2.5">
+                      Selecciona un motivo frecuente para generar correlativo automático, rebajar de Caja Chica e imprimir el ticket de soporte para firma:
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {[
+                        {
+                          label: '🚚 Flete sin recibo',
+                          categoria: 'Envíos',
+                          cuenta: '5109-001',
+                          desc: 'PAGO DE FLETE / ENVÍO SIN RECIBO - '
+                        },
+                        {
+                          label: '📦 Compra de productos',
+                          categoria: 'COMPRAS DE PRODUCTOS',
+                          cuenta: '5199-004',
+                          desc: 'COMPRA DE PRODUCTOS EN EFECTIVO - '
+                        },
+                        {
+                          label: '💧 Botellones de agua',
+                          categoria: 'Botellones de agua',
+                          cuenta: '5104-004',
+                          desc: 'COMPRA DE BOTELLONES DE AGUA PURIFICADA'
+                        },
+                        {
+                          label: '🍽️ Viáticos de ruta',
+                          categoria: 'Viáticos',
+                          cuenta: '5112-001',
+                          desc: 'VIÁTICOS DE ALIMENTACIÓN EN RUTA (SIN FACTURA) - '
+                        },
+                        {
+                          label: '☕ Desayunos madrugada',
+                          categoria: 'Alimentación',
+                          cuenta: '5104-001',
+                          desc: 'DESAYUNO PERSONAL TURNO DE MADRUGADA - '
+                        },
+                        {
+                          label: '🧾 Otro motivo con Ticket',
+                          categoria: form.categoria || 'Otros gastos',
+                          cuenta: form.cuentaContable || '5199-001',
+                          desc: form.descripcion || ''
+                        }
+                      ].map((preset) => {
+                        const isSelected =
+                          (form.documento === 'RECIBO INTERNO' || form.documento === 'VALE DE CAJA') &&
+                          normalizeCatName(form.categoria) === normalizeCatName(preset.categoria);
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => {
+                              setForm((prev: any) => ({
+                                ...prev,
+                                categoria: preset.categoria,
+                                cuentaContable: preset.cuenta,
+                                documento: 'RECIBO INTERNO',
+                                nroDoc: nextCorrelativoRC,
+                                descripcion: prev.descripcion && !prev.descripcion.endsWith('- ')
+                                  ? prev.descripcion
+                                  : preset.desc
+                              }));
+                            }}
+                            className={`text-left px-2.5 py-2 rounded-lg text-[11px] font-semibold border transition-all ${
+                              isSelected
+                                ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm font-bold'
+                                : 'bg-white text-slate-700 border-amber-200/80 hover:bg-amber-100/60 hover:border-amber-300'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Categoría de gasto + Cuenta contable */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -1563,13 +1706,13 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   {/* Descripción */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Descripción <span className="text-red-500">*</span>
+                      Descripción / Motivo (Aparecerá impreso en el Ticket) <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       value={form.descripcion}
                       onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
                       rows={2}
-                      placeholder="Describe el motivo del gasto..."
+                      placeholder="Describe el motivo detallado del gasto (ej. Flete envío de cajas a San Pedro Sula, almuerzo ruta oriente, etc.)..."
                       className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"
                     />
                   </div>
@@ -1577,13 +1720,13 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   {/* Beneficiario */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Beneficiario / Proveedor
+                      Recibido por (Beneficiario / Entregado a)
                     </label>
                     <input
                       type="text"
                       value={form.beneficiario}
                       onChange={(e) => setForm({ ...form, beneficiario: e.target.value })}
-                      placeholder="Nombre del proveedor o beneficiario"
+                      placeholder="Nombre de la persona o motorista que recibe el efectivo"
                       className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                     />
                   </div>
@@ -1596,7 +1739,15 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                       </label>
                       <select
                         value={form.documento}
-                        onChange={(e) => setForm((f: any) => ({ ...f, documento: e.target.value }))}
+                        onChange={(e) => {
+                          const nuevoDoc = e.target.value;
+                          const esInterno = nuevoDoc === 'RECIBO INTERNO' || nuevoDoc === 'VALE DE CAJA';
+                          setForm((f: any) => ({
+                            ...f,
+                            documento: nuevoDoc,
+                            nroDoc: esInterno ? (f.nroDoc?.startsWith('RC-') ? f.nroDoc : nextCorrelativoRC) : (f.nroDoc?.startsWith('RC-') ? '' : f.nroDoc)
+                          }));
+                        }}
                         className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
                       >
                         <option>FACTURA</option>
@@ -1609,14 +1760,18 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                        N° de Documento
+                        N° de Documento / Correlativo
                       </label>
                       <input
                         type="text"
                         value={form.nroDoc}
                         onChange={(e) => setForm({ ...form, nroDoc: e.target.value })}
-                        placeholder="001-2345"
-                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 font-mono"
+                        placeholder={(form.documento === 'RECIBO INTERNO' || form.documento === 'VALE DE CAJA') ? nextCorrelativoRC : '001-2345'}
+                        className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 font-mono ${
+                          (form.documento === 'RECIBO INTERNO' || form.documento === 'VALE DE CAJA')
+                            ? 'bg-amber-50 border-amber-300 text-amber-950 font-bold focus:ring-amber-100 focus:border-amber-400'
+                            : 'border-gray-200 focus:ring-blue-100 focus:border-blue-400'
+                        }`}
                       />
                     </div>
                   </div>
@@ -1719,10 +1874,20 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   </>
                 ) : (
                   <>
-                    {editandoMovimientoId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {editandoMovimientoId ? (
+                      <Save className="w-4 h-4" />
+                    ) : (tipoMovimiento === 'SALIDA' && (form.documento === 'RECIBO INTERNO' || form.documento === 'VALE DE CAJA')) ? (
+                      <Printer className="w-4 h-4" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
                     {editandoMovimientoId 
                       ? 'Guardar Cambios' 
-                      : (tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto')}
+                      : (tipoMovimiento === 'INGRESO'
+                          ? 'Recargar Fondo'
+                          : (form.documento === 'RECIBO INTERNO' || form.documento === 'VALE DE CAJA')
+                            ? 'Registrar e Imprimir Ticket'
+                            : 'Registrar Gasto')}
                   </>
                 )}
               </button>
@@ -2528,6 +2693,17 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
           </div>
         </div>
       )}
+
+      {/* ============================================================ */}
+      {/* MODAL: IMPRIMIR TICKET DE CAJA CHICA (80MM)                  */}
+      {/* ============================================================ */}
+      <TicketCajaChicaModal
+        isOpen={!!ticketMovimiento}
+        onClose={() => setTicketMovimiento(null)}
+        movimiento={ticketMovimiento}
+        cajaNombre={sesionActiva?.nombre || 'Caja Chica Principal'}
+        responsableCaja={`${dbUser?.nombre || ''} ${dbUser?.apellido || ''}`.trim() || dbUser?.email || 'Cajero(a)'}
+      />
     </div>
   );
 }

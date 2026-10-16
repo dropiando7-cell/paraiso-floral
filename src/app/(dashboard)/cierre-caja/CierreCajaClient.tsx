@@ -276,6 +276,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
 
             const defaultDesc = destinoRetiro === 'TRASPASO_CAJA_CHICA'
                 ? 'Fondeo a Caja Chica'
+                : destinoRetiro === 'AJUSTE_CAJA'
+                ? 'Salida de efectivo por ajuste de caja'
                 : `Entrega de efectivo para depósito en ${bancoDestinoRetiro || 'Banco'}${entregadoARetiro.trim() ? ` (Responsable: ${entregadoARetiro.trim()})` : ''}`;
 
             const res: any = await registrarCorteMovimiento({
@@ -287,13 +289,13 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                 metodoPago: metodoPagoRetiro,
                 referenciaId: structuredRef
             });
-            toast.success("Retiro / Remesa registrado correctamente");
+            toast.success(destinoRetiro === 'AJUSTE_CAJA' ? "Ajuste de caja registrado correctamente" : "Retiro / Remesa registrado correctamente");
             setShowModalRetiro(false);
             setMontoRetiro('');
             setDescripcionRetiro('');
             setReferenciaRetiro('');
             setEntregadoARetiro('');
-            if (res?.movimiento) {
+            if (res?.movimiento && destinoRetiro !== 'AJUSTE_CAJA') {
                 setComprobanteRemesaData({
                     movimiento: res.movimiento,
                     session: summaryData?.session || activeSession
@@ -632,7 +634,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                 txList.push({
                     id: m.id,
                     fechaStr: m.createdAt,
-                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
+                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : m.concepto === 'AJUSTE_CAJA' ? 'Retiro por Ajuste' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
                     cliente: m.descripcion || 'Movimiento de Caja',
                     monto: isNegative ? -m.monto : m.monto
                 });
@@ -1151,7 +1153,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs font-bold text-slate-900">
-                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
+                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'AJUSTE_CAJA' ? 'Por Ajuste' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs">
                                                                     <div className="flex flex-col gap-0.5">
@@ -1694,7 +1696,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-4 py-2 font-bold text-slate-800">
-                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
+                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'AJUSTE_CAJA' ? 'Por Ajuste' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
                                                                     </td>
                                                                     <td className="px-4 py-2">
                                                                         <div className="flex flex-col">
@@ -1766,15 +1768,16 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                        Destino del Efectivo
+                                        Destino del Retiro
                                     </label>
                                     <select
                                         className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
                                         value={destinoRetiro}
                                         onChange={(e) => setDestinoRetiro(e.target.value)}
                                     >
-                                        <option value="RETIRO_BANCARIO">Depósito a Banco (Remesa)</option>
+                                        <option value="RETIRO_BANCARIO">Retiro a Banco / Remesa</option>
                                         <option value="TRASPASO_CAJA_CHICA">Traslado a Caja Chica</option>
+                                        <option value="AJUSTE_CAJA">Por ajuste</option>
                                     </select>
                                 </div>
 
@@ -1787,11 +1790,20 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                         value={metodoPagoRetiro}
                                         onChange={(e) => setMetodoPagoRetiro(e.target.value)}
                                     >
-                                        <option value="Efectivo">Efectivo (Billetes de Gaveta)</option>
+                                        <option value="Efectivo">Efectivo (Gaveta diaria)</option>
                                         <option value="Transferencia">Transferencia Bancaria</option>
                                     </select>
                                 </div>
                             </div>
+
+                            {destinoRetiro === 'AJUSTE_CAJA' && (
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-900 text-xs">
+                                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                    <span>
+                                        <b>Retiro por Ajuste:</b> Este movimiento únicamente rebajará el saldo de efectivo esperado de esta caja (sin trasladar fondos al módulo de Caja Chica ni emitir acta de remesa bancaria).
+                                    </span>
+                                </div>
+                            )}
 
                             {destinoRetiro === 'RETIRO_BANCARIO' && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1834,7 +1846,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Monto a Entregar (Lempiras) <span className="text-rose-500">*</span>
+                                        {destinoRetiro === 'AJUSTE_CAJA' ? 'Monto del Ajuste (Lempiras)' : 'Monto a Entregar (Lempiras)'} <span className="text-rose-500">*</span>
                                     </label>
                                     {(summaryData?.totals?.ventasEfectivo || 0) > 0 && (
                                         <button
@@ -1868,12 +1880,12 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                    N° de Boleta Bancaria / Referencia (Opcional si aún va al banco)
+                                    {destinoRetiro === 'AJUSTE_CAJA' ? 'Referencia / Comprobante (Opcional)' : 'N° de Boleta Bancaria / Referencia (Opcional si aún va al banco)'}
                                 </label>
                                 <input
                                     type="text"
                                     className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                    placeholder="Se puede anotar en el acta impresa al regresar del banco"
+                                    placeholder={destinoRetiro === 'AJUSTE_CAJA' ? "Ej. Ajuste de saldo de apertura / cuadre" : "Se puede anotar en el acta impresa al regresar del banco"}
                                     value={referenciaRetiro}
                                     onChange={(e) => setReferenciaRetiro(e.target.value)}
                                 />
@@ -1886,7 +1898,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <textarea
                                     className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                     rows={2}
-                                    placeholder="Ej. Entrega de efectivo de facturas de contado para depósito del día..."
+                                    placeholder={destinoRetiro === 'AJUSTE_CAJA' ? "Detalle el motivo del ajuste de efectivo en caja..." : "Ej. Entrega de efectivo de facturas de contado para depósito del día..."}
                                     value={descripcionRetiro}
                                     onChange={(e) => setDescripcionRetiro(e.target.value)}
                                 />
@@ -1907,10 +1919,10 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 >
                                     {isSavingRetiro ? (
                                         <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
+                                    ) : destinoRetiro !== 'AJUSTE_CAJA' ? (
                                         <Printer className="w-4 h-4 text-emerald-400" />
-                                    )}
-                                    <span>Guardar y Emitir Comprobante</span>
+                                    ) : null}
+                                    <span>{destinoRetiro === 'AJUSTE_CAJA' ? 'Guardar Ajuste' : 'Guardar y Emitir Comprobante'}</span>
                                 </button>
                             </div>
                         </form>

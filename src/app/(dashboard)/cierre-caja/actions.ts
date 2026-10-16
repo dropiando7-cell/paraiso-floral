@@ -869,11 +869,11 @@ export async function getPendingDeposits() {
     }
 }
 
-// Register a cash register movement (Withdrawal/Remittance, Guarantee Refund, or Transfer to Caja Chica)
+// Register a cash register movement (Withdrawal/Remittance, Guarantee Refund, Transfer to Caja Chica, or Adjustment)
 export async function registrarCorteMovimiento(payload: {
     sessionId: string;
     tipo: 'INGRESO' | 'EGRESO';
-    concepto: 'RETIRO_BANCARIO' | 'REEMBOLSO_GARANTIA' | 'TRASPASO_CAJA_CHICA' | 'OTRO' | string;
+    concepto: 'RETIRO_BANCARIO' | 'REEMBOLSO_GARANTIA' | 'TRASPASO_CAJA_CHICA' | 'AJUSTE_CAJA' | 'OTRO' | string;
     descripcion: string;
     monto: number;
     metodoPago: string;

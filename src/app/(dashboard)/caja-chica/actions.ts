@@ -454,6 +454,18 @@ export async function registerCajaChicaMovimiento(
       return { success: true, movimiento: result };
     }
 
+    // Si es un gasto con Recibo Interno / Vale de Caja y no trae nroDoc manual distinto, generar correlativo RC-XXXXX único
+    let finalNroDoc = data.nroDoc ? String(data.nroDoc).trim() : null;
+    const esReciboInterno =
+      tipo === 'SALIDA' &&
+      (data.documento === 'RECIBO INTERNO' ||
+        data.documento === 'VALE DE CAJA' ||
+        data.generarTicketRecibo === true);
+
+    if (esReciboInterno && (!finalNroDoc || finalNroDoc.startsWith('RC-'))) {
+      finalNroDoc = await generarCorrelativoReciboInterno(session.organizationId);
+    }
+
     // Standard movement (not from Caja de Ventas)
     const movimiento = await prisma.cajaChicaMovimiento.create({
       data: {
@@ -462,7 +474,7 @@ export async function registerCajaChicaMovimiento(
         categoria: data.categoria,
         descripcion: data.descripcion,
         documento: data.documento,
-        nroDoc: data.nroDoc || null,
+        nroDoc: finalNroDoc,
         importe: montoNum,
         moneda: data.moneda || 'HNL',
         tipoCambio: data.tipoCambio || 1,
@@ -470,6 +482,9 @@ export async function registerCajaChicaMovimiento(
         adjuntoUrl: data.adjuntoUrl || null,
         beneficiario: data.beneficiario || null,
         creadoPorId: userId
+      },
+      include: {
+        creadoPor: { select: { nombre: true, apellido: true, email: true } }
       }
     });
 
@@ -478,6 +493,38 @@ export async function registerCajaChicaMovimiento(
   } catch (error: any) {
     console.error('Error registering movement:', error);
     return { success: false, error: error.message || 'Error al registrar el movimiento' };
+  }
+}
+
+async function generarCorrelativoReciboInterno(organizationId: string): Promise<string> {
+  const existentes = await prisma.cajaChicaMovimiento.findMany({
+    where: {
+      session: { organizationId },
+      nroDoc: { startsWith: 'RC-' }
+    },
+    select: { nroDoc: true }
+  });
+
+  let maxNum = 0;
+  for (const item of existentes) {
+    if (!item.nroDoc) continue;
+    const match = item.nroDoc.match(/^RC-(\d+)$/i);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    }
+  }
+
+  return `RC-${String(maxNum + 1).padStart(5, '0')}`;
+}
+
+export async function getNextCorrelativoReciboCajaChica(organizationId: string) {
+  try {
+    const nextCorrelativo = await generarCorrelativoReciboInterno(organizationId);
+    return { success: true, correlativo: nextCorrelativo };
+  } catch (error) {
+    console.error('Error obteniendo siguiente correlativo de caja chica:', error);
+    return { success: false, correlativo: 'RC-00001' };
   }
 }
 
