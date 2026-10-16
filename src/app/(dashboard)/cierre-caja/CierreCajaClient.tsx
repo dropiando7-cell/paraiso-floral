@@ -92,6 +92,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [descripcionRetiro, setDescripcionRetiro] = useState('');
     const [referenciaRetiro, setReferenciaRetiro] = useState('');
     const [bancoDestinoRetiro, setBancoDestinoRetiro] = useState('BAC CREDOMATIC');
+    const [categoriaGastoRuta, setCategoriaGastoRuta] = useState('COMBUSTIBLE RUTA');
+    const [efectivoDeclaradoRuta, setEfectivoDeclaradoRuta] = useState('');
     const [entregadoARetiro, setEntregadoARetiro] = useState('');
     const [metodoPagoRetiro, setMetodoPagoRetiro] = useState('Efectivo');
     const [destinoRetiro, setDestinoRetiro] = useState('RETIRO_BANCARIO');
@@ -265,19 +267,23 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         e.preventDefault();
         const amt = parseFloat(montoRetiro);
         if (isNaN(amt) || amt <= 0) {
-            toast.error("El monto del retiro debe ser un número válido mayor a 0");
+            toast.error("El monto debe ser un número válido mayor a 0");
             return;
         }
         setIsSavingRetiro(true);
         try {
             const structuredRef = destinoRetiro === 'RETIRO_BANCARIO'
                 ? `BANCO:${bancoDestinoRetiro || 'BAC CREDOMATIC'}|ENTREGADO:${(entregadoARetiro || 'ENCARGADO DE DEPÓSITO').trim()}|REF:${referenciaRetiro.trim()}`
+                : destinoRetiro === 'GASTO_RUTA'
+                ? `CATEGORIA:${categoriaGastoRuta || 'COMBUSTIBLE RUTA'}|ENTREGADO:${(entregadoARetiro || 'VENDEDOR DE RUTA').trim()}|DECLARADO:${efectivoDeclaradoRuta.trim()}|REF:${referenciaRetiro.trim()}`
                 : (referenciaRetiro || undefined);
 
             const defaultDesc = destinoRetiro === 'TRASPASO_CAJA_CHICA'
                 ? 'Fondeo a Caja Chica'
                 : destinoRetiro === 'AJUSTE_CAJA'
                 ? 'Salida de efectivo por ajuste de caja'
+                : destinoRetiro === 'GASTO_RUTA'
+                ? `Gasto de Ruta (${categoriaGastoRuta || 'Combustible/Viáticos'})${entregadoARetiro.trim() ? ` - Vendedor: ${entregadoARetiro.trim()}` : ''}`
                 : `Entrega de efectivo para depósito en ${bancoDestinoRetiro || 'Banco'}${entregadoARetiro.trim() ? ` (Responsable: ${entregadoARetiro.trim()})` : ''}`;
 
             const res: any = await registrarCorteMovimiento({
@@ -289,11 +295,18 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                 metodoPago: metodoPagoRetiro,
                 referenciaId: structuredRef
             });
-            toast.success(destinoRetiro === 'AJUSTE_CAJA' ? "Ajuste de caja registrado correctamente" : "Retiro / Remesa registrado correctamente");
+            toast.success(
+                destinoRetiro === 'AJUSTE_CAJA'
+                    ? "Ajuste de caja registrado correctamente"
+                    : destinoRetiro === 'GASTO_RUTA'
+                    ? "Gasto de ruta rebajado de caja y ticket generado"
+                    : "Retiro / Remesa registrado correctamente"
+            );
             setShowModalRetiro(false);
             setMontoRetiro('');
             setDescripcionRetiro('');
             setReferenciaRetiro('');
+            setEfectivoDeclaradoRuta('');
             setEntregadoARetiro('');
             if (res?.movimiento && destinoRetiro !== 'AJUSTE_CAJA') {
                 setComprobanteRemesaData({
@@ -634,7 +647,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                 txList.push({
                     id: m.id,
                     fechaStr: m.createdAt,
-                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : m.concepto === 'AJUSTE_CAJA' ? 'Retiro por Ajuste' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
+                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'GASTO_RUTA' ? 'Gasto de Ruta / Ventas' : m.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : m.concepto === 'AJUSTE_CAJA' ? 'Retiro por Ajuste' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
                     cliente: m.descripcion || 'Movimiento de Caja',
                     monto: isNegative ? -m.monto : m.monto
                 });
@@ -1071,10 +1084,10 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                     <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                         <div>
-                                            <h3 className="text-base font-bold text-slate-950">Movimientos Extraordinarios (Remesas y Reembolsos)</h3>
-                                            <p className="text-xs text-slate-500">Retiros de efectivo a bancos, reembolsos de depósitos en garantía y otros ajustes de caja</p>
+                                            <h3 className="text-base font-bold text-slate-950">Movimientos Extraordinarios (Remesas, Gastos de Ruta y Reembolsos)</h3>
+                                            <p className="text-xs text-slate-500">Retiros de efectivo a bancos, gastos declarados por vendedores de ruta (combustible, viáticos, etc.) y ajustes de caja</p>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-wrap gap-2">
                                             <button
                                                 onClick={() => {
                                                     setMontoIngreso('');
@@ -1092,12 +1105,13 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                     setMontoRetiro('');
                                                     setDescripcionRetiro('');
                                                     setReferenciaRetiro('');
+                                                    setEfectivoDeclaradoRuta('');
                                                     setMetodoPagoRetiro('Efectivo');
                                                     setShowModalRetiro(true);
                                                 }}
                                                 className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition duration-200 cursor-pointer flex items-center gap-1.5"
                                             >
-                                                <Plus className="w-3.5 h-3.5" /> Registrar Retiro / Remesa
+                                                <Plus className="w-3.5 h-3.5" /> Registrar Remesa / Gasto
                                             </button>
                                             <button
                                                 onClick={() => {
@@ -1139,7 +1153,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                     {summaryData.session.movimientos.map((mov: any) => {
                                                         const isAnulado = !!mov.anuladaAt;
                                                         const meta = parseRemesaMetadata(mov);
-                                                        const isRemesaOrTraslado = mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'TRASPASO_CAJA_CHICA';
+                                                        const isRemesaOrTraslado = mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'TRASPASO_CAJA_CHICA' || mov.concepto === 'GASTO_RUTA';
                                                         return (
                                                             <tr key={mov.id} className={`hover:bg-slate-50/80 transition ${isAnulado ? 'opacity-50 line-through bg-slate-50/20' : ''}`}>
                                                                 <td className="px-6 py-3 text-xs text-slate-500" suppressHydrationWarning>
@@ -1153,14 +1167,16 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs font-bold text-slate-900">
-                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'AJUSTE_CAJA' ? 'Por Ajuste' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
+                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'GASTO_RUTA' ? 'Gasto de Ruta / Ventas' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'AJUSTE_CAJA' ? 'Por Ajuste' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs">
                                                                     <div className="flex flex-col gap-0.5">
                                                                         <span className="text-slate-800 font-semibold">{mov.descripcion}</span>
-                                                                        {mov.concepto === 'RETIRO_BANCARIO' && (
+                                                                        {(mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'GASTO_RUTA') && (
                                                                             <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-600 font-bold">
-                                                                                <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">🏦 {meta.bancoDestino}</span>
+                                                                                <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                                                                                    {mov.concepto === 'GASTO_RUTA' ? `🧾 ${meta.bancoDestino}` : `🏦 ${meta.bancoDestino}`}
+                                                                                </span>
                                                                                 <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded">👤 {meta.entregadoA}</span>
                                                                             </div>
                                                                         )}
@@ -1181,10 +1197,10 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                                 type="button"
                                                                                 onClick={() => setComprobanteRemesaData({ movimiento: mov, session: summaryData.session })}
                                                                                 className="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-2xs"
-                                                                                title="Imprimir Acta / Comprobante de Entrega de Efectivo"
+                                                                                title="Imprimir Ticket / Comprobante"
                                                                             >
                                                                                 <Printer className="w-3.5 h-3.5" />
-                                                                                <span>Comprobante</span>
+                                                                                <span>{mov.concepto === 'GASTO_RUTA' ? 'Ticket' : 'Comprobante'}</span>
                                                                             </button>
                                                                         )}
                                                                         {!isAnulado && (
@@ -1684,7 +1700,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                     <tbody className="divide-y divide-slate-100 font-medium">
                                                         {pastSummaryData.session.movimientos.map((mov: any) => {
                                                             const isAnulado = !!mov.anuladaAt;
-                                                            const isRemesaOrTraslado = mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'TRASPASO_CAJA_CHICA';
+                                                            const isRemesaOrTraslado = mov.concepto === 'RETIRO_BANCARIO' || mov.concepto === 'TRASPASO_CAJA_CHICA' || mov.concepto === 'GASTO_RUTA';
                                                             return (
                                                                 <tr key={mov.id} className={`${isAnulado ? 'opacity-50 line-through bg-slate-50/20' : ''}`}>
                                                                     <td className="px-4 py-2 text-slate-500" suppressHydrationWarning>{formatDate(mov.createdAt)}</td>
@@ -1696,7 +1712,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-4 py-2 font-bold text-slate-800">
-                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'AJUSTE_CAJA' ? 'Por Ajuste' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
+                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'GASTO_RUTA' ? 'Gasto de Ruta' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'TRASPASO_CAJA_CHICA' ? 'Traslado a Caja Chica' : mov.concepto === 'AJUSTE_CAJA' ? 'Por Ajuste' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
                                                                     </td>
                                                                     <td className="px-4 py-2">
                                                                         <div className="flex flex-col">
@@ -1714,7 +1730,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                                                                 type="button"
                                                                                 onClick={() => setComprobanteRemesaData({ movimiento: mov, session: pastSummaryData.session })}
                                                                                 className="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                                                                                title="Reimprimir Comprobante de Remesa"
+                                                                                title="Reimprimir Comprobante / Ticket"
                                                                             >
                                                                                 <Printer className="w-3 h-3" />
                                                                                 <span>Imprimir</span>
@@ -1748,14 +1764,14 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                 </div>
             )}
 
-            {/* MODAL RETIRO / REMESA BANCARIA */}
+            {/* MODAL RETIRO / REMESA BANCARIA / GASTO DE RUTA */}
             {showModalRetiro && (
                 <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-lg w-full animate-scale-in">
                         <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
                             <div>
-                                <h3 className="font-bold text-base">Registrar Entrega de Efectivo / Remesa Bancaria</h3>
-                                <p className="text-[11px] text-slate-400">Registra la salida de caja y emite el acta de entrega para firma</p>
+                                <h3 className="font-bold text-base">Registrar Remesa / Gasto de Ventas o Ruta</h3>
+                                <p className="text-[11px] text-slate-400">Registra remesas a banco o gastos descontados por vendedores y emite el ticket para firma</p>
                             </div>
                             <button
                                 onClick={() => setShowModalRetiro(false)}
@@ -1765,10 +1781,38 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </button>
                         </div>
                         <form onSubmit={handleSaveRetiro} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+                            {/* Pestañas rápidas: Remesa vs Gasto de Ruta */}
+                            <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (destinoRetiro === 'GASTO_RUTA') setDestinoRetiro('RETIRO_BANCARIO');
+                                    }}
+                                    className={`py-2 px-3 rounded-lg text-xs font-black transition cursor-pointer ${
+                                        destinoRetiro !== 'GASTO_RUTA'
+                                            ? 'bg-slate-900 text-white shadow-xs'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    🏦 Remesa / Traslado / Ajuste
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDestinoRetiro('GASTO_RUTA')}
+                                    className={`py-2 px-3 rounded-lg text-xs font-black transition cursor-pointer ${
+                                        destinoRetiro === 'GASTO_RUTA'
+                                            ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    🧾 Gasto de Ruta (Ticket Vendedor)
+                                </button>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                        Destino del Retiro
+                                        Destino / Tipo de Salida
                                     </label>
                                     <select
                                         className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -1776,6 +1820,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                         onChange={(e) => setDestinoRetiro(e.target.value)}
                                     >
                                         <option value="RETIRO_BANCARIO">Retiro a Banco / Remesa</option>
+                                        <option value="GASTO_RUTA">Gasto de Ruta / Ventas (Emitir Ticket)</option>
                                         <option value="TRASPASO_CAJA_CHICA">Traslado a Caja Chica</option>
                                         <option value="AJUSTE_CAJA">Por ajuste</option>
                                     </select>
@@ -1790,7 +1835,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                         value={metodoPagoRetiro}
                                         onChange={(e) => setMetodoPagoRetiro(e.target.value)}
                                     >
-                                        <option value="Efectivo">Efectivo (Gaveta diaria)</option>
+                                        <option value="Efectivo">Efectivo (Gaveta / Ruta)</option>
                                         <option value="Transferencia">Transferencia Bancaria</option>
                                     </select>
                                 </div>
@@ -1802,6 +1847,88 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                     <span>
                                         <b>Retiro por Ajuste:</b> Este movimiento únicamente rebajará el saldo de efectivo esperado de esta caja (sin trasladar fondos al módulo de Caja Chica ni emitir acta de remesa bancaria).
                                     </span>
+                                </div>
+                            )}
+
+                            {destinoRetiro === 'GASTO_RUTA' && (
+                                <div className="space-y-3 p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl">
+                                    <p className="text-[11px] text-amber-900 font-semibold leading-snug">
+                                        Rebaja del efectivo de esta Caja de Ventas los gastos pagados con el dinero de la ruta/ventas del día y emite un <b>recibo tipo ticket para firma del vendedor</b>.
+                                    </p>
+
+                                    <div>
+                                        <label className="block text-[11px] font-black text-amber-950 uppercase tracking-wider mb-1.5">
+                                            Concepto Rápido del Gasto
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { label: '⛽ Combustible', cat: 'COMBUSTIBLE RUTA' },
+                                                { label: '🛣️ Viáticos de Ruta', cat: 'VIÁTICOS DE RUTA' },
+                                                { label: '🍽️ Alimentación', cat: 'ALIMENTACIÓN / COMIDA RUTA' },
+                                                { label: '🚚 Flete / Envío', cat: 'FLETE / ENVÍO' },
+                                                { label: '🔧 Peaje / Imprevistos', cat: 'PEAJE / IMPREVISTOS RUTA' },
+                                                { label: '📝 Combustible + Otros', cat: 'COMBUSTIBLE Y OTROS GASTOS RUTA' }
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.cat}
+                                                    type="button"
+                                                    onClick={() => setCategoriaGastoRuta(preset.cat)}
+                                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                                                        categoriaGastoRuta === preset.cat
+                                                            ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                                                            : 'bg-white text-slate-700 border-amber-200 hover:bg-amber-100/60'
+                                                    }`}
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                                Vendedor / Ruta (Quien Firma) <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="block w-full bg-white border border-slate-300 rounded-lg text-xs font-bold px-3 py-2 text-slate-900 uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                placeholder="Ej. JOSÉ MÉNDEZ"
+                                                value={entregadoARetiro}
+                                                onChange={(e) => setEntregadoARetiro(e.target.value.toUpperCase())}
+                                                required={destinoRetiro === 'GASTO_RUTA'}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                                Efectivo Bruto Hoja/Ruta (Opcional)
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">L.</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    className="block w-full bg-white border border-slate-300 rounded-lg text-xs font-bold pl-7 pr-2.5 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                                    placeholder="Ej. 73350.00"
+                                                    value={efectivoDeclaradoRuta}
+                                                    onChange={(e) => setEfectivoDeclaradoRuta(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {parseFloat(efectivoDeclaradoRuta) > 0 && parseFloat(montoRetiro) > 0 && (
+                                        <div className="p-2.5 bg-white border border-amber-200 rounded-lg flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 font-semibold">
+                                                Efectivo Neto Entregado ({formatCurrency(parseFloat(efectivoDeclaradoRuta))} - {formatCurrency(parseFloat(montoRetiro))}):
+                                            </span>
+                                            <span className="font-black text-emerald-700 text-xs">
+                                                {formatCurrency(Math.max(0, parseFloat(efectivoDeclaradoRuta) - parseFloat(montoRetiro)))}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -1846,9 +1973,14 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
                                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        {destinoRetiro === 'AJUSTE_CAJA' ? 'Monto del Ajuste (Lempiras)' : 'Monto a Entregar (Lempiras)'} <span className="text-rose-500">*</span>
+                                        {destinoRetiro === 'AJUSTE_CAJA'
+                                            ? 'Monto del Ajuste (Lempiras)'
+                                            : destinoRetiro === 'GASTO_RUTA'
+                                            ? 'Monto del Gasto a Rebajar de Caja (Lempiras)'
+                                            : 'Monto a Entregar (Lempiras)'}{' '}
+                                        <span className="text-rose-500">*</span>
                                     </label>
-                                    {(summaryData?.totals?.ventasEfectivo || 0) > 0 && (
+                                    {destinoRetiro !== 'GASTO_RUTA' && (summaryData?.totals?.ventasEfectivo || 0) > 0 && (
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -1880,12 +2012,22 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                                    {destinoRetiro === 'AJUSTE_CAJA' ? 'Referencia / Comprobante (Opcional)' : 'N° de Boleta Bancaria / Referencia (Opcional si aún va al banco)'}
+                                    {destinoRetiro === 'AJUSTE_CAJA'
+                                        ? 'Referencia / Comprobante (Opcional)'
+                                        : destinoRetiro === 'GASTO_RUTA'
+                                        ? 'N° de Factura / Recibo / Soporte (Opcional)'
+                                        : 'N° de Boleta Bancaria / Referencia (Opcional si aún va al banco)'}
                                 </label>
                                 <input
                                     type="text"
                                     className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                                    placeholder={destinoRetiro === 'AJUSTE_CAJA' ? "Ej. Ajuste de saldo de apertura / cuadre" : "Se puede anotar en el acta impresa al regresar del banco"}
+                                    placeholder={
+                                        destinoRetiro === 'AJUSTE_CAJA'
+                                            ? 'Ej. Ajuste de saldo de apertura / cuadre'
+                                            : destinoRetiro === 'GASTO_RUTA'
+                                            ? 'Ej. Recibo #520 + Voucher Combustible'
+                                            : 'Se puede anotar en el acta impresa al regresar del banco'
+                                    }
                                     value={referenciaRetiro}
                                     onChange={(e) => setReferenciaRetiro(e.target.value)}
                                 />
@@ -1893,12 +2035,18 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
-                                    Concepto / Observaciones
+                                    {destinoRetiro === 'GASTO_RUTA' ? 'Detalle / Desglose del Gasto Declarado' : 'Concepto / Observaciones'}
                                 </label>
                                 <textarea
                                     className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                     rows={2}
-                                    placeholder={destinoRetiro === 'AJUSTE_CAJA' ? "Detalle el motivo del ajuste de efectivo en caja..." : "Ej. Entrega de efectivo de facturas de contado para depósito del día..."}
+                                    placeholder={
+                                        destinoRetiro === 'AJUSTE_CAJA'
+                                            ? 'Detalle el motivo del ajuste de efectivo en caja...'
+                                            : destinoRetiro === 'GASTO_RUTA'
+                                            ? 'Ej. L. 2,050.00 de Combustible + L. 520.00 otros gastos de ruta Occidente descontados del efectivo traído...'
+                                            : 'Ej. Entrega de efectivo de facturas de contado para depósito del día...'
+                                    }
                                     value={descripcionRetiro}
                                     onChange={(e) => setDescripcionRetiro(e.target.value)}
                                 />
@@ -1922,7 +2070,13 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                     ) : destinoRetiro !== 'AJUSTE_CAJA' ? (
                                         <Printer className="w-4 h-4 text-emerald-400" />
                                     ) : null}
-                                    <span>{destinoRetiro === 'AJUSTE_CAJA' ? 'Guardar Ajuste' : 'Guardar y Emitir Comprobante'}</span>
+                                    <span>
+                                        {destinoRetiro === 'AJUSTE_CAJA'
+                                            ? 'Guardar Ajuste'
+                                            : destinoRetiro === 'GASTO_RUTA'
+                                            ? 'Guardar Gasto y Emitir Ticket'
+                                            : 'Guardar y Emitir Comprobante'}
+                                    </span>
                                 </button>
                             </div>
                         </form>

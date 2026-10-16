@@ -91,8 +91,17 @@ def build_remesa_or_caja_chica_receipt(data):
     receipt.extend(org_name.encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_NORMAL)
 
-    titulo = "COMPROBANTE DE ENTREGA / REMESA" if es_remesa else "VALE / RECIBO DE CAJA CHICA"
-    subtitulo = "CONTROL DE TESORERIA Y CAJA" if es_remesa else "COMPROBANTE INTERNO DE EGRESO"
+    es_gasto_ruta = bool(td.get('esGastoRuta'))
+    titulo = (
+        "RECIBO DE GASTO DE RUTA / VENTAS"
+        if es_gasto_ruta
+        else ("COMPROBANTE DE ENTREGA / REMESA" if es_remesa else "VALE / RECIBO DE CAJA CHICA")
+    )
+    subtitulo = (
+        "DECLARACION DE FONDOS DE VENDEDOR"
+        if es_gasto_ruta
+        else ("CONTROL DE TESORERIA Y CAJA" if es_remesa else "COMPROBANTE INTERNO DE EGRESO")
+    )
     receipt.extend(titulo.encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_BOLD_OFF)
     receipt.extend(subtitulo.encode('ascii', 'ignore') + LF)
@@ -113,11 +122,11 @@ def build_remesa_or_caja_chica_receipt(data):
     receipt.extend(f"{MARGIN_LEFT}FECHA/HORA: {fecha_str}".encode('ascii', 'ignore') + LF)
 
     destino = remove_accents(str(td.get('bancoDestino', 'BANCO' if es_remesa else 'GASTO GENERAL')))
-    label_destino = "BANCO/DESTINO:" if es_remesa else "RUBRO/CATEG.:"
+    label_destino = "BANCO/DESTINO:" if es_remesa else "RUBRO/CONCEPTO:"
     receipt.extend(f"{MARGIN_LEFT}{label_destino} {destino}".encode('ascii', 'ignore') + LF)
 
     metodo = remove_accents(str(td.get('metodoPago', 'EFECTIVO')))
-    receipt.extend(f"{MARGIN_LEFT}MEDIO ENTREGA: {metodo}".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"{MARGIN_LEFT}MEDIO: {metodo}".encode('ascii', 'ignore') + LF)
 
     if td.get('cuentaContable'):
         cuenta = remove_accents(str(td.get('cuentaContable')))
@@ -125,13 +134,13 @@ def build_remesa_or_caja_chica_receipt(data):
 
     if td.get('referencia'):
         ref = remove_accents(str(td.get('referencia')))
-        receipt.extend(f"{MARGIN_LEFT}REF / BOLETA: {ref}".encode('ascii', 'ignore') + LF)
+        receipt.extend(f"{MARGIN_LEFT}REF / SOPORTE: {ref}".encode('ascii', 'ignore') + LF)
 
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
 
     # Concepto / Motivo
     receipt.extend(CMD_BOLD_ON)
-    receipt.extend(f"{MARGIN_LEFT}CONCEPTO / DETALLE:".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"{MARGIN_LEFT}{'DETALLE GASTOS DECLARADOS:' if es_gasto_ruta else 'CONCEPTO / DETALLE:'}".encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_BOLD_OFF)
     concepto = remove_accents(str(td.get('concepto', 'SIN DESCRIPCION'))).upper()
     for line in textwrap.wrap(concepto, width=ANCHO_CONTENIDO):
@@ -143,7 +152,7 @@ def build_remesa_or_caja_chica_receipt(data):
     monto_str = format_currency(td.get('monto', 0))
     receipt.extend(CMD_CENTER)
     receipt.extend(CMD_BOLD_ON)
-    receipt.extend(b"MONTO TOTAL ENTREGADO (HNL)" + LF)
+    receipt.extend((b"MONTO GASTO REBAJADO DE CAJA (HNL)" if es_gasto_ruta else b"MONTO TOTAL ENTREGADO (HNL)") + LF)
     receipt.extend(CMD_DOUBLE_HEIGHT)
     receipt.extend(monto_str.encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_NORMAL)
@@ -160,15 +169,26 @@ def build_remesa_or_caja_chica_receipt(data):
     cajero = remove_accents(str(td.get('cajeroNombre', 'CAJERO DE TURNO'))).upper()
     receptor = remove_accents(str(td.get('responsableNombre', 'RESPONSABLE'))).upper()
 
-    receipt.extend(f"{MARGIN_LEFT}ENTREGADO POR (CAJA):".encode('ascii', 'ignore') + LF)
-    receipt.extend(CMD_BOLD_ON)
-    receipt.extend(f"{MARGIN_LEFT}{cajero}".encode('ascii', 'ignore') + LF)
-    receipt.extend(CMD_BOLD_OFF)
+    if es_gasto_ruta:
+        receipt.extend(f"{MARGIN_LEFT}DECLARADO POR (VENDEDOR/RUTA):".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_ON)
+        receipt.extend(f"{MARGIN_LEFT}{receptor}".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_OFF)
 
-    receipt.extend(f"{MARGIN_LEFT}RECIBIDO POR:".encode('ascii', 'ignore') + LF)
-    receipt.extend(CMD_BOLD_ON)
-    receipt.extend(f"{MARGIN_LEFT}{receptor}".encode('ascii', 'ignore') + LF)
-    receipt.extend(CMD_BOLD_OFF)
+        receipt.extend(f"{MARGIN_LEFT}REGISTRADO EN CAJA POR:".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_ON)
+        receipt.extend(f"{MARGIN_LEFT}{cajero}".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_OFF)
+    else:
+        receipt.extend(f"{MARGIN_LEFT}ENTREGADO POR (CAJA):".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_ON)
+        receipt.extend(f"{MARGIN_LEFT}{cajero}".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_OFF)
+
+        receipt.extend(f"{MARGIN_LEFT}RECIBIDO POR:".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_ON)
+        receipt.extend(f"{MARGIN_LEFT}{receptor}".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_OFF)
 
     if es_remesa:
         receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
@@ -179,16 +199,26 @@ def build_remesa_or_caja_chica_receipt(data):
     # Espacios de firma
     receipt.extend(LF * 3)
     receipt.extend(CMD_CENTER)
-    receipt.extend(b"____________________________________" + LF)
-    receipt.extend(f"{cajero}".encode('ascii', 'ignore') + LF)
-    receipt.extend(b"FIRMA ENTREGUE CONFORME (CAJA)" + LF)
+    if es_gasto_ruta:
+        receipt.extend(b"____________________________________" + LF)
+        receipt.extend(f"{receptor}".encode('ascii', 'ignore') + LF)
+        receipt.extend(b"FIRMA VENDEDOR (FONDOS DECLARADOS)" + LF)
 
-    receipt.extend(LF * 3)
-    receipt.extend(b"____________________________________" + LF)
-    receipt.extend(f"{receptor}".encode('ascii', 'ignore') + LF)
-    receipt.extend(b"FIRMA RECIBI CONFORME" + LF)
-    if not es_remesa:
-        receipt.extend(b"IDENTIDAD: _________________________" + LF)
+        receipt.extend(LF * 3)
+        receipt.extend(b"____________________________________" + LF)
+        receipt.extend(f"{cajero}".encode('ascii', 'ignore') + LF)
+        receipt.extend(b"FIRMA CAJA DE VENTAS" + LF)
+    else:
+        receipt.extend(b"____________________________________" + LF)
+        receipt.extend(f"{cajero}".encode('ascii', 'ignore') + LF)
+        receipt.extend(b"FIRMA ENTREGUE CONFORME (CAJA)" + LF)
+
+        receipt.extend(LF * 3)
+        receipt.extend(b"____________________________________" + LF)
+        receipt.extend(f"{receptor}".encode('ascii', 'ignore') + LF)
+        receipt.extend(b"FIRMA RECIBI CONFORME" + LF)
+        if not es_remesa:
+            receipt.extend(b"IDENTIDAD: _________________________" + LF)
 
     receipt.extend(LF * 2)
     receipt.extend(b"ERP PARAISO FLORAL - CONTROL DE CAJA" + LF)
