@@ -69,11 +69,141 @@ def format_currency(amount):
     except:
         return f"L {amount}"
 
+def build_remesa_or_caja_chica_receipt(data):
+    """
+    Construye el recibo térmico ESC/POS para Comprobante de Remesa (Cierre de Caja)
+    y Vale / Recibo Interno de Caja Chica.
+    """
+    import textwrap
+    tipo = data.get('tipoTicket', 'REMESA')
+    es_remesa = (tipo == 'REMESA')
+    org = data.get('organization', {})
+    td = data.get('ticketData', {})
+
+    receipt = bytearray()
+    receipt.extend(CMD_INIT)
+
+    # Cabecera
+    receipt.extend(CMD_CENTER)
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(CMD_DOUBLE_HEIGHT)
+    org_name = remove_accents(org.get('name', 'DISTRIBUIDORA PARAISO FLORAL, S. DE R.L.'))
+    receipt.extend(org_name.encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_NORMAL)
+
+    titulo = "COMPROBANTE DE ENTREGA / REMESA" if es_remesa else "VALE / RECIBO DE CAJA CHICA"
+    subtitulo = "CONTROL DE TESORERIA Y CAJA" if es_remesa else "COMPROBANTE INTERNO DE EGRESO"
+    receipt.extend(titulo.encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_OFF)
+    receipt.extend(subtitulo.encode('ascii', 'ignore') + LF)
+
+    correlativo = remove_accents(str(td.get('correlativo', 'S/N')))
+    sep_line = f"{MARGIN_LEFT}{'-' * ANCHO_CONTENIDO}"
+    double_sep = f"{MARGIN_LEFT}{'=' * ANCHO_CONTENIDO}"
+
+    receipt.extend(double_sep.encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(f"COMPROBANTE N°: {correlativo}".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_OFF)
+    receipt.extend(double_sep.encode('ascii', 'ignore') + LF)
+
+    # Datos generales
+    receipt.extend(CMD_LEFT)
+    fecha_str = remove_accents(str(td.get('fechaHora') or datetime.datetime.now().strftime("%d/%m/%Y %H:%M")))
+    receipt.extend(f"{MARGIN_LEFT}FECHA/HORA: {fecha_str}".encode('ascii', 'ignore') + LF)
+
+    destino = remove_accents(str(td.get('bancoDestino', 'BANCO' if es_remesa else 'GASTO GENERAL')))
+    label_destino = "BANCO/DESTINO:" if es_remesa else "RUBRO/CATEG.:"
+    receipt.extend(f"{MARGIN_LEFT}{label_destino} {destino}".encode('ascii', 'ignore') + LF)
+
+    metodo = remove_accents(str(td.get('metodoPago', 'EFECTIVO')))
+    receipt.extend(f"{MARGIN_LEFT}MEDIO ENTREGA: {metodo}".encode('ascii', 'ignore') + LF)
+
+    if td.get('cuentaContable'):
+        cuenta = remove_accents(str(td.get('cuentaContable')))
+        receipt.extend(f"{MARGIN_LEFT}CTA CONTABLE: {cuenta}".encode('ascii', 'ignore') + LF)
+
+    if td.get('referencia'):
+        ref = remove_accents(str(td.get('referencia')))
+        receipt.extend(f"{MARGIN_LEFT}REF / BOLETA: {ref}".encode('ascii', 'ignore') + LF)
+
+    receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
+
+    # Concepto / Motivo
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(f"{MARGIN_LEFT}CONCEPTO / DETALLE:".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_OFF)
+    concepto = remove_accents(str(td.get('concepto', 'SIN DESCRIPCION'))).upper()
+    for line in textwrap.wrap(concepto, width=ANCHO_CONTENIDO):
+        receipt.extend(f"{MARGIN_LEFT}{line}".encode('ascii', 'ignore') + LF)
+
+    receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
+
+    # Monto Total y Letras
+    monto_str = format_currency(td.get('monto', 0))
+    receipt.extend(CMD_CENTER)
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(b"MONTO TOTAL ENTREGADO (HNL)" + LF)
+    receipt.extend(CMD_DOUBLE_HEIGHT)
+    receipt.extend(monto_str.encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_NORMAL)
+    receipt.extend(CMD_BOLD_OFF)
+
+    monto_letras = remove_accents(str(td.get('montoLetras', ''))).upper()
+    if monto_letras:
+        for line in textwrap.wrap(f"SON: {monto_letras}", width=ANCHO_CONTENIDO):
+            receipt.extend(line.encode('ascii', 'ignore') + LF)
+
+    receipt.extend(CMD_LEFT)
+    receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
+
+    cajero = remove_accents(str(td.get('cajeroNombre', 'CAJERO DE TURNO'))).upper()
+    receptor = remove_accents(str(td.get('responsableNombre', 'RESPONSABLE'))).upper()
+
+    receipt.extend(f"{MARGIN_LEFT}ENTREGADO POR (CAJA):".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(f"{MARGIN_LEFT}{cajero}".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_OFF)
+
+    receipt.extend(f"{MARGIN_LEFT}RECIBIDO POR:".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_ON)
+    receipt.extend(f"{MARGIN_LEFT}{receptor}".encode('ascii', 'ignore') + LF)
+    receipt.extend(CMD_BOLD_OFF)
+
+    if es_remesa:
+        receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
+        receipt.extend(f"{MARGIN_LEFT}CONTROL RETORNO DE VOUCHER BANCARIO:".encode('ascii', 'ignore') + LF)
+        receipt.extend(f"{MARGIN_LEFT}NO. BOLETA: ________________________".encode('ascii', 'ignore') + LF)
+        receipt.extend(f"{MARGIN_LEFT}HORA DEPOSITO: _____________________".encode('ascii', 'ignore') + LF)
+
+    # Espacios de firma
+    receipt.extend(LF * 3)
+    receipt.extend(CMD_CENTER)
+    receipt.extend(b"____________________________________" + LF)
+    receipt.extend(f"{cajero}".encode('ascii', 'ignore') + LF)
+    receipt.extend(b"FIRMA ENTREGUE CONFORME (CAJA)" + LF)
+
+    receipt.extend(LF * 3)
+    receipt.extend(b"____________________________________" + LF)
+    receipt.extend(f"{receptor}".encode('ascii', 'ignore') + LF)
+    receipt.extend(b"FIRMA RECIBI CONFORME" + LF)
+    if not es_remesa:
+        receipt.extend(b"IDENTIDAD: _________________________" + LF)
+
+    receipt.extend(LF * 2)
+    receipt.extend(b"ERP PARAISO FLORAL - CONTROL DE CAJA" + LF)
+    receipt.extend(LF * 7)
+    receipt.extend(CMD_CUT)
+    return bytes(receipt)
+
 def build_receipt(data):
     """
     Construye los bytes ESC/POS crudos a partir de los datos del ticket.
     Con márgenes calibrados, alineación simétrica y pie de página profesional.
     """
+    if data.get('tipoTicket') in ('REMESA', 'CAJA_CHICA'):
+        return build_remesa_or_caja_chica_receipt(data)
+
     doc = data.get('documento', {})
     org = data.get('organization', {})
     items = data.get('items', [])
