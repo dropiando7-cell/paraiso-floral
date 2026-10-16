@@ -147,10 +147,12 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={`text-slate-400 ${headerSmallSize} `}>Fecha:</span>
  <span className={`text-white ${headerSmallSize} font-semibold `}>{today}</span>
  </div>
+ {docType !== 'nota_credito' && (
  <div className="flex items-center gap-2 justify-end">
  <span className={`text-slate-400 ${headerSmallSize} `}>Válido hasta:</span>
  <span className={`${theme.headerText} ${headerSmallSize} font-semibold `}>{futureDate(validityDays)}</span>
  </div>
+ )}
  </div>
  </div>
  </div>
@@ -197,6 +199,7 @@ export default function ModernTemplate(props: TemplateProps) {
     </label>
   )}
  </div>
+ {docType !== 'nota_credito' && (
  <div className="w-32">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Términos de Pago</p>
  {viewMode ? (
@@ -216,6 +219,8 @@ export default function ModernTemplate(props: TemplateProps) {
    </select>
  )}
  </div>
+ )}
+ {docType !== 'nota_credito' && (
  <div className="w-24">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Vigencia</p>
  <div className="flex items-center gap-1">
@@ -229,6 +234,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={`${theme.headerText} text-sm font-semibold `}>días</span>
  </div>
  </div>
+ )}
  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
  <div className="w-36">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Método de Pago</p>

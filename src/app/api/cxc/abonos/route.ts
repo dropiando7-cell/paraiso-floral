@@ -153,6 +153,7 @@ export async function POST(request: Request) {
               organizationId: orgId,
               clienteId,
               estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+              tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] },
               OR: [{ estadoPago: { not: 'PAGADA' } }, { estadoPago: null }]
             },
             orderBy: { fechaEmision: 'asc' }

@@ -1070,6 +1070,7 @@ export default function MobileFacturacionTerminal({
           </div>
 
           {/* Lado B: Tipo de Pago (Exacto Imagen 2) */}
+          {docType !== 'nota_credito' && (
           <div>
             <label className="text-[11px] font-black uppercase text-slate-800 tracking-tight block mb-1">
               Tipo de pago
@@ -1127,6 +1128,7 @@ export default function MobileFacturacionTerminal({
               </button>
             </div>
           </div>
+          )}
 
         </div>
       </div>

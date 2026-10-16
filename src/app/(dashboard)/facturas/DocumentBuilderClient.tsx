@@ -400,7 +400,7 @@ function MobileDocumentForm({
           <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
             <Calendar size={15} className="text-indigo-600" />
           </div>
-          <span className="font-bold text-slate-900 text-sm">Fechas & Pago</span>
+          <span className="font-bold text-slate-900 text-sm">{docType === 'nota_credito' ? 'Fecha & Origen' : 'Fechas & Pago'}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -413,57 +413,73 @@ function MobileDocumentForm({
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
             />
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Validez (Días)</label>
-            <input
-              type="number"
-              value={validityDays}
-              onChange={(e) => setValidityDays(Number(e.target.value))}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          {docType !== 'nota_credito' ? (
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Validez (Días)</label>
+              <input
+                type="number"
+                value={validityDays}
+                onChange={(e) => setValidityDays(Number(e.target.value))}
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Origen Venta</label>
+              <select
+                value={aliasVenta}
+                onChange={(e) => setAliasVenta(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Paraíso Floral">Paraíso Floral</option>
+                <option value="HonduFlores">HonduFlores (HF)</option>
+              </select>
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Términos Pago</label>
-            <select
-              value={paymentTerms}
-              onChange={(e) => setPaymentTerms(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Contado">Contado</option>
-              <option value="Crédito 15 días">Crédito 15 días</option>
-              <option value="Crédito 30 días">Crédito 30 días</option>
-              <option value="Crédito 60 días">Crédito 60 días</option>
-            </select>
+        {docType !== 'nota_credito' && (
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Términos Pago</label>
+              <select
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Contado">Contado</option>
+                <option value="Crédito 15 días">Crédito 15 días</option>
+                <option value="Crédito 30 días">Crédito 30 días</option>
+                <option value="Crédito 60 días">Crédito 60 días</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Origen Venta</label>
+              <select
+                value={aliasVenta}
+                onChange={(e) => setAliasVenta(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Paraíso Floral">Paraíso Floral</option>
+                <option value="HonduFlores">HonduFlores (HF)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Forma de Pago</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Efectivo">Efectivo</option>
+                <option value="Transferencia Bancaria">Transferencia</option>
+                <option value="MIXTO">Pago Dividido / Mixto</option>
+                <option value="Tarjeta de Crédito/Débito">Tarjeta</option>
+                <option value="Cheque">Cheque</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Origen Venta</label>
-            <select
-              value={aliasVenta}
-              onChange={(e) => setAliasVenta(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Paraíso Floral">Paraíso Floral</option>
-              <option value="HonduFlores">HonduFlores (HF)</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Forma de Pago</label>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Efectivo">Efectivo</option>
-              <option value="Transferencia Bancaria">Transferencia</option>
-              <option value="MIXTO">Pago Dividido / Mixto</option>
-              <option value="Tarjeta de Crédito/Débito">Tarjeta</option>
-              <option value="Cheque">Cheque</option>
-            </select>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 4. Ítems y Productos Card */}

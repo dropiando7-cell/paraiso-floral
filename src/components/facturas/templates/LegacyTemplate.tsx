@@ -155,7 +155,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
 
  {/* Metadata Grid (Compressed into columns) */}
-  <div className={`grid ${(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') ? 'grid-cols-[0.8fr_0.6fr_0.6fr_0.6fr_1.8fr]' : 'grid-cols-[0.9fr_0.7fr_0.7fr_1.7fr]'} gap-3 mb-4 text-xs`}>
+  <div className={`grid ${docType === 'nota_credito' ? 'grid-cols-[1fr_0.9fr_2.1fr]' : (docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') ? 'grid-cols-[0.8fr_0.6fr_0.6fr_0.6fr_1.8fr]' : 'grid-cols-[0.9fr_0.7fr_0.7fr_1.7fr]'} gap-3 mb-4 text-xs`}>
   <div className="flex flex-col">
   <span className={`font-bold ${headerBaseSize} ${theme.text} leading-tight uppercase`}>
   {currentDocType.label}
@@ -171,6 +171,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   <span className="text-gray-600 mt-1">{props.nombreUsuario || 'Administrador (BEA)'}</span>
   </div>
   
+  {docType !== 'nota_credito' && (
   <div className="flex flex-col pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Términos de pago:</span>
   {viewMode ? (
@@ -191,6 +192,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   )}
   <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentTerms}</span>
   </div>
+  )}
 
   {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
   <div className="flex flex-col pl-3">
@@ -366,7 +368,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  <div className="flex-1 print:w-[400px] mt-auto">
  <div className="text-sm">
   <div className="flex items-center justify-between mb-1 print:hidden">
-    <p className="font-bold text-xs">Nota / Plazo de pago:</p>
+    <p className="font-bold text-xs">{docType === 'nota_credito' ? 'Motivo / Observaciones:' : 'Nota / Plazo de pago:'}</p>
     {!viewMode && (
       <div className="flex items-center gap-1.5">
         <span className="text-[10px] text-slate-400 font-normal">Notas predeterminadas</span>
@@ -384,16 +386,16 @@ export default function LegacyTemplate(props: TemplateProps) {
       </div>
     )}
   </div>
-  <p className="font-bold mb-1 text-xs hidden print:block">Nota / Plazo de pago:</p>
+  <p className="font-bold mb-1 text-xs hidden print:block">{docType === 'nota_credito' ? 'Motivo / Observaciones:' : 'Nota / Plazo de pago:'}</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
  rows={5}
  className="w-full text-[11px] border border-gray-300 p-2 resize-y min-h-[80px] focus:outline-none whitespace-pre-wrap break-words print:hidden"
  data-pdf-hide
- placeholder="Pago inmediato..."
+ placeholder={docType === 'nota_credito' ? 'Detalle el motivo de la devolución o ajuste...' : 'Pago inmediato...'}
  />
- <div className="hidden print:block text-[11px] whitespace-pre-wrap break-words w-full" data-pdf-show>{notes || paymentTerms}</div>
+ <div className="hidden print:block text-[11px] whitespace-pre-wrap break-words w-full" data-pdf-show>{docType === 'nota_credito' ? notes : (notes || paymentTerms)}</div>
  {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
    <div className="mt-3 border-t border-slate-200 pt-2">
      <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-1">Desglose de Pago Mixto</h4>

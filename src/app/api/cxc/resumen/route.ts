@@ -84,7 +84,10 @@ export async function GET(request: Request) {
         id: true,
         saldoInicial: true,
         facturas: {
-          where: { estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] } },
+          where: {
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
+          },
           select: { total: true, saldoPendiente: true, estadoPago: true, fechaEmision: true }
         },
         pagos: {

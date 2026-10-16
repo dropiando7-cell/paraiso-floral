@@ -60,7 +60,8 @@ export async function GET(request: Request) {
           organizationId: orgId,
           ...(clienteId !== 'TODOS' ? { clienteId } : {}),
           fechaEmision: { lt: start },
-          estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
+          estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+          tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
         },
         _sum: { total: true }
       });
@@ -95,7 +96,8 @@ export async function GET(request: Request) {
     // 2. Fetch Invoices in Period
     const whereInvoices: any = {
       organizationId: orgId,
-      estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
+      estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+      tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
     };
     if (clienteId !== 'TODOS') {
       whereInvoices.clienteId = clienteId;
@@ -215,7 +217,8 @@ export async function GET(request: Request) {
             where: {
               clienteId: c.id,
               fechaEmision: { lt: start },
-              estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
+              estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+          tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
             },
             _sum: { total: true }
           });
@@ -251,7 +254,8 @@ export async function GET(request: Request) {
               ...(start ? { gte: start } : {}),
               ...(end ? { lte: end } : {})
             },
-            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+          tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
           },
           _sum: { total: true }
         });

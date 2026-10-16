@@ -41,7 +41,10 @@ export async function GET(request: Request) {
       where: { id: clienteId, organizationId: orgId },
       include: {
         facturas: {
-          where: { estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] } },
+          where: {
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
+          },
           include: { detalles: true, creadoPor: { select: { nombre: true, apellido: true } } },
           orderBy: { fechaEmision: 'asc' }
         },

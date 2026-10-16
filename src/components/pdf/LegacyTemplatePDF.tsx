@@ -476,30 +476,33 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         {/* Metadata Grid */}
         <View style={styles.metadataGrid}>
           {(() => {
+            const isNotaCredito = docType === 'nota_credito';
             const hasPaymentMethod = docType === 'factura' || docType === 'cotizacion' || docType === 'proforma';
             const method = isCredito(paymentTerms) ? 'Al Crédito' : (paymentMethod || 'Efectivo');
             return (
               <>
-                <View style={[styles.metaColumnFirst, { flex: hasPaymentMethod ? 0.8 : 0.9 }]}>
+                <View style={[styles.metaColumnFirst, { flex: isNotaCredito ? 1.0 : (hasPaymentMethod ? 0.8 : 0.9) }]}>
                   <Text style={[styles.metaLabel, { color: primaryColor, fontSize: 9.5 }]}>{currentDocType?.label}</Text>
                   <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 9.5, marginBottom: 4, color: '#1f2937' }}>{docNumber}</Text>
                   <Text style={styles.metaValue}>Fecha: {today}</Text>
                 </View>
-                <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 0.6 : 0.7 }]}>
+                <View style={[styles.metaColumn, { flex: isNotaCredito ? 0.9 : (hasPaymentMethod ? 0.6 : 0.7) }]}>
                   <Text style={styles.metaLabel}>Elaborado por:</Text>
                   <Text style={styles.metaValue}>{data.nombreUsuario || 'Administrador'}</Text>
                 </View>
-                <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 0.6 : 0.7 }]}>
-                  <Text style={styles.metaLabel}>Términos de pago:</Text>
-                  <Text style={styles.metaValue}>{paymentTerms}</Text>
-                </View>
+                {!isNotaCredito && (
+                  <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 0.6 : 0.7 }]}>
+                    <Text style={styles.metaLabel}>Términos de pago:</Text>
+                    <Text style={styles.metaValue}>{paymentTerms}</Text>
+                  </View>
+                )}
                 {hasPaymentMethod && (
                   <View style={[styles.metaColumn, { flex: 0.6 }]}>
                     <Text style={styles.metaLabel}>Método de pago:</Text>
                     <Text style={styles.metaValue}>{method}</Text>
                   </View>
                 )}
-                <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 1.8 : 1.7 }]}>
+                <View style={[styles.metaColumn, { flex: isNotaCredito ? 2.1 : (hasPaymentMethod ? 1.8 : 1.7) }]}>
                   <Text style={styles.metaLabel}>Cliente:</Text>
                   {selectedClient ? (
                     <View style={styles.clientBox}>
@@ -803,8 +806,8 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         {/* Footer Section */}
         <View style={styles.footerSection} wrap={false}>
           <View style={styles.notesSection}>
-            <Text style={styles.notesLabel}>Nota / Plazo de pago:</Text>
-            <Text style={styles.notesText}>{notes || paymentTerms}</Text>
+            <Text style={styles.notesLabel}>{docType === 'nota_credito' ? 'Motivo / Observaciones:' : 'Nota / Plazo de pago:'}</Text>
+            <Text style={styles.notesText}>{docType === 'nota_credito' ? (notes || '') : (notes || paymentTerms)}</Text>
           </View>
           
           <View style={[

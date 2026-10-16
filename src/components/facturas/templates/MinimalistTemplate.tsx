@@ -124,7 +124,9 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <p className={`${headerBaseSize} font-semibold text-slate-500 mt-1`}>{docNumber}</p>
  <div className={`mt-6 ${headerSmallSize} text-slate-400 space-y-1.5`}>
  <p>Emisión: <span className="font-medium text-slate-800">{today}</span></p>
+ {docType !== 'nota_credito' && (
  <p>Vencimiento: <span className="font-medium text-slate-800">{futureDate(validityDays)}</span></p>
+ )}
  </div>
  </div>
  </div>
@@ -143,13 +145,14 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {/* Client Block Minimal */}
  <div className="flex flex-col print:flex-row sm:flex-row justify-between gap-6 print:gap-4 mb-10 print:mb-6">
  <div className="flex-1">
- <p className={`${headerSmallSize} text-slate-400 uppercase mb-1`}>Facturar A</p>
+ <p className={`${headerSmallSize} text-slate-400 uppercase mb-1`}>{docType === 'nota_credito' ? 'Cliente' : 'Facturar A'}</p>
  <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-left group w-full ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'}`}>
  <p className={`font-semibold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-300'} ${viewMode ? '' : 'group-hover:' + themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
  {selectedClient && <p className={`${headerSmallSize} text-slate-500 mt-1`}>{selectedClient.rtn || 'RTN No Disponible'}</p>}
  </button>
  </div>
  
+ {docType !== 'nota_credito' && (
  <div className="w-full sm:w-48 print:w-48 sm:text-right print:text-right">
  <p className="text-[10px] text-slate-400 uppercase mb-1">Pago</p>
  {viewMode ? (
@@ -201,6 +204,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
   </div>
   )}
  </div>
+ )}
  </div>
 
  {/* Items Table Minimal */}

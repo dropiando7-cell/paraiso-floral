@@ -848,7 +848,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             // Eliminar los detalles anteriores
             await tx.detalleFactura.deleteMany({ where: { facturaId: id } });
 
-                    const esCreditoUpdate = isCredito(data.terminosPago);
+                    const esNotaCreditoUpdate = nuevoTipo === 'NOTA_CREDITO';
+                    const esCreditoUpdate = !esNotaCreditoUpdate && isCredito(data.terminosPago);
 
                     const docActualizado = await tx.factura.update({
                 where: { id },
@@ -858,17 +859,21 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     ...sarFieldsUpdate,
                     notas: data.notas || null,
 
-                    terminosPago: data.terminosPago || null,
+                    terminosPago: esNotaCreditoUpdate ? 'Nota de Crédito' : (data.terminosPago || null),
                     validezDias: Number(data.validezDias) || 30,
                     fechaVencimiento: esCreditoUpdate
                         ? calcularFechaVencimiento(docExistente.fechaEmision, data.terminosPago, Number(data.validezDias) || 30)
                         : null,
-                    saldoPendiente: esCreditoUpdate
-                        ? (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) > 0 && Number(docExistente.saldoPendiente) <= Number(data.total) ? docExistente.saldoPendiente : data.total)
-                        : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? data.total : 0),
-                    estadoPago: esCreditoUpdate
-                        ? (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' && Number(docExistente.saldoPendiente) === 0 && Number(data.total) === 0 ? 'PAGADA' : 'PENDIENTE'))
-                        : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? 'PENDIENTE' : 'PAGADA'),
+                    saldoPendiente: esNotaCreditoUpdate
+                        ? 0
+                        : (esCreditoUpdate
+                            ? (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) > 0 && Number(docExistente.saldoPendiente) <= Number(data.total) ? docExistente.saldoPendiente : data.total)
+                            : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? data.total : 0)),
+                    estadoPago: esNotaCreditoUpdate
+                        ? 'PAGADA'
+                        : (esCreditoUpdate
+                            ? (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' && Number(docExistente.saldoPendiente) === 0 && Number(data.total) === 0 ? 'PAGADA' : 'PENDIENTE'))
+                            : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? 'PENDIENTE' : 'PAGADA')),
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -902,10 +907,10 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                             auditTrail: [...previousAudit, newAuditEntry]
                         };
                     })(),
-                    metodoPago: esCreditoUpdate ? 'Crédito' : (data.metodoPago || docExistente.metodoPago || 'Efectivo'),
+                    metodoPago: esNotaCreditoUpdate ? 'Nota de Crédito' : (esCreditoUpdate ? 'Crédito' : (data.metodoPago || docExistente.metodoPago || 'Efectivo')),
                     aliasVenta: data.aliasVenta !== undefined ? data.aliasVenta : docExistente.aliasVenta,
                     vendedorNombre: data.vendedorNombre !== undefined ? data.vendedorNombre : docExistente.vendedorNombre,
-                    transferenciaConfirmada: esCreditoUpdate ? false : (data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada),
+                    transferenciaConfirmada: esNotaCreditoUpdate ? false : (esCreditoUpdate ? false : (data.transferenciaConfirmada !== undefined ? data.transferenciaConfirmada : docExistente.transferenciaConfirmada)),
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
                     detalles: {
@@ -1208,7 +1213,8 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
 
         const result = await prisma.$transaction(async (tx) => {
             // Crear el documento — el correlativo se genera DESPUÉS del create (usa numeroInterno auto)
-            const esCreditoNuevo = isCredito(data.terminosPago);
+            const esNotaCreditoNuevo = data.tipoDocumento === 'NOTA_CREDITO';
+            const esCreditoNuevo = !esNotaCreditoNuevo && isCredito(data.terminosPago);
             const nuevoDoc = await tx.factura.create({
                 data: {
                     organizationId,
@@ -1217,17 +1223,21 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     tipoDocumento: data.tipoDocumento,
                     estado: data.estado || ((data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE'),
                     notas: data.notas || null,
-                    terminosPago: data.terminosPago || null,
+                    terminosPago: esNotaCreditoNuevo ? 'Nota de Crédito' : (data.terminosPago || null),
                     validezDias: Number(data.validezDias) || 30,
                     fechaVencimiento: esCreditoNuevo
                         ? calcularFechaVencimiento(new Date(), data.terminosPago, Number(data.validezDias) || 30)
                         : null,
-                    saldoPendiente: data.tipoDocumento === 'FACTURA'
-                        ? (esCreditoNuevo ? data.total : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? data.total : 0))
-                        : (Number(data.total) || 0),
-                    estadoPago: data.tipoDocumento === 'FACTURA'
-                        ? (esCreditoNuevo ? 'PENDIENTE' : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'))
-                        : 'PENDIENTE',
+                    saldoPendiente: esNotaCreditoNuevo
+                        ? 0
+                        : (data.tipoDocumento === 'FACTURA'
+                            ? (esCreditoNuevo ? data.total : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? data.total : 0))
+                            : (Number(data.total) || 0)),
+                    estadoPago: esNotaCreditoNuevo
+                        ? 'PAGADA'
+                        : (data.tipoDocumento === 'FACTURA'
+                            ? (esCreditoNuevo ? 'PENDIENTE' : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'))
+                            : 'PENDIENTE'),
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -1244,10 +1254,10 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     documentoOrigenId: data.documentoOrigenId || null,
                     referenciaOriginalId: data.referenciaOriginalId || null,
                     ordenTrabajoId: data.ordenTrabajoId || null,
-                    metodoPago: esCreditoNuevo ? 'Crédito' : (data.metodoPago || 'Efectivo'),
+                    metodoPago: esNotaCreditoNuevo ? 'Nota de Crédito' : (esCreditoNuevo ? 'Crédito' : (data.metodoPago || 'Efectivo')),
                     aliasVenta: data.aliasVenta || 'Paraíso Floral',
                     vendedorNombre: data.vendedorNombre || null,
-                    transferenciaConfirmada: esCreditoNuevo ? false : (data.transferenciaConfirmada || false),
+                    transferenciaConfirmada: esNotaCreditoNuevo ? false : (esCreditoNuevo ? false : (data.transferenciaConfirmada || false)),
                     cajaSessionId,
                     detalles: {
                         create: lineItems.map((item) => {
@@ -1336,6 +1346,88 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     ...sarUpdateData
                 }
             });
+
+            // Si es NOTA_CREDITO emitida, registrar automáticamente en CXC (NotaCreditoCliente) y descontar del saldo
+            if (esNotaCreditoNuevo && data.estado !== 'BORRADOR') {
+                const montoNC = Number(data.total) || 0;
+                const targetFacturaId = data.documentoOrigenId || data.referenciaOriginalId || null;
+                const itemsResumen = lineItems
+                    .filter((it: any) => !it.isSection && (it.shortDesc || it.descripcion))
+                    .map((it: any) => `${it.qty || 1}x ${it.shortDesc || it.descripcion}`)
+                    .join(', ');
+                const descNC = data.notas?.trim()
+                    ? `${data.notas.trim()}${itemsResumen ? ` (${itemsResumen})` : ''}`
+                    : (itemsResumen || `Nota de Crédito ${correlativoFinal}`);
+
+                if (montoNC > 0) {
+                    await tx.notaCreditoCliente.create({
+                        data: {
+                            organizationId,
+                            clienteId,
+                            facturaId: targetFacturaId,
+                            correlativo: correlativoFinal,
+                            monto: montoNC,
+                            motivo: 'DEVOLUCION_FACTURA',
+                            descripcion: descNC,
+                            fotos: [],
+                            fecha: new Date(),
+                            creadoPorId
+                        }
+                    });
+
+                    if (targetFacturaId) {
+                        const facOrigen = await tx.factura.findUnique({ where: { id: targetFacturaId } });
+                        if (facOrigen) {
+                            const saldoActual = facOrigen.saldoPendiente !== null ? Number(facOrigen.saldoPendiente) : Number(facOrigen.total);
+                            const nuevoSaldo = Math.max(0, saldoActual - montoNC);
+                            const nuevoEstadoPago = nuevoSaldo === 0 ? 'PAGADA' : 'PARCIAL';
+                            await tx.factura.update({
+                                where: { id: facOrigen.id },
+                                data: {
+                                    saldoPendiente: nuevoSaldo,
+                                    estadoPago: nuevoEstadoPago
+                                }
+                            });
+                        }
+                    } else {
+                        let saldoDisponible = montoNC;
+                        const facturasPendientes = await tx.factura.findMany({
+                            where: {
+                                organizationId,
+                                clienteId,
+                                id: { not: nuevoDoc.id },
+                                tipoDocumento: { in: ['FACTURA', 'PROFORMA'] },
+                                estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+                                OR: [
+                                    { estadoPago: { not: 'PAGADA' } },
+                                    { estadoPago: null }
+                                ]
+                            },
+                            orderBy: { fechaEmision: 'asc' }
+                        });
+
+                        for (const fac of facturasPendientes) {
+                            if (saldoDisponible <= 0) break;
+                            const totalFac = Number(fac.total);
+                            const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : totalFac;
+                            if (saldoActual <= 0) continue;
+
+                            const montoAplicar = Math.min(saldoDisponible, saldoActual);
+                            const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
+                            const nuevoEstadoPago = nuevoSaldo === 0 ? 'PAGADA' : 'PARCIAL';
+
+                            await tx.factura.update({
+                                where: { id: fac.id },
+                                data: {
+                                    saldoPendiente: nuevoSaldo,
+                                    estadoPago: nuevoEstadoPago
+                                }
+                            });
+                            saldoDisponible -= montoAplicar;
+                        }
+                    }
+                }
+            }
 
 
             // Descontar o restaurar inventario
@@ -2080,8 +2172,39 @@ export async function anularDocumento(id: string) {
                 }
             });
 
-            // 2. Si el documento había descontado inventario (Facturas o Proformas), devolverlo. Si era Nota de Crédito, volver a descontar.
+            // 2. Si el documento había descontado inventario (Facturas o Proformas), devolverlo. Si era Nota de Crédito, volver a descontar y anular en CXC.
             if (doc.tipoDocumento === 'NOTA_CREDITO') {
+                // Anular registro espejo en CXC (NotaCreditoCliente) si existe
+                const ncCxc = await tx.notaCreditoCliente.findFirst({
+                    where: {
+                        organizationId,
+                        clienteId: doc.clienteId,
+                        correlativo: doc.correlativo,
+                        anulado: false
+                    }
+                });
+                if (ncCxc) {
+                    await tx.notaCreditoCliente.update({
+                        where: { id: ncCxc.id },
+                        data: { anulado: true, anuladoAt: new Date() }
+                    });
+                    if (ncCxc.facturaId) {
+                        const facOrigen = await tx.factura.findUnique({ where: { id: ncCxc.facturaId } });
+                        if (facOrigen) {
+                            const totalFac = Number(facOrigen.total);
+                            const saldoActual = facOrigen.saldoPendiente !== null ? Number(facOrigen.saldoPendiente) : 0;
+                            const nuevoSaldo = Math.min(totalFac, saldoActual + Number(ncCxc.monto));
+                            await tx.factura.update({
+                                where: { id: facOrigen.id },
+                                data: {
+                                    saldoPendiente: nuevoSaldo,
+                                    estadoPago: nuevoSaldo >= totalFac - 0.01 ? 'PENDIENTE' : 'PARCIAL'
+                                }
+                            });
+                        }
+                    }
+                }
+
                 for (const item of doc.detalles) {
                     if (item.productoId) {
                         try {

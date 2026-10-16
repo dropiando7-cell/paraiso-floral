@@ -35,7 +35,8 @@ export async function GET(
       include: {
         facturas: {
           where: {
-            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
           },
           include: {
             detalles: true,

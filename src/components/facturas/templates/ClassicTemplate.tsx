@@ -130,10 +130,12 @@ export default function ClassicTemplate(props: TemplateProps) {
  <span className="font-semibold uppercase text-xs">Fecha:</span>
  <span>{today}</span>
  </div>
+ {docType !== 'nota_credito' && (
  <div className="flex justify-between gap-4">
  <span className="font-semibold uppercase text-xs">Vencimiento:</span>
  <span>{futureDate(validityDays)}</span>
  </div>
+ )}
  </div>
  </div>
  </div>
@@ -152,12 +154,13 @@ export default function ClassicTemplate(props: TemplateProps) {
  {/* Client Block */}
  <div className="grid grid-cols-2 gap-8 mb-8">
  <div>
- <h3 className={`font-bold uppercase border-b border-slate-300 pb-1 mb-2 ${headerSmallSize}`}>Facturado A:</h3>
+ <h3 className={`font-bold uppercase border-b border-slate-300 pb-1 mb-2 ${headerSmallSize}`}>{docType === 'nota_credito' ? 'Cliente:' : 'Facturado A:'}</h3>
  <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-left group w-full ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'}`}>
 <p className={`font-bold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-400 italic'} ${viewMode ? '' : 'group-hover:' + baseColor} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
  <p className={`text-sm text-slate-600 mt-1 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient?.rtn || '—'}</p>
  </button>
  </div>
+ {docType !== 'nota_credito' && (
  <div>
  <h3 className={`font-bold uppercase border-b border-slate-300 pb-1 mb-2 ${headerSmallSize}`}>Condiciones de Pago:</h3>
  <div className="space-y-2 mt-2">
@@ -250,6 +253,7 @@ export default function ClassicTemplate(props: TemplateProps) {
   )}
  </div>
  </div>
+ )}
  </div>
 
  {/* Items Table */}
