@@ -8,7 +8,7 @@ import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
   Search, Filter, Download, Printer, X, FileText, Calendar,
   ArrowUpCircle, ArrowDownCircle, Receipt, AlertCircle, CheckCircle2,
-  Edit2, Trash2, ChevronDown, RefreshCcw, PieChart, History, FileSpreadsheet,
+  Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCcw, PieChart, History, FileSpreadsheet,
   Landmark, Banknote, CreditCard, Building2, UserCircle2, ShieldCheck,
   Paperclip, Hash, Sparkles, Info, Coins, Save
 } from 'lucide-react';
@@ -321,6 +321,9 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       .sort((a, b) => b.total - a.total);
   }, [movimientos]);
 
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [itemsPorPagina, setItemsPorPagina] = useState(15);
+
   const movimientosFiltrados = useMemo(() => {
     return movimientos.filter(m => {
       const matchTipo = filtroTipo === 'TODOS' || m.tipo === filtroTipo;
@@ -337,6 +340,35 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       return matchTipo && matchBusqueda;
     });
   }, [movimientos, filtroTipo, busqueda]);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroTipo, itemsPorPagina]);
+
+  const totalPaginas = Math.max(1, Math.ceil(movimientosFiltrados.length / itemsPorPagina));
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+  const indiceInicio = (paginaSegura - 1) * itemsPorPagina;
+  const indiceFin = Math.min(indiceInicio + itemsPorPagina, movimientosFiltrados.length);
+
+  const movimientosPaginados = useMemo(() => {
+    return movimientosFiltrados.slice(indiceInicio, indiceFin);
+  }, [movimientosFiltrados, indiceInicio, indiceFin]);
+
+  const paginasVisibles = useMemo(() => {
+    const pages: (number | string)[] = [];
+    if (totalPaginas <= 7) {
+      for (let i = 1; i <= totalPaginas; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (paginaSegura > 3) pages.push('...');
+      const start = Math.max(2, paginaSegura - 1);
+      const end = Math.min(totalPaginas - 1, paginaSegura + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (paginaSegura < totalPaginas - 2) pages.push('...');
+      pages.push(totalPaginas);
+    }
+    return pages;
+  }, [totalPaginas, paginaSegura]);
 
   const montoARecargar = useMemo(() => {
     return Math.max(0, saldoInicial - stats.saldoFinal);
@@ -919,8 +951,27 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span>Mostrando <span className="font-semibold text-gray-700">{movimientosFiltrados.length}</span> de <span className="font-semibold text-gray-700">{movimientos.length}</span> movimientos</span>
+              <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span>Filas:</span>
+                  <select
+                    value={itemsPorPagina}
+                    onChange={(e) => setItemsPorPagina(Number(e.target.value))}
+                    className="px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                  >
+                    {[10, 15, 25, 50, 100].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-gray-300">|</span>
+                <span>
+                  Mostrando{' '}
+                  <span className="font-semibold text-gray-700">
+                    {movimientosFiltrados.length === 0 ? 0 : `${indiceInicio + 1}–${indiceFin}`}
+                  </span>{' '}
+                  de <span className="font-semibold text-gray-700">{movimientosFiltrados.length}</span> movimientos
+                </span>
               </div>
             </div>
           </div>
@@ -942,7 +993,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {movimientosFiltrados.map((m) => (
+                {movimientosPaginados.map((m) => (
                   <tr key={m.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-5 py-3 text-xs text-gray-600 whitespace-nowrap tabular-nums">
                       {(() => {
@@ -1067,18 +1118,94 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               {movimientosFiltrados.length > 0 && (
                 <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                   <tr>
-                    <td colSpan={9} className="px-5 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <td colSpan={7} className="px-5 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Saldo Final en Caja
                     </td>
-                    <td className="px-3 py-3 text-right text-base font-bold text-blue-700 tabular-nums">
+                    <td className="px-3 py-3 text-right text-base font-bold text-blue-700 tabular-nums whitespace-nowrap">
                       L. {formatMoneda(stats.saldoFinal)}
                     </td>
-                    <td colSpan={2}></td>
+                    <td></td>
                   </tr>
                 </tfoot>
               )}
             </table>
           </div>
+
+          {/* Barra de Paginación */}
+          {movimientosFiltrados.length > 0 && (
+            <div className="px-5 py-3.5 bg-white border-t border-gray-100 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                <span>
+                  Mostrando <span className="font-semibold text-gray-800">{indiceInicio + 1}</span> a{' '}
+                  <span className="font-semibold text-gray-800">{indiceFin}</span> de{' '}
+                  <span className="font-semibold text-gray-800">{movimientosFiltrados.length}</span> registros
+                </span>
+                <span className="text-gray-300">·</span>
+                <span>
+                  Página <span className="font-semibold text-gray-800">{paginaSegura}</span> de{' '}
+                  <span className="font-semibold text-gray-800">{totalPaginas}</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPaginaActual(1)}
+                  disabled={paginaSegura <= 1}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Primera página"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                  disabled={paginaSegura <= 1}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Anterior
+                </button>
+
+                <div className="flex items-center gap-1 mx-1">
+                  {paginasVisibles.map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 py-1 text-xs text-gray-400 select-none">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPaginaActual(Number(p))}
+                        className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-semibold transition-all ${
+                          paginaSegura === p
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+                            : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+                  disabled={paginaSegura >= totalPaginas}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Siguiente
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setPaginaActual(totalPaginas)}
+                  disabled={paginaSegura >= totalPaginas}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Última página"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ============== HISTORIAL DE PERÍODOS DE CAJA CHICA ============== */}
