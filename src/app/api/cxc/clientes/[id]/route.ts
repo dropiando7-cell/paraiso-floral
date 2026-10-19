@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { calcularEstadoCuentaClienteCxC } from '@/utils/facturaUtils';
 
 export async function GET(
   request: Request,
@@ -79,90 +80,37 @@ export async function GET(
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    const totalAbonado = cliente.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
-    const totalNotasCredito = cliente.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
-
-    const sInicial = Number(cliente.saldoInicial || 0);
-    let totalFacturado = sInicial;
-
-    // Bolsa de crédito LIBRE: solo el dinero de abonos y notas de crédito que NO fue
-    // aplicado a una factura específica. Lo ya aplicado se cuenta directo en su factura
-    // (evita contar el mismo abono dos veces).
-    const abonosAplicados = cliente.pagos.reduce(
-      (sum, p) => sum + p.detalles.reduce((s, d) => s + Number(d.montoAplicado || 0), 0),
-      0
-    );
-    const abonosLibres = Math.max(0, totalAbonado - abonosAplicados);
-    const ncLibres = cliente.notasCredito
-      .filter(n => !n.facturaId)
-      .reduce((sum, n) => sum + Number(n.monto), 0);
-    let creditoDisponible = abonosLibres + ncLibres;
-
-    // El dinero libre cubre primero el saldo inicial del Excel
-    const aplicadoSaldoInicial = Math.min(sInicial, creditoDisponible);
-    creditoDisponible -= aplicadoSaldoInicial;
-    const saldoInicialPendiente = Math.max(0, sInicial - aplicadoSaldoInicial);
-
-    // Ordenar facturas por fecha de emisión ascendente (antiguas primero) para cascarada FIFO
-    const facturasAsc = [...cliente.facturas].sort(
-      (a, b) => new Date(a.fechaEmision).getTime() - new Date(b.fechaEmision).getTime()
-    );
-
-    const mapaFacturasInfo: Record<string, { saldoPendiente: number; estadoPago: string }> = {};
-
-    for (const f of facturasAsc) {
-      const total = Number(f.total || 0);
-
-      // Pagos o mermas asociados directamente a esta factura
-      const pagosDirectos = cliente.pagos.reduce((sum, p) => {
-        const det = p.detalles.find(d => d.facturaId === f.id);
-        return sum + (det ? Number(det.montoAplicado) : 0);
-      }, 0);
-
-      const ncDirectas = cliente.notasCredito.reduce((sum, nc) => {
-        return sum + (nc.facturaId === f.id ? Number(nc.monto) : 0);
-      }, 0);
-
-      const cubiertoDirecto = pagosDirectos + ncDirectas;
-
-      let saldo = total;
-      let estadoPago = 'PENDIENTE';
-
-      if (f.estado === 'PAGADA' || cubiertoDirecto >= total - 0.01) {
-        saldo = 0;
-        estadoPago = 'PAGADA';
-      } else if (cubiertoDirecto > 0) {
-        saldo = Math.max(0, total - cubiertoDirecto);
-        estadoPago = 'PARCIAL';
-      } else if (creditoDisponible >= total - 0.01) {
-        creditoDisponible -= total;
-        saldo = 0;
-        estadoPago = 'PAGADA';
-      } else if (creditoDisponible > 0) {
-        saldo = Math.max(0, total - creditoDisponible);
-        creditoDisponible = 0;
-        estadoPago = 'PARCIAL';
-      } else {
-        saldo = total;
-        estadoPago = 'PENDIENTE';
-      }
-
-      mapaFacturasInfo[f.id] = { saldoPendiente: saldo, estadoPago };
-    }
+    const {
+      sInicial,
+      saldoInicialPendiente,
+      totalFacturado,
+      totalAbonado,
+      totalNotasCredito,
+      saldoTotal,
+      mapaFacturasInfo
+    } = calcularEstadoCuentaClienteCxC({
+      saldoInicial: cliente.saldoInicial,
+      facturas: cliente.facturas,
+      pagos: cliente.pagos,
+      notasCredito: cliente.notasCredito
+    });
 
     const listadoFacturas = cliente.facturas.map(f => {
       const total = Number(f.total || 0);
-      totalFacturado += total;
-      const info = mapaFacturasInfo[f.id] || { saldoPendiente: total, estadoPago: 'PENDIENTE' };
+      const info = mapaFacturasInfo[f.id] || {
+        saldoPendiente: total,
+        estadoPago: 'PENDIENTE',
+        pagadoEnFacturacion: 0,
+        cubiertoPorCxc: 0
+      };
       return {
         ...f,
         total,
         saldoPendiente: info.saldoPendiente,
-        estadoPago: info.estadoPago
+        estadoPago: info.estadoPago,
+        pagadoEnFacturacion: info.pagadoEnFacturacion
       };
     });
-
-    const saldoTotal = totalFacturado - totalAbonado - totalNotasCredito;
 
     const facturasProcesadas = [
       ...(sInicial > 0 ? [{

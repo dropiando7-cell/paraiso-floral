@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { calcularEstadoCuentaClienteCxC } from '@/utils/facturaUtils';
 
 export async function GET(request: Request) {
   try {
@@ -88,15 +89,32 @@ export async function GET(request: Request) {
             estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
             tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
           },
-          select: { total: true, saldoPendiente: true, estadoPago: true, fechaEmision: true }
+          select: {
+            id: true,
+            total: true,
+            saldoPendiente: true,
+            estadoPago: true,
+            estado: true,
+            terminosPago: true,
+            metodoPago: true,
+            fechaEmision: true
+          }
         },
         pagos: {
           where: { anulado: false },
-          select: { monto: true }
+          select: {
+            monto: true,
+            detalles: {
+              select: {
+                facturaId: true,
+                montoAplicado: true
+              }
+            }
+          }
         },
         notasCredito: {
           where: { anulado: false },
-          select: { monto: true }
+          select: { monto: true, facturaId: true }
         }
       }
     });
@@ -121,16 +139,14 @@ export async function GET(request: Request) {
     let clientesMorososCount = 0;
 
     clientes.forEach(c => {
-      const sInicial = Number(c.saldoInicial || 0);
-      const totalAbonado = c.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
-      const totalNotasCredito = c.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
-
-      let totalFacturado = sInicial;
-      c.facturas.forEach(f => {
-        totalFacturado += Number(f.total || 0);
+      const calc = calcularEstadoCuentaClienteCxC({
+        saldoInicial: c.saldoInicial,
+        facturas: c.facturas,
+        pagos: c.pagos,
+        notasCredito: c.notasCredito
       });
 
-      const saldoTotal = Math.max(0, totalFacturado - totalAbonado - totalNotasCredito);
+      const saldoTotal = Math.max(0, calc.saldoTotal);
       if (saldoTotal <= 0) return; // No debt
 
       totalCartera += saldoTotal;
@@ -140,14 +156,16 @@ export async function GET(request: Request) {
 
       // Sort client's unpaid invoices by age (oldest first)
       const unpaidFacturas = c.facturas
-        .filter(f => f.estadoPago !== 'PAGADA')
         .map(f => {
+          const info = calc.mapaFacturasInfo[f.id];
           const totalFactura = Number(f.total || 0);
-          const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura;
+          const saldo = info ? info.saldoPendiente : (f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura);
+          const estadoPago = info ? info.estadoPago : (f.estadoPago || 'PENDIENTE');
           const diffTime = Math.abs(now.getTime() - new Date(f.fechaEmision).getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          return { saldo, diffDays };
+          return { saldo, estadoPago, diffDays };
         })
+        .filter(f => f.estadoPago !== 'PAGADA' && f.saldo > 0.01)
         .sort((a, b) => b.diffDays - a.diffDays);
 
       unpaidFacturas.forEach(f => {

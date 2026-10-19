@@ -43,6 +43,7 @@ interface PublicCxCClientProps {
       saldoPendiente: number;
       estadoPago?: string | null;
       metodoPago?: string | null;
+      pagadoEnFacturacion?: number;
       detalles: Array<{
         id: string;
         descripcion: string;
@@ -91,7 +92,7 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
     const list: Array<{
       id: string;
       fecha: Date;
-      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'ABONO' | 'NOTA_CREDITO';
+      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'PAGO_FACTURACION' | 'ABONO' | 'NOTA_CREDITO';
       documento: string;
       detalles: string;
       debito: number;
@@ -127,6 +128,19 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
           debito: f.total,
           credito: 0
         });
+
+        const pagadoEnFac = Number(f.pagadoEnFacturacion || 0);
+        if (pagadoEnFac > 0) {
+          list.push({
+            id: `pago-fac-${f.id}`,
+            fecha: new Date(f.fechaEmision),
+            tipo: 'PAGO_FACTURACION',
+            documento: `#${f.correlativo}`,
+            detalles: `Pago en Facturación (${f.metodoPago || 'Contado'}) — Factura #${f.correlativo}`,
+            debito: 0,
+            credito: pagadoEnFac
+          });
+        }
       }
     });
 
@@ -163,7 +177,18 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
       });
     });
 
-    list.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+    const tipoOrden: Record<string, number> = {
+      SALDO_INICIAL: 0,
+      FACTURA: 1,
+      PAGO_FACTURACION: 2,
+      ABONO: 3,
+      NOTA_CREDITO: 4
+    };
+    list.sort((a, b) => {
+      const diff = a.fecha.getTime() - b.fecha.getTime();
+      if (diff !== 0) return diff;
+      return (tipoOrden[a.tipo] ?? 9) - (tipoOrden[b.tipo] ?? 9);
+    });
 
     let saldoAcumulado = 0;
     return list.map(item => {

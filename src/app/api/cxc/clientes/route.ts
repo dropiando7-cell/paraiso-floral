@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
-import { isCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
+import { isCredito, calcularFechaVencimiento, calcularEstadoCuentaClienteCxC } from '@/utils/facturaUtils';
 
 export async function GET(request: Request) {
   try {
@@ -136,6 +136,8 @@ export async function GET(request: Request) {
             total: true,
             saldoPendiente: true,
             estadoPago: true,
+            estado: true,
+            metodoPago: true,
             fechaEmision: true,
             fechaVencimiento: true,
             terminosPago: true,
@@ -168,58 +170,18 @@ export async function GET(request: Request) {
     const now = new Date();
 
     const resultado = clientes.map(c => {
-      const sInicial = Number(c.saldoInicial || 0);
-      const totalAbonado = c.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
-      const totalNotasCredito = c.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
+      const {
+        sInicial,
+        saldoInicialPendiente,
+        saldoTotal,
+        mapaFacturasInfo: mapaSaldoFactura
+      } = calcularEstadoCuentaClienteCxC({
+        saldoInicial: c.saldoInicial,
+        facturas: c.facturas,
+        pagos: c.pagos,
+        notasCredito: c.notasCredito
+      });
 
-      // Bolsa de crédito libre (abonos/NC no vinculados a una factura específica)
-      const abonosAplicados = c.pagos.reduce(
-        (sum, p) => sum + (p.detalles || []).reduce((s, d) => s + Number(d.montoAplicado || 0), 0),
-        0
-      );
-      const abonosLibres = Math.max(0, totalAbonado - abonosAplicados);
-      const ncLibres = c.notasCredito
-        .filter(n => !n.facturaId)
-        .reduce((sum, n) => sum + Number(n.monto), 0);
-      let creditoDisponible = abonosLibres + ncLibres;
-
-      // El crédito libre cubre primero el saldo inicial
-      const aplicadoSaldoInicial = Math.min(sInicial, creditoDisponible);
-      creditoDisponible -= aplicadoSaldoInicial;
-      const saldoInicialPendiente = Math.max(0, sInicial - aplicadoSaldoInicial);
-
-      // Ordenar facturas de más antigua a más reciente para aplicar cascada FIFO
-      const facturasAsc = [...c.facturas].sort(
-        (a, b) => new Date(a.fechaEmision).getTime() - new Date(b.fechaEmision).getTime()
-      );
-
-      const mapaSaldoFactura: Record<string, { saldoPendiente: number; estadoPago: string }> = {};
-
-      for (const f of facturasAsc) {
-        const total = Number(f.total || 0);
-        const pagosDirectos = c.pagos.reduce((sum, p) => {
-          const det = (p.detalles || []).find(d => d.facturaId === f.id);
-          return sum + (det ? Number(det.montoAplicado) : 0);
-        }, 0);
-        const ncDirectas = c.notasCredito.reduce((sum, nc) => {
-          return sum + (nc.facturaId === f.id ? Number(nc.monto) : 0);
-        }, 0);
-
-        const cubiertoDirecto = pagosDirectos + ncDirectas;
-        let restante = Math.max(0, total - cubiertoDirecto);
-
-        if (restante > 0 && creditoDisponible > 0) {
-          const cubrirConCredito = Math.min(restante, creditoDisponible);
-          restante -= cubrirConCredito;
-          creditoDisponible -= cubrirConCredito;
-        }
-
-        const saldo = restante <= 0.01 ? 0 : Number(restante.toFixed(2));
-        const estadoPago = saldo === 0 ? 'PAGADA' : (saldo < total - 0.01 ? 'PARCIAL' : 'PENDIENTE');
-        mapaSaldoFactura[f.id] = { saldoPendiente: saldo, estadoPago };
-      }
-
-      let totalFacturado = sInicial;
       let saldoVencido = 0;
       let maxDiasMora = 0;
 
@@ -227,7 +189,6 @@ export async function GET(request: Request) {
         const totalFactura = Number(f.total || 0);
         const info = mapaSaldoFactura[f.id];
         const saldo = info ? info.saldoPendiente : (f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura);
-        totalFacturado += totalFactura;
 
         if ((info ? info.estadoPago === 'PAGADA' : f.estadoPago === 'PAGADA') || saldo <= 0) return;
 
@@ -249,8 +210,6 @@ export async function GET(request: Request) {
           saldoVencido += saldo;
         }
       });
-
-      const saldoTotal = totalFacturado - totalAbonado - totalNotasCredito;
 
       // Construir el desglose de facturas pendientes (ordenadas de más reciente a más antigua)
       const facturasPendientes: Array<{

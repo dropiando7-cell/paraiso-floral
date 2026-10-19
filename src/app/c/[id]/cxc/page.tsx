@@ -2,6 +2,7 @@ import React from 'react';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import PublicCxCClient from './PublicCxCClient';
+import { calcularEstadoCuentaClienteCxC } from '@/utils/facturaUtils';
 
 export const metadata = {
   title: 'Estado de Cuenta Oficial - Distribuidora Paraíso Floral',
@@ -50,6 +51,8 @@ export default async function PublicCxCPage({ params }: PageProps) {
           total: true,
           saldoPendiente: true,
           estadoPago: true,
+          estado: true,
+          terminosPago: true,
           metodoPago: true,
           detalles: {
             select: {
@@ -73,7 +76,13 @@ export default async function PublicCxCPage({ params }: PageProps) {
           metodoPago: true,
           banco: true,
           referencia: true,
-          notas: true
+          notas: true,
+          detalles: {
+            select: {
+              facturaId: true,
+              montoAplicado: true
+            }
+          }
         },
         orderBy: { fecha: 'desc' }
       },
@@ -85,7 +94,8 @@ export default async function PublicCxCPage({ params }: PageProps) {
           monto: true,
           fecha: true,
           motivo: true,
-          descripcion: true
+          descripcion: true,
+          facturaId: true
         },
         orderBy: { fecha: 'desc' }
       }
@@ -96,25 +106,35 @@ export default async function PublicCxCPage({ params }: PageProps) {
     notFound();
   }
 
-  // Calculate totals
-  const sInicial = Number(cliente.saldoInicial || 0);
-  let totalFacturadoNuevos = 0;
-  let totalFacturasPendientes = 0;
+  const {
+    sInicial,
+    totalFacturado,
+    totalAbonado,
+    totalNotasCredito,
+    saldoTotal,
+    mapaFacturasInfo
+  } = calcularEstadoCuentaClienteCxC({
+    saldoInicial: cliente.saldoInicial,
+    facturas: cliente.facturas,
+    pagos: cliente.pagos,
+    notasCredito: cliente.notasCredito
+  });
 
   const facturasProcesadas = cliente.facturas.map(f => {
     const total = Number(f.total || 0);
-    const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : total;
-    totalFacturadoNuevos += total;
-    if (f.estadoPago !== 'PAGADA' && saldo > 0) {
-      totalFacturasPendientes += saldo;
-    }
+    const info = mapaFacturasInfo[f.id] || {
+      saldoPendiente: f.saldoPendiente !== null ? Number(f.saldoPendiente) : total,
+      estadoPago: f.estadoPago || 'PENDIENTE',
+      pagadoEnFacturacion: 0
+    };
     return {
       ...f,
       fechaEmision: f.fechaEmision.toISOString(),
       fechaVencimiento: f.fechaVencimiento ? f.fechaVencimiento.toISOString() : null,
       total,
-      saldoPendiente: saldo,
-      estadoPago: f.estadoPago || 'PENDIENTE',
+      saldoPendiente: info.saldoPendiente,
+      estadoPago: info.estadoPago,
+      pagadoEnFacturacion: info.pagadoEnFacturacion,
       detalles: (f.detalles || []).map(d => ({
         id: d.id,
         descripcion: d.descripcion,
@@ -125,10 +145,7 @@ export default async function PublicCxCPage({ params }: PageProps) {
     };
   });
 
-  const totalAbonado = cliente.pagos.reduce((sum, p) => sum + Number(p.monto || 0), 0);
-  const totalNotasCredito = cliente.notasCredito.reduce((sum, n) => sum + Number(n.monto || 0), 0);
-
-  const saldoTotalFinal = Math.max(0, sInicial + totalFacturadoNuevos - totalAbonado - totalNotasCredito);
+  const saldoTotalFinal = Math.max(0, saldoTotal);
 
   const dataProps = {
     cliente: {
@@ -145,7 +162,7 @@ export default async function PublicCxCPage({ params }: PageProps) {
     organization: cliente.organization,
     resumen: {
       saldoTotal: saldoTotalFinal,
-      totalFacturado: sInicial + totalFacturadoNuevos,
+      totalFacturado,
       totalAbonado,
       totalNotasCredito,
       saldoInicial: sInicial

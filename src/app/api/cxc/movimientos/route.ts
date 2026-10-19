@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { calcularEstadoCuentaClienteCxC } from '@/utils/facturaUtils';
 
 export async function GET(request: Request) {
   try {
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
         },
         pagos: {
           where: { anulado: false },
-          include: { creadoPor: { select: { nombre: true, apellido: true } } },
+          include: { detalles: true, creadoPor: { select: { nombre: true, apellido: true } } },
           orderBy: { fecha: 'asc' }
         },
         notasCredito: {
@@ -94,12 +95,19 @@ export async function GET(request: Request) {
       }
     }
 
+    const { mapaFacturasInfo } = calcularEstadoCuentaClienteCxC({
+      saldoInicial: cliente.saldoInicial,
+      facturas: cliente.facturas,
+      pagos: cliente.pagos,
+      notasCredito: cliente.notasCredito
+    });
+
     // Construir lista unificada estilo Excel
     const items: Array<{
       id: string;
       originalId: string;
       fecha: string;
-      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'PAGO_EFECTIVO' | 'TRANSFERENCIA' | 'AJUSTE_FLOR';
+      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'PAGO_FACTURACION' | 'PAGO_EFECTIVO' | 'TRANSFERENCIA' | 'AJUSTE_FLOR';
       tipoEtiqueta: string;
       documento: string;
       detalles: string;
@@ -127,7 +135,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // Facturas
+    // Facturas (y pago directo en Facturación si aplica)
     cliente.facturas.forEach(f => {
       const desc = f.detalles && f.detalles.length > 0
         ? f.detalles.map(d => `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${d.descripcion}`).join(', ')
@@ -146,6 +154,23 @@ export async function GET(request: Request) {
         credito: 0,
         saldoAcumulado: 0
       });
+
+      const pagadoEnFac = Number(mapaFacturasInfo[f.id]?.pagadoEnFacturacion || 0);
+      if (pagadoEnFac > 0) {
+        items.push({
+          id: `pago-fac-${f.id}`,
+          originalId: f.id,
+          fecha: new Date(f.fechaEmision).toISOString(),
+          rawDate: new Date(f.fechaEmision),
+          tipo: 'PAGO_FACTURACION',
+          tipoEtiqueta: 'PAGADA EN FACTURACIÓN',
+          documento: f.correlativo || 'FACTURA',
+          detalles: `Pago en Facturación (${f.metodoPago || 'Contado'}) — Factura #${f.correlativo}`,
+          debito: 0,
+          credito: pagadoEnFac,
+          saldoAcumulado: 0
+        });
+      }
     });
 
     // Pagos
@@ -185,8 +210,20 @@ export async function GET(request: Request) {
       });
     });
 
-    // Ordenar cronológicamente (más antiguo al más nuevo)
-    items.sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime());
+    // Ordenar cronológicamente (más antiguo al más nuevo; FACTURA antes de PAGO_FACTURACION si misma fecha)
+    const tipoOrden: Record<string, number> = {
+      SALDO_INICIAL: 0,
+      FACTURA: 1,
+      PAGO_FACTURACION: 2,
+      PAGO_EFECTIVO: 3,
+      TRANSFERENCIA: 3,
+      AJUSTE_FLOR: 4
+    };
+    items.sort((a, b) => {
+      const diff = a.rawDate.getTime() - b.rawDate.getTime();
+      if (diff !== 0) return diff;
+      return (tipoOrden[a.tipo] ?? 9) - (tipoOrden[b.tipo] ?? 9);
+    });
 
     // Calcular saldos acumulados fila a fila
     let balance = 0;

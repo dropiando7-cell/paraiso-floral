@@ -61,6 +61,9 @@ interface ClienteDetalle {
     total: number;
     saldoPendiente: number;
     estadoPago: string;
+    metodoPago?: string | null;
+    terminosPago?: string | null;
+    pagadoEnFacturacion?: number;
     creadoPor?: { nombre: string | null; apellido: string | null } | null;
     detalles: Array<{
       id: string;
@@ -193,7 +196,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     const list: Array<{
       id: string;
       fecha: Date;
-      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'ABONO' | 'NOTA_CREDITO' | 'ABONO_ANULADO';
+      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'PAGO_FACTURACION' | 'ABONO' | 'NOTA_CREDITO' | 'ABONO_ANULADO';
       documento: string;
       detalles: string;
       debito: number;
@@ -215,7 +218,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       });
     }
 
-    // 2. Facturas
+    // 2. Facturas (y su contrapartida de pago directo en Facturación cuando aplique)
     (data.facturas || []).forEach(f => {
       if (f.correlativo !== 'SALDO INICIAL EXCEL') {
         const desc = f.detalles && f.detalles.length > 0
@@ -231,6 +234,19 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
           debito: f.total,
           credito: 0
         });
+
+        const pagadoEnFac = Number(f.pagadoEnFacturacion || 0);
+        if (pagadoEnFac > 0) {
+          list.push({
+            id: `pago-fac-${f.id}`,
+            fecha: new Date(f.fechaEmision),
+            tipo: 'PAGO_FACTURACION',
+            documento: `#${f.correlativo}`,
+            detalles: `Pago en Facturación (${f.metodoPago || 'Contado'}) — Factura #${f.correlativo}`,
+            debito: 0,
+            credito: pagadoEnFac
+          });
+        }
       }
     });
 
@@ -299,8 +315,20 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       });
     });
 
-    // Ordenar cronológicamente (más antiguo primero)
-    list.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+    // Ordenar cronológicamente (más antiguo primero; si coinciden en fecha, FACTURA antes de PAGO_FACTURACION)
+    const tipoOrden: Record<string, number> = {
+      SALDO_INICIAL: 0,
+      FACTURA: 1,
+      PAGO_FACTURACION: 2,
+      ABONO: 3,
+      NOTA_CREDITO: 4,
+      ABONO_ANULADO: 5
+    };
+    list.sort((a, b) => {
+      const diff = a.fecha.getTime() - b.fecha.getTime();
+      if (diff !== 0) return diff;
+      return (tipoOrden[a.tipo] ?? 9) - (tipoOrden[b.tipo] ?? 9);
+    });
 
     let saldoAcumulado = 0;
     return list.map(item => {
@@ -923,6 +951,11 @@ ${publicUrl}
                           <td className="py-3 px-3 font-extrabold text-slate-900 whitespace-nowrap">
                             <span className="inline-flex items-center gap-2">
                               <span className={m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}>{m.documento}</span>
+                              {m.tipo === 'PAGO_FACTURACION' && (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[9px] font-black uppercase tracking-wider">
+                                  Pagada en Facturación
+                                </span>
+                              )}
                               {m.tipo === 'NOTA_CREDITO' && (
                                 <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[9px] font-black uppercase tracking-wider">
                                   Ajuste Flor

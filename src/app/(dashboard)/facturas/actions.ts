@@ -2331,6 +2331,20 @@ export async function convertirDocumento(
             });
 
             // Crear el nuevo documento heredando información
+            const metodoPagoFinal = options?.metodoPago || doc.metodoPago || 'Efectivo';
+            const terminosPagoFinal = doc.terminosPago || 'Pago inmediato';
+            const esCredConvert = isCredito(terminosPagoFinal) || metodoPagoFinal.toLowerCase().includes('crédito') || metodoPagoFinal.toLowerCase().includes('credito');
+            const esTransfPendienteConvert = nuevoTipo === 'FACTURA' && !esCredConvert && (metodoPagoFinal === 'Transferencia' || metodoPagoFinal === 'Depósito');
+            const estadoPagoConvert = nuevoTipo === 'FACTURA'
+                ? (esCredConvert || esTransfPendienteConvert ? 'PENDIENTE' : 'PAGADA')
+                : 'PENDIENTE';
+            const saldoPendienteConvert = nuevoTipo === 'FACTURA'
+                ? (esCredConvert || esTransfPendienteConvert ? Number(doc.total) : 0)
+                : Number(doc.total);
+            const fechaVencConvert = nuevoTipo === 'FACTURA' && esCredConvert
+                ? calcularFechaVencimiento(new Date(), terminosPagoFinal, doc.validezDias ?? undefined)
+                : doc.fechaVencimiento;
+
             const nuevoDoc = await tx.factura.create({
                 data: {
                     organizationId: doc.organizationId,
@@ -2348,16 +2362,20 @@ export async function convertirDocumento(
                     totalGravado18: doc.totalGravado18,
                     isv18: doc.isv18,
                     total: doc.total,
+                    estadoPago: estadoPagoConvert,
+                    saldoPendiente: saldoPendienteConvert,
+                    fechaVencimiento: fechaVencConvert,
+                    transferenciaConfirmada: nuevoTipo === 'FACTURA' ? !esTransfPendienteConvert : true,
                     templateSettings: doc.templateSettings || undefined,
                     creadoPorId: doc.creadoPorId,
                     nombreUsuario: doc.nombreUsuario,
                     inventarioDescontado: doc.inventarioDescontado || debeDescontar,
                     documentoOrigenId: doc.documentoOrigenId || doc.id,
-                    metodoPago: options?.metodoPago || doc.metodoPago || 'Efectivo',
+                    metodoPago: metodoPagoFinal,
                     cajaSessionId,
                     ordenTrabajoId: doc.ordenTrabajoId || null,
                     notas: doc.notas,
-                    terminosPago: doc.terminosPago || 'Pago inmediato',
+                    terminosPago: terminosPagoFinal,
                     detalles: {
                         create: doc.detalles.map((d) => ({
                             descripcion: d.descripcion,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { esFacturaPagadaEnFacturacion } from '@/utils/facturaUtils';
 
 export async function GET(request: Request) {
   try {
@@ -121,7 +122,9 @@ export async function GET(request: Request) {
 
     const filteredInvoices = invoices.map(f => {
       const totalVal = Number(f.total || 0);
-      const saldoVal = f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalVal;
+      const pagadaEnFac = esFacturaPagadaEnFacturacion(f);
+      const saldoVal = pagadaEnFac ? 0 : (f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalVal);
+      const estadoPagoVal = pagadaEnFac ? 'PAGADA' : (f.estadoPago || 'PENDIENTE');
       return {
         id: f.id,
         correlativo: f.correlativo,
@@ -129,7 +132,7 @@ export async function GET(request: Request) {
         fechaVencimiento: f.fechaVencimiento,
         total: totalVal,
         saldoPendiente: saldoVal,
-        estadoPago: f.estadoPago || 'PENDIENTE',
+        estadoPago: estadoPagoVal,
         clienteNombre: f.cliente.nombre,
         clienteId: f.clienteId
       };
