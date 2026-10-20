@@ -41,7 +41,7 @@ interface ModalAbonoProps {
 export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: ModalAbonoProps) {
   const [monto, setMonto] = useState<string>('');
   const [metodoPago, setMetodoPago] = useState<string>('Transferencia');
-  const [banco, setBanco] = useState<string>('Ficohsa');
+  const [banco, setBanco] = useState<string>('');
   const [referencia, setReferencia] = useState<string>('');
   const [notas, setNotas] = useState<string>('');
   const [fechaPago, setFechaPago] = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -57,6 +57,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
 
   useEffect(() => {
     if (isOpen && cliente) {
+      setBanco('');
       if (cliente.facturas) {
         setLocalFacturas(cliente.facturas);
       } else {
@@ -79,6 +80,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
     } else {
       setLocalFacturas(null);
       setFacturaSeleccionadaId('');
+      setBanco('');
     }
   }, [isOpen, cliente]);
 
@@ -349,8 +351,9 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Selector Inteligente de Banco Destino */}
               <div className="relative" ref={bankDropdownRef}>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Banco Destino <span className="text-emerald-600">*</span>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Banco Destino</span>
+                  <span className="text-[9px] text-slate-400 font-semibold uppercase">Opcional</span>
                 </label>
                 
                 {/* Botón Trigger con Logo */}
@@ -400,6 +403,20 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                         autoFocus
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBanco('');
+                        setBankDropdownOpen(false);
+                      }}
+                      className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                        !banco
+                          ? 'bg-slate-100 text-slate-900 border border-slate-300'
+                          : 'hover:bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <span className="truncate">-- Sin especificar banco --</span>
+                    </button>
                     {filteredBanks.length === 0 ? (
                       <p className="text-center text-slate-400 text-xs py-4 font-semibold">No se encontraron bancos</p>
                     ) : (

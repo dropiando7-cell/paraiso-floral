@@ -275,6 +275,20 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
                         autoFocus
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBanco('');
+                        setBankDropdownOpen(false);
+                      }}
+                      className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                        !banco
+                          ? 'bg-slate-100 text-slate-900 border border-slate-300'
+                          : 'hover:bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <span className="truncate">-- Sin especificar banco --</span>
+                    </button>
                     {filteredBanks.length === 0 ? (
                       <p className="text-center text-slate-400 text-xs py-4 font-semibold">No se encontraron bancos</p>
                     ) : (
