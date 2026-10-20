@@ -37,6 +37,9 @@ export async function GET(request: Request) {
     const departamento = searchParams.get('departamento') || '';
     const vendedorParam = searchParams.get('vendedorId') || '';
     const rutaParam = searchParams.get('ruta') || '';
+    const pageParam = parseInt(searchParams.get('page') || '0', 10);
+    const limitParam = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
+    const compactParam = searchParams.get('compact') === '1';
 
     // Permisos: Admin/Gerente/Dueño ve todas las cuentas. Vendedor solo ve las suyas/sus rutas.
     const esAdminOGerente =
@@ -95,6 +98,24 @@ export async function GET(request: Request) {
         { departamento: { contains: query.trim(), mode: 'insensitive' } },
         { ruta: { contains: query.trim(), mode: 'insensitive' } },
         { facturas: { some: { correlativo: { contains: query.trim(), mode: 'insensitive' } } } }
+      ];
+    } else if (['CON_SALDO', 'TOP_DEUDORES', 'MOROSOS', 'POR_VENCER', 'VENCIDO', 'RIESGO'].includes(filtro)) {
+      // Pre-filtro en BD: descartar clientes sin saldo inicial ni facturas activas
+      whereCliente.AND = [
+        ...(whereCliente.AND || []),
+        {
+          OR: [
+            { saldoInicial: { gt: 0 } },
+            {
+              facturas: {
+                some: {
+                  estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+                  tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
+                }
+              }
+            }
+          ]
+        }
       ];
     }
 
@@ -272,7 +293,7 @@ export async function GET(request: Request) {
         saldoTotal,
         saldoVencido,
         facturasPendientesCount,
-        facturasPendientes,
+        ...(compactParam ? {} : { facturasPendientes }),
         maxDiasMora,
         ultimoPago: ultimoPago ? {
           monto: Number(ultimoPago.monto),
@@ -318,6 +339,22 @@ export async function GET(request: Request) {
           return b.saldoTotal - a.saldoTotal;
         }
         return a.nombre.localeCompare(b.nombre);
+      });
+    }
+
+    if (pageParam > 0) {
+      const total = resultadoFiltrado.length;
+      const totalPages = Math.max(1, Math.ceil(total / limitParam));
+      const safePage = Math.min(Math.max(1, pageParam), totalPages);
+      const startIdx = (safePage - 1) * limitParam;
+      const items = resultadoFiltrado.slice(startIdx, startIdx + limitParam);
+
+      return NextResponse.json({
+        items,
+        total,
+        page: safePage,
+        limit: limitParam,
+        totalPages
       });
     }
 

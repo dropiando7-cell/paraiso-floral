@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
+  ChevronLeft,
   ChevronRight,
   RefreshCw,
   TrendingUp,
@@ -95,6 +96,7 @@ export default function CuentasPorCobrarPage() {
   const [clientes, setClientes] = useState<ClienteCxC[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [filtro, setFiltro] = useState<string>('CON_SALDO');
   const [departamentoFiltro, setDepartamentoFiltro] = useState<string>('TODOS');
   const [vendedorFiltro, setVendedorFiltro] = useState<string>('TODOS');
@@ -102,6 +104,13 @@ export default function CuentasPorCobrarPage() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [vendedores, setVendedores] = useState<VendedorOption[]>([]);
   const [viewMode, setViewMode] = useState<'INLINE' | 'CARDS' | 'EXCEL'>('INLINE');
+
+  // Paginación
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(15);
+  const [totalClientes, setTotalClientes] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [exportingExcel, setExportingExcel] = useState<boolean>(false);
 
   // Modales
   const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteCxC | null>(null);
@@ -121,10 +130,17 @@ export default function CuentasPorCobrarPage() {
       .catch(err => console.error('Error cargando vendedores:', err));
   }, []);
 
-  const cargarDatos = async () => {
-    try {
-      setLoading(true);
+  // Debounce del buscador y reinicio a página 1
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
 
+  const cargarResumen = async () => {
+    try {
       const paramsResumen = new URLSearchParams();
       if (vendedorFiltro !== 'TODOS') paramsResumen.set('vendedorId', vendedorFiltro);
       if (rutaFiltro !== 'TODOS') paramsResumen.set('ruta', rutaFiltro);
@@ -134,22 +150,40 @@ export default function CuentasPorCobrarPage() {
       if (resResumen.ok) {
         const dataResumen = await resResumen.json();
         setResumen(dataResumen);
-      } else {
-        console.error('Error al obtener resumen de CxC:', resResumen.status);
       }
+    } catch (err) {
+      console.error('Error al obtener resumen de CxC:', err);
+    }
+  };
 
+  const cargarClientes = async (targetPage = page, targetLimit = pageSize) => {
+    try {
+      setLoading(true);
       const paramsClientes = new URLSearchParams();
-      if (search.trim()) paramsClientes.set('q', search.trim());
+      if (debouncedSearch.trim()) paramsClientes.set('q', debouncedSearch.trim());
       if (filtro) paramsClientes.set('filtro', filtro);
       if (departamentoFiltro !== 'TODOS') paramsClientes.set('departamento', departamentoFiltro);
       if (vendedorFiltro !== 'TODOS') paramsClientes.set('vendedorId', vendedorFiltro);
       if (rutaFiltro !== 'TODOS') paramsClientes.set('ruta', rutaFiltro);
-      const url = `/api/cxc/clientes?${paramsClientes.toString()}`;
+      paramsClientes.set('page', String(targetPage));
+      paramsClientes.set('limit', String(targetLimit));
+      paramsClientes.set('compact', '1');
 
-      const resClientes = await fetch(url);
+      const resClientes = await fetch(`/api/cxc/clientes?${paramsClientes.toString()}`);
       if (resClientes.ok) {
-        const dataClientes = await resClientes.json();
-        setClientes(dataClientes);
+        const data = await resClientes.json();
+        if (Array.isArray(data)) {
+          setClientes(data);
+          setTotalClientes(data.length);
+          setTotalPages(1);
+        } else {
+          setClientes(data.items || []);
+          setTotalClientes(data.total || 0);
+          setTotalPages(data.totalPages || 1);
+          if (data.page && data.page !== targetPage) {
+            setPage(data.page);
+          }
+        }
       } else {
         console.error('Error al obtener clientes de CxC:', resClientes.status);
       }
@@ -160,16 +194,45 @@ export default function CuentasPorCobrarPage() {
     }
   };
 
-  useEffect(() => {
-    cargarDatos();
-  }, [filtro, departamentoFiltro, vendedorFiltro, rutaFiltro]);
+  const cargarDatos = async () => {
+    await Promise.all([cargarResumen(), cargarClientes(page, pageSize)]);
+  };
 
+  // El resumen general solo cambia cuando cambia el vendedor o la ruta
   useEffect(() => {
-    const timer = setTimeout(() => {
-      cargarDatos();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+    cargarResumen();
+  }, [vendedorFiltro, rutaFiltro]);
+
+  // La lista paginada cambia según página, tamaño, filtro o búsqueda
+  useEffect(() => {
+    cargarClientes(page, pageSize);
+  }, [page, pageSize, filtro, departamentoFiltro, vendedorFiltro, rutaFiltro, debouncedSearch]);
+
+  const handleExportarCarteraExcel = async () => {
+    try {
+      setExportingExcel(true);
+      const paramsClientes = new URLSearchParams();
+      if (debouncedSearch.trim()) paramsClientes.set('q', debouncedSearch.trim());
+      if (filtro) paramsClientes.set('filtro', filtro);
+      if (departamentoFiltro !== 'TODOS') paramsClientes.set('departamento', departamentoFiltro);
+      if (vendedorFiltro !== 'TODOS') paramsClientes.set('vendedorId', vendedorFiltro);
+      if (rutaFiltro !== 'TODOS') paramsClientes.set('ruta', rutaFiltro);
+      paramsClientes.set('compact', '1');
+
+      const res = await fetch(`/api/cxc/clientes?${paramsClientes.toString()}`);
+      if (res.ok) {
+        const allClientes = await res.json();
+        exportarCarteraGeneralExcel(allClientes as any);
+        toast.success('Descargando archivo Excel de Cartera CxC...');
+      } else {
+        exportarCarteraGeneralExcel(clientes as any);
+      }
+    } catch {
+      exportarCarteraGeneralExcel(clientes as any);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   // Lista de departamentos únicos para filtro de rutas
   const departamentosDisponibles = React.useMemo(() => {
@@ -272,15 +335,13 @@ ${publicUrl}
 
           {/* Botón Exportar a Excel */}
           <button
-            onClick={() => {
-              exportarCarteraGeneralExcel(clientes as any);
-              toast.success('Descargando archivo Excel de Cartera CxC...');
-            }}
-            className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-2xl transition-all flex items-center gap-2 text-xs font-bold shadow-sm shrink-0 cursor-pointer"
-            title="Exportar cartera a Excel (.xlsx)"
+            onClick={handleExportarCarteraExcel}
+            disabled={exportingExcel}
+            className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-2xl transition-all flex items-center gap-2 text-xs font-bold shadow-sm shrink-0 cursor-pointer disabled:opacity-60"
+            title="Exportar cartera completa filtrada a Excel (.xlsx)"
           >
-            <Download className="w-4 h-4 text-emerald-200" />
-            <span className="hidden sm:inline">Exportar Excel</span>
+            <Download className={`w-4 h-4 text-emerald-200 ${exportingExcel ? 'animate-bounce' : ''}`} />
+            <span className="hidden sm:inline">{exportingExcel ? 'Exportando...' : 'Exportar Excel'}</span>
           </button>
 
           {/* Botón Imprimir Hoja de Cobranza (Ruta) */}
@@ -462,7 +523,10 @@ ${publicUrl}
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setFiltro(tab.id)}
+                onClick={() => {
+                  setFiltro(tab.id);
+                  setPage(1);
+                }}
                 className={`py-1.5 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   filtro === tab.id
                     ? 'bg-emerald-600 text-white shadow-xs'
@@ -483,7 +547,10 @@ ${publicUrl}
                   <span className="text-[11px] font-black text-slate-500 uppercase">Vendedor:</span>
                   <select
                     value={vendedorFiltro}
-                    onChange={(e) => setVendedorFiltro(e.target.value)}
+                    onChange={(e) => {
+                      setVendedorFiltro(e.target.value);
+                      setPage(1);
+                    }}
                     className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
                   >
                     <option value="TODOS">Todos los Vendedores</option>
@@ -501,7 +568,10 @@ ${publicUrl}
                   <span className="text-[11px] font-black text-slate-500 uppercase">Ruta:</span>
                   <select
                     value={rutaFiltro}
-                    onChange={(e) => setRutaFiltro(e.target.value)}
+                    onChange={(e) => {
+                      setRutaFiltro(e.target.value);
+                      setPage(1);
+                    }}
                     className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
                   >
                     <option value="TODOS">Todas las Rutas</option>
@@ -860,6 +930,99 @@ ${publicUrl}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Barra de Paginación (Lista y Tarjetas) */}
+      {viewMode !== 'EXCEL' && !loading && totalClientes > 0 && (
+        <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3 flex-wrap text-slate-600 font-medium">
+            <span>
+              Mostrando{' '}
+              <strong className="font-black text-slate-900">
+                {Math.min((page - 1) * pageSize + 1, totalClientes)}
+              </strong>
+              {' – '}
+              <strong className="font-black text-slate-900">
+                {Math.min(page * pageSize, totalClientes)}
+              </strong>{' '}
+              de <strong className="font-black text-emerald-700">{totalClientes}</strong> cliente(s)
+            </span>
+
+            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500">Filas:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Anterior</span>
+              </button>
+
+              <div className="flex items-center gap-1 px-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<Array<number | string>>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-400 font-bold">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setPage(Number(item))}
+                        className={`min-w-[30px] h-7 px-2 rounded-xl font-black transition-all cursor-pointer ${
+                          page === item
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <span>Siguiente</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -78,57 +78,77 @@ export async function GET(request: Request) {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Fetch all clients within user's permitted scope
-    const clientes = await prisma.cliente.findMany({
-      where: whereCliente,
-      select: {
-        id: true,
-        saldoInicial: true,
-        facturas: {
-          where: {
-            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
-            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
-          },
-          select: {
-            id: true,
-            total: true,
-            saldoPendiente: true,
-            estadoPago: true,
-            estado: true,
-            terminosPago: true,
-            metodoPago: true,
-            fechaEmision: true
-          }
-        },
-        pagos: {
-          where: { anulado: false },
-          select: {
-            monto: true,
-            detalles: {
-              select: {
-                facturaId: true,
-                montoAplicado: true
+    const whereClienteConMovimientos = {
+      ...whereCliente,
+      AND: [
+        ...(whereCliente.AND || []),
+        {
+          OR: [
+            { saldoInicial: { gt: 0 } },
+            {
+              facturas: {
+                some: {
+                  estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+                  tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
+                }
               }
             }
-          }
-        },
-        notasCredito: {
-          where: { anulado: false },
-          select: { monto: true, facturaId: true }
+          ]
         }
-      }
-    });
+      ]
+    };
 
-    // Abonos del mes actual dentro del alcance
-    const abonosMes = await prisma.pagoCliente.aggregate({
-      where: {
-        organizationId: orgId,
-        anulado: false,
-        fecha: { gte: firstDayOfMonth },
-        cliente: whereCliente
-      },
-      _sum: { monto: true }
-    });
+    // Fetch clients with potential balance and current month payments in parallel
+    const [clientes, abonosMes] = await Promise.all([
+      prisma.cliente.findMany({
+        where: whereClienteConMovimientos,
+        select: {
+          id: true,
+          saldoInicial: true,
+          facturas: {
+            where: {
+              estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+              tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
+            },
+            select: {
+              id: true,
+              total: true,
+              saldoPendiente: true,
+              estadoPago: true,
+              estado: true,
+              terminosPago: true,
+              metodoPago: true,
+              fechaEmision: true
+            }
+          },
+          pagos: {
+            where: { anulado: false },
+            select: {
+              monto: true,
+              detalles: {
+                select: {
+                  facturaId: true,
+                  montoAplicado: true
+                }
+              }
+            }
+          },
+          notasCredito: {
+            where: { anulado: false },
+            select: { monto: true, facturaId: true }
+          }
+        }
+      }),
+      prisma.pagoCliente.aggregate({
+        where: {
+          organizationId: orgId,
+          anulado: false,
+          fecha: { gte: firstDayOfMonth },
+          cliente: whereCliente
+        },
+        _sum: { monto: true }
+      })
+    ]);
 
     let totalCartera = 0;
     let totalVencido = 0;
