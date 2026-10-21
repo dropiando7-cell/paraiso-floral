@@ -133,6 +133,7 @@ export default function MixedPaymentsModal({
                       <option value="Efectivo">Efectivo</option>
                       <option value="Transferencia Bancaria">Transferencia Bancaria</option>
                       <option value="Tarjeta de Crédito/Débito">Tarjeta de Crédito/Débito</option>
+                      <option value="Link de Pago">Link de Pago</option>
                       <option value="Cheque">Cheque</option>
                     </select>
                   </div>

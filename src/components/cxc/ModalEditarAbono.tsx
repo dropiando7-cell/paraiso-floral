@@ -193,13 +193,20 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
             </label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'TRANSFERENCIA', label: 'Transferencia' },
-                { id: 'EFECTIVO', label: 'Efectivo en Caja' },
-                { id: 'TIGO_MONEY', label: 'Tigo Money' },
-                { id: 'CHEQUE', label: 'Cheque' },
-                { id: 'DEPOSITO', label: 'Depósito Bancario' },
-                { id: 'OTRO', label: 'Otro' }
-              ].map((item) => (
+                { id: 'Transferencia', label: 'Transferencia' },
+                { id: 'Efectivo', label: 'Efectivo en Caja' },
+                { id: 'Link de Pago', label: 'Link de Pago' },
+                { id: 'Tigo Money', label: 'Tigo Money' },
+                { id: 'Cheque', label: 'Cheque' },
+                { id: 'Depósito Bancario', label: 'Depósito Bancario' },
+                { id: 'Otro', label: 'Otro' }
+              ].map((item) => {
+                const normActual = (metodoPago || '').toUpperCase().replace(/_/g, ' ').trim();
+                const normItem = item.id.toUpperCase().replace(/_/g, ' ').trim();
+                const isSelected =
+                  normActual === normItem ||
+                  (normItem === 'DEPOSITO BANCARIO' && (normActual === 'DEPOSITO' || normActual === 'DEPÓSITO BANCARIO'));
+                return (
                 <button
                   type="button"
                   key={item.id}
@@ -210,14 +217,15 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
                     }
                   }}
                   className={`py-2 px-3 rounded-xl border text-xs font-semibold text-left transition-all ${
-                    metodoPago === item.id
+                    isSelected
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-500 font-bold'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   {item.label}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 

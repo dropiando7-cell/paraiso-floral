@@ -1528,6 +1528,7 @@ export default function DocumentListTable({
                    <option value="Efectivo">💵 Efectivo</option>
                    <option value="Transferencia">🏦 Transferencia / Depósito</option>
                    <option value="Tarjeta">💳 Tarjeta de Crédito/Débito</option>
+                   <option value="Link de Pago">🔗 Link de Pago</option>
                    <option value="MIXTO">🧮 Pago Dividido / Mixto</option>
                  </select>
                </div>

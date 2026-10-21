@@ -475,6 +475,7 @@ function MobileDocumentForm({
                 <option value="Transferencia Bancaria">Transferencia</option>
                 <option value="MIXTO">Pago Dividido / Mixto</option>
                 <option value="Tarjeta de Crédito/Débito">Tarjeta</option>
+                <option value="Link de Pago">Link de Pago</option>
                 <option value="Cheque">Cheque</option>
               </select>
             </div>
