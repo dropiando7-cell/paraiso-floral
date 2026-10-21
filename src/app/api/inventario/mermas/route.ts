@@ -270,13 +270,103 @@ export async function POST(request: Request) {
     const creados = [];
 
     for (const item of items) {
-      let productoDb = null;
+      let productoDb: {
+        id: string;
+        nombre: string;
+        sku: string;
+        categoria: string | null;
+        costoBase: any;
+      } | null = null;
+
+      // 1. Buscar directamente en tabla Producto por ID
       if (item.productoId) {
         productoDb = await prisma.producto.findFirst({
           where: { id: item.productoId, organizationId: orgId },
           select: { id: true, nombre: true, sku: true, categoria: true, costoBase: true }
         });
       }
+
+      // 2. Si el ID proviene de Control de Inventario (ActivoFijo, ej. SKU 000157 CLAVELINA), resolver o sincronizar con Producto
+      if (!productoDb && item.productoId) {
+        const activoDb = await prisma.activoFijo.findFirst({
+          where: { id: item.productoId, organizationId: orgId },
+          include: {
+            producto: {
+              select: { id: true, nombre: true, sku: true, categoria: true, costoBase: true }
+            }
+          }
+        });
+
+        if (activoDb) {
+          if (activoDb.producto) {
+            productoDb = activoDb.producto;
+          } else {
+            const targetSku = (activoDb.idQr || activoDb.codigoBarras || item.sku || `INV-${activoDb.id.slice(0, 6)}`).trim().toUpperCase();
+            const targetNombre = (activoDb.descripcionCorta || item.nombreProducto || 'PRODUCTO FLORAL').trim().toUpperCase();
+            const targetCat = activoDb.area || activoDb.marca || item.categoria || 'Misceláneo';
+            const targetCosto = activoDb.costoAdq ? Number(activoDb.costoAdq) : 0;
+
+            // Verificar si ya existe un Producto con ese mismo SKU o nombre en la organización
+            let existingProd = await prisma.producto.findFirst({
+              where: {
+                organizationId: orgId,
+                OR: [
+                  { sku: { equals: targetSku, mode: 'insensitive' } },
+                  { nombre: { equals: targetNombre, mode: 'insensitive' } }
+                ]
+              },
+              select: { id: true, nombre: true, sku: true, categoria: true, costoBase: true }
+            });
+
+            if (!existingProd) {
+              // Asegurar SKU único global en caso de colisión entre organizaciones
+              const globalSkuCollision = await prisma.producto.findUnique({ where: { sku: targetSku }, select: { id: true } });
+              const safeSku = globalSkuCollision ? `${targetSku}-${orgId.slice(0, 4).toUpperCase()}` : targetSku;
+
+              existingProd = await prisma.producto.create({
+                data: {
+                  organizationId: orgId,
+                  sku: safeSku,
+                  nombre: targetNombre,
+                  descripcion: activoDb.descripcionDetallada || targetNombre,
+                  categoria: targetCat,
+                  marca: activoDb.marca || targetCat,
+                  precioVenta: 0,
+                  costoBase: targetCosto,
+                  stockActual: activoDb.stock ?? 0,
+                  estado: 'ACTIVO'
+                },
+                select: { id: true, nombre: true, sku: true, categoria: true, costoBase: true }
+              });
+            }
+
+            // Vincular el ActivoFijo con su Producto para futuras consultas instantáneas
+            await prisma.activoFijo.update({
+              where: { id: activoDb.id },
+              data: { productoId: existingProd.id }
+            }).catch(() => {});
+
+            productoDb = existingProd;
+          }
+        }
+      }
+
+      // 3. Fallback por SKU o Nombre exacto si el digitador escribió el nombre exacto de un producto existente
+      if (!productoDb && (item.sku || item.nombreProducto)) {
+        const cleanNombre = String(item.nombreProducto || '').trim();
+        const cleanSku = String(item.sku || '').trim();
+        productoDb = await prisma.producto.findFirst({
+          where: {
+            organizationId: orgId,
+            OR: [
+              ...(cleanSku ? [{ sku: { equals: cleanSku, mode: 'insensitive' as const } }] : []),
+              ...(cleanNombre ? [{ nombre: { equals: cleanNombre, mode: 'insensitive' as const } }] : [])
+            ]
+          },
+          select: { id: true, nombre: true, sku: true, categoria: true, costoBase: true }
+        });
+      }
+
       if (!productoDb) {
         return NextResponse.json({ error: 'El producto seleccionado no existe en el catálogo.' }, { status: 400 });
       }

@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import { ProductAutocompleteCell, ProductCatalogItem } from '@/components/mermas/ProductAutocompleteCell';
+import { ProductAutocompleteCell, ProductCatalogItem, upsertProductInCatalogCache } from '@/components/mermas/ProductAutocompleteCell';
 import { MotivoSelectBadge, getMotivoInfo } from '@/components/mermas/MotivoSelectBadge';
 import { crearProducto } from '@/app/(dashboard)/precios/actions';
 
@@ -310,11 +310,19 @@ export default function MermasPage() {
     setNewSku(p.code);
     setNewCategoria(p.category || 'Misceláneo');
 
-    // Foco automático en cantidad para digitar de una vez
-    setTimeout(() => {
-      newCantidadInputRef.current?.focus();
-      newCantidadInputRef.current?.select();
-    }, 50);
+    // Foco automático e inmediato en cantidad con selección completa para reemplazar de un solo toque
+    requestAnimationFrame(() => {
+      if (newCantidadInputRef.current) {
+        newCantidadInputRef.current.focus();
+        newCantidadInputRef.current.select();
+      }
+      setTimeout(() => {
+        if (newCantidadInputRef.current) {
+          newCantidadInputRef.current.focus();
+          newCantidadInputRef.current.select();
+        }
+      }, 40);
+    });
   };
 
   // Si el usuario vuelve a escribir, se pierde el vínculo con el catálogo
@@ -370,14 +378,16 @@ export default function MermasPage() {
       }
       toast.success(`Producto creado: ${nombre}`);
       setCrearOpen(false);
-      handleSelectProductNewRow({
+      const newCatalogItem: ProductCatalogItem = {
         id: r.producto.id,
         code: r.producto.sku,
         name: r.producto.nombre,
         category: crearCategoria.trim() || 'Misceláneo',
         stock: 0,
         costoBase: costo || null
-      });
+      };
+      upsertProductInCatalogCache(newCatalogItem);
+      handleSelectProductNewRow(newCatalogItem);
     } catch (err: any) {
       toast.error(err.message || 'Error creando producto');
     } finally {
@@ -1033,12 +1043,20 @@ export default function MermasPage() {
                 <div className="flex items-stretch gap-1.5">
                   <input
                     ref={newCantidadInputRef}
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={newCantidad}
-                    onChange={(e) => setNewCantidad(e.target.value)}
-                    onFocus={(e) => e.currentTarget.select()}
-                    onMouseUp={(e) => e.preventDefault()}
+                    onChange={(e) => {
+                      const onlyDigits = e.target.value.replace(/\D/g, '');
+                      setNewCantidad(onlyDigits);
+                    }}
+                    onFocus={(e) => {
+                      const target = e.currentTarget;
+                      requestAnimationFrame(() => target.select());
+                    }}
+                    onClick={(e) => e.currentTarget.select()}
+                    onWheel={(e) => e.currentTarget.blur()}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1051,7 +1069,7 @@ export default function MermasPage() {
                         setNewUnidad('PAQUETE');
                       }
                     }}
-                    className="flex-1 min-w-0 h-10 text-center px-3 font-mono font-black text-slate-900 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-2xs"
+                    className="flex-1 min-w-0 h-10 text-center px-3 font-mono font-black text-slate-900 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="1"
                   />
                   <UnidadToggle value={newUnidad} onChange={setNewUnidad} />
@@ -1177,18 +1195,35 @@ export default function MermasPage() {
                         <td className="py-2.5 px-3 text-center">
                           <div className="inline-flex items-center gap-1.5">
                             <input
-                              type="number"
-                              min="1"
+                              key={`cant-${m.id}-${m.cantidad}`}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               defaultValue={m.cantidad}
-                              onFocus={(e) => e.currentTarget.select()}
-                              onMouseUp={(e) => e.preventDefault()}
+                              onChange={(e) => {
+                                e.target.value = e.target.value.replace(/\D/g, '');
+                              }}
+                              onFocus={(e) => {
+                                const target = e.currentTarget;
+                                requestAnimationFrame(() => target.select());
+                              }}
+                              onClick={(e) => e.currentTarget.select()}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.currentTarget.blur();
+                                }
+                              }}
                               onBlur={(e) => {
                                 const val = parseInt(e.target.value, 10);
                                 if (val > 0 && val !== m.cantidad) {
                                   handleUpdateItem(m.id, { cantidad: val });
+                                } else {
+                                  e.target.value = String(m.cantidad);
                                 }
                               }}
-                              className="w-16 text-center py-1 px-2 font-mono font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                              className="w-16 text-center py-1 px-2 font-mono font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <UnidadToggle
                               size="sm"
@@ -1639,8 +1674,10 @@ export default function MermasPage() {
                   step="0.01"
                   value={crearCosto}
                   onChange={(e) => setCrearCosto(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder="Opcional — se puede completar luego en Inventario"
-                  className="w-full h-10 px-3 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full h-10 px-3 text-xs font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </label>
             </div>

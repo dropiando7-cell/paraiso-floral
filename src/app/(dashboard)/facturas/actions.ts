@@ -191,17 +191,40 @@ export async function searchClientes(query: string = "") {
     }
 }
 
-// --- PRODUCTOS Y ACTIVOS FIJOS (Catálogo Médico General) ---
+// --- PRODUCTOS Y ACTIVOS FIJOS (Catálogo General) ---
 export async function searchProductos(query: string = "", limitOverride?: number) {
     try {
         const organizationId = await getOrganizationId();
         const queryTrim = query.trim();
-        const firstWord = queryTrim.split(' ')[0];
-        // Tomar primeros 4 caracteres para atrapar errores ortográficos en el resto de la palabra
-        const queryPrefix = firstWord.length > 4 ? firstWord.substring(0, 4) : firstWord;
-        
+        const words = queryTrim
+            .split(/\s+/)
+            .map(w => w.trim())
+            .filter(w => w.length >= 2);
+
+        // Construir prefijos y raíces singulares de cada palabra para tolerar plurales y errores ortográficos
+        const wordPrefixes = Array.from(
+            new Set(
+                words.flatMap(w => {
+                    const prefix = w.length > 4 ? w.substring(0, 4) : w;
+                    const singular = w.length > 4 && /es$/i.test(w)
+                        ? w.slice(0, -2)
+                        : w.length > 3 && /s$/i.test(w)
+                            ? w.slice(0, -1)
+                            : w;
+                    // Variación fonética común s/z/c y b/v en prefijos
+                    const altS = prefix.replace(/z/gi, 's');
+                    const altZ = prefix.replace(/s/gi, 'z');
+                    const altB = prefix.replace(/v/gi, 'b');
+                    const altV = prefix.replace(/b/gi, 'v');
+                    return [w, prefix, singular, altS, altZ, altB, altV].filter(t => t.length >= 2);
+                })
+            )
+        );
+
         const limit = limitOverride || (queryTrim ? 150 : 30);
-        
+        // Al buscar con texto, traemos un pool amplio de candidatos para ordenar por coincidencia exacta antes de recortar
+        const dbTake = queryTrim ? Math.max(limit * 6, 500) : limit;
+
         const [productos, activos] = await Promise.all([
             prisma.producto.findMany({
                 where: { 
@@ -210,7 +233,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                     ...(queryTrim ? {
                         OR: [
                             { nombre: { contains: queryTrim, mode: 'insensitive' } },
-                            { nombre: { contains: queryPrefix, mode: 'insensitive' } },
+                            ...wordPrefixes.map(pref => ({ nombre: { contains: pref, mode: 'insensitive' as const } })),
                             { sku: { contains: queryTrim, mode: 'insensitive' } },
                             { marca: { contains: queryTrim, mode: 'insensitive' } },
                             { modelo: { contains: queryTrim, mode: 'insensitive' } },
@@ -218,7 +241,8 @@ export async function searchProductos(query: string = "", limitOverride?: number
                         ]
                     } : {})
                 },
-                take: limit
+                take: dbTake,
+                orderBy: { nombre: 'asc' }
             }),
             prisma.activoFijo.findMany({
                 where: {
@@ -227,7 +251,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                     ...(queryTrim ? {
                         OR: [
                             { descripcionCorta: { contains: queryTrim, mode: 'insensitive' } },
-                            { descripcionCorta: { contains: queryPrefix, mode: 'insensitive' } },
+                            ...wordPrefixes.map(pref => ({ descripcionCorta: { contains: pref, mode: 'insensitive' as const } })),
                             { idQr: { contains: queryTrim, mode: 'insensitive' } },
                             { marca: { contains: queryTrim, mode: 'insensitive' } },
                             { serie: { contains: queryTrim, mode: 'insensitive' } }
@@ -235,7 +259,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                     } : {})
                 },
                 include: { producto: true },
-                take: limit
+                take: dbTake
             })
         ]);
         
@@ -281,6 +305,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
             precioVenta: formatDecimal(p.precioVenta),
             costoBase: formatDecimal(p.costoBase),
             marca: p.marca,
+            categoria: p.categoria || p.marca || 'Misceláneo',
             stockActual: p.stockActual,
             type: 'producto' as const,
             imageUrl: p.imagenWeb || (p.imagenes && p.imagenes[0]) || undefined
@@ -294,6 +319,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
             precioVenta: formatDecimal(a.producto?.precioVenta || 0),
             costoBase: formatDecimal(a.costoAdq || 0),
             marca: a.marca || a.area || 'Activo Fijo',
+            categoria: a.area || a.marca || 'Activo Fijo',
             stockActual: a.stock || 1,
             type: 'activo' as const,
             fechaVencimiento: a.fechaVencimiento ? a.fechaVencimiento.toISOString() : undefined,
@@ -316,6 +342,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                 precioVenta: formatDecimal(ot.costoReparacion || ot.costoRevision || 0),
                 costoBase: '0',
                 marca: 'Orden de Trabajo',
+                categoria: 'Orden de Trabajo',
                 stockActual: 1,
                 type: 'activo' as const,
                 imageUrl: ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || undefined,
@@ -337,6 +364,7 @@ export async function searchProductos(query: string = "", limitOverride?: number
                 precioVenta: formatDecimal(ot.costoReparacion || ot.costoRevision || 0),
                 costoBase: '0',
                 marca: 'Orden de Trabajo',
+                categoria: 'Orden de Trabajo',
                 stockActual: 1,
                 type: 'activo' as const,
                 imageUrl: ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || undefined,
@@ -346,7 +374,104 @@ export async function searchProductos(query: string = "", limitOverride?: number
             });
         }
 
-        return [...unifiedProductos, ...unifiedActivos, ...otItems];
+        const combined = [...unifiedProductos, ...unifiedActivos, ...otItems];
+        if (!queryTrim) {
+            return combined.slice(0, limit);
+        }
+
+        // Normalización y ranking por relevancia exacta / tokens / longitud de nombre
+        const norm = (s: string) =>
+            (s || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+        const stem = (w: string) => {
+            if (w.length > 4 && w.endsWith('ES')) return w.slice(0, -2);
+            if (w.length > 3 && w.endsWith('S')) return w.slice(0, -1);
+            return w;
+        };
+
+        const phonetic = (s: string) =>
+            s
+                .replace(/Z/g, 'S')
+                .replace(/C([EI])/g, 'S$1')
+                .replace(/V/g, 'B')
+                .replace(/LL/g, 'Y')
+                .replace(/H/g, '');
+
+        const qNorm = norm(queryTrim);
+        const qTokens = qNorm.split(' ').filter(Boolean);
+        const qStems = qTokens.map(stem);
+        const qStemJoined = qStems.join(' ');
+        const qPhonetic = phonetic(qStemJoined);
+
+        const scoreItem = (item: any) => {
+            const nameNorm = norm(item.nombre || '');
+            const codeNorm = norm(item.sku || '');
+            const nameTokens = nameNorm.split(' ').filter(Boolean);
+            const nameStems = nameTokens.map(stem);
+            const nameStemJoined = nameStems.join(' ');
+            const namePhonetic = phonetic(nameStemJoined);
+
+            // Tier 0: Código exacto
+            if (codeNorm && codeNorm === qNorm) return { tier: 0, matchedWords: qTokens.length, len: nameNorm.length };
+            // Tier 1: Nombre exacto (o exacto en singular/plural o fonético)
+            if (nameNorm === qNorm || nameStemJoined === qStemJoined || (qPhonetic.length >= 3 && namePhonetic === qPhonetic)) {
+                return { tier: 1, matchedWords: qTokens.length, len: nameNorm.length };
+            }
+            // Tier 2: Empieza exactamente con la búsqueda
+            if (nameNorm.startsWith(qNorm) || nameStemJoined.startsWith(qStemJoined) || codeNorm.startsWith(qNorm)) {
+                return { tier: 2, matchedWords: qTokens.length, len: nameNorm.length };
+            }
+            // Tier 3: Contiene la frase completa exacta
+            if (nameNorm.includes(qNorm) || nameStemJoined.includes(qStemJoined)) {
+                return { tier: 3, matchedWords: qTokens.length, len: nameNorm.length };
+            }
+
+            // Contar cuántas palabras de la consulta coinciden en el nombre/código
+            let exactWordMatches = 0;
+            let partialWordMatches = 0;
+            for (let i = 0; i < qTokens.length; i++) {
+                const qt = qTokens[i];
+                const qs = qStems[i];
+                const qp = phonetic(qs);
+                const hasExact = nameTokens.some((nt, idx) => nt === qt || nameStems[idx] === qs || phonetic(nameStems[idx]) === qp);
+                if (hasExact) {
+                    exactWordMatches++;
+                    partialWordMatches++;
+                } else {
+                    const hasSub =
+                        nameNorm.includes(qt) ||
+                        nameStemJoined.includes(qs) ||
+                        namePhonetic.includes(qp) ||
+                        codeNorm.includes(qt);
+                    if (hasSub) partialWordMatches++;
+                }
+            }
+
+            // Tier 4: Todas las palabras de la consulta están presentes
+            if (qTokens.length > 0 && partialWordMatches === qTokens.length) {
+                return { tier: 4, matchedWords: exactWordMatches, len: nameNorm.length };
+            }
+
+            // Tier 5: Coincidencia parcial de palabras
+            return { tier: 5, matchedWords: partialWordMatches, len: nameNorm.length };
+        };
+
+        combined.sort((a, b) => {
+            const sa = scoreItem(a);
+            const sb = scoreItem(b);
+            if (sa.tier !== sb.tier) return sa.tier - sb.tier;
+            if (sa.matchedWords !== sb.matchedWords) return sb.matchedWords - sa.matchedWords;
+            if (sa.len !== sb.len) return sa.len - sb.len;
+            return (a.nombre || '').localeCompare(b.nombre || '');
+        });
+
+        return combined.slice(0, limit);
     } catch (e) {
         console.error("Error en searchProductos:", e);
         return [];
