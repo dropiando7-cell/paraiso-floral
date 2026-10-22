@@ -1039,7 +1039,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
                     detalles: {
-                        create: lineItems.map((item) => {
+                        create: lineItems.map((item, idx) => {
                             const basePrice = item.qty * item.unitPrice;
                             const discountAmt = item.discountType === 'amount'
                                 ? Number(item.discount) || 0
@@ -1056,8 +1056,9 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                             if (item.isSection) {
                                 finalDesc = `__SECTION__${finalDesc}`;
                                 if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
+                                finalDesc += `__METADATA__${JSON.stringify({ orden: idx })}`;
                             } else {
-                                const metadata: any = {};
+                                const metadata: any = { orden: idx };
                                 if (item.imageUrl) metadata.imageUrl = item.imageUrl;
                                 if (item.marcaModelo) metadata.marcaModelo = item.marcaModelo;
                                 if (item.serie) metadata.serie = item.serie;
@@ -1385,7 +1386,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     transferenciaConfirmada: esNotaCreditoNuevo ? false : (esCreditoNuevo ? false : (data.transferenciaConfirmada || false)),
                     cajaSessionId,
                     detalles: {
-                        create: lineItems.map((item) => {
+                        create: lineItems.map((item, idx) => {
                             const basePrice = Number(item.qty) * Number(item.unitPrice);
                             const discountAmt = item.discountType === 'amount'
                                 ? Number(item.discount) || 0
@@ -1402,8 +1403,9 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                             if (item.isSection) {
                                 finalDesc = `__SECTION__${finalDesc}`;
                                 if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
+                                finalDesc += `__METADATA__${JSON.stringify({ orden: idx })}`;
                             } else {
-                                const metadata: any = {};
+                                const metadata: any = { orden: idx };
                                 if (item.imageUrl) metadata.imageUrl = item.imageUrl;
                                 if (item.marcaModelo) metadata.marcaModelo = item.marcaModelo;
                                 if (item.serie) metadata.serie = item.serie;
@@ -1941,7 +1943,7 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
             aliasVenta: doc.aliasVenta,
             vendedorNombre: doc.vendedorNombre,
             transferenciaConfirmada: doc.transferenciaConfirmada,
-            detalles: doc.detalles.map(d => ({
+            detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
                descripcion: d.descripcion,
                cantidad: d.cantidad,
                precioUnitario: Number(d.precioUnitario),
@@ -2035,7 +2037,7 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
             aliasVenta: doc.aliasVenta,
             vendedorNombre: doc.vendedorNombre,
             transferenciaConfirmada: doc.transferenciaConfirmada,
-            detalles: doc.detalles.map(d => ({
+            detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
                descripcion: d.descripcion,
                cantidad: d.cantidad,
                precioUnitario: Number(d.precioUnitario),
@@ -2085,6 +2087,26 @@ export async function confirmarTransferencia(id: string) {
     } catch (error: any) {
         return { success: false, error: error.message };
     }
+}
+
+function sortDetallesByMetadataOrden<T extends { descripcion?: string | null }>(detalles: T[]): T[] {
+    if (!Array.isArray(detalles) || detalles.length <= 1) return detalles;
+    const withIndex = detalles.map((d, i) => {
+        const raw = d.descripcion || '';
+        const metaIdx = raw.indexOf('__METADATA__');
+        let orden = Number.MAX_SAFE_INTEGER;
+        if (metaIdx !== -1) {
+            try {
+                const parsed = JSON.parse(raw.substring(metaIdx + 12));
+                if (typeof parsed.orden === 'number') {
+                    orden = parsed.orden;
+                }
+            } catch {}
+        }
+        return { d, orden, i };
+    });
+    withIndex.sort((a, b) => (a.orden !== b.orden ? a.orden - b.orden : a.i - b.i));
+    return withIndex.map(x => x.d);
 }
 
 // --- OBTENER DOCUMENTO ESPECIFICO ---
@@ -2217,7 +2239,7 @@ export async function getDocumentoById(id: string) {
             return d;
         }));
         
-        doc.detalles = detailsWithRecoveredData;
+        doc.detalles = sortDetallesByMetadataOrden(detailsWithRecoveredData);
 
         const safeDoc = JSON.parse(JSON.stringify(doc));
         return safeDoc;
@@ -2502,7 +2524,7 @@ export async function convertirDocumento(
                     notas: doc.notas,
                     terminosPago: terminosPagoFinal,
                     detalles: {
-                        create: doc.detalles.map((d) => ({
+                        create: sortDetallesByMetadataOrden(doc.detalles).map((d) => ({
                             descripcion: d.descripcion,
                             descripcionEnriquecida: d.descripcionEnriquecida,
                             cantidad: d.cantidad,

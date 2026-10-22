@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
-import { guardarDocumentoBuilder, searchProductos } from './actions';
+import { guardarDocumentoBuilder, searchProductos, getClientPriceHistory } from './actions';
+import { resolveProductPrice } from '@/utils/productPricing';
 
 type TargetDocType = 'COTIZACION' | 'FACTURA' | 'PROFORMA';
 
@@ -141,14 +142,36 @@ export default function LibretaIAClient({ organization }: Props) {
         throw new Error('No se detectaron flores ni productos claros en el texto/imagen');
       }
 
-      // Usar el emparejamiento inteligente del servidor con el catálogo o hacer búsqueda secundaria
+      // Obtener historial de precios del cliente para aplicar tarifas personalizadas si no se especificó precio manual
+      let clientPriceHistory: Record<string, any> = {};
+      try {
+        clientPriceHistory = await getClientPriceHistory(finalClienteId);
+      } catch (e) {
+        console.warn('No se pudo cargar historial de precios del cliente:', e);
+      }
+
+      // Usar el emparejamiento inteligente del servidor con el catálogo preservando el orden 1 a 1
       const validItems = await Promise.all(
         extractedItems.map(async (item: any, idx: number) => {
           const desc = (item.descripcion || item.descripcionOriginal || 'Producto').trim();
           const qty = Number(item.cantidad) || 1;
           const userPrice = Number(item.precioUnitario) || 0;
+          const isManualPrice = Boolean(item.precioManual) && userPrice > 0;
 
-          if (item.productoId) {
+          if (item.productoId || item.activoId) {
+            const priceInfo = resolveProductPrice(
+              {
+                id: item.productoId || item.activoId,
+                type: item.productoId ? 'producto' : 'activo',
+                name: desc,
+                price: userPrice
+              },
+              clientPriceHistory
+            );
+            const resolvedUnitPrice = isManualPrice
+              ? userPrice
+              : (priceInfo.unitPrice > 0 ? priceInfo.unitPrice : userPrice);
+
             return {
               id: `ai-item-${idx}-${Date.now()}`,
               code: item.sku || '',
@@ -157,12 +180,12 @@ export default function LibretaIAClient({ organization }: Props) {
               richDesc: '',
               showLongDesc: false,
               qty,
-              unitPrice: userPrice,
+              unitPrice: resolvedUnitPrice,
               tax: 'isv15',
               discount: 0,
               discountType: 'percentage',
-              productoId: item.productoId,
-              activoId: undefined,
+              productoId: item.productoId || undefined,
+              activoId: item.activoId || undefined,
               imageUrl: item.imageUrl || undefined
             };
           }
@@ -181,7 +204,22 @@ export default function LibretaIAClient({ organization }: Props) {
           const matchedCode = matchedProduct?.sku || matchedProduct?.code || '';
           const matchedDesc = matchedProduct?.descripcion || matchedProduct?.description || '';
           const matchedPrice = Number(matchedProduct?.precioVenta ?? matchedProduct?.price ?? 0);
-          const finalPrice = userPrice > 0 ? userPrice : matchedPrice;
+
+          let finalPrice = isManualPrice ? userPrice : (matchedPrice > 0 ? matchedPrice : userPrice);
+          if (!isManualPrice && matchedProduct) {
+            const priceInfo = resolveProductPrice(
+              {
+                id: matchedProduct.id,
+                type: matchedProduct.type || 'producto',
+                name: matchedName || desc,
+                price: matchedPrice
+              },
+              clientPriceHistory
+            );
+            if (priceInfo.unitPrice > 0) {
+              finalPrice = priceInfo.unitPrice;
+            }
+          }
 
           return {
             id: `ai-item-${idx}-${Date.now()}`,
