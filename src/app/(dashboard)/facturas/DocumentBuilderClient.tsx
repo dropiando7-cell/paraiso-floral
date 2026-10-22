@@ -3543,6 +3543,28 @@ export default function DocumentBuilderClient({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const draftKey = `bea_factura_draft_v2_${initialData?.id || 'new'}`; // Dynamic draft per doc
   const draftLoadedRef = useRef(false);
+  const isDraftClearedRef = useRef(false);
+  const latestDraftRef = useRef<{ key: string; payload: string } | null>(null);
+
+  const hasPendingNewDraft = useCallback((): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = window.localStorage.getItem('bea_factura_draft_v2_new');
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      const hasValidItems = Array.isArray(parsed.lineItems) && parsed.lineItems.some((item: any) =>
+        Boolean(item.code || item.shortDesc || item.isSection || (item.unitPrice && Number(item.unitPrice) > 0))
+      );
+      return Boolean(
+        parsed.selectedClient ||
+        hasValidItems ||
+        (parsed.notes && String(parsed.notes).trim() !== '') ||
+        (parsed.vendedorNombre && String(parsed.vendedorNombre).trim() !== '')
+      );
+    } catch {
+      return false;
+    }
+  }, []);
 
 
 
@@ -3578,6 +3600,26 @@ export default function DocumentBuilderClient({
       const stored = window.localStorage.getItem(draftKey);
       if (stored) {
         const parsed = JSON.parse(stored);
+        const validDraftItems = Array.isArray(parsed.lineItems)
+          ? parsed.lineItems.filter((item: any) =>
+              Boolean(item.code || item.shortDesc || item.isSection || (item.unitPrice && Number(item.unitPrice) > 0))
+            )
+          : [];
+        const hasDraftContent = Boolean(
+          parsed.selectedClient ||
+          validDraftItems.length > 0 ||
+          (parsed.notes && String(parsed.notes).trim() !== '') ||
+          (parsed.vendedorNombre && String(parsed.vendedorNombre).trim() !== '')
+        );
+
+        // Si es un documento nuevo y el borrador guardado estaba completamente vacío, limpiarlo y mostrar Nuevo Documento
+        if (!editMode && !isExistingDoc && !hasDraftContent) {
+          window.localStorage.removeItem(draftKey);
+          setIsLocked(true);
+          setIsHydrated(true);
+          return;
+        }
+
         if (editMode && parsed.reservedDocId) {
           setReservedDocId(parsed.reservedDocId);
         } else if (!editMode) {
@@ -3590,44 +3632,49 @@ export default function DocumentBuilderClient({
           }
           setDocType(restoredType);
         }
-        if (editMode && parsed.docNumber) setDocNumber(parsed.docNumber);
+        if (parsed.docNumber) setDocNumber(parsed.docNumber);
         if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
-        if (parsed.lineItems && parsed.lineItems.length > 0) {
-          const validDraftItems = parsed.lineItems.filter((item: any) => 
-            Boolean(item.code || item.shortDesc || (item.unitPrice && Number(item.unitPrice) > 0))
-          );
-          if (validDraftItems.length > 0) {
-            const mergedLineItems = validDraftItems.map((item: any) => {
-              const dbDetail = initialData?.detalles?.find((d: any) => {
-                return d.id === item.id || d.descripcion.replace(/__METADATA__.*$/, '').startsWith(item.shortDesc);
-              });
-              if (dbDetail) {
-                let dbMeta: any = {};
-                const rawDesc = dbDetail.descripcion || '';
-                const metaIdx = rawDesc.indexOf('__METADATA__');
-                if (metaIdx !== -1) {
-                  try {
-                    dbMeta = JSON.parse(rawDesc.substring(metaIdx + 12));
-                  } catch(e){}
-                }
-                const recoveredImg = dbMeta.imageUrl || dbDetail.producto?.imagenWeb || dbDetail.activo?.imagenUrl || undefined;
-                const recoveredSerie = dbMeta.serie || dbDetail.activo?.serie || undefined;
-                const recoveredBrand = dbMeta.marcaModelo || undefined;
-                
-                return {
-                  ...item,
-                  _isNew: false,
-                  imageUrl: item.imageUrl || recoveredImg,
-                  serie: item.serie || recoveredSerie,
-                  marcaModelo: item.marcaModelo || recoveredBrand
-                };
-              }
-              return { ...item, _isNew: false };
+        if (parsed.aliasVenta) setAliasVenta(parsed.aliasVenta);
+        if (typeof parsed.vendedorNombre === 'string' && parsed.vendedorNombre) {
+          setVendedorNombre(parsed.vendedorNombre);
+        }
+        if (typeof parsed.transferenciaConfirmada === 'boolean') {
+          setTransferenciaConfirmada(parsed.transferenciaConfirmada);
+        }
+        if (Array.isArray(parsed.mixedPayments) && parsed.mixedPayments.length > 0) {
+          setMixedPayments(parsed.mixedPayments);
+        }
+        if (validDraftItems.length > 0) {
+          const mergedLineItems = validDraftItems.map((item: any) => {
+            const dbDetail = initialData?.detalles?.find((d: any) => {
+              return d.id === item.id || d.descripcion.replace(/__METADATA__.*$/, '').startsWith(item.shortDesc);
             });
-            setLineItems(mergedLineItems);
-          } else {
-            setLineItems([]);
-          }
+            if (dbDetail) {
+              let dbMeta: any = {};
+              const rawDesc = dbDetail.descripcion || '';
+              const metaIdx = rawDesc.indexOf('__METADATA__');
+              if (metaIdx !== -1) {
+                try {
+                  dbMeta = JSON.parse(rawDesc.substring(metaIdx + 12));
+                } catch(e){}
+              }
+              const recoveredImg = dbMeta.imageUrl || dbDetail.producto?.imagenWeb || dbDetail.activo?.imagenUrl || undefined;
+              const recoveredSerie = dbMeta.serie || dbDetail.activo?.serie || undefined;
+              const recoveredBrand = dbMeta.marcaModelo || undefined;
+              
+              return {
+                ...item,
+                _isNew: false,
+                imageUrl: item.imageUrl || recoveredImg,
+                serie: item.serie || recoveredSerie,
+                marcaModelo: item.marcaModelo || recoveredBrand
+              };
+            }
+            return { ...item, _isNew: false };
+          });
+          setLineItems(mergedLineItems);
+        } else if (!editMode && !isExistingDoc) {
+          setLineItems([]);
         }
         if (parsed.notes) setNotes(parsed.notes);
         if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
@@ -3641,11 +3688,6 @@ export default function DocumentBuilderClient({
         if (parsed.docNumber && editMode) {
           setIsLocked(false);
         } else if (!parsed.reservedDocId && !editMode) {
-          const hasDraftContent = Boolean(
-            parsed.selectedClient || 
-            (parsed.lineItems && parsed.lineItems.some((item: any) => item.code || item.shortDesc)) ||
-            parsed.notes
-          );
           if (hasDraftContent) {
             setIsLocked(false);
           } else {
@@ -3653,7 +3695,9 @@ export default function DocumentBuilderClient({
           }
         }
         draftLoadedRef.current = true;
-        toast('Borrador restaurado', { icon: '📝' });
+        if (hasDraftContent) {
+          toast('Borrador restaurado', { icon: '📝' });
+        }
       } else {
         if (!isExistingDoc) setIsLocked(true);
       }
@@ -3664,42 +3708,89 @@ export default function DocumentBuilderClient({
     setIsHydrated(true);
   }, [draftKey, effectiveViewMode, initialData, editMode, isExistingDoc]);
 
-  // 2. Auto-save to localStorage with debounce
+  // 2. Auto-save to localStorage with debounce + immediate flush on unmount
   useEffect(() => {
-    if (!isHydrated || effectiveViewMode) return;
+    if (!isHydrated || effectiveViewMode || isLocked || isDraftClearedRef.current) {
+      latestDraftRef.current = null;
+      return;
+    }
+
+    const hasValidItems = Array.isArray(lineItems) && lineItems.some((item: any) =>
+      Boolean(item.code || item.shortDesc || item.isSection || (item.unitPrice && Number(item.unitPrice) > 0))
+    );
+    const hasContentToSave = Boolean(
+      editMode ||
+      selectedClient ||
+      hasValidItems ||
+      (notes && notes.trim() !== '') ||
+      (vendedorNombre && vendedorNombre.trim() !== '')
+    );
+
+    if (!hasContentToSave) {
+      latestDraftRef.current = null;
+      if (!editMode && !isExistingDoc && typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem(draftKey);
+        } catch (e) {}
+      }
+      return;
+    }
+
+    const draft = {
+      reservedDocId: editMode ? reservedDocId : null,
+      docType,
+      docNumber: docNumber || '',
+      selectedClient,
+      lineItems,
+      notes,
+      paymentTerms,
+      paymentMethod,
+      mixedPayments,
+      aliasVenta,
+      vendedorNombre,
+      transferenciaConfirmada,
+      validityDays,
+      settings
+    };
+
+    try {
+      latestDraftRef.current = { key: draftKey, payload: JSON.stringify(draft) };
+    } catch (e) {
+      latestDraftRef.current = null;
+    }
 
     const handler = setTimeout(() => {
+      if (isDraftClearedRef.current || !latestDraftRef.current) return;
       try {
-        const draft = {
-          reservedDocId: editMode ? reservedDocId : null,
-          docType,
-          docNumber: editMode ? docNumber : '',
-          selectedClient,
-          lineItems,
-          notes,
-          paymentTerms,
-          paymentMethod,
-          validityDays,
-          settings
-        };
-        window.localStorage.setItem(draftKey, JSON.stringify(draft));
+        window.localStorage.setItem(latestDraftRef.current.key, latestDraftRef.current.payload);
         setLastSaved(new Date());
       } catch (e) {}
-    }, 1500);
+    }, 1000);
 
     return () => clearTimeout(handler);
-  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, settings, effectiveViewMode, draftKey, editMode]);
+  }, [isHydrated, isLocked, isExistingDoc, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, mixedPayments, aliasVenta, vendedorNombre, transferenciaConfirmada, validityDays, settings, effectiveViewMode, draftKey, editMode]);
 
-  const clearLocalDraft = () => {
+  // Flush pending draft immediately if the component unmounts (e.g., cashier switches tab to edit an emitted invoice)
+  useEffect(() => {
+    return () => {
+      if (!isDraftClearedRef.current && latestDraftRef.current && typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(latestDraftRef.current.key, latestDraftRef.current.payload);
+        } catch (e) {}
+      }
+    };
+  }, []);
+
+  const clearLocalDraft = (forceClearNewDraft = false) => {
+    isDraftClearedRef.current = true;
+    latestDraftRef.current = null;
     try {
       window.localStorage.removeItem(draftKey);
-      window.localStorage.removeItem('bea_factura_draft_v2_new');
-      if (typeof window !== 'undefined') {
-        Object.keys(window.localStorage).forEach(key => {
-          if (key.startsWith('bea_factura_draft_')) {
-            window.localStorage.removeItem(key);
-          }
-        });
+      // Solo limpiar 'bea_factura_draft_v2_new' cuando se guardó/descartó el propio documento nuevo
+      // o cuando se fuerce explícitamente. Si la cajera estaba editando una factura emitida,
+      // su borrador nuevo en curso ('bea_factura_draft_v2_new') se conserva intacto.
+      if (forceClearNewDraft || draftKey === 'bea_factura_draft_v2_new') {
+        window.localStorage.removeItem('bea_factura_draft_v2_new');
       }
       setLastSaved(null);
     } catch (e) {}
@@ -5361,14 +5452,10 @@ export default function DocumentBuilderClient({
       }
       const res = await getProximoCorrelativoPreview(tipoParaCorrelativo);
       if (res.success && res.correlativo) {
+        isDraftClearedRef.current = false;
         setReservedDocId(null);
         setDocNumber(res.correlativo);
         setIsLocked(false);
-        // Force an immediate local storage save without DB row reservation
-        const draft = {
-          reservedDocId: null, docType, docNumber: res.correlativo, selectedClient, lineItems, notes, paymentTerms, validityDays
-        };
-        window.localStorage.setItem(draftKey, JSON.stringify(draft));
         setLastSaved(new Date());
       } else {
         toast.error(res.error || 'Error al obtener correlativo');
@@ -7822,7 +7909,7 @@ export default function DocumentBuilderClient({
                     onClick={handleExitAfterSave}
                     className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl font-bold transition-all text-xs sm:text-sm cursor-pointer shadow-xs"
                   >
-                    {ordenTrabajoId ? 'Volver' : 'Hacer Nuevo'}
+                    {ordenTrabajoId ? 'Volver' : (editMode && hasPendingNewDraft() ? 'Continuar Borrador' : 'Hacer Nuevo')}
                   </button>
                   <button
                     type="button"
