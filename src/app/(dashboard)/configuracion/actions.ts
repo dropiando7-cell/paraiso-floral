@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { EmailTemplateType, Role } from '@prisma/client';
 import { uploadToR2 } from '@/lib/storage/r2';
+import { hydrateSarConfigWithDefaultQueue, parseSarSequenceNumber } from '@/lib/sar-utils';
 
 export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null; idleTimeoutEnabled?: boolean; disableAiVision?: boolean; enableVoiceAi?: boolean }) {
     try {
@@ -347,10 +348,36 @@ export async function getSarConfig(targetOrgId?: string) {
         }
 
         const orgSettings = (org.invoiceSettings as any) || {};
-        const sarConfig = orgSettings.sarConfig || null;
+        const rawSarConfig = orgSettings.sarConfig || null;
+        const sarConfig = rawSarConfig ? hydrateSarConfigWithDefaultQueue(rawSarConfig) : null;
+
+        // Si se hidrató automáticamente el próximo CAI aprobado (4001-5000), persistirlo en BD de forma transparente
+        if (sarConfig && rawSarConfig && !rawSarConfig.proximoCai && sarConfig.proximoCai) {
+            try {
+                await prisma.organization.update({
+                    where: { id: org.id },
+                    data: {
+                        invoiceSettings: {
+                            ...orgSettings,
+                            sarConfig
+                        }
+                    }
+                });
+            } catch (persistErr) {
+                console.warn('Advertencia al persistir cola SAR inicial:', persistErr);
+            }
+        }
 
         // Obtener la última factura fiscal emitida de esta organización
         const ultimaFactura = await prisma.factura.findFirst({
+            where: { 
+                organizationId: org.id,
+                tipoDocumento: 'FACTURA',
+                correlativo: { startsWith: `${sarConfig?.establecimiento || '000'}-${sarConfig?.puntoEmision || '001'}-${sarConfig?.tipoDocumento || '01'}-` }
+            },
+            orderBy: { correlativo: 'desc' },
+            select: { correlativo: true, numeroInterno: true, fechaEmision: true }
+        }) || await prisma.factura.findFirst({
             where: { 
                 organizationId: org.id,
                 tipoDocumento: 'FACTURA'
@@ -391,6 +418,17 @@ export async function saveSarConfig(data: {
     fechaLimiteEmision: string;
     siguienteCorrelativo: number;
     activo?: boolean;
+    proximoCai?: {
+        habilitado?: boolean;
+        cai: string;
+        establecimiento?: string;
+        puntoEmision?: string;
+        tipoDocumento?: string;
+        rangoInicial: string;
+        rangoFinal: string;
+        fechaLimiteEmision: string;
+        siguienteCorrelativo?: number;
+    } | null;
 }, targetOrgId?: string) {
     try {
         const supabase = await createClient();
@@ -411,8 +449,9 @@ export async function saveSarConfig(data: {
         if (!org) return { success: false, error: 'Organización no encontrada' };
 
         const currentSettings = (org.invoiceSettings as any) || {};
+        const existingSarConfig = currentSettings.sarConfig || {};
 
-        // Limpiar y formatear datos
+        // Limpiar y formatear datos del bloque activo
         const cleanCai = (data.cai || '').trim().toUpperCase();
         const cleanEstablecimiento = String(data.establecimiento || '000').padStart(3, '0').slice(-3);
         const cleanPuntoEmision = String(data.puntoEmision || '001').padStart(3, '0').slice(-3);
@@ -422,9 +461,35 @@ export async function saveSarConfig(data: {
         const cleanFechaLimite = (data.fechaLimiteEmision || '').trim();
         const cleanSiguiente = Math.max(1, Number(data.siguienteCorrelativo) || 1);
 
+        // Limpiar y formatear datos del próximo bloque en cola (si se envía)
+        let cleanProximoCai = existingSarConfig.proximoCai || null;
+        if (data.proximoCai !== undefined) {
+            if (data.proximoCai && (data.proximoCai.cai || '').trim()) {
+                const proxRangoIni = (data.proximoCai.rangoInicial || '').trim();
+                const proxRangoFin = (data.proximoCai.rangoFinal || '').trim();
+                const parsedStart = parseSarSequenceNumber(proxRangoIni);
+                cleanProximoCai = {
+                    habilitado: data.proximoCai.habilitado !== false,
+                    cai: (data.proximoCai.cai || '').trim().toUpperCase(),
+                    establecimiento: String(data.proximoCai.establecimiento || cleanEstablecimiento).padStart(3, '0').slice(-3),
+                    puntoEmision: String(data.proximoCai.puntoEmision || cleanPuntoEmision).padStart(3, '0').slice(-3),
+                    tipoDocumento: String(data.proximoCai.tipoDocumento || cleanTipoDoc).padStart(2, '0').slice(-2),
+                    rangoInicial: proxRangoIni,
+                    rangoFinal: proxRangoFin,
+                    fechaLimiteEmision: (data.proximoCai.fechaLimiteEmision || '').trim(),
+                    siguienteCorrelativo: Math.max(1, Number(data.proximoCai.siguienteCorrelativo) || parsedStart || 1),
+                    correlativoInicial: parsedStart || 1,
+                    correlativoFinal: parseSarSequenceNumber(proxRangoFin) || undefined,
+                };
+            } else {
+                cleanProximoCai = null;
+            }
+        }
+
         const updatedSettings = {
             ...currentSettings,
             sarConfig: {
+                ...existingSarConfig,
                 cai: cleanCai,
                 establecimiento: cleanEstablecimiento,
                 puntoEmision: cleanPuntoEmision,
@@ -433,7 +498,9 @@ export async function saveSarConfig(data: {
                 rangoFinal: cleanRangoFinal,
                 fechaLimiteEmision: cleanFechaLimite,
                 siguienteCorrelativo: cleanSiguiente,
-                activo: data.activo !== false
+                activo: data.activo !== false,
+                proximoCai: cleanProximoCai,
+                historialCais: Array.isArray(existingSarConfig.historialCais) ? existingSarConfig.historialCais : []
             }
         };
 

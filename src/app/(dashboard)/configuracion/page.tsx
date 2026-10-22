@@ -77,16 +77,51 @@ export default function ConfiguracionPage() {
     const [saveCompanySuccess, setSaveCompanySuccess] = useState(false);
     
     // Facturación SAR (Honduras) State
-    const [sarConfig, setSarConfig] = useState({
+    const [sarConfig, setSarConfig] = useState<{
+        cai: string;
+        establecimiento: string;
+        puntoEmision: string;
+        tipoDocumento: string;
+        rangoInicial: string;
+        rangoFinal: string;
+        fechaLimiteEmision: string;
+        siguienteCorrelativo: number;
+        activo: boolean;
+        proximoCai: {
+            habilitado: boolean;
+            cai: string;
+            establecimiento: string;
+            puntoEmision: string;
+            tipoDocumento: string;
+            rangoInicial: string;
+            rangoFinal: string;
+            fechaLimiteEmision: string;
+            siguienteCorrelativo: number;
+        };
+        historialCais?: any[];
+        ultimaTransicionAutomatica?: any;
+    }>({
         cai: '',
         establecimiento: '000',
         puntoEmision: '001',
         tipoDocumento: '01',
-        rangoInicial: '000-001-01-00000001',
-        rangoFinal: '000-001-01-00050000',
+        rangoInicial: '000-001-01-00003001',
+        rangoFinal: '000-001-01-00004000',
         fechaLimiteEmision: '',
         siguienteCorrelativo: 1,
-        activo: true
+        activo: true,
+        proximoCai: {
+            habilitado: true,
+            cai: '5E202E-DA26A0-305DE0-63BE03-0909B6-00',
+            establecimiento: '000',
+            puntoEmision: '001',
+            tipoDocumento: '01',
+            rangoInicial: '000-001-01-00004001',
+            rangoFinal: '000-001-01-00005000',
+            fechaLimiteEmision: '2027-10-18',
+            siguienteCorrelativo: 4001
+        },
+        historialCais: []
     });
     const [sarStats, setSarStats] = useState<{ ultimaFactura?: any; totalFacturasEmitidas?: number } | null>(null);
     const [isSavingSar, setIsSavingSar] = useState(false);
@@ -216,16 +251,40 @@ export default function ConfiguracionPage() {
             const sarRes = await getSarConfig(orgId);
             if (sarRes.success) {
                 if (sarRes.sarConfig) {
+                    const prox = sarRes.sarConfig.proximoCai;
                     setSarConfig({
                         cai: sarRes.sarConfig.cai || '',
                         establecimiento: sarRes.sarConfig.establecimiento || '000',
                         puntoEmision: sarRes.sarConfig.puntoEmision || '001',
                         tipoDocumento: sarRes.sarConfig.tipoDocumento || '01',
-                        rangoInicial: sarRes.sarConfig.rangoInicial || '000-001-01-00000001',
-                        rangoFinal: sarRes.sarConfig.rangoFinal || '000-001-01-00050000',
+                        rangoInicial: sarRes.sarConfig.rangoInicial || '000-001-01-00003001',
+                        rangoFinal: sarRes.sarConfig.rangoFinal || '000-001-01-00004000',
                         fechaLimiteEmision: sarRes.sarConfig.fechaLimiteEmision || '',
                         siguienteCorrelativo: Number(sarRes.sarConfig.siguienteCorrelativo) || 1,
-                        activo: sarRes.sarConfig.activo !== false
+                        activo: sarRes.sarConfig.activo !== false,
+                        proximoCai: prox && prox.cai ? {
+                            habilitado: prox.habilitado !== false,
+                            cai: prox.cai || '',
+                            establecimiento: prox.establecimiento || sarRes.sarConfig.establecimiento || '000',
+                            puntoEmision: prox.puntoEmision || sarRes.sarConfig.puntoEmision || '001',
+                            tipoDocumento: prox.tipoDocumento || sarRes.sarConfig.tipoDocumento || '01',
+                            rangoInicial: prox.rangoInicial || '000-001-01-00004001',
+                            rangoFinal: prox.rangoFinal || '000-001-01-00005000',
+                            fechaLimiteEmision: prox.fechaLimiteEmision || '2027-10-18',
+                            siguienteCorrelativo: Number(prox.siguienteCorrelativo) || 4001
+                        } : {
+                            habilitado: false,
+                            cai: '',
+                            establecimiento: sarRes.sarConfig.establecimiento || '000',
+                            puntoEmision: sarRes.sarConfig.puntoEmision || '001',
+                            tipoDocumento: sarRes.sarConfig.tipoDocumento || '01',
+                            rangoInicial: '',
+                            rangoFinal: '',
+                            fechaLimiteEmision: '',
+                            siguienteCorrelativo: 1
+                        },
+                        historialCais: Array.isArray(sarRes.sarConfig.historialCais) ? sarRes.sarConfig.historialCais : [],
+                        ultimaTransicionAutomatica: sarRes.sarConfig.ultimaTransicionAutomatica || null
                     });
                 }
                 setSarStats({
@@ -1241,7 +1300,178 @@ export default function ConfiguracionPage() {
                                     </div>
                                 </div>
 
-                                {/* Bloque 4: Estado en ERP */}
+                                {/* Bloque 4: Próximo Bloque CAI Programado (Transición Automática 4000 -> 4001) */}
+                                <div className="space-y-4 pt-5 border-t border-slate-100">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-wider text-emerald-700 flex items-center gap-2">
+                                                <ShieldCheck className="w-4 h-4 text-emerald-600" /> 4. Próximo Bloque CAI en Cola (Transición Automática al Terminar Rango Actual)
+                                            </h4>
+                                            <p className="text-[11px] text-slate-500 mt-0.5">
+                                                Al emitirse el último correlativo del bloque actual (ej. <span className="font-mono font-bold text-slate-700">{sarConfig.rangoFinal || '000-001-01-00004000'}</span>), el sistema activará automáticamente este nuevo CAI para el siguiente documento sin afectar la integridad de las facturas emitidas anteriormente.
+                                            </p>
+                                        </div>
+                                        <label className={`text-xs font-bold flex items-center gap-2 cursor-pointer px-3.5 py-2 rounded-xl border transition-all shrink-0 ${
+                                            sarConfig.proximoCai?.habilitado && sarConfig.proximoCai?.cai
+                                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                                                : 'bg-slate-50 border-slate-200 text-slate-600'
+                                        }`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(sarConfig.proximoCai?.habilitado)}
+                                                onChange={e => setSarConfig({
+                                                    ...sarConfig,
+                                                    proximoCai: {
+                                                        ...sarConfig.proximoCai,
+                                                        habilitado: e.target.checked
+                                                    }
+                                                })}
+                                                className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                                            />
+                                            <span>{sarConfig.proximoCai?.habilitado ? 'Cola Automática Activa' : 'Cola Desactivada'}</span>
+                                        </label>
+                                    </div>
+
+                                    {(() => {
+                                        const lastEmitStr = sarStats?.ultimaFactura?.correlativo || '';
+                                        const lastEmitMatch = lastEmitStr.match(/(\d{1,8})$/);
+                                        const lastEmitNum = lastEmitMatch ? parseInt(lastEmitMatch[1], 10) : (Number(sarConfig.siguienteCorrelativo) - 1);
+                                        const maxRangoMatch = (sarConfig.rangoFinal || '').match(/(\d{1,8})$/);
+                                        const maxRangoNum = maxRangoMatch ? parseInt(maxRangoMatch[1], 10) : 4000;
+                                        const restantes = Math.max(0, maxRangoNum - Math.max(0, lastEmitNum));
+
+                                        return (
+                                            <div className="bg-emerald-950 text-white rounded-2xl p-4 sm:p-5 border border-emerald-800/80 shadow-md space-y-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-800/60">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                                        <div>
+                                                            <span className="text-xs font-black uppercase tracking-wider text-emerald-300 block">
+                                                                Estado de Transición Automática SAR
+                                                            </span>
+                                                            <span className="text-[11px] text-emerald-100/80">
+                                                                {sarConfig.proximoCai?.habilitado && sarConfig.proximoCai?.cai
+                                                                    ? `Armado y listo: Al emitir la factura #${maxRangoNum}, la #${maxRangoNum + 1} saldrá automáticamente con el nuevo CAI.`
+                                                                    : 'Configura abajo el nuevo CAI aprobado por el SAR para programar el cambio automático.'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-emerald-900/90 border border-emerald-700 px-3.5 py-2 rounded-xl text-right shrink-0">
+                                                        <span className="text-[10px] uppercase tracking-wider text-emerald-300 font-bold block">Restantes en CAI Actual</span>
+                                                        <span className="text-sm sm:text-base font-mono font-black text-white">
+                                                            {restantes} {restantes === 1 ? 'factura' : 'facturas'} <span className="text-[11px] text-emerald-300 font-normal">(Límite: {maxRangoNum})</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                                    <div className="lg:col-span-8">
+                                                        <label className="block text-[11px] font-bold text-emerald-200 mb-1">
+                                                            Nuevo CAI Aprobado en Cola (Formulario SAR-927)
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={sarConfig.proximoCai?.cai || ''}
+                                                            onChange={e => setSarConfig({
+                                                                ...sarConfig,
+                                                                proximoCai: {
+                                                                    ...sarConfig.proximoCai,
+                                                                    cai: e.target.value.toUpperCase()
+                                                                }
+                                                            })}
+                                                            placeholder="Ej: 5E202E-DA26A0-305DE0-63BE03-0909B6-00"
+                                                            className="w-full h-10 px-3.5 bg-emerald-900/70 border border-emerald-700 rounded-xl text-xs sm:text-sm font-mono font-bold text-white placeholder-emerald-400/50 focus:ring-2 focus:ring-emerald-400 outline-none uppercase"
+                                                        />
+                                                    </div>
+
+                                                    <div className="lg:col-span-4">
+                                                        <label className="block text-[11px] font-bold text-emerald-200 mb-1">
+                                                            Nueva Fecha Límite de Emisión
+                                                        </label>
+                                                        <input
+                                                            type="date"
+                                                            value={sarConfig.proximoCai?.fechaLimiteEmision ? sarConfig.proximoCai.fechaLimiteEmision.split('T')[0] : ''}
+                                                            onChange={e => setSarConfig({
+                                                                ...sarConfig,
+                                                                proximoCai: {
+                                                                    ...sarConfig.proximoCai,
+                                                                    fechaLimiteEmision: e.target.value
+                                                                }
+                                                            })}
+                                                            className="w-full h-10 px-3.5 bg-emerald-900/70 border border-emerald-700 rounded-xl text-xs sm:text-sm font-bold text-white focus:ring-2 focus:ring-emerald-400 outline-none cursor-pointer"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold text-emerald-200 mb-1">
+                                                            Nuevo Rango Autorizado Inicial
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={sarConfig.proximoCai?.rangoInicial || ''}
+                                                            onChange={e => setSarConfig({
+                                                                ...sarConfig,
+                                                                proximoCai: {
+                                                                    ...sarConfig.proximoCai,
+                                                                    rangoInicial: e.target.value
+                                                                }
+                                                            })}
+                                                            placeholder="000-001-01-00004001"
+                                                            className="w-full h-10 px-3.5 bg-emerald-900/70 border border-emerald-700 rounded-xl text-xs font-mono font-bold text-white placeholder-emerald-400/50 focus:ring-2 focus:ring-emerald-400 outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold text-emerald-200 mb-1">
+                                                            Nuevo Rango Autorizado Final
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={sarConfig.proximoCai?.rangoFinal || ''}
+                                                            onChange={e => setSarConfig({
+                                                                ...sarConfig,
+                                                                proximoCai: {
+                                                                    ...sarConfig.proximoCai,
+                                                                    rangoFinal: e.target.value
+                                                                }
+                                                            })}
+                                                            placeholder="000-001-01-00005000"
+                                                            className="w-full h-10 px-3.5 bg-emerald-900/70 border border-emerald-700 rounded-xl text-xs font-mono font-bold text-white placeholder-emerald-400/50 focus:ring-2 focus:ring-emerald-400 outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold text-emerald-200 mb-1">
+                                                            Primer Secuencial del Nuevo Bloque
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            value={sarConfig.proximoCai?.siguienteCorrelativo || 4001}
+                                                            onChange={e => setSarConfig({
+                                                                ...sarConfig,
+                                                                proximoCai: {
+                                                                    ...sarConfig.proximoCai,
+                                                                    siguienteCorrelativo: Math.max(1, parseInt(e.target.value) || 4001)
+                                                                }
+                                                            })}
+                                                            className="w-full h-10 px-3.5 bg-emerald-900/70 border border-emerald-700 rounded-xl text-sm font-mono font-black text-emerald-300 text-center focus:ring-2 focus:ring-emerald-400 outline-none"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-emerald-900/50 border border-emerald-800/80 rounded-xl p-3 text-[11px] text-emerald-100 flex items-start gap-2.5">
+                                                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                                                    <span>
+                                                        <strong>Integridad Documental Garantizada:</strong> Todas las facturas emitidas hasta el correlativo <span className="font-mono font-bold text-white">{sarConfig.rangoFinal || '000-001-01-00004000'}</span> conservarán permanentemente su CAI original (<span className="font-mono font-bold text-white">{sarConfig.cai || '59E2BE-0CEE4D-D2A4E0-63BE03-09094F-EB'}</span>) y su fecha límite original en PDF, Vista Web y Tickets.
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Bloque 5: Estado en ERP */}
                                 {sarStats && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
                                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">

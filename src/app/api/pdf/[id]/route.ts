@@ -8,6 +8,7 @@ import GarantiaLimitadaPDF from '@/components/pdf/GarantiaLimitadaPDF';
 import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import HistorialPDF from '@/components/pdf/HistorialPDF';
 import { getInvoicePDFFileName } from '@/utils/pdfName';
+import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
@@ -818,10 +819,23 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       fechaEmision: doc.fechaEmision || null,
       ordenEntrega: doc.ordenEntrega || null,
       ordenTrabajo: doc.ordenTrabajo || null,
-      numeroCAI: (doc as any).numeroCAI || (resolvedDocType === 'factura' && (org.invoiceSettings as any)?.sarConfig?.activo ? (org.invoiceSettings as any).sarConfig.cai : null),
-      rangoAutorizado: (doc as any).rangoAutorizado || (resolvedDocType === 'factura' && (org.invoiceSettings as any)?.sarConfig?.activo ? `Del ${(org.invoiceSettings as any).sarConfig.rangoInicial} al ${(org.invoiceSettings as any).sarConfig.rangoFinal}` : null),
-      fechaLimiteEmision: (doc as any).fechaLimiteEmision || (resolvedDocType === 'factura' && (org.invoiceSettings as any)?.sarConfig?.activo ? (org.invoiceSettings as any).sarConfig.fechaLimiteEmision : null),
-      isSar: resolvedDocType === 'factura' && (!!(doc as any).numeroCAI || !!(org.invoiceSettings as any)?.sarConfig?.activo),
+      ...(() => {
+        if (resolvedDocType !== 'factura') {
+          return {
+            numeroCAI: (doc as any).numeroCAI || null,
+            rangoAutorizado: (doc as any).rangoAutorizado || null,
+            fechaLimiteEmision: (doc as any).fechaLimiteEmision || null,
+            isSar: Boolean((doc as any).numeroCAI),
+          };
+        }
+        const sarMeta = resolveFacturaSarMetadata(doc as any, (org.invoiceSettings as any)?.sarConfig);
+        return {
+          numeroCAI: sarMeta.numeroCAI,
+          rangoAutorizado: sarMeta.rangoAutorizado,
+          fechaLimiteEmision: sarMeta.fechaLimiteEmision,
+          isSar: sarMeta.isSar,
+        };
+      })(),
     };
 
     // 3. Pre-fetch external images (Logo and Products) as Buffers

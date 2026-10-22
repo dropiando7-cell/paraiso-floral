@@ -21,6 +21,7 @@ import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import { captureAndProcessInvoiceImage } from '@/utils/invoiceImageUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
+import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 import Fuse from 'fuse.js';
 import { useFloating, autoUpdate, flip, shift, offset, FloatingPortal } from '@floating-ui/react';
 
@@ -5850,9 +5851,27 @@ export default function DocumentBuilderClient({
           {/* Datos Fiscales SAR */}
           {(() => {
             const sarOrgConfig = organization?.invoiceSettings?.sarConfig;
-            const resolvedNumeroCAI = initialData?.numeroCAI || (docType === 'factura' && sarOrgConfig?.activo !== false ? sarOrgConfig?.cai : null);
-            const resolvedRangoAutorizado = initialData?.rangoAutorizado || (docType === 'factura' && sarOrgConfig?.activo !== false && sarOrgConfig?.rangoInicial && sarOrgConfig?.rangoFinal ? `Del ${sarOrgConfig.rangoInicial} al ${sarOrgConfig.rangoFinal}` : null);
-            const resolvedFechaLimiteEmision = initialData?.fechaLimiteEmision || (docType === 'factura' && sarOrgConfig?.activo !== false ? sarOrgConfig?.fechaLimiteEmision : null);
+            const currentCorrelativo = showSuccessModal?.correlativo || docNumber || initialData?.correlativo || null;
+            const resolvedSarMeta = docType === 'factura'
+              ? resolveFacturaSarMetadata(
+                  {
+                    correlativo: currentCorrelativo,
+                    numeroCAI: initialData?.numeroCAI,
+                    cai: (initialData as any)?.cai,
+                    rangoAutorizado: initialData?.rangoAutorizado,
+                    fechaLimiteEmision: initialData?.fechaLimiteEmision,
+                  },
+                  sarOrgConfig
+                )
+              : {
+                  numeroCAI: initialData?.numeroCAI || null,
+                  rangoAutorizado: initialData?.rangoAutorizado || null,
+                  fechaLimiteEmision: initialData?.fechaLimiteEmision || null,
+                  isSar: Boolean(initialData?.numeroCAI),
+                };
+            const resolvedNumeroCAI = resolvedSarMeta.numeroCAI;
+            const resolvedRangoAutorizado = resolvedSarMeta.rangoAutorizado;
+            const resolvedFechaLimiteEmision = resolvedSarMeta.fechaLimiteEmision;
             const isDocumentoFiscal = docType === 'factura' || Boolean(resolvedNumeroCAI);
 
             return (
@@ -8251,9 +8270,15 @@ export default function DocumentBuilderClient({
                          {organization?.telefono && <>Tel: {organization.telefono}<br/></>}
                      </div>
                      <div className="mb-2 uppercase">
-                         FACTURA NO: {docNumber || initialData?.correlativo}<br/>
+                         FACTURA NO: {showSuccessModal?.correlativo || docNumber || initialData?.correlativo}<br/>
                          FECHA: {resolvedFechaEmision ? new Date(resolvedFechaEmision).toLocaleString('es-HN') : (today || new Date().toLocaleString('es-HN'))}<br/>
-                         CAI: {initialData?.cai || (initialData as any)?.numeroCAI || (settings as any)?.cai || 'N/A'}<br/>
+                         CAI: {resolveFacturaSarMetadata({
+                           correlativo: showSuccessModal?.correlativo || docNumber || initialData?.correlativo,
+                           numeroCAI: initialData?.numeroCAI,
+                           cai: (initialData as any)?.cai,
+                           rangoAutorizado: initialData?.rangoAutorizado,
+                           fechaLimiteEmision: initialData?.fechaLimiteEmision
+                         }, organization?.invoiceSettings?.sarConfig).numeroCAI || (settings as any)?.cai || 'N/A'}<br/>
                          CLIENTE: {selectedClient?.name || initialData?.clienteNombre || (initialData as any)?.cliente?.nombre || 'CONSUMIDOR FINAL'}<br/>
                          {(selectedClient?.rtn || initialData?.clienteRtn || (initialData as any)?.cliente?.rtn) && (
                            <>RTN CLIENTE: {selectedClient?.rtn || initialData?.clienteRtn || (initialData as any)?.cliente?.rtn}<br/></>

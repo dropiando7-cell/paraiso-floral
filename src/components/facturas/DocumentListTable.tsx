@@ -11,6 +11,7 @@ import ReportesContablesModal from '@/components/facturas/ReportesContablesModal
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
 import { isCredito, getDiasCredito, calcularFechaVencimiento, isEnvioItem } from '@/utils/facturaUtils';
+import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 
 export interface DocumentRecord {
   id: string;
@@ -1669,7 +1670,7 @@ export default function DocumentListTable({
                      <div className="mb-2 uppercase">
                          FACTURA NO: {ticketPreview.correlativo}<br/>
                          FECHA: {new Date(ticketPreview.fechaEmision).toLocaleString('es-HN')}<br/>
-                         CAI: {(ticketPreview as any).cai || 'N/A'}<br/>
+                         CAI: {resolveFacturaSarMetadata(ticketPreview as any).numeroCAI || (ticketPreview as any).cai || 'N/A'}<br/>
                          CLIENTE: {ticketPreview.clienteNombre || 'CONSUMIDOR FINAL'}<br/>
                          {ticketPreview.clienteRtn && <>RTN CLIENTE: {ticketPreview.clienteRtn}<br/></>}
                      </div>

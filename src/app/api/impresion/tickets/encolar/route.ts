@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { resolveFacturaSarMetadata } from "@/lib/sar-utils";
 
 export async function POST(req: Request) {
     try {
@@ -159,8 +160,23 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
         }
 
+        const resolvedSar = doc.tipoDocumento === "FACTURA"
+            ? resolveFacturaSarMetadata(doc, (doc.organization?.invoiceSettings as any)?.sarConfig)
+            : {
+                numeroCAI: doc.numeroCAI,
+                rangoAutorizado: doc.rangoAutorizado,
+                fechaLimiteEmision: doc.fechaLimiteEmision,
+                isSar: Boolean(doc.numeroCAI)
+            };
+
         const invoiceData = {
-            documento: { ...doc, cai: doc.numeroCAI },
+            documento: {
+                ...doc,
+                cai: resolvedSar.numeroCAI || doc.numeroCAI,
+                numeroCAI: resolvedSar.numeroCAI || doc.numeroCAI,
+                rangoAutorizado: resolvedSar.rangoAutorizado || doc.rangoAutorizado,
+                fechaLimiteEmision: resolvedSar.fechaLimiteEmision || doc.fechaLimiteEmision
+            },
             organization: doc.organization,
             items: doc.detalles,
             cliente: doc.cliente

@@ -6,6 +6,11 @@ import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/activity-logger';
 import crypto from 'crypto';
 import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
+import {
+    hydrateSarConfigWithDefaultQueue,
+    resolveSarRolloverForNextSequence,
+    resolveFacturaSarMetadata
+} from '@/lib/sar-utils';
 
 // Helper for Auth — returns full user object with nombre+apellido
 export async function getAuthenticatedUser() {
@@ -53,7 +58,7 @@ export async function getNextSarCorrelativo(txOrPrisma: any, organizationId: str
     });
 
     const orgSettings = (org?.invoiceSettings as any) || {};
-    const sarConfig = orgSettings.sarConfig;
+    const sarConfig = hydrateSarConfigWithDefaultQueue(orgSettings.sarConfig);
 
     if (!sarConfig || sarConfig.activo === false || !sarConfig.cai) {
         return {
@@ -65,10 +70,10 @@ export async function getNextSarCorrelativo(txOrPrisma: any, organizationId: str
         };
     }
 
-    const est = String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
-    const pto = String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
-    const tipoDoc = String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
-    const prefijo = `${est}-${pto}-${tipoDoc}-`;
+    const estInicial = String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
+    const ptoInicial = String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
+    const tipoDocInicial = String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
+    const prefijoInicial = `${estInicial}-${ptoInicial}-${tipoDocInicial}-`;
 
     const siguienteConfigurado = Math.max(1, Number(sarConfig.siguienteCorrelativo) || 1);
 
@@ -77,7 +82,7 @@ export async function getNextSarCorrelativo(txOrPrisma: any, organizationId: str
         where: {
             organizationId,
             tipoDocumento: 'FACTURA',
-            correlativo: { startsWith: prefijo }
+            correlativo: { startsWith: prefijoInicial }
         },
         orderBy: { correlativo: 'desc' },
         select: { correlativo: true }
@@ -92,21 +97,34 @@ export async function getNextSarCorrelativo(txOrPrisma: any, organizationId: str
         }
     }
 
-    const secuencialAsignar = Math.max(siguienteConfigurado, maxSecuencialEnBd + 1);
+    const secuencialCandidato = Math.max(siguienteConfigurado, maxSecuencialEnBd + 1);
+
+    // Evaluar si el secuencial a emitir supera el rangoFinal actual (ej. pasa de 4000 a 4001)
+    const { activeSarConfig, effectiveSeq } = resolveSarRolloverForNextSequence(sarConfig, secuencialCandidato);
+
+    const est = String(activeSarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
+    const pto = String(activeSarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
+    const tipoDoc = String(activeSarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
+    const prefijo = `${est}-${pto}-${tipoDoc}-`;
+
+    const secuencialAsignar = effectiveSeq;
     const correlativoGenerado = `${prefijo}${String(secuencialAsignar).padStart(8, '0')}`;
 
-    const fechaLimite = sarConfig.fechaLimiteEmision ? new Date(sarConfig.fechaLimiteEmision) : null;
-    const rangoStr = sarConfig.rangoInicial && sarConfig.rangoFinal 
-        ? `Del ${sarConfig.rangoInicial} al ${sarConfig.rangoFinal}` 
-        : (sarConfig.rangoInicial || sarConfig.rangoFinal || '');
+    const fechaLimite = activeSarConfig.fechaLimiteEmision ? new Date(activeSarConfig.fechaLimiteEmision) : null;
+    const rangoStr = activeSarConfig.rangoInicial && activeSarConfig.rangoFinal 
+        ? `Del ${activeSarConfig.rangoInicial} al ${activeSarConfig.rangoFinal}` 
+        : (activeSarConfig.rangoInicial || activeSarConfig.rangoFinal || '');
+
+    // Evaluar si el PRÓXIMO correlativo (secuencialAsignar + 1) ya entra al nuevo bloque (ej. tras emitir la 4000, dejar listo el bloque 4001)
+    const nextStepState = resolveSarRolloverForNextSequence(activeSarConfig, secuencialAsignar + 1);
 
     // Actualizar el siguienteCorrelativo en invoiceSettings de la organización para continuar la secuencia
     try {
         const updatedSettings = {
             ...orgSettings,
             sarConfig: {
-                ...sarConfig,
-                siguienteCorrelativo: secuencialAsignar + 1,
+                ...nextStepState.activeSarConfig,
+                siguienteCorrelativo: nextStepState.effectiveSeq,
                 ultimoCorrelativoEmitido: correlativoGenerado
             }
         };
@@ -121,7 +139,7 @@ export async function getNextSarCorrelativo(txOrPrisma: any, organizationId: str
 
     return {
         correlativo: correlativoGenerado,
-        numeroCAI: sarConfig.cai || '',
+        numeroCAI: activeSarConfig.cai || '',
         rangoAutorizado: rangoStr,
         fechaLimiteEmision: fechaLimite,
         isSar: true
@@ -936,6 +954,14 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             } else {
                 nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
             }
+        } else if (nuevoTipo === 'FACTURA' && docExistente.tipoDocumento === 'FACTURA') {
+            // Blindaje de integridad histórica: conservar SIEMPRE el CAI, rango y fecha límite originales de la factura emitida
+            const resolvedHistSar = resolveFacturaSarMetadata(docExistente);
+            sarFieldsUpdate = {
+                numeroCAI: docExistente.numeroCAI || resolvedHistSar.numeroCAI || null,
+                rangoAutorizado: docExistente.rangoAutorizado || resolvedHistSar.rangoAutorizado || null,
+                fechaLimiteEmision: docExistente.fechaLimiteEmision || (resolvedHistSar.fechaLimiteEmision ? new Date(resolvedHistSar.fechaLimiteEmision) : null)
+            };
         } else if (nuevoTipo !== docExistente.tipoDocumento || isTransitioningFromBorrador) {
             nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
         }
@@ -1189,12 +1215,14 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 const incomingSettings = JSON.parse(JSON.stringify(data.templateSettings));
                 delete incomingSettings.roundAdjustment;
                 delete incomingSettings.auditTrail;
+                delete incomingSettings.sarConfig;
                 await tx.organization.update({
                     where: { id: organizationId },
                     data: { 
                         invoiceSettings: {
                             ...existingOrgSettings,
                             ...incomingSettings,
+                            sarConfig: existingOrgSettings.sarConfig,
                             seguridadFacturas: existingOrgSettings.seguridadFacturas || incomingSettings.seguridadFacturas
                         } 
                     }
@@ -1614,12 +1642,14 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                 const incomingSettings = JSON.parse(JSON.stringify(data.templateSettings));
                 delete incomingSettings.roundAdjustment;
                 delete incomingSettings.auditTrail;
+                delete incomingSettings.sarConfig;
                 await tx.organization.update({
                     where: { id: organizationId },
                     data: { 
                         invoiceSettings: {
                             ...existingOrgSettings,
                             ...incomingSettings,
+                            sarConfig: existingOrgSettings.sarConfig,
                             seguridadFacturas: existingOrgSettings.seguridadFacturas || incomingSettings.seguridadFacturas
                         } 
                     }
@@ -1906,6 +1936,9 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 aliasVenta: true,
                 vendedorNombre: true,
                 transferenciaConfirmada: true,
+                numeroCAI: true,
+                rangoAutorizado: true,
+                fechaLimiteEmision: true,
                 cliente: {
                     select: {
                         nombre: true,
@@ -1925,31 +1958,40 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
             take: 5000 // Aumentado para ver todo el historial
         });
         
-        return docs.map(doc => ({
-            id: doc.id,
-            correlativo: doc.correlativo,
-            tipoDocumento: doc.tipoDocumento,
-            estado: doc.estado,
-            fechaEmision: doc.fechaEmision.toISOString(),
-            fechaVencimiento: doc.fechaVencimiento ? doc.fechaVencimiento.toISOString() : null,
-            terminosPago: doc.terminosPago,
-            saldoPendiente: doc.saldoPendiente !== null ? Number(doc.saldoPendiente) : null,
-            estadoPago: doc.estadoPago,
-            validezDias: doc.validezDias,
-            clienteNombre: doc.cliente?.nombre || 'Desconocido',
-            clienteRtn: doc.cliente?.rtn || '',
-            total: Number(doc.total),
-            metodoPago: doc.metodoPago,
-            aliasVenta: doc.aliasVenta,
-            vendedorNombre: doc.vendedorNombre,
-            transferenciaConfirmada: doc.transferenciaConfirmada,
-            detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
-               descripcion: d.descripcion,
-               cantidad: d.cantidad,
-               precioUnitario: Number(d.precioUnitario),
-               totalLinea: Number(d.totalLinea)
-            }))
-        }));
+        return docs.map(doc => {
+            const sarMeta = resolveFacturaSarMetadata(doc);
+            return {
+                id: doc.id,
+                correlativo: doc.correlativo,
+                tipoDocumento: doc.tipoDocumento,
+                estado: doc.estado,
+                fechaEmision: doc.fechaEmision.toISOString(),
+                fechaVencimiento: doc.fechaVencimiento ? doc.fechaVencimiento.toISOString() : null,
+                terminosPago: doc.terminosPago,
+                saldoPendiente: doc.saldoPendiente !== null ? Number(doc.saldoPendiente) : null,
+                estadoPago: doc.estadoPago,
+                validezDias: doc.validezDias,
+                clienteNombre: doc.cliente?.nombre || 'Desconocido',
+                clienteRtn: doc.cliente?.rtn || '',
+                total: Number(doc.total),
+                metodoPago: doc.metodoPago,
+                aliasVenta: doc.aliasVenta,
+                vendedorNombre: doc.vendedorNombre,
+                transferenciaConfirmada: doc.transferenciaConfirmada,
+                cai: sarMeta.numeroCAI,
+                numeroCAI: sarMeta.numeroCAI,
+                rangoAutorizado: sarMeta.rangoAutorizado,
+                fechaLimiteEmision: sarMeta.fechaLimiteEmision
+                    ? (sarMeta.fechaLimiteEmision instanceof Date ? sarMeta.fechaLimiteEmision.toISOString() : String(sarMeta.fechaLimiteEmision))
+                    : null,
+                detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
+                   descripcion: d.descripcion,
+                   cantidad: d.cantidad,
+                   precioUnitario: Number(d.precioUnitario),
+                   totalLinea: Number(d.totalLinea)
+                }))
+            };
+        });
     } catch (e) {
         console.error("Error obteniendo historial:", e);
         return [];
@@ -2000,6 +2042,9 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 aliasVenta: true,
                 vendedorNombre: true,
                 transferenciaConfirmada: true,
+                numeroCAI: true,
+                rangoAutorizado: true,
+                fechaLimiteEmision: true,
                 cliente: {
                     select: {
                         nombre: true,
@@ -2019,31 +2064,40 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
             take: 200
         });
 
-        return docs.map(doc => ({
-            id: doc.id,
-            correlativo: doc.correlativo,
-            tipoDocumento: doc.tipoDocumento,
-            estado: doc.estado,
-            fechaEmision: doc.fechaEmision.toISOString(),
-            fechaVencimiento: doc.fechaVencimiento ? doc.fechaVencimiento.toISOString() : null,
-            terminosPago: doc.terminosPago,
-            saldoPendiente: doc.saldoPendiente !== null ? Number(doc.saldoPendiente) : null,
-            estadoPago: doc.estadoPago,
-            validezDias: doc.validezDias,
-            clienteNombre: doc.cliente?.nombre || 'Desconocido',
-            clienteRtn: doc.cliente?.rtn || '',
-            total: Number(doc.total),
-            metodoPago: doc.metodoPago,
-            aliasVenta: doc.aliasVenta,
-            vendedorNombre: doc.vendedorNombre,
-            transferenciaConfirmada: doc.transferenciaConfirmada,
-            detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
-               descripcion: d.descripcion,
-               cantidad: d.cantidad,
-               precioUnitario: Number(d.precioUnitario),
-               totalLinea: Number(d.totalLinea)
-            }))
-        }));
+        return docs.map(doc => {
+            const sarMeta = resolveFacturaSarMetadata(doc);
+            return {
+                id: doc.id,
+                correlativo: doc.correlativo,
+                tipoDocumento: doc.tipoDocumento,
+                estado: doc.estado,
+                fechaEmision: doc.fechaEmision.toISOString(),
+                fechaVencimiento: doc.fechaVencimiento ? doc.fechaVencimiento.toISOString() : null,
+                terminosPago: doc.terminosPago,
+                saldoPendiente: doc.saldoPendiente !== null ? Number(doc.saldoPendiente) : null,
+                estadoPago: doc.estadoPago,
+                validezDias: doc.validezDias,
+                clienteNombre: doc.cliente?.nombre || 'Desconocido',
+                clienteRtn: doc.cliente?.rtn || '',
+                total: Number(doc.total),
+                metodoPago: doc.metodoPago,
+                aliasVenta: doc.aliasVenta,
+                vendedorNombre: doc.vendedorNombre,
+                transferenciaConfirmada: doc.transferenciaConfirmada,
+                cai: sarMeta.numeroCAI,
+                numeroCAI: sarMeta.numeroCAI,
+                rangoAutorizado: sarMeta.rangoAutorizado,
+                fechaLimiteEmision: sarMeta.fechaLimiteEmision
+                    ? (sarMeta.fechaLimiteEmision instanceof Date ? sarMeta.fechaLimiteEmision.toISOString() : String(sarMeta.fechaLimiteEmision))
+                    : null,
+                detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
+                   descripcion: d.descripcion,
+                   cantidad: d.cantidad,
+                   precioUnitario: Number(d.precioUnitario),
+                   totalLinea: Number(d.totalLinea)
+                }))
+            };
+        });
     } catch (e) {
         console.error("Error buscando en historial:", e);
         return [];
@@ -2242,6 +2296,13 @@ export async function getDocumentoById(id: string) {
         doc.detalles = sortDetallesByMetadataOrden(detailsWithRecoveredData);
 
         const safeDoc = JSON.parse(JSON.stringify(doc));
+        if (safeDoc.tipoDocumento === 'FACTURA') {
+            const sarMeta = resolveFacturaSarMetadata(safeDoc);
+            safeDoc.numeroCAI = safeDoc.numeroCAI || sarMeta.numeroCAI;
+            safeDoc.cai = safeDoc.numeroCAI;
+            safeDoc.rangoAutorizado = safeDoc.rangoAutorizado || sarMeta.rangoAutorizado;
+            safeDoc.fechaLimiteEmision = safeDoc.fechaLimiteEmision || sarMeta.fechaLimiteEmision;
+        }
         return safeDoc;
     } catch (e) {
         console.error("Error obteniendo documento:", e);
@@ -2635,13 +2696,13 @@ export async function getProximoCorrelativoPreview(tipoDocumento: string) {
                 select: { invoiceSettings: true }
             });
             const orgSettings = (org?.invoiceSettings as any) || {};
-            const sarConfig = orgSettings.sarConfig;
+            const sarConfig = hydrateSarConfigWithDefaultQueue(orgSettings.sarConfig);
 
             if (sarConfig && sarConfig.activo !== false && sarConfig.cai) {
-                const est = String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
-                const pto = String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
-                const tipoDoc = String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
-                const prefijo = `${est}-${pto}-${tipoDoc}-`;
+                const estInicial = String(sarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
+                const ptoInicial = String(sarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
+                const tipoDocInicial = String(sarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
+                const prefijoInicial = `${estInicial}-${ptoInicial}-${tipoDocInicial}-`;
 
                 const siguienteConfigurado = Math.max(1, Number(sarConfig.siguienteCorrelativo) || 1);
 
@@ -2649,7 +2710,7 @@ export async function getProximoCorrelativoPreview(tipoDocumento: string) {
                     where: {
                         organizationId,
                         tipoDocumento: 'FACTURA',
-                        correlativo: { startsWith: prefijo }
+                        correlativo: { startsWith: prefijoInicial }
                     },
                     orderBy: { correlativo: 'desc' },
                     select: { correlativo: true }
@@ -2664,15 +2725,26 @@ export async function getProximoCorrelativoPreview(tipoDocumento: string) {
                     }
                 }
 
-                const nextSeq = Math.max(siguienteConfigurado, maxSecuencialEnBd + 1);
-                const previewSar = `${prefijo}${String(nextSeq).padStart(8, '0')}`;
+                const nextSeqCandidate = Math.max(siguienteConfigurado, maxSecuencialEnBd + 1);
+                const { activeSarConfig, effectiveSeq, didRollover } = resolveSarRolloverForNextSequence(
+                    sarConfig,
+                    nextSeqCandidate
+                );
+
+                const est = String(activeSarConfig.establecimiento || '000').padStart(3, '0').slice(-3);
+                const pto = String(activeSarConfig.puntoEmision || '001').padStart(3, '0').slice(-3);
+                const tipoDoc = String(activeSarConfig.tipoDocumento || '01').padStart(2, '0').slice(-2);
+                const prefijo = `${est}-${pto}-${tipoDoc}-`;
+
+                const previewSar = `${prefijo}${String(effectiveSeq).padStart(8, '0')}`;
                 return { 
                     success: true, 
                     correlativo: previewSar, 
-                    nextNumber: nextSeq,
-                    numeroCAI: sarConfig.cai,
-                    rangoAutorizado: sarConfig.rangoInicial && sarConfig.rangoFinal ? `Del ${sarConfig.rangoInicial} al ${sarConfig.rangoFinal}` : '',
-                    fechaLimiteEmision: sarConfig.fechaLimiteEmision || null,
+                    nextNumber: effectiveSeq,
+                    numeroCAI: activeSarConfig.cai,
+                    rangoAutorizado: activeSarConfig.rangoInicial && activeSarConfig.rangoFinal ? `Del ${activeSarConfig.rangoInicial} al ${activeSarConfig.rangoFinal}` : '',
+                    fechaLimiteEmision: activeSarConfig.fechaLimiteEmision || null,
+                    didRollover,
                     isSar: true 
                 };
             }
@@ -2739,6 +2811,8 @@ export async function guardarInvoiceTemplate(name: string, settings: any) {
         const cleanSettings = settings ? JSON.parse(JSON.stringify(settings)) : {};
         delete cleanSettings.activeCustomTemplateId;
         delete cleanSettings.roundAdjustment;
+        delete cleanSettings.sarConfig;
+        delete cleanSettings.seguridadFacturas;
 
         let updatedTemplates;
         let savedId: string;
@@ -2752,7 +2826,14 @@ export async function guardarInvoiceTemplate(name: string, settings: any) {
             updatedTemplates = [...currentTemplates, newTemplate];
         }
 
-        const orgSettings = { ...cleanSettings, activeCustomTemplateId: savedId };
+        const existingOrgSettings = (org.invoiceSettings as any) || {};
+        const orgSettings = {
+            ...existingOrgSettings,
+            ...cleanSettings,
+            activeCustomTemplateId: savedId,
+            sarConfig: existingOrgSettings.sarConfig,
+            seguridadFacturas: existingOrgSettings.seguridadFacturas
+        };
 
         await prisma.organization.update({
             where: { id: organizationId },
@@ -2780,11 +2861,20 @@ export async function actualizarActiveTemplate(templateId: string, settings: any
         const cleanSettings = settings ? JSON.parse(JSON.stringify(settings)) : {};
         delete cleanSettings.activeCustomTemplateId;
         delete cleanSettings.roundAdjustment;
+        delete cleanSettings.sarConfig;
+        delete cleanSettings.seguridadFacturas;
 
         const updatedTemplates = [...currentTemplates];
         updatedTemplates[existingIndex] = { ...updatedTemplates[existingIndex], settings: cleanSettings };
 
-        const orgSettings = { ...cleanSettings, activeCustomTemplateId: templateId };
+        const existingOrgSettings = (org.invoiceSettings as any) || {};
+        const orgSettings = {
+            ...existingOrgSettings,
+            ...cleanSettings,
+            activeCustomTemplateId: templateId,
+            sarConfig: existingOrgSettings.sarConfig,
+            seguridadFacturas: existingOrgSettings.seguridadFacturas
+        };
 
         await prisma.organization.update({
             where: { id: organizationId },
@@ -2857,15 +2947,26 @@ export async function updateOrganizationDefaultSettings(settings: any) {
         const user = await getAuthenticatedUser();
         const organizationId = user.organizationId;
 
-        const orgSettings = settings ? JSON.parse(JSON.stringify(settings)) : null;
-        if (orgSettings) {
-            delete orgSettings.roundAdjustment;
-        }
+        const currentOrg = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { invoiceSettings: true }
+        });
+        const existingOrgSettings = (currentOrg?.invoiceSettings as any) || {};
+
+        const cleanIncoming = settings ? JSON.parse(JSON.stringify(settings)) : {};
+        delete cleanIncoming.roundAdjustment;
+        delete cleanIncoming.sarConfig;
+        delete cleanIncoming.seguridadFacturas;
 
         await prisma.organization.update({
             where: { id: organizationId },
             data: {
-                invoiceSettings: orgSettings
+                invoiceSettings: {
+                    ...existingOrgSettings,
+                    ...cleanIncoming,
+                    sarConfig: existingOrgSettings.sarConfig,
+                    seguridadFacturas: existingOrgSettings.seguridadFacturas
+                }
             }
         });
 
