@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isEnvioItem } from '@/utils/facturaUtils';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
         });
 
         const trabajosLimpios = trabajos.map((t) => {
-            if (!t.urlImagen || !t.urlImagen.includes('__METADATA__')) return t;
+            if (!t.urlImagen) return t;
             try {
                 const parsed = JSON.parse(t.urlImagen);
                 const cleanItem = (it: any) => {
@@ -55,7 +56,14 @@ export async function GET(req: NextRequest) {
                         .replace(/^__SECTION__/, '')
                         .split('\n')[0]
                         .trim();
-                    return { ...it, descripcion: cleanDesc, nombre: cleanNombre };
+                    const esEnvio = isEnvioItem({ nombre: cleanNombre, descripcion: cleanDesc });
+                    return {
+                        ...it,
+                        cantidad: esEnvio ? '' : it.cantidad,
+                        esEnvio,
+                        descripcion: cleanDesc,
+                        nombre: cleanNombre,
+                    };
                 };
                 if (Array.isArray(parsed.items)) {
                     parsed.items = parsed.items.map(cleanItem);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { resolveFacturaSarMetadata } from "@/lib/sar-utils";
+import { isEnvioItem } from "@/utils/facturaUtils";
 
 export async function POST(req: Request) {
     try {
@@ -196,8 +197,14 @@ export async function POST(req: Request) {
                     .split("\n")[0]
                     .split("Producto registrado")[0]
                     .trim();
+                const esEnvio = isEnvioItem({ nombre: cleanFirstLine, descripcion: cleanFullDesc });
                 return {
                     ...d,
+                    // Si es ENVIO/ENVIOS/FLETE, enviamos cantidad: "" para que print_server_tickets.py
+                    // no lo sume al conteo de bultos (float("" or 0) == 0 en Python) sin tocar el print server local.
+                    cantidad: esEnvio ? "" : d.cantidad,
+                    cantidadOriginal: d.cantidad,
+                    esEnvio,
                     descripcion: cleanFullDesc,
                     nombre: cleanFirstLine || cleanFullDesc,
                 };

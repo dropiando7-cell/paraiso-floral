@@ -328,8 +328,15 @@ def build_receipt(data):
         
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
     
-    # --- TOTAL ITEMS / PAQUETES (Suma de columna CANT) ---
-    total_cant = sum(float(it.get('cantidad', 1) or 0) for it in items)
+    # --- TOTAL ITEMS / PAQUETES (Suma de columna CANT excluyendo ENVIO / FLETE) ---
+    import re
+    def _es_envio(it):
+        if it.get('esEnvio'):
+            return True
+        txt = remove_accents(str(it.get('nombre') or it.get('productoNombre') or it.get('descripcion') or '')).split('\n')[0].strip().lower()
+        return bool(re.search(r'\b(envi[oa]\w*|emvi[oa]\w*|enbi[oa]\w*|flete\w*|delivery)\b', txt))
+
+    total_cant = sum(float(it.get('cantidad', 1) or 0) for it in items if not _es_envio(it))
     total_cant_str = f"{int(total_cant)}" if total_cant.is_integer() else f"{total_cant:g}"
     
     receipt.extend(CMD_BOLD_ON)
