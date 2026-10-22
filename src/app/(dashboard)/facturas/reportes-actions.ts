@@ -273,7 +273,7 @@ export async function getReporteContableData(filtros: ReporteFiltros): Promise<R
           telefono: d.cliente?.telefono || null
         },
         detalles: (d.detalles || []).map((det) => ({
-          descripcion: det.descripcion,
+          descripcion: (det.descripcion || '').replace(/__METADATA__[\s\S]*$/, '').replace(/__STYLE__[\s\S]*$/, '').replace(/^__SECTION__/, '').trim(),
           cantidad: det.cantidad,
           precioUnitario: Number(det.precioUnitario),
           porcentajeIsv: det.porcentajeIsv,

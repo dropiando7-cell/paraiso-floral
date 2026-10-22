@@ -169,16 +169,51 @@ export async function POST(req: Request) {
                 isSar: Boolean(doc.numeroCAI)
             };
 
+        // Ordenar detalles según __METADATA__.orden y limpiar etiquetas internas (__METADATA__, __STYLE__, __SECTION__)
+        // para que el print_server térmico reciba descripciones 100% limpias.
+        const sortedCleanDetalles = [...(doc.detalles || [])]
+            .map((d: any, idx: number) => {
+                const raw = d.descripcion || "";
+                const metaIdx = raw.indexOf("__METADATA__");
+                let orden = Number.MAX_SAFE_INTEGER;
+                if (metaIdx !== -1) {
+                    try {
+                        const parsed = JSON.parse(raw.substring(metaIdx + 12));
+                        if (typeof parsed.orden === "number") orden = parsed.orden;
+                    } catch {}
+                }
+                return { d, orden, idx, isSection: raw.startsWith("__SECTION__") };
+            })
+            .filter((x) => !x.isSection)
+            .sort((a, b) => (a.orden !== b.orden ? a.orden - b.orden : a.idx - b.idx))
+            .map(({ d }) => {
+                const cleanFullDesc = (d.descripcion || "")
+                    .replace(/__METADATA__[\s\S]*$/, "")
+                    .replace(/__STYLE__[\s\S]*$/, "")
+                    .replace(/^__SECTION__/, "")
+                    .trim();
+                const cleanFirstLine = cleanFullDesc
+                    .split("\n")[0]
+                    .split("Producto registrado")[0]
+                    .trim();
+                return {
+                    ...d,
+                    descripcion: cleanFullDesc,
+                    nombre: cleanFirstLine || cleanFullDesc,
+                };
+            });
+
         const invoiceData = {
             documento: {
                 ...doc,
+                detalles: sortedCleanDetalles,
                 cai: resolvedSar.numeroCAI || doc.numeroCAI,
                 numeroCAI: resolvedSar.numeroCAI || doc.numeroCAI,
                 rangoAutorizado: resolvedSar.rangoAutorizado || doc.rangoAutorizado,
                 fechaLimiteEmision: resolvedSar.fechaLimiteEmision || doc.fechaLimiteEmision
             },
             organization: doc.organization,
-            items: doc.detalles,
+            items: sortedCleanDetalles,
             cliente: doc.cliente
         };
 

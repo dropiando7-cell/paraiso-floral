@@ -1985,7 +1985,7 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                     ? (sarMeta.fechaLimiteEmision instanceof Date ? sarMeta.fechaLimiteEmision.toISOString() : String(sarMeta.fechaLimiteEmision))
                     : null,
                 detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
-                   descripcion: d.descripcion,
+                   descripcion: (d.descripcion || '').replace(/__METADATA__[\s\S]*$/, '').replace(/__STYLE__[\s\S]*$/, '').replace(/^__SECTION__/, '').trim(),
                    cantidad: d.cantidad,
                    precioUnitario: Number(d.precioUnitario),
                    totalLinea: Number(d.totalLinea)
@@ -2091,7 +2091,7 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                     ? (sarMeta.fechaLimiteEmision instanceof Date ? sarMeta.fechaLimiteEmision.toISOString() : String(sarMeta.fechaLimiteEmision))
                     : null,
                 detalles: sortDetallesByMetadataOrden(doc.detalles).map(d => ({
-                   descripcion: d.descripcion,
+                   descripcion: (d.descripcion || '').replace(/__METADATA__[\s\S]*$/, '').replace(/__STYLE__[\s\S]*$/, '').replace(/^__SECTION__/, '').trim(),
                    cantidad: d.cantidad,
                    precioUnitario: Number(d.precioUnitario),
                    totalLinea: Number(d.totalLinea)

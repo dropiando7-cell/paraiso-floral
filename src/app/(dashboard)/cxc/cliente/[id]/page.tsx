@@ -222,7 +222,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     (data.facturas || []).forEach(f => {
       if (f.correlativo !== 'SALDO INICIAL EXCEL') {
         const desc = f.detalles && f.detalles.length > 0
-          ? f.detalles.map(d => `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${d.descripcion}`).join(', ')
+          ? f.detalles.map(d => `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${(d.descripcion || '').replace(/__METADATA__[\s\S]*$/, '').split('\n')[0].trim()}`).join(', ')
           : 'Venta a Crédito Comercial';
 
         list.push({

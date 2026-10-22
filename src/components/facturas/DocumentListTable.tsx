@@ -1681,6 +1681,7 @@ export default function DocumentListTable({
                          </div>
                          {ticketPreview.detalles?.map((d, i) => {
                               let n = (d as any).nombre || (d as any).productoNombre || d.descripcion || '';
+                              n = n.replace(/__METADATA__[\s\S]*$/, '').replace(/__STYLE__[\s\S]*$/, '').replace(/^__SECTION__/, '');
                               n = n.split('\n')[0];
                               if (n.includes('Producto registrado')) n = n.split('Producto registrado')[0];
                               return (

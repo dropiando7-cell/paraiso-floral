@@ -138,7 +138,7 @@ export async function GET(request: Request) {
     // Facturas (y pago directo en Facturación si aplica)
     cliente.facturas.forEach(f => {
       const desc = f.detalles && f.detalles.length > 0
-        ? f.detalles.map(d => `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${d.descripcion}`).join(', ')
+        ? f.detalles.map(d => `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${(d.descripcion || '').replace(/__METADATA__[\s\S]*$/, '').split('\n')[0].trim()}`).join(', ')
         : (f.notas || 'Venta a Crédito Comercial');
 
       items.push({

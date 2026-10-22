@@ -39,7 +39,37 @@ export async function GET(req: NextRequest) {
             }
         });
 
-        return NextResponse.json({ trabajos });
+        const trabajosLimpios = trabajos.map((t) => {
+            if (!t.urlImagen || !t.urlImagen.includes('__METADATA__')) return t;
+            try {
+                const parsed = JSON.parse(t.urlImagen);
+                const cleanItem = (it: any) => {
+                    const cleanDesc = String(it?.descripcion || '')
+                        .replace(/__METADATA__[\s\S]*$/, '')
+                        .replace(/__STYLE__[\s\S]*$/, '')
+                        .replace(/^__SECTION__/, '')
+                        .trim();
+                    const cleanNombre = String(it?.nombre || cleanDesc)
+                        .replace(/__METADATA__[\s\S]*$/, '')
+                        .replace(/__STYLE__[\s\S]*$/, '')
+                        .replace(/^__SECTION__/, '')
+                        .split('\n')[0]
+                        .trim();
+                    return { ...it, descripcion: cleanDesc, nombre: cleanNombre };
+                };
+                if (Array.isArray(parsed.items)) {
+                    parsed.items = parsed.items.map(cleanItem);
+                }
+                if (parsed.documento && Array.isArray(parsed.documento.detalles)) {
+                    parsed.documento.detalles = parsed.documento.detalles.map(cleanItem);
+                }
+                return { ...t, urlImagen: JSON.stringify(parsed) };
+            } catch {
+                return t;
+            }
+        });
+
+        return NextResponse.json({ trabajos: trabajosLimpios });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
