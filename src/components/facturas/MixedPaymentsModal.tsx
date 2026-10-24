@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { HONDURAS_BANKS } from '@/components/cxc/ModalAbono';
 
 export interface MixedPayment {
   id: string;
@@ -124,23 +125,33 @@ export default function MixedPaymentsModal({
                 
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Método</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Método</label>
                     <select
                       value={p.metodo}
-                      onChange={(e) => handleChange(p.id, 'metodo', e.target.value)}
+                      onChange={(e) => {
+                        const newMetodo = e.target.value;
+                        setPayments(payments.map(item => item.id === p.id ? {
+                          ...item,
+                          metodo: newMetodo,
+                          banco: newMetodo === 'Efectivo' ? '' : item.banco
+                        } : item));
+                      }}
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Transferencia Bancaria">Transferencia Bancaria</option>
-                      <option value="Tarjeta de Crédito/Débito">Tarjeta de Crédito/Débito</option>
-                      <option value="Link de Pago">Link de Pago</option>
-                      <option value="Cheque">Cheque</option>
+                      <option value="Efectivo">💵 Efectivo</option>
+                      <option value="Transferencia Bancaria">🏦 Transferencia Bancaria</option>
+                      <option value="Depósito Bancario">🏦 Depósito Bancario</option>
+                      <option value="Tarjeta de Crédito/Débito">💳 Tarjeta de Crédito/Débito</option>
+                      <option value="Link de Pago">🔗 Link de Pago</option>
+                      <option value="Tigo Money">📱 Tigo Money</option>
+                      <option value="Cheque">📄 Cheque</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Monto (L.)</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monto (L.)</label>
                     <input
                       type="number"
+                      step="0.01"
                       value={p.monto === 0 ? '' : p.monto}
                       onChange={(e) => handleChange(p.id, 'monto', parseFloat(e.target.value) || 0)}
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500"
@@ -148,12 +159,38 @@ export default function MixedPaymentsModal({
                   </div>
                 </div>
 
-                {p.metodo !== 'Efectivo' && (
+                {p.metodo !== 'Efectivo' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Banco Destino</label>
+                      <select
+                        value={p.banco || ''}
+                        onChange={(e) => handleChange(p.id, 'banco', e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Seleccionar Banco --</option>
+                        {HONDURAS_BANKS.map(b => (
+                          <option key={b.id} value={b.name}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1"># Referencia / Voucher</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: 984521"
+                        value={p.referencia}
+                        onChange={(e) => handleChange(p.id, 'referencia', e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                ) : (
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Referencia / Banco</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1"># Referencia / Recibo (Opcional)</label>
                     <input
                       type="text"
-                      placeholder="Ej: Ref #123456 Banco Atlántida"
+                      placeholder="Ej: Recibo manual #0045 (opcional)"
                       value={p.referencia}
                       onChange={(e) => handleChange(p.id, 'referencia', e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500"

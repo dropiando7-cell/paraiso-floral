@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2, FileSpreadsheet, Lock, ShieldCheck, Filter, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail, Clock, Package, Loader2, FileSpreadsheet, Lock, ShieldCheck, Filter, ChevronDown, ChevronUp, Calendar, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -10,6 +10,7 @@ import SendEmailModal from '@/components/facturas/SendEmailModal';
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
+import { HONDURAS_BANKS } from '@/components/cxc/ModalAbono';
 import { isCredito, getDiasCredito, calcularFechaVencimiento, isEnvioItem, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 
@@ -28,6 +29,14 @@ export interface DocumentRecord {
   clienteRtn: string;
   total: number;
   metodoPago?: string | null;
+  pagoBanco?: string | null;
+  pagoReferencia?: string | null;
+  pagosMixtos?: {
+    metodoPago: string;
+    monto: number;
+    banco?: string | null;
+    referencia?: string | null;
+  }[];
   aliasVenta?: string;
   vendedorNombre?: string | null;
   transferenciaConfirmada?: boolean;
@@ -70,10 +79,43 @@ export default function DocumentListTable({
   const [docForSupervisorAuth, setDocForSupervisorAuth] = useState<DocumentRecord | null>(null);
   const [openMenuDocId, setOpenMenuDocId] = useState<string | null>(null);
   const [docToMarkPaid, setDocToMarkPaid] = useState<DocumentRecord | null>(null);
-  const [pagoRapidoMethod, setPagoRapidoMethod] = useState('Efectivo');
+  const [pagoRapidoMethod, setPagoRapidoMethod] = useState('Transferencia');
+  const [pagoRapidoBanco, setPagoRapidoBanco] = useState('');
+  const [pagoRapidoReferencia, setPagoRapidoReferencia] = useState('');
+  const [pagoRapidoNotas, setPagoRapidoNotas] = useState('');
+  const [pagoRapidoFecha, setPagoRapidoFecha] = useState(() => new Date().toISOString().split('T')[0]);
+  const [pagoBankDropdownOpen, setPagoBankDropdownOpen] = useState(false);
+  const [pagoBankSearchQuery, setPagoBankSearchQuery] = useState('');
+  const pagoBankDropdownRef = useRef<HTMLDivElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [docForRevertAuth, setDocForRevertAuth] = useState<DocumentRecord | null>(null);
   const [showMixedPaymentsModal, setShowMixedPaymentsModal] = useState(false);
+
+  // Resetear campos de referencia y banco al abrir/cerrar el modal de Registrar Pago
+  useEffect(() => {
+    if (docToMarkPaid) {
+      setPagoRapidoBanco('');
+      setPagoRapidoReferencia('');
+      setPagoRapidoNotas('');
+      setPagoRapidoFecha(new Date().toISOString().split('T')[0]);
+      setPagoBankDropdownOpen(false);
+      setPagoBankSearchQuery('');
+    }
+  }, [docToMarkPaid]);
+
+  useEffect(() => {
+    if (!pagoBankDropdownOpen) {
+      setPagoBankSearchQuery('');
+      return;
+    }
+    const handleOutsideBankClick = (event: MouseEvent) => {
+      if (pagoBankDropdownRef.current && !pagoBankDropdownRef.current.contains(event.target as Node)) {
+        setPagoBankDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideBankClick);
+    return () => document.removeEventListener('mousedown', handleOutsideBankClick);
+  }, [pagoBankDropdownOpen]);
 
   // Cerrar menú de acciones contextual al hacer clic fuera
   useEffect(() => {
@@ -286,7 +328,12 @@ export default function DocumentListTable({
     setIsMarkingPaid(true);
     const toastId = toast.loading('Registrando pago y liquidando factura...');
     try {
-      const res = await registrarPagoRapido(id, pagoRapidoMethod, pagosMixtosArray);
+      const res = await registrarPagoRapido(id, pagoRapidoMethod, pagosMixtosArray, {
+        banco: pagoRapidoBanco,
+        referencia: pagoRapidoReferencia,
+        notas: pagoRapidoNotas,
+        fechaPago: pagoRapidoFecha,
+      });
       if (res.success) {
         toast.success('Factura marcada como pagada correctamente', { id: toastId });
         setDocToMarkPaid(null);
@@ -371,6 +418,14 @@ export default function DocumentListTable({
 
       // 4. Productos / Detalles de la factura
       if (doc.detalles && doc.detalles.some(d => d.descripcion.toLowerCase().includes(q))) return true;
+
+      // 5. Referencia bancaria o Banco del pago
+      if (doc.pagoReferencia && doc.pagoReferencia.toLowerCase().includes(q)) return true;
+      if (doc.pagoBanco && doc.pagoBanco.toLowerCase().includes(q)) return true;
+      if (doc.pagosMixtos && doc.pagosMixtos.some(pm =>
+        (pm.referencia && pm.referencia.toLowerCase().includes(q)) ||
+        (pm.banco && pm.banco.toLowerCase().includes(q))
+      )) return true;
 
       return false;
     });
@@ -1129,7 +1184,14 @@ export default function DocumentListTable({
                     </p>
                   ) : (
                     <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mt-0.5 whitespace-nowrap">
-                      Contado
+                      Contado{doc.metodoPago && doc.metodoPago !== 'Contado' ? ` • ${doc.metodoPago}` : ''}
+                    </p>
+                  )}
+                  {(doc.pagoBanco || doc.pagoReferencia) && (
+                    <p className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded mt-1 inline-flex items-center gap-1 whitespace-nowrap">
+                      {doc.pagoBanco ? <span>🏦 {doc.pagoBanco}</span> : null}
+                      {doc.pagoBanco && doc.pagoReferencia ? <span>•</span> : null}
+                      {doc.pagoReferencia ? <span className="font-mono">Ref: {doc.pagoReferencia}</span> : null}
                     </p>
                   )}
                 </td>
@@ -1499,55 +1561,292 @@ export default function DocumentListTable({
         </div>
       )}
 
-      {/* Modal Confirmar Pago Rápido */}
-      {docToMarkPaid && (
-        <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
-             <div className="flex items-center gap-3 text-emerald-600">
-               <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold">
-                 <CheckCircle2 size={20} />
-               </div>
-               <div>
-                 <h3 className="font-extrabold text-slate-900 text-base">Registrar Pago</h3>
-                 <p className="text-xs text-slate-500 font-mono">{docToMarkPaid.correlativo}</p>
-               </div>
-             </div>
-             
-             <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-3">
-               <div className="flex justify-between items-center text-sm">
-                 <span className="text-slate-500 font-medium">Monto a cancelar:</span>
-                 <span className="font-black text-emerald-700">{fmt(docToMarkPaid.saldoPendiente ?? docToMarkPaid.total)}</span>
-               </div>
-               
-               <div className="space-y-1.5">
-                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Método de Pago</label>
-                 <select 
-                   value={pagoRapidoMethod}
-                   onChange={e => setPagoRapidoMethod(e.target.value)}
-                   className="w-full bg-white border border-slate-200 text-slate-900 text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
-                 >
-                   <option value="Efectivo">💵 Efectivo</option>
-                   <option value="Transferencia">🏦 Transferencia / Depósito</option>
-                   <option value="Tarjeta">💳 Tarjeta de Crédito/Débito</option>
-                   <option value="Link de Pago">🔗 Link de Pago</option>
-                   <option value="MIXTO">🧮 Pago Dividido / Mixto</option>
-                 </select>
-               </div>
-             </div>
+      {/* Modal Confirmar Pago Rápido (Con campos condicionales tipo CxC: Banco, Referencia, Fecha, Notas) */}
+      {docToMarkPaid && (() => {
+        const isEfectivoMethod = pagoRapidoMethod.toLowerCase().trim() === 'efectivo';
+        const isMixtoMethod = pagoRapidoMethod === 'MIXTO';
+        const filteredPagoBanks = HONDURAS_BANKS.filter(b =>
+          b.name.toLowerCase().includes(pagoBankSearchQuery.toLowerCase())
+        );
 
-             <p className="text-[11px] text-amber-700 bg-amber-50 p-3 rounded-xl font-medium border border-amber-200 flex gap-2 items-start leading-tight">
-                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                <span>
-                  <strong>IMPORTANTE:</strong> Esta acción cambiará el estado de la factura e ingresará el dinero. Revertirlo después requerirá un PIN de Autorización de Gerencia.
-                </span>
-             </p>
+        const getReferenceLabel = () => {
+          switch (pagoRapidoMethod) {
+            case 'Tarjeta':
+              return '# Autorización / Voucher POS';
+            case 'Link de Pago':
+              return '# Referencia / ID Link de Pago';
+            case 'Cheque':
+              return '# Número de Cheque';
+            case 'Tigo Money':
+              return '# Transacción Tigo Money';
+            case 'Depósito Bancario':
+              return '# Boleta / Comprobante Depósito';
+            default:
+              return '# Referencia / Transacción';
+          }
+        };
 
-             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        const getReferencePlaceholder = () => {
+          switch (pagoRapidoMethod) {
+            case 'Tarjeta':
+              return 'Ej: Aut. 458912 / Lote 04';
+            case 'Link de Pago':
+              return 'Ej: Link #774125';
+            case 'Cheque':
+              return 'Ej: Cheque #001245';
+            case 'Tigo Money':
+              return 'Ej: TM-884512';
+            default:
+              return 'Ej: 984521';
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-[2000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95">
+              {/* Header */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                    <CheckCircle2 size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-white text-base leading-tight">Registrar Pago de Factura</h3>
+                    <p className="text-xs text-emerald-100 font-mono truncate max-w-[260px]">
+                      {docToMarkPaid.correlativo} • {docToMarkPaid.clienteNombre}
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setDocToMarkPaid(null)}
                   disabled={isMarkingPaid}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl disabled:opacity-50"
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+                {/* Resumen Monto y Fecha */}
+                <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-900 block">Monto a cancelar</span>
+                    <span className="text-[11px] text-slate-500">Liquidación total de la factura</span>
+                  </div>
+                  <span className="text-xl font-black text-emerald-700">
+                    {fmt(docToMarkPaid.saldoPendiente ?? docToMarkPaid.total)}
+                  </span>
+                </div>
+
+                {/* Selector de Método y Fecha */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Método de Pago *
+                    </label>
+                    <select 
+                      value={pagoRapidoMethod}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setPagoRapidoMethod(val);
+                        if (val.toLowerCase() === 'efectivo' || val === 'MIXTO') {
+                          setPagoBankDropdownOpen(false);
+                        }
+                      }}
+                      className="w-full bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-xl px-3 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                      <option value="Efectivo">💵 Efectivo en Caja</option>
+                      <option value="Tarjeta">💳 Tarjeta de Crédito/Débito</option>
+                      <option value="Link de Pago">🔗 Link de Pago</option>
+                      <option value="Depósito Bancario">🏦 Depósito Bancario</option>
+                      <option value="Tigo Money">📱 Tigo Money</option>
+                      <option value="Cheque">📄 Cheque</option>
+                      <option value="MIXTO">🧮 Pago Dividido / Mixto</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                      <span>Fecha del Pago</span>
+                      <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Modificable</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={pagoRapidoFecha}
+                      onChange={(e) => setPagoRapidoFecha(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Campos Dinámicos según el Método de Pago (Igual que en CxC) */}
+                {isMixtoMethod ? (
+                  <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 space-y-1">
+                    <p className="font-bold">🧮 Desglose de Pago Dividido / Mixto</p>
+                    <p className="text-[11px] text-blue-700">
+                      Al pulsar <strong>&quot;Configurar Desglose Mixto&quot;</strong> podrás dividir el monto en varios métodos (Efectivo, Transferencia, Tarjeta, etc.) e ingresar el banco y referencia de cada transacción.
+                    </p>
+                  </div>
+                ) : !isEfectivoMethod ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    {/* Selector Inteligente de Banco Destino con Logos */}
+                    <div className="relative" ref={pagoBankDropdownRef}>
+                      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Banco / Procesador</span>
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase">Opcional</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setPagoBankDropdownOpen(!pagoBankDropdownOpen)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none font-medium flex items-center justify-between gap-2 shadow-2xs cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          {(() => {
+                            const foundBank = HONDURAS_BANKS.find(b => b.name.toLowerCase() === pagoRapidoBanco.toLowerCase());
+                            if (foundBank) {
+                              return (
+                                <>
+                                  <div className="w-5 h-5 rounded bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+                                    <img src={foundBank.logo} alt={foundBank.name} className="w-full h-full object-contain" />
+                                  </div>
+                                  <span className="font-extrabold text-slate-900 truncate">{foundBank.name}</span>
+                                </>
+                              );
+                            }
+                            if (pagoRapidoBanco) {
+                              return (
+                                <>
+                                  <Building2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  <span className="font-extrabold text-slate-900 truncate">{pagoRapidoBanco}</span>
+                                </>
+                              );
+                            }
+                            return <span className="text-slate-400 font-medium">Seleccionar Banco...</span>;
+                          })()}
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                      </button>
+
+                      {pagoBankDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-56 overflow-y-auto p-1.5 space-y-1 animate-in fade-in zoom-in-95">
+                          <div className="sticky top-0 bg-white pb-1.5 pt-0.5 px-1 z-10 border-b border-slate-100 mb-1">
+                            <input
+                              type="text"
+                              placeholder="Buscar banco..."
+                              value={pagoBankSearchQuery}
+                              onChange={(e) => setPagoBankSearchQuery(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium"
+                              autoFocus
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPagoRapidoBanco('');
+                              setPagoBankDropdownOpen(false);
+                            }}
+                            className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                              !pagoRapidoBanco
+                                ? 'bg-slate-100 text-slate-900 border border-slate-300'
+                                : 'hover:bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            <span className="truncate">-- Sin especificar banco --</span>
+                          </button>
+                          {filteredPagoBanks.length === 0 ? (
+                            <p className="text-center text-slate-400 text-xs py-3 font-semibold">No se encontraron bancos</p>
+                          ) : (
+                            filteredPagoBanks.map((b) => (
+                              <button
+                                type="button"
+                                key={b.id}
+                                onClick={() => {
+                                  setPagoRapidoBanco(b.name);
+                                  setPagoBankDropdownOpen(false);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                                  pagoRapidoBanco.toLowerCase() === b.name.toLowerCase()
+                                    ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                                    : 'hover:bg-slate-100 text-slate-800'
+                                }`}
+                              >
+                                <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0 shadow-2xs">
+                                  <img src={b.logo} alt={b.name} className="w-full h-full object-contain" />
+                                </div>
+                                <span className="truncate">{b.name}</span>
+                                {pagoRapidoBanco.toLowerCase() === b.name.toLowerCase() && (
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 ml-auto shrink-0" />
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Referencia / Transacción */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {getReferenceLabel()}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={getReferencePlaceholder()}
+                        value={pagoRapidoReferencia}
+                        onChange={(e) => setPagoRapidoReferencia(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none font-bold"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span># Referencia / N° Recibo Físico</span>
+                      <span className="text-[9px] text-slate-400 font-semibold uppercase">Opcional</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Recibo manual #0045 (opcional)"
+                      value={pagoRapidoReferencia}
+                      onChange={(e) => setPagoRapidoReferencia(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                    />
+                  </div>
+                )}
+
+                {/* Notas Explicativas */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>Notas / Observaciones del Pago</span>
+                    <span className="text-[9px] text-slate-400 font-semibold uppercase">Opcional</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ej: Comprobante enviado por WhatsApp, depositado por familiar..."
+                    value={pagoRapidoNotas}
+                    onChange={(e) => setPagoRapidoNotas(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                  />
+                </div>
+
+                <p className="text-[11px] text-amber-700 bg-amber-50 p-3 rounded-xl font-medium border border-amber-200 flex gap-2 items-start leading-tight">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <span>
+                    <strong>IMPORTANTE:</strong> Esta acción cambiará el estado de la factura e ingresará el dinero con su referencia. Revertirlo después requerirá un PIN de Autorización de Gerencia.
+                  </span>
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDocToMarkPaid(null)}
+                  disabled={isMarkingPaid}
+                  className="px-4 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl disabled:opacity-50 cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1555,15 +1854,16 @@ export default function DocumentListTable({
                   type="button"
                   onClick={() => handleMarcarPagada()}
                   disabled={isMarkingPaid}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isMarkingPaid ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                  <span>Registrar Pago</span>
+                  <span>{isMixtoMethod ? 'Configurar Desglose Mixto' : 'Registrar Pago'}</span>
                 </button>
-             </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal Opciones de Impresión */}
       {docToPrint && (

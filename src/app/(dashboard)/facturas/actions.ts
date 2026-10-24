@@ -2167,8 +2167,16 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 detallesPago: {
                     include: {
                         pago: {
-                            select: { metodoPago: true, anulado: true }
+                            select: { metodoPago: true, banco: true, referencia: true, notas: true, anulado: true }
                         }
+                    }
+                },
+                pagosMixtos: {
+                    select: {
+                        metodoPago: true,
+                        monto: true,
+                        banco: true,
+                        referencia: true
                     }
                 },
                 cliente: {
@@ -2193,6 +2201,13 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
         return docs.map(doc => {
             const sarMeta = resolveFacturaSarMetadata(doc);
             const montoSaldoFavorAplicado = extractSaldoFavorAplicado(doc);
+            const activePagosCxc = (doc.detallesPago || [])
+                .map(dp => dp.pago)
+                .filter(p => p && !p.anulado && String(p.metodoPago || '').toUpperCase() !== 'MONEDERO');
+            const firstMixto = (doc.pagosMixtos || [])[0];
+            const firstCxc = activePagosCxc[0];
+            const pagoBanco = firstCxc?.banco || firstMixto?.banco || null;
+            const pagoReferencia = firstCxc?.referencia || firstMixto?.referencia || null;
             return {
                 id: doc.id,
                 correlativo: doc.correlativo,
@@ -2210,6 +2225,14 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 montoSaldoFavorAplicado,
                 notas: doc.notas,
                 metodoPago: doc.metodoPago,
+                pagoBanco,
+                pagoReferencia,
+                pagosMixtos: (doc.pagosMixtos || []).map(pm => ({
+                    metodoPago: pm.metodoPago,
+                    monto: Number(pm.monto),
+                    banco: pm.banco,
+                    referencia: pm.referencia
+                })),
                 aliasVenta: doc.aliasVenta,
                 vendedorNombre: doc.vendedorNombre,
                 transferenciaConfirmada: doc.transferenciaConfirmada,
@@ -2251,7 +2274,11 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 { cliente: { nombre: { contains: q, mode: 'insensitive' } } },
                 { cliente: { rtn: { contains: q, mode: 'insensitive' } } },
                 { vendedorNombre: { contains: q, mode: 'insensitive' } },
-                { detalles: { some: { descripcion: { contains: q, mode: 'insensitive' } } } }
+                { detalles: { some: { descripcion: { contains: q, mode: 'insensitive' } } } },
+                { pagosMixtos: { some: { referencia: { contains: q, mode: 'insensitive' } } } },
+                { pagosMixtos: { some: { banco: { contains: q, mode: 'insensitive' } } } },
+                { detallesPago: { some: { pago: { referencia: { contains: q, mode: 'insensitive' } } } } },
+                { detallesPago: { some: { pago: { banco: { contains: q, mode: 'insensitive' } } } } }
             ]
         };
 
@@ -2284,8 +2311,16 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 detallesPago: {
                     include: {
                         pago: {
-                            select: { metodoPago: true, anulado: true }
+                            select: { metodoPago: true, banco: true, referencia: true, notas: true, anulado: true }
                         }
+                    }
+                },
+                pagosMixtos: {
+                    select: {
+                        metodoPago: true,
+                        monto: true,
+                        banco: true,
+                        referencia: true
                     }
                 },
                 cliente: {
@@ -2310,6 +2345,13 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
         return docs.map(doc => {
             const sarMeta = resolveFacturaSarMetadata(doc);
             const montoSaldoFavorAplicado = extractSaldoFavorAplicado(doc);
+            const activePagosCxc = (doc.detallesPago || [])
+                .map(dp => dp.pago)
+                .filter(p => p && !p.anulado && String(p.metodoPago || '').toUpperCase() !== 'MONEDERO');
+            const firstMixto = (doc.pagosMixtos || [])[0];
+            const firstCxc = activePagosCxc[0];
+            const pagoBanco = firstCxc?.banco || firstMixto?.banco || null;
+            const pagoReferencia = firstCxc?.referencia || firstMixto?.referencia || null;
             return {
                 id: doc.id,
                 correlativo: doc.correlativo,
@@ -2327,6 +2369,14 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 montoSaldoFavorAplicado,
                 notas: doc.notas,
                 metodoPago: doc.metodoPago,
+                pagoBanco,
+                pagoReferencia,
+                pagosMixtos: (doc.pagosMixtos || []).map(pm => ({
+                    metodoPago: pm.metodoPago,
+                    monto: Number(pm.monto),
+                    banco: pm.banco,
+                    referencia: pm.referencia
+                })),
                 aliasVenta: doc.aliasVenta,
                 vendedorNombre: doc.vendedorNombre,
                 transferenciaConfirmada: doc.transferenciaConfirmada,
@@ -2351,7 +2401,7 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
 }
 
 // --- CONFIRMAR TRANSFERENCIA ---
-export async function confirmarTransferencia(id: string) {
+export async function confirmarTransferencia(id: string, extraDetails?: { banco?: string; referencia?: string }) {
     try {
         const user = await getAuthenticatedUser();
         const doc = await prisma.factura.findUnique({ where: { id } });
@@ -2360,15 +2410,31 @@ export async function confirmarTransferencia(id: string) {
         }
 
         const esCred = isCredito(doc.terminosPago);
+        const cleanBanco = extraDetails?.banco?.trim() || null;
+        const cleanRef = extraDetails?.referencia?.trim() || null;
 
-        await prisma.factura.update({
-            where: { id },
-            data: { 
-                transferenciaConfirmada: true,
-                ...(!esCred ? {
-                    estadoPago: 'PAGADA',
-                    saldoPendiente: 0
-                } : {})
+        await prisma.$transaction(async (tx) => {
+            await tx.factura.update({
+                where: { id },
+                data: { 
+                    transferenciaConfirmada: true,
+                    ...(!esCred ? {
+                        estadoPago: 'PAGADA',
+                        saldoPendiente: 0
+                    } : {})
+                }
+            });
+
+            if (cleanBanco || cleanRef) {
+                await tx.facturaMetodoPago.create({
+                    data: {
+                        facturaId: doc.id,
+                        metodoPago: doc.metodoPago || 'Transferencia',
+                        monto: Number(doc.total),
+                        banco: cleanBanco,
+                        referencia: cleanRef
+                    }
+                });
             }
         });
 
@@ -2377,8 +2443,8 @@ export async function confirmarTransferencia(id: string) {
             organizationId: user.organizationId,
             action: 'UPDATE',
             module: '/facturas',
-            description: `Confirmó transferencia de factura ${doc.correlativo}`,
-            metadata: { facturaId: id }
+            description: `Confirmó transferencia de factura ${doc.correlativo}${cleanBanco ? ` (${cleanBanco})` : ''}${cleanRef ? ` Ref: ${cleanRef}` : ''}`,
+            metadata: { facturaId: id, banco: cleanBanco, referencia: cleanRef }
         });
 
         revalidatePath('/facturas');
@@ -3674,7 +3740,17 @@ export async function saveFacturaSeguridadConfig(data: {
 
 
 // --- REGISTRAR PAGO RÁPIDO DESDE HISTORIAL ---
-export async function registrarPagoRapido(facturaId: string, metodoPago: string, pagosMixtosArray?: any[]) {
+export async function registrarPagoRapido(
+    facturaId: string,
+    metodoPago: string,
+    pagosMixtosArray?: any[],
+    extraDetails?: {
+        banco?: string;
+        referencia?: string;
+        notas?: string;
+        fechaPago?: string;
+    }
+) {
     try {
         const user = await getAuthenticatedUser();
         const doc = await prisma.factura.findUnique({ where: { id: facturaId }, include: { cliente: true } });
@@ -3692,6 +3768,13 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string,
             throw new Error('La factura ya está pagada.');
         }
 
+        const isEfectivo = metodoPago.toLowerCase().trim() === 'efectivo';
+        const cleanBanco = isEfectivo ? null : (extraDetails?.banco?.trim() || null);
+        const cleanReferencia = extraDetails?.referencia?.trim() || null;
+        const cleanNotas = extraDetails?.notas?.trim() || null;
+        const parsedFecha = extraDetails?.fechaPago ? new Date(`${extraDetails.fechaPago}T12:00:00`) : new Date();
+        const fechaPagoFinal = isNaN(parsedFecha.getTime()) ? new Date() : parsedFecha;
+
         // Buscar caja activa
         const cajaActiva = await prisma.corteCajaSession.findFirst({
             where: {
@@ -3703,9 +3786,29 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string,
 
         const isSameSession = cajaActiva && doc.cajaSessionId === cajaActiva.id;
 
+        const countPagosBase = await prisma.pagoCliente.count({
+            where: { organizationId: user.organizationId }
+        });
+
         await prisma.$transaction(async (tx) => {
             if (isSameSession) {
                 // Si la factura es del mismo turno, se convierte directamente a venta de contado
+                const metodosToCreate = (pagosMixtosArray && pagosMixtosArray.length > 0)
+                    ? pagosMixtosArray.map(p => ({
+                        metodoPago: p.metodo,
+                        monto: Number(p.monto),
+                        referencia: p.referencia?.trim() || null,
+                        banco: p.banco?.trim() || null,
+                    }))
+                    : (cleanBanco || cleanReferencia)
+                        ? [{
+                            metodoPago: metodoPago,
+                            monto: saldoActual,
+                            referencia: cleanReferencia,
+                            banco: cleanBanco,
+                        }]
+                        : [];
+
                 await tx.factura.update({
                     where: { id: doc.id },
                     data: {
@@ -3713,30 +3816,34 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string,
                         metodoPago: metodoPago,
                         saldoPendiente: 0,
                         estadoPago: 'PAGADA',
-                        ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {}),
-                        ...(pagosMixtosArray && pagosMixtosArray.length > 0 ? {
-                             pagosMixtos: {
-                                 create: pagosMixtosArray.map(p => ({
-                                     metodoPago: p.metodo,
-                                     monto: Number(p.monto),
-                                     referencia: p.referencia || null,
-                                     banco: p.banco || null,
-                                 }))
-                             }
+                        ...(metodoPago.toUpperCase().includes('TRANSFERENCIA') || metodoPago.toUpperCase().includes('DEPÓSITO') || metodoPago.toUpperCase().includes('DEPOSITO') ? { transferenciaConfirmada: true } : {}),
+                        ...(metodosToCreate.length > 0 ? {
+                            pagosMixtos: {
+                                create: metodosToCreate
+                            }
                         } : {})
                     }
                 });
             } else {
-                // Si la factura es de un turno anterior, se genera un Abono (CxC)
+                // Si la factura es de un turno anterior, se genera un Abono (CxC) con sus datos de banco y referencia
                 if (pagosMixtosArray && pagosMixtosArray.length > 0) {
+                    let seq = countPagosBase + 1;
                     for (const p of pagosMixtosArray) {
+                        const correlativoAbono = `AB-${String(seq++).padStart(5, '0')}`;
+                        const pIsEfectivo = String(p.metodo || '').toLowerCase().trim() === 'efectivo';
                         await tx.pagoCliente.create({
                             data: {
                                 organizationId: user.organizationId,
                                 clienteId: doc.clienteId,
+                                correlativo: correlativoAbono,
                                 monto: Number(p.monto),
-                                metodoPago: p.metodo.toUpperCase(),
-                                notas: `Pago mixto registrado desde Historial de Facturas`,
+                                fecha: fechaPagoFinal,
+                                metodoPago: p.metodo,
+                                banco: pIsEfectivo ? null : (p.banco?.trim() || null),
+                                referencia: p.referencia?.trim() || null,
+                                notas: cleanNotas
+                                    ? `${cleanNotas} (Pago mixto desde Historial de Facturas)`
+                                    : `Pago mixto registrado desde Historial de Facturas`,
                                 creadoPorId: user.id,
                                 cajaSessionId: cajaActiva ? cajaActiva.id : null,
                                 detalles: {
@@ -3749,13 +3856,18 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string,
                         });
                     }
                 } else {
-                    const abono = await tx.pagoCliente.create({
+                    const correlativoAbono = `AB-${String(countPagosBase + 1).padStart(5, '0')}`;
+                    await tx.pagoCliente.create({
                         data: {
                             organizationId: user.organizationId,
                             clienteId: doc.clienteId,
+                            correlativo: correlativoAbono,
                             monto: saldoActual,
-                            metodoPago: metodoPago.toUpperCase(),
-                            notas: 'Pago rápido registrado desde Historial de Facturas',
+                            fecha: fechaPagoFinal,
+                            metodoPago: metodoPago,
+                            banco: cleanBanco,
+                            referencia: cleanReferencia,
+                            notas: cleanNotas || 'Pago registrado desde Historial de Facturas',
                             creadoPorId: user.id,
                             cajaSessionId: cajaActiva ? cajaActiva.id : null,
                             detalles: {
@@ -3768,25 +3880,56 @@ export async function registrarPagoRapido(facturaId: string, metodoPago: string,
                     });
                 }
 
+                const metodosToCreate = (pagosMixtosArray && pagosMixtosArray.length > 0)
+                    ? pagosMixtosArray.map(p => ({
+                        metodoPago: p.metodo,
+                        monto: Number(p.monto),
+                        referencia: p.referencia?.trim() || null,
+                        banco: p.banco?.trim() || null,
+                    }))
+                    : (cleanBanco || cleanReferencia)
+                        ? [{
+                            metodoPago: metodoPago,
+                            monto: saldoActual,
+                            referencia: cleanReferencia,
+                            banco: cleanBanco,
+                        }]
+                        : [];
+
                 await tx.factura.update({
                     where: { id: doc.id },
                     data: {
                         saldoPendiente: 0,
                         estadoPago: 'PAGADA',
-                        ...(metodoPago.toUpperCase() === 'TRANSFERENCIA' ? { transferenciaConfirmada: true } : {})
+                        ...(metodoPago.toUpperCase().includes('TRANSFERENCIA') || metodoPago.toUpperCase().includes('DEPÓSITO') || metodoPago.toUpperCase().includes('DEPOSITO') ? { transferenciaConfirmada: true } : {}),
+                        ...(metodosToCreate.length > 0 ? {
+                            pagosMixtos: {
+                                create: metodosToCreate
+                            }
+                        } : {})
                     }
                 });
             }
         });
 
+        const refDesc = [
+            cleanBanco ? `Banco: ${cleanBanco}` : null,
+            cleanReferencia ? `Ref: ${cleanReferencia}` : null
+        ].filter(Boolean).join(', ');
 
         await logActivity({
             userId: user.id,
             organizationId: user.organizationId,
             action: 'UPDATE',
             module: '/facturas',
-            description: `Registró pago rápido por ${saldoActual} (Método: ${metodoPago}) a factura ${doc.correlativo}`,
-            metadata: { facturaId: doc.id }
+            description: `Registró pago por L. ${saldoActual.toFixed(2)} (Método: ${metodoPago}${refDesc ? ` - ${refDesc}` : ''}) a factura ${doc.correlativo}`,
+            metadata: {
+                facturaId: doc.id,
+                metodoPago,
+                banco: cleanBanco,
+                referencia: cleanReferencia,
+                notas: cleanNotas
+            }
         });
 
         revalidatePath('/facturas');
@@ -3822,6 +3965,11 @@ export async function revertirPagoFactura(facturaId: string) {
                     });
                 }
             }
+
+            // Limpiar desglose de métodos de pago registrados en la factura
+            await tx.facturaMetodoPago.deleteMany({
+                where: { facturaId: doc.id }
+            });
 
             // Actualizar Factura a Pendiente (vuelve a ser Crédito)
             await tx.factura.update({
