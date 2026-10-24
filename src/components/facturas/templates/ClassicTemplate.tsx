@@ -481,6 +481,18 @@ export default function ClassicTemplate(props: TemplateProps) {
  <span className="font-bold uppercase text-slate-800">TOTAL L.</span>
  <span className={`${totalSizeClass} font-bold ${monoClass} ${baseColor}`} style={totalStyle}>{fmt(totals.total)}</span>
  </div>
+ {(props.montoSaldoFavorAplicado || 0) > 0 && (
+   <div className="mt-2 pt-2 border-t border-dashed border-emerald-300 space-y-1">
+     <div className="flex justify-between items-center text-xs font-bold text-emerald-700">
+       <span>(-) Saldo a Favor Aplicado L.</span>
+       <span className={monoClass}>-{fmt(props.montoSaldoFavorAplicado || 0)}</span>
+     </div>
+     <div className="flex justify-between items-center text-sm font-black text-slate-900 bg-emerald-50 px-2 py-1 rounded">
+       <span>NETO A PAGAR L.</span>
+       <span className={monoClass}>{fmt(Math.max(0, totals.total - (props.montoSaldoFavorAplicado || 0)))}</span>
+     </div>
+   </div>
+ )}
  </div>
 
  {!viewMode && (

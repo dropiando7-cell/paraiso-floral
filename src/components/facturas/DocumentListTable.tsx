@@ -10,7 +10,7 @@ import SendEmailModal from '@/components/facturas/SendEmailModal';
 import ReportesContablesModal from '@/components/facturas/ReportesContablesModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import MixedPaymentsModal from '@/components/facturas/MixedPaymentsModal';
-import { isCredito, getDiasCredito, calcularFechaVencimiento, isEnvioItem } from '@/utils/facturaUtils';
+import { isCredito, getDiasCredito, calcularFechaVencimiento, isEnvioItem, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 
 export interface DocumentRecord {
@@ -1729,6 +1729,23 @@ export default function DocumentListTable({
                              <span>TOTAL:</span>
                              <span>L {Number(ticketPreview.total || 0).toFixed(2)}</span>
                          </div>
+                         {(() => {
+                             const sfAplicado = Number((ticketPreview as any).montoSaldoFavorAplicado || extractSaldoFavorAplicado(ticketPreview) || 0);
+                             if (sfAplicado <= 0) return null;
+                             const netoPagar = Math.max(0, Number(ticketPreview.total || 0) - sfAplicado);
+                             return (
+                                 <>
+                                     <div className="flex justify-between w-[70%] text-xs font-bold border-t border-dashed border-black pt-1 mt-1">
+                                         <span>(-) SALDO A FAVOR:</span>
+                                         <span>-L {sfAplicado.toFixed(2)}</span>
+                                     </div>
+                                     <div className="flex justify-between w-[70%] font-bold text-sm">
+                                         <span>NETO A PAGAR:</span>
+                                         <span>L {netoPagar.toFixed(2)}</span>
+                                     </div>
+                                 </>
+                             );
+                         })()}
                      </div>
                      <div className="text-center">
                          *** GRACIAS POR SU COMPRA ***<br/>

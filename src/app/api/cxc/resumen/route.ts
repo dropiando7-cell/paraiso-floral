@@ -125,6 +125,8 @@ export async function GET(request: Request) {
             where: { anulado: false },
             select: {
               monto: true,
+              metodoPago: true,
+              notas: true,
               detalles: {
                 select: {
                   facturaId: true,

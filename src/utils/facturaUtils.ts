@@ -105,11 +105,55 @@ export interface PagoCxCInput {
   id?: string;
   monto?: any;
   fecha?: Date | string;
+  metodoPago?: string | null;
+  notas?: string | null;
   detalles?: Array<{
     facturaId: string;
     montoAplicado?: any;
   }>;
   [key: string]: any;
+}
+
+/**
+ * Extrae el monto de excedente que fue enviado al Monedero Virtual desde un abono CXC.
+ */
+export function extractExcedenteMonedero(notas?: string | null): number {
+  if (!notas) return 0;
+  const match = String(notas).match(/\[MONEDERO:\+(\d+(?:\.\d+)?)\]/i);
+  return match ? Number(match[1]) || 0 : 0;
+}
+
+/**
+ * Extrae el monto de Saldo a Favor (Monedero) aplicado a una factura.
+ */
+export function extractSaldoFavorAplicado(facturaOrNotas?: any): number {
+  if (!facturaOrNotas) return 0;
+  if (typeof facturaOrNotas === 'object') {
+    if (typeof facturaOrNotas.montoSaldoFavorAplicado === 'number' && facturaOrNotas.montoSaldoFavorAplicado > 0) {
+      return facturaOrNotas.montoSaldoFavorAplicado;
+    }
+    if (Array.isArray(facturaOrNotas.detallesPago) && facturaOrNotas.detallesPago.length > 0) {
+      const sumMonedero = facturaOrNotas.detallesPago.reduce((acc: number, dp: any) => {
+        const metodo = dp?.pago?.metodoPago || dp?.metodoPago || '';
+        const anulado = dp?.pago?.anulado === true;
+        if (!anulado && String(metodo).toUpperCase() === 'MONEDERO') {
+          return acc + (Number(dp.montoAplicado) || 0);
+        }
+        return acc;
+      }, 0);
+      if (sumMonedero > 0) return Number(sumMonedero.toFixed(2));
+    }
+  }
+  const notas = typeof facturaOrNotas === 'string' ? facturaOrNotas : (facturaOrNotas.notas || '');
+  if (!notas) return 0;
+  const tagMatch = String(notas).match(/\[SALDO_FAVOR_APLICADO:(\d+(?:\.\d+)?)\]/i);
+  if (tagMatch) return Number(tagMatch[1]) || 0;
+  const textMatch = String(notas).match(/SALDO A FAVOR APLICADO:\s*\(-\)\s*(?:L\.?|HNL)?\s*([\d,]+(?:\.\d+)?)/i);
+  if (textMatch) {
+    const val = Number(textMatch[1].replace(/,/g, ''));
+    return isNaN(val) ? 0 : val;
+  }
+  return 0;
 }
 
 export interface NotaCreditoCxCInput {
@@ -139,7 +183,11 @@ export function calcularEstadoCuentaClienteCxC(params: {
   notasCredito: NotaCreditoCxCInput[];
 }) {
   const sInicial = Number(params.saldoInicial || 0);
-  const totalPagosCxc = (params.pagos || []).reduce((sum, p) => sum + Number(p.monto || 0), 0);
+  const totalPagosCxc = (params.pagos || []).reduce((sum, p) => {
+    const montoBruto = Number(p.monto || 0);
+    const excedenteMonedero = extractExcedenteMonedero(p.notas);
+    return sum + Math.max(0, montoBruto - excedenteMonedero);
+  }, 0);
   const totalNotasCredito = (params.notasCredito || []).reduce((sum, n) => sum + Number(n.monto || 0), 0);
 
   const abonosAplicados = (params.pagos || []).reduce(
@@ -182,20 +230,20 @@ export function calcularEstadoCuentaClienteCxC(params: {
     let restante = Math.max(0, total - cubiertoDirecto);
     let cubiertoLibre = 0;
 
-    // Si hay crédito libre de un abono manual en CXC, aplicarlo primero para jamás duplicar abonos manuales
-    if (restante > 0 && creditoDisponible > 0) {
-      cubiertoLibre = Math.min(restante, creditoDisponible);
-      restante = Math.max(0, restante - cubiertoLibre);
-      creditoDisponible = Math.max(0, creditoDisponible - cubiertoLibre);
-    }
-
     // Si la factura fue pagada directamente en Facturación (Contado / Caja / Transferencia confirmada),
-    // el monto restante se reconoce como Pago en Facturación
+    // el monto restante se reconoce como Pago en Facturación (sin absorber abonos libres de CXC)
     let pagadoEnFacturacion = 0;
     if (esFacturaPagadaEnFacturacion(f) && restante > 0) {
       pagadoEnFacturacion = Number(restante.toFixed(2));
       totalPagadoEnFacturacion += pagadoEnFacturacion;
       restante = 0;
+    }
+
+    // Si es factura de crédito y hay crédito libre en CXC, aplicarlo en orden FIFO
+    if (restante > 0 && creditoDisponible > 0) {
+      cubiertoLibre = Math.min(restante, creditoDisponible);
+      restante = Math.max(0, restante - cubiertoLibre);
+      creditoDisponible = Math.max(0, creditoDisponible - cubiertoLibre);
     }
 
     const saldo = restante <= 0.01 ? 0 : Number(restante.toFixed(2));

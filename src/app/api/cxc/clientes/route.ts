@@ -172,6 +172,8 @@ export async function GET(request: Request) {
             id: true,
             monto: true,
             fecha: true,
+            metodoPago: true,
+            notas: true,
             detalles: {
               select: {
                 facturaId: true,

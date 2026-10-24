@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { logActivity } from '@/lib/activity-logger';
 import crypto from 'crypto';
-import { isCredito, getDiasCredito, calcularFechaVencimiento } from '@/utils/facturaUtils';
+import { isCredito, getDiasCredito, calcularFechaVencimiento, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 import {
     hydrateSarConfigWithDefaultQueue,
     resolveSarRolloverForNextSequence,
@@ -1002,13 +1002,42 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     const esNotaCreditoUpdate = nuevoTipo === 'NOTA_CREDITO';
                     const esCreditoUpdate = !esNotaCreditoUpdate && isCredito(data.terminosPago);
 
+                    // --- APLICACIÓN DE SALDO A FAVOR (MONEDERO VIRTUAL) AL EMITIR BORRADOR COMO FACTURA ---
+                    let montoSaldoFavorUpdate = 0;
+                    let saldoFavorPrevioClienteUpdate = 0;
+                    let clienteNombreMonederoUpdate = '';
+                    if (isTransitioningFromBorrador && nuevoTipo === 'FACTURA' && Number(data.montoSaldoFavorAplicado) > 0) {
+                        const clienteActual = await tx.cliente.findUnique({
+                            where: { id: clienteId },
+                            select: { saldoFavor: true, nombre: true }
+                        });
+                        saldoFavorPrevioClienteUpdate = Number(clienteActual?.saldoFavor || 0);
+                        clienteNombreMonederoUpdate = clienteActual?.nombre || '';
+                        if (saldoFavorPrevioClienteUpdate > 0) {
+                            montoSaldoFavorUpdate = Number(
+                                Math.min(Number(data.montoSaldoFavorAplicado), saldoFavorPrevioClienteUpdate, Number(data.total || 0)).toFixed(2)
+                            );
+                        }
+                    }
+
+                    const totalAfterSaldoFavorUpdate = Math.max(0, Number((Number(data.total || 0) - montoSaldoFavorUpdate).toFixed(2)));
+                    const isUnconfirmedTransferUpdate = !esCreditoUpdate && data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada);
+
+                    let notasConSaldoFavorUpdate = data.notas || null;
+                    if (montoSaldoFavorUpdate > 0) {
+                        const tagSaldoFavor = `SALDO A FAVOR APLICADO: (-) L ${montoSaldoFavorUpdate.toLocaleString('es-HN', { minimumFractionDigits: 2 })} | NETO A COBRAR: L ${totalAfterSaldoFavorUpdate.toLocaleString('es-HN', { minimumFractionDigits: 2 })} [SALDO_FAVOR_APLICADO:${montoSaldoFavorUpdate.toFixed(2)}]`;
+                        if (!notasConSaldoFavorUpdate || !notasConSaldoFavorUpdate.includes('[SALDO_FAVOR_APLICADO:')) {
+                            notasConSaldoFavorUpdate = notasConSaldoFavorUpdate ? `${notasConSaldoFavorUpdate}\n${tagSaldoFavor}` : tagSaldoFavor;
+                        }
+                    }
+
                     const docActualizado = await tx.factura.update({
                 where: { id },
                 data: {
                     clienteId,
                     correlativo: nuevoCorrelativo,
                     ...sarFieldsUpdate,
-                    notas: data.notas || null,
+                    notas: notasConSaldoFavorUpdate,
 
                     terminosPago: esNotaCreditoUpdate ? 'Nota de Crédito' : (data.terminosPago || null),
                     validezDias: Number(data.validezDias) || 30,
@@ -1018,13 +1047,19 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     saldoPendiente: esNotaCreditoUpdate
                         ? 0
                         : (esCreditoUpdate
-                            ? (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) > 0 && Number(docExistente.saldoPendiente) <= Number(data.total) ? docExistente.saldoPendiente : data.total)
-                            : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? data.total : 0)),
+                            ? (montoSaldoFavorUpdate > 0
+                                ? totalAfterSaldoFavorUpdate
+                                : (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) > 0 && Number(docExistente.saldoPendiente) <= Number(data.total) ? docExistente.saldoPendiente : data.total))
+                            : (isUnconfirmedTransferUpdate ? totalAfterSaldoFavorUpdate : 0)),
                     estadoPago: esNotaCreditoUpdate
                         ? 'PAGADA'
                         : (esCreditoUpdate
-                            ? (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' && Number(docExistente.saldoPendiente) === 0 && Number(data.total) === 0 ? 'PAGADA' : 'PENDIENTE'))
-                            : (data.metodoPago === 'Transferencia' && !(data.transferenciaConfirmada ?? docExistente.transferenciaConfirmada) ? 'PENDIENTE' : 'PAGADA')),
+                            ? (montoSaldoFavorUpdate > 0
+                                ? (totalAfterSaldoFavorUpdate <= 0.01 ? 'PAGADA' : 'PARCIAL')
+                                : (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' && Number(docExistente.saldoPendiente) === 0 && Number(data.total) === 0 ? 'PAGADA' : 'PENDIENTE')))
+                            : (isUnconfirmedTransferUpdate
+                                ? (montoSaldoFavorUpdate > 0 && totalAfterSaldoFavorUpdate > 0.01 ? 'PARCIAL' : (totalAfterSaldoFavorUpdate <= 0.01 ? 'PAGADA' : 'PENDIENTE'))
+                                : 'PAGADA')),
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -1122,6 +1157,56 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 });
             } else {
                 await tx.facturaMetodoPago.deleteMany({ where: { facturaId: id } });
+            }
+
+            if (montoSaldoFavorUpdate > 0) {
+                const nuevoSaldoFavorClienteUpdate = Math.max(0, Number((saldoFavorPrevioClienteUpdate - montoSaldoFavorUpdate).toFixed(2)));
+                await tx.cliente.update({
+                    where: { id: clienteId },
+                    data: { saldoFavor: nuevoSaldoFavorClienteUpdate }
+                });
+                const countPagosUpdate = await tx.pagoCliente.count({ where: { organizationId } });
+                const correlativoAbonoUpdate = `AB-${String(countPagosUpdate + 1).padStart(5, '0')}`;
+                const pagoMonederoUpdate = await tx.pagoCliente.create({
+                    data: {
+                        organizationId,
+                        clienteId,
+                        correlativo: correlativoAbonoUpdate,
+                        monto: montoSaldoFavorUpdate,
+                        metodoPago: 'MONEDERO',
+                        notas: `Aplicación de Saldo a Favor (${esCreditoUpdate ? 'Crédito' : 'Contado'}) en Factura ${nuevoCorrelativo}`,
+                        creadoPorId: user.id,
+                        cajaSessionId: docExistente.cajaSessionId || activeCajaId || null,
+                        detalles: {
+                            create: {
+                                facturaId: id,
+                                montoAplicado: montoSaldoFavorUpdate
+                            }
+                        }
+                    }
+                });
+                await tx.activityLog.create({
+                    data: {
+                        organizationId,
+                        userId: user.id,
+                        action: 'MONEDERO_CARGO',
+                        module: '/cxc/monedero',
+                        description: `Uso de saldo a favor en Factura ${nuevoCorrelativo} (${esCreditoUpdate ? 'Crédito' : 'Contado'}) (${clienteNombreMonederoUpdate}): -L. ${montoSaldoFavorUpdate.toFixed(2)}`,
+                        metadata: {
+                            clienteId,
+                            clienteNombre: clienteNombreMonederoUpdate,
+                            tipo: 'CARGO',
+                            monto: montoSaldoFavorUpdate,
+                            saldoAnterior: saldoFavorPrevioClienteUpdate,
+                            saldoNuevo: nuevoSaldoFavorClienteUpdate,
+                            motivo: `Aplicado en Factura ${nuevoCorrelativo} (${esCreditoUpdate ? 'Crédito' : 'Contado'})`,
+                            referencia: nuevoCorrelativo,
+                            facturaId: id,
+                            pagoId: pagoMonederoUpdate.id,
+                            registradoPor: user.fullName || user.email
+                        }
+                    }
+                });
             }
 
             // Manejo preciso de inventario en actualizaciones:
@@ -1369,6 +1454,46 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             // Crear el documento — el correlativo se genera DESPUÉS del create (usa numeroInterno auto)
             const esNotaCreditoNuevo = data.tipoDocumento === 'NOTA_CREDITO';
             const esCreditoNuevo = !esNotaCreditoNuevo && isCredito(data.terminosPago);
+
+            // Verificar Saldo a Favor a aplicar si es FACTURA emitida
+            let montoSaldoFavor = 0;
+            let saldoFavorDisponibleCliente = 0;
+            if (data.tipoDocumento === 'FACTURA' && data.estado !== 'BORRADOR' && Number(data.montoSaldoFavorAplicado) > 0) {
+                const cliInfo = await tx.cliente.findUnique({
+                    where: { id: clienteId },
+                    select: { saldoFavor: true }
+                });
+                saldoFavorDisponibleCliente = Math.max(0, Number(cliInfo?.saldoFavor || 0));
+                montoSaldoFavor = Number(
+                    Math.min(Number(data.montoSaldoFavorAplicado) || 0, saldoFavorDisponibleCliente, Number(data.total) || 0).toFixed(2)
+                );
+            }
+
+            const totalFacturaNum = Number(data.total) || 0;
+            const restanteTrasSaldoFavor = Math.max(0, Number((totalFacturaNum - montoSaldoFavor).toFixed(2)));
+            const esPendienteCobro = esCreditoNuevo || (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada);
+
+            let saldoPendienteCalculado = esNotaCreditoNuevo
+                ? 0
+                : (data.tipoDocumento === 'FACTURA'
+                    ? (esPendienteCobro ? restanteTrasSaldoFavor : 0)
+                    : totalFacturaNum);
+
+            let estadoPagoCalculado = esNotaCreditoNuevo
+                ? 'PAGADA'
+                : (data.tipoDocumento === 'FACTURA'
+                    ? (esPendienteCobro
+                        ? (restanteTrasSaldoFavor <= 0.01 ? 'PAGADA' : (montoSaldoFavor > 0 ? 'PARCIAL' : 'PENDIENTE'))
+                        : 'PAGADA')
+                    : 'PENDIENTE');
+
+            let notasFinalesDoc = data.notas || '';
+            if (montoSaldoFavor > 0 && !String(notasFinalesDoc).includes('SALDO A FAVOR APLICADO')) {
+                const fmtMoney = (v: number) => `L. ${v.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const textoDescuento = `SALDO A FAVOR APLICADO: (-) ${fmtMoney(montoSaldoFavor)}. Restante pagado/por pagar: ${fmtMoney(restanteTrasSaldoFavor)}. [SALDO_FAVOR_APLICADO:${montoSaldoFavor.toFixed(2)}]`;
+                notasFinalesDoc = notasFinalesDoc ? `${notasFinalesDoc}\n${textoDescuento}` : textoDescuento;
+            }
+
             const nuevoDoc = await tx.factura.create({
                 data: {
                     organizationId,
@@ -1376,22 +1501,14 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     correlativo: 'TEMP', // Temporal — se actualiza abajo con el numeroInterno real
                     tipoDocumento: data.tipoDocumento,
                     estado: data.estado || ((data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE'),
-                    notas: data.notas || null,
+                    notas: notasFinalesDoc || null,
                     terminosPago: esNotaCreditoNuevo ? 'Nota de Crédito' : (data.terminosPago || null),
                     validezDias: Number(data.validezDias) || 30,
                     fechaVencimiento: esCreditoNuevo
                         ? calcularFechaVencimiento(new Date(), data.terminosPago, Number(data.validezDias) || 30)
                         : null,
-                    saldoPendiente: esNotaCreditoNuevo
-                        ? 0
-                        : (data.tipoDocumento === 'FACTURA'
-                            ? (esCreditoNuevo ? data.total : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? data.total : 0))
-                            : (Number(data.total) || 0)),
-                    estadoPago: esNotaCreditoNuevo
-                        ? 'PAGADA'
-                        : (data.tipoDocumento === 'FACTURA'
-                            ? (esCreditoNuevo ? 'PENDIENTE' : (data.metodoPago === 'Transferencia' && !data.transferenciaConfirmada ? 'PENDIENTE' : 'PAGADA'))
-                            : 'PENDIENTE'),
+                    saldoPendiente: saldoPendienteCalculado,
+                    estadoPago: estadoPagoCalculado,
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -1501,6 +1618,57 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     ...sarUpdateData
                 }
             });
+
+            // Procesar aplicación de Saldo a Favor / Monedero si se aplicó en esta factura
+            if (montoSaldoFavor > 0) {
+                const nuevoSaldoFavor = Math.max(0, Number((saldoFavorDisponibleCliente - montoSaldoFavor).toFixed(2)));
+                await tx.cliente.update({
+                    where: { id: clienteId },
+                    data: { saldoFavor: nuevoSaldoFavor }
+                });
+
+                const countPagos = await tx.pagoCliente.count({ where: { organizationId } });
+                const correlativoAbono = `AB-${String(countPagos + 1).padStart(5, '0')}`;
+
+                await tx.pagoCliente.create({
+                    data: {
+                        organizationId,
+                        clienteId,
+                        correlativo: correlativoAbono,
+                        monto: montoSaldoFavor,
+                        metodoPago: 'MONEDERO',
+                        notas: `Aplicación de Saldo a Favor a factura ${correlativoFinal}`,
+                        creadoPorId,
+                        cajaSessionId,
+                        detalles: {
+                            create: {
+                                facturaId: nuevoDoc.id,
+                                montoAplicado: montoSaldoFavor
+                            }
+                        }
+                    }
+                });
+
+                await tx.activityLog.create({
+                    data: {
+                        organizationId,
+                        userId: creadoPorId,
+                        action: 'MONEDERO_CARGO',
+                        module: '/cxc/monedero',
+                        description: `Saldo a favor restado L. ${montoSaldoFavor.toFixed(2)} en Factura ${correlativoFinal} (${esCreditoNuevo ? 'Crédito' : 'Contado'}). Restante a cobrar: L. ${restanteTrasSaldoFavor.toFixed(2)}`,
+                        metadata: {
+                            clienteId,
+                            monto: -montoSaldoFavor,
+                            saldoAnterior: saldoFavorDisponibleCliente,
+                            saldoNuevo: nuevoSaldoFavor,
+                            motivo: `Aplicado en Factura ${correlativoFinal} (${esCreditoNuevo ? 'Crédito' : 'Contado'})`,
+                            facturaId: nuevoDoc.id,
+                            facturaCorrelativo: correlativoFinal,
+                            usuario: nombreUsuario || 'Sistema'
+                        }
+                    }
+                });
+            }
 
             // Si es NOTA_CREDITO emitida, registrar automáticamente en CXC (NotaCreditoCliente) y descontar del saldo
             if (esNotaCreditoNuevo && data.estado !== 'BORRADOR') {
@@ -1939,6 +2107,14 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 numeroCAI: true,
                 rangoAutorizado: true,
                 fechaLimiteEmision: true,
+                notas: true,
+                detallesPago: {
+                    include: {
+                        pago: {
+                            select: { metodoPago: true, anulado: true }
+                        }
+                    }
+                },
                 cliente: {
                     select: {
                         nombre: true,
@@ -1960,6 +2136,7 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
         
         return docs.map(doc => {
             const sarMeta = resolveFacturaSarMetadata(doc);
+            const montoSaldoFavorAplicado = extractSaldoFavorAplicado(doc);
             return {
                 id: doc.id,
                 correlativo: doc.correlativo,
@@ -1974,6 +2151,8 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 clienteNombre: doc.cliente?.nombre || 'Desconocido',
                 clienteRtn: doc.cliente?.rtn || '',
                 total: Number(doc.total),
+                montoSaldoFavorAplicado,
+                notas: doc.notas,
                 metodoPago: doc.metodoPago,
                 aliasVenta: doc.aliasVenta,
                 vendedorNombre: doc.vendedorNombre,
@@ -2045,6 +2224,14 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 numeroCAI: true,
                 rangoAutorizado: true,
                 fechaLimiteEmision: true,
+                notas: true,
+                detallesPago: {
+                    include: {
+                        pago: {
+                            select: { metodoPago: true, anulado: true }
+                        }
+                    }
+                },
                 cliente: {
                     select: {
                         nombre: true,
@@ -2066,6 +2253,7 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
 
         return docs.map(doc => {
             const sarMeta = resolveFacturaSarMetadata(doc);
+            const montoSaldoFavorAplicado = extractSaldoFavorAplicado(doc);
             return {
                 id: doc.id,
                 correlativo: doc.correlativo,
@@ -2080,6 +2268,8 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 clienteNombre: doc.cliente?.nombre || 'Desconocido',
                 clienteRtn: doc.cliente?.rtn || '',
                 total: Number(doc.total),
+                montoSaldoFavorAplicado,
+                notas: doc.notas,
                 metodoPago: doc.metodoPago,
                 aliasVenta: doc.aliasVenta,
                 vendedorNombre: doc.vendedorNombre,
@@ -2181,6 +2371,13 @@ export async function getDocumentoById(id: string) {
                     include: {
                         producto: true,
                         activo: true
+                    }
+                },
+                detallesPago: {
+                    include: {
+                        pago: {
+                            select: { metodoPago: true, anulado: true }
+                        }
                     }
                 },
                 pagosMixtos: true,
@@ -2296,6 +2493,7 @@ export async function getDocumentoById(id: string) {
         doc.detalles = sortDetallesByMetadataOrden(detailsWithRecoveredData);
 
         const safeDoc = JSON.parse(JSON.stringify(doc));
+        safeDoc.montoSaldoFavorAplicado = extractSaldoFavorAplicado(safeDoc);
         if (safeDoc.tipoDocumento === 'FACTURA') {
             const sarMeta = resolveFacturaSarMetadata(safeDoc);
             safeDoc.numeroCAI = safeDoc.numeroCAI || sarMeta.numeroCAI;
@@ -2379,6 +2577,57 @@ export async function anularDocumento(id: string) {
                     anuladaPorId: dbUser.id
                 }
             });
+
+            // 1.5 Si esta factura tenía Saldo a Favor (MONEDERO) aplicado, devolverlo al monedero del cliente y anular el recibo interno
+            const detallesMonedero = await tx.pagoDetalleFactura.findMany({
+                where: { facturaId: id },
+                include: { pago: true }
+            });
+            for (const dm of detallesMonedero) {
+                if (dm.pago && !dm.pago.anulado && String(dm.pago.metodoPago || '').toUpperCase() === 'MONEDERO') {
+                    const montoDevolver = Number(dm.montoAplicado || 0);
+                    await tx.pagoCliente.update({
+                        where: { id: dm.pago.id },
+                        data: {
+                            anulado: true,
+                            anuladoAt: new Date(),
+                            anuladoPorId: dbUser.id,
+                            motivoAnulacion: `Anulación de factura ${doc.correlativo}`
+                        }
+                    });
+                    if (montoDevolver > 0) {
+                        const cliAct = await tx.cliente.findUnique({
+                            where: { id: doc.clienteId },
+                            select: { saldoFavor: true, nombre: true }
+                        });
+                        const saldoAnt = Number(cliAct?.saldoFavor || 0);
+                        const saldoNuevo = Number((saldoAnt + montoDevolver).toFixed(2));
+                        await tx.cliente.update({
+                            where: { id: doc.clienteId },
+                            data: { saldoFavor: saldoNuevo }
+                        });
+                        await tx.activityLog.create({
+                            data: {
+                                organizationId,
+                                userId: dbUser.id,
+                                action: 'MONEDERO_ABONO',
+                                module: '/cxc/monedero',
+                                description: `Reintegro de L. ${montoDevolver.toFixed(2)} a Saldo a Favor por anulación de Factura ${doc.correlativo}`,
+                                metadata: {
+                                    clienteId: doc.clienteId,
+                                    monto: montoDevolver,
+                                    saldoAnterior: saldoAnt,
+                                    saldoNuevo,
+                                    motivo: `Reintegro por anulación de Factura ${doc.correlativo}`,
+                                    facturaId: doc.id,
+                                    facturaCorrelativo: doc.correlativo,
+                                    usuario: [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ')
+                                }
+                            }
+                        });
+                    }
+                }
+            }
 
             // 2. Si el documento había descontado inventario (Facturas o Proformas), devolverlo. Si era Nota de Crédito, volver a descontar y anular en CXC.
             if (doc.tipoDocumento === 'NOTA_CREDITO') {

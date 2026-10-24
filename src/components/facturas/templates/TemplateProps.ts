@@ -62,4 +62,5 @@ export interface TemplateProps {
   LineItemRowComponent: React.FC<any>;
   setSettings?: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
   onToggleTerms?: (enabled: boolean) => void;
+  montoSaldoFavorAplicado?: number;
 }

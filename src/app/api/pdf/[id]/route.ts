@@ -9,6 +9,7 @@ import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import HistorialPDF from '@/components/pdf/HistorialPDF';
 import { getInvoicePDFFileName } from '@/utils/pdfName';
 import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
+import { extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
@@ -584,7 +585,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         cliente: true,
         creadoPor: true,
         ordenTrabajo: true,
-        ordenEntrega: true
+        ordenEntrega: true,
+        detallesPago: {
+          include: {
+            pago: {
+              select: { metodoPago: true, anuladoAt: true }
+            }
+          }
+        }
       }
     });
 
@@ -795,7 +803,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       paymentTerms: doc.terminosPago || 'Pago inmediato',
       paymentMethod: doc.metodoPago || 'Efectivo',
       docType: resolvedDocType,
-      notes: cleanEmojis(doc.notas || ''),
+      notes: cleanEmojis((doc.notas || '').replace(/\s*\[SALDO_FAVOR_APLICADO:[\d.]+\]/g, '')),
+      montoSaldoFavorAplicado: extractSaldoFavorAplicado(doc),
       lineItems,
       totals,
       today: (() => {

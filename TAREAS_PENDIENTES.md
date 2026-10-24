@@ -1,6 +1,9 @@
-# Tareas Pendientes: Módulo de Pedidos
+# Tareas Pendientes: Módulo de Pedidos y CEDI
 
 *Documento creado para retomar el trabajo cuando haya descanso y mente fresca.*
+
+> **📌 PLAN MAESTRO ACTUALIZADO (CEDI Sin WhatsApp + Inventario Serializado Ramificado `010055-XXXX`):**  
+> Ver el diseño completo en [`docs/PLAN_CEDI_WMS_SERIALIZADO.md`](file:///Users/macbookpro/Documents/paraiso-floral/docs/PLAN_CEDI_WMS_SERIALIZADO.md) (se implementará inmediatamente después de cerrar la fase de CxC de Lucio e Isamara).
 
 ## 1. Decodificador de Pedidos con IA (Human-in-the-loop)
 - [ ] Crear el botón "✨ Pegar desde WhatsApp" en el módulo de pedidos (`inventario-ventas/pedidos`).

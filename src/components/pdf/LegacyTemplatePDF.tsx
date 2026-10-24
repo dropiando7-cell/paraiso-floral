@@ -848,6 +848,22 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                 {fmt ? fmt(totals?.total || 0) : String(totals?.total || 0)}
               </Text>
             </View>
+            {(Number(data.montoSaldoFavorAplicado) || 0) > 0 && (
+              <View style={{ marginTop: 3, borderWidth: 1, borderColor: '#059669', borderRadius: 2 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 3, backgroundColor: '#ecfdf5' }}>
+                  <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: '#065f46' }}>(-) Saldo a Favor Aplicado</Text>
+                  <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: '#065f46' }}>
+                    -{fmt ? fmt(Number(data.montoSaldoFavorAplicado) || 0) : String(Number(data.montoSaldoFavorAplicado) || 0)}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 4, backgroundColor: '#047857' }}>
+                  <Text style={{ fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: '#ffffff' }}>NETO A PAGAR</Text>
+                  <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#ffffff' }}>
+                    {fmt ? fmt(Math.max(0, (totals?.total || 0) - (Number(data.montoSaldoFavorAplicado) || 0))) : String(Math.max(0, (totals?.total || 0) - (Number(data.montoSaldoFavorAplicado) || 0)))}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
 

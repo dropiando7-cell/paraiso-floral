@@ -516,6 +516,18 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={`font-black ${theme.accentText} tabular-nums leading-none ${isTotalNum ? '' : 'text-2xl'}`} style={totalStyle}>{fmt(totals.total)}</span>
  </div>
  </div>
+ {(props.montoSaldoFavorAplicado || 0) > 0 && (
+   <div className="mt-2.5 pt-2.5 border-t border-dashed border-emerald-300 space-y-1.5">
+     <div className="flex justify-between items-center text-xs font-bold text-emerald-700">
+       <span>(-) Saldo a Favor Aplicado L.</span>
+       <span className="font-mono">-{fmt(props.montoSaldoFavorAplicado || 0)}</span>
+     </div>
+     <div className="flex justify-between items-center text-sm font-black text-emerald-950 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
+       <span>NETO A PAGAR L.</span>
+       <span className="font-mono">{fmt(Math.max(0, totals.total - (props.montoSaldoFavorAplicado || 0)))}</span>
+     </div>
+   </div>
+ )}
  </div>
 
  {/* CTA */}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { extractExcedenteMonedero } from '@/utils/facturaUtils';
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
 
     const dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
-      select: { id: true, organizationId: true }
+      select: { id: true, organizationId: true, nombre: true, apellido: true }
     });
 
     if (!dbUser?.organizationId) {
@@ -131,17 +132,21 @@ export async function POST(request: Request) {
         });
 
         if (clienteData && Number(clienteData.saldoInicial || 0) > 0) {
-          const totalPastPagos = await tx.pagoCliente.aggregate({
+          const pastPagosList = await tx.pagoCliente.findMany({
             where: { clienteId, organizationId: orgId, anulado: false, id: { not: pagoCreado.id } },
-            _sum: { monto: true }
+            select: { monto: true, notas: true }
           });
+          const totalPastPagosNeto = pastPagosList.reduce(
+            (acc, p) => acc + Math.max(0, Number(p.monto || 0) - extractExcedenteMonedero(p.notas)),
+            0
+          );
           const totalPastAllocations = await tx.pagoDetalleFactura.aggregate({
             where: { pago: { clienteId, organizationId: orgId, anulado: false, id: { not: pagoCreado.id } } },
             _sum: { montoAplicado: true }
           });
           const pastAppliedToSInicial = Math.max(
             0,
-            Number(totalPastPagos._sum.monto || 0) - Number(totalPastAllocations._sum.montoAplicado || 0)
+            totalPastPagosNeto - Number(totalPastAllocations._sum.montoAplicado || 0)
           );
           const sInicialActual = Math.max(0, Number(clienteData.saldoInicial) - pastAppliedToSInicial);
           saldoDisponible -= Math.min(saldoDisponible, sInicialActual);
@@ -182,6 +187,51 @@ export async function POST(request: Request) {
             saldoDisponible -= montoAplicar;
           }
         }
+      }
+
+      // 3. Si después de cubrir toda la deuda pendiente aún sobra dinero, sumarlo al Monedero Virtual (saldoFavor)
+      const excedente = Number(saldoDisponible.toFixed(2));
+      if (excedente >= 0.01) {
+        const cliActual = await tx.cliente.findUnique({
+          where: { id: clienteId },
+          select: { saldoFavor: true, nombre: true }
+        });
+        const saldoFavorAnterior = Number(cliActual?.saldoFavor || 0);
+        const nuevoSaldoFavor = Number((saldoFavorAnterior + excedente).toFixed(2));
+
+        await tx.cliente.update({
+          where: { id: clienteId },
+          data: { saldoFavor: nuevoSaldoFavor }
+        });
+
+        const tagExcedente = `Excedente a Saldo a Favor: L. ${excedente.toFixed(2)} [MONEDERO:+${excedente.toFixed(2)}]`;
+        const notasFinales = notas ? `${notas} · ${tagExcedente}` : tagExcedente;
+
+        await tx.pagoCliente.update({
+          where: { id: pagoCreado.id },
+          data: { notas: notasFinales }
+        });
+        pagoCreado.notas = notasFinales;
+
+        await tx.activityLog.create({
+          data: {
+            organizationId: orgId,
+            userId: dbUser.id,
+            action: 'MONEDERO_ABONO',
+            module: '/cxc/monedero',
+            description: `Saldo a favor agregado L. ${excedente.toFixed(2)} a ${cliActual?.nombre || cliente.nombre}. Motivo: Excedente en Abono ${correlativo}`,
+            metadata: {
+              clienteId,
+              monto: excedente,
+              saldoAnterior: saldoFavorAnterior,
+              saldoNuevo: nuevoSaldoFavor,
+              motivo: `Excedente en Abono ${correlativo}`,
+              pagoId: pagoCreado.id,
+              correlativoAbono: correlativo,
+              usuario: [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ')
+            }
+          }
+        });
       }
 
       return pagoCreado;

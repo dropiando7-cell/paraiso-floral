@@ -101,6 +101,18 @@ export default function TicketTemplate(props: TemplateProps) {
         <div className="flex w-full justify-between font-black text-sm uppercase mt-1 border-t border-black pt-1">
           <span>TOTAL:</span><span>{fmt(totals.total)}</span>
         </div>
+        {(props.montoSaldoFavorAplicado || 0) > 0 && (
+          <div className="w-full mt-1 pt-1 border-t border-dashed border-black flex flex-col gap-0.5">
+            <div className="flex w-full justify-between text-[10px] font-bold">
+              <span>(-) SALDO A FAVOR:</span>
+              <span>-{fmt(props.montoSaldoFavorAplicado || 0)}</span>
+            </div>
+            <div className="flex w-full justify-between font-black text-xs uppercase">
+              <span>NETO A PAGAR:</span>
+              <span>{fmt(Math.max(0, totals.total - (props.montoSaldoFavorAplicado || 0)))}</span>
+            </div>
+          </div>
+        )}
         
         {props.paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
           <div className="w-full mt-2 pt-2 border-t border-dashed border-gray-400">

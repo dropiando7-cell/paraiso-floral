@@ -488,6 +488,18 @@ export default function LegacyTemplate(props: TemplateProps) {
   <span className="font-bold print:font-black" style={totalLabelStyle}>TOTAL</span>
   <span className={`font-bold print:font-black ${totalSizeClass} ${monoClass}`} style={totalStyle}>{fmt(totals.total)}</span>
   </div>
+  {(props.montoSaldoFavorAplicado || 0) > 0 && (
+    <div className="mt-1 border border-emerald-600/40 rounded-sm overflow-hidden">
+      <div className="flex justify-between items-center px-2.5 py-1 bg-emerald-50/70 border-b border-emerald-200 text-emerald-800">
+        <span className="text-[11px] font-bold">(-) Saldo a Favor Aplicado</span>
+        <span className={`text-[11px] font-bold ${monoClass}`}>-{fmt(props.montoSaldoFavorAplicado || 0)}</span>
+      </div>
+      <div className="flex justify-between items-center px-2.5 py-1 bg-emerald-700 text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+        <span className="text-xs font-extrabold uppercase">NETO A PAGAR</span>
+        <span className={`text-sm font-black ${monoClass}`}>{fmt(Math.max(0, totals.total - (props.montoSaldoFavorAplicado || 0)))}</span>
+      </div>
+    </div>
+  )}
   </div>
  </div>
  </div>

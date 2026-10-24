@@ -360,6 +360,18 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <span className="text-[11px] text-slate-400 uppercase mb-1">Total L.</span>
  <span className={`text-2xl font-light ${themeText}`}>{fmt(totals.total)}</span>
  </div>
+ {(props.montoSaldoFavorAplicado || 0) > 0 && (
+   <div className="mt-2 pt-2 border-t border-slate-200 space-y-1">
+     <div className="flex justify-between text-xs text-emerald-700 font-medium">
+       <span>(-) Saldo a Favor Aplicado L.</span>
+       <span>-{fmt(props.montoSaldoFavorAplicado || 0)}</span>
+     </div>
+     <div className="flex justify-between text-sm font-bold text-slate-900">
+       <span>Neto a Pagar L.</span>
+       <span>{fmt(Math.max(0, totals.total - (props.montoSaldoFavorAplicado || 0)))}</span>
+     </div>
+   </div>
+ )}
  </div>
 
  {!viewMode && (

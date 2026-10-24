@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { extractExcedenteMonedero } from '@/utils/facturaUtils';
+
+function stripMonederoTagFromNotas(notas?: string | null): string {
+  if (!notas) return '';
+  return String(notas)
+    .replace(/\s*·?\s*Excedente a Saldo a Favor:\s*L\.\s*[\d.,]+\s*\[MONEDERO:\+[\d.]+\]/gi, '')
+    .replace(/\s*\[MONEDERO:\+[\d.]+\]/gi, '')
+    .trim();
+}
 
 // PATCH /api/cxc/abonos/[id] - Editar Abono existente
 export async function PATCH(
@@ -72,8 +81,24 @@ export async function PATCH(
       // Eliminar detalles previos de este abono
       await tx.pagoDetalleFactura.deleteMany({ where: { pagoId } });
 
+      // Si el abono original había generado excedente al Monedero, revertirlo antes de recalcular
+      const excedentePrevio = extractExcedenteMonedero(pago.notas);
+      if (excedentePrevio > 0) {
+        const cliPrev = await tx.cliente.findUnique({
+          where: { id: pago.clienteId },
+          select: { saldoFavor: true }
+        });
+        const saldoFavorAct = Number(cliPrev?.saldoFavor || 0);
+        const nuevoSaldoRev = Math.max(0, Number((saldoFavorAct - excedentePrevio).toFixed(2)));
+        await tx.cliente.update({
+          where: { id: pago.clienteId },
+          data: { saldoFavor: nuevoSaldoRev }
+        });
+      }
+
       // 2. Actualizar datos del pago
       const fechaObj = fecha ? new Date(fecha) : pago.fecha;
+      const notasBase = stripMonederoTagFromNotas(notas !== undefined ? notas : pago.notas);
 
       const actualizado = await tx.pagoCliente.update({
         where: { id: pagoId },
@@ -83,7 +108,7 @@ export async function PATCH(
           metodoPago: metodoPago || pago.metodoPago,
           banco: banco !== undefined ? banco : pago.banco,
           referencia: referencia !== undefined ? referencia : pago.referencia,
-          notas: notas !== undefined ? notas : pago.notas
+          notas: notasBase || null
         }
       });
 
@@ -94,22 +119,26 @@ export async function PATCH(
       //     queda pendiente según los abonos anteriores NO asignados a facturas.
       const clienteData = await tx.cliente.findUnique({
         where: { id: pago.clienteId },
-        select: { saldoInicial: true }
+        select: { saldoInicial: true, saldoFavor: true, nombre: true }
       });
       const sInicialOriginal = Number(clienteData?.saldoInicial || 0);
 
       if (sInicialOriginal > 0) {
-        const totalOtrosPagos = await tx.pagoCliente.aggregate({
+        const otrosPagosList = await tx.pagoCliente.findMany({
           where: { clienteId: pago.clienteId, organizationId: orgId, anulado: false, id: { not: pagoId } },
-          _sum: { monto: true }
+          select: { monto: true, notas: true }
         });
+        const totalOtrosPagosNeto = otrosPagosList.reduce(
+          (acc, p) => acc + Math.max(0, Number(p.monto || 0) - extractExcedenteMonedero(p.notas)),
+          0
+        );
         const totalOtrasAsignaciones = await tx.pagoDetalleFactura.aggregate({
           where: { pago: { clienteId: pago.clienteId, organizationId: orgId, anulado: false, id: { not: pagoId } } },
           _sum: { montoAplicado: true }
         });
         const yaAplicadoASInicial = Math.max(
           0,
-          Number(totalOtrosPagos._sum.monto || 0) - Number(totalOtrasAsignaciones._sum.montoAplicado || 0)
+          totalOtrosPagosNeto - Number(totalOtrasAsignaciones._sum.montoAplicado || 0)
         );
         const sInicialPendiente = Math.max(0, sInicialOriginal - yaAplicadoASInicial);
         saldoDisponible -= Math.min(saldoDisponible, sInicialPendiente);
@@ -156,6 +185,28 @@ export async function PATCH(
         });
 
         saldoDisponible -= montoAplicar;
+      }
+
+      // 3c. Si queda excedente en el nuevo monto, sumarlo al Monedero Virtual (saldoFavor)
+      const nuevoExcedente = Number(saldoDisponible.toFixed(2));
+      if (nuevoExcedente >= 0.01) {
+        const cliAct = await tx.cliente.findUnique({
+          where: { id: pago.clienteId },
+          select: { saldoFavor: true, nombre: true }
+        });
+        const sAnt = Number(cliAct?.saldoFavor || 0);
+        const sNuevo = Number((sAnt + nuevoExcedente).toFixed(2));
+        await tx.cliente.update({
+          where: { id: pago.clienteId },
+          data: { saldoFavor: sNuevo }
+        });
+        const tagEx = `Excedente a Saldo a Favor: L. ${nuevoExcedente.toFixed(2)} [MONEDERO:+${nuevoExcedente.toFixed(2)}]`;
+        const notasConTag = notasBase ? `${notasBase} · ${tagEx}` : tagEx;
+        await tx.pagoCliente.update({
+          where: { id: pagoId },
+          data: { notas: notasConTag }
+        });
+        actualizado.notas = notasConTag;
       }
 
       // 4. Bitácora de auditoría
@@ -253,6 +304,38 @@ export async function DELETE(
             }
           });
         }
+      }
+
+      // 1.5 Si el abono había enviado un excedente al Monedero Virtual, revertirlo
+      const excedenteAnulado = extractExcedenteMonedero(pago.notas);
+      if (excedenteAnulado > 0) {
+        const cliAnul = await tx.cliente.findUnique({
+          where: { id: pago.clienteId },
+          select: { saldoFavor: true, nombre: true }
+        });
+        const saldoAnt = Number(cliAnul?.saldoFavor || 0);
+        const saldoNuevo = Math.max(0, Number((saldoAnt - excedenteAnulado).toFixed(2)));
+        await tx.cliente.update({
+          where: { id: pago.clienteId },
+          data: { saldoFavor: saldoNuevo }
+        });
+        await tx.activityLog.create({
+          data: {
+            organizationId: orgId,
+            userId: dbUser.id,
+            action: 'MONEDERO_CARGO',
+            module: '/cxc/monedero',
+            description: `Reversión de L. ${excedenteAnulado.toFixed(2)} de Saldo a Favor por anulación de Abono ${pago.correlativo || pago.id}`,
+            metadata: {
+              clienteId: pago.clienteId,
+              monto: -excedenteAnulado,
+              saldoAnterior: saldoAnt,
+              saldoNuevo,
+              motivo: `Anulación de Abono ${pago.correlativo || pago.id}: ${motivo}`,
+              usuario: [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ')
+            }
+          }
+        });
       }
 
       // 2. Marcar como anulado (borrado lógico con trazabilidad)

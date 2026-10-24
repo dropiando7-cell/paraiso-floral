@@ -20,7 +20,7 @@ import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import { captureAndProcessInvoiceImage } from '@/utils/invoiceImageUtils';
 import SignatureCanvas from 'react-signature-canvas';
-import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 import Fuse from 'fuse.js';
 import { useFloating, autoUpdate, flip, shift, offset, FloatingPortal } from '@floating-ui/react';
@@ -2544,6 +2544,8 @@ export default function DocumentBuilderClient({
     }
   }, [docType, editMode, viewMode, isLocked]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [saldoFavorCliente, setSaldoFavorCliente] = useState(0);
+  const [aplicarSaldoFavor, setAplicarSaldoFavor] = useState(true);
   const [clientPriceHistory, setClientPriceHistory] = useState<Record<string, ClientProductPriceInfo>>({});
 
   useEffect(() => {
@@ -4604,7 +4606,7 @@ export default function DocumentBuilderClient({
           mappedType = 'cotizacion';
         }
         setDocType(mappedType as DocType);
-        setNotes(initialData.notas || '');
+        setNotes((initialData.notas || '').replace(/\s*\[SALDO_FAVOR_APLICADO:[\d.]+\]/g, ''));
       }
       
       // Mostrar correlativo al editar o ver; solo borrar cuando sea un clon (nueva copia)
@@ -5377,6 +5379,11 @@ export default function DocumentBuilderClient({
     isSavingRef.current = true;
     setIsSaving(true);
     try {
+      const canApplySaldoFavorNow = docType === 'factura' && (!initialData?.id || initialData?.estado === 'BORRADOR');
+      const montoSaldoFavorToApply = (canApplySaldoFavorNow && aplicarSaldoFavor && saldoFavorCliente > 0)
+        ? Number(Math.min(saldoFavorCliente, Math.max(0, totals.total)).toFixed(2))
+        : 0;
+
       const data = {
         clienteId: selectedClient.id,
         tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : 
@@ -5402,6 +5409,7 @@ export default function DocumentBuilderClient({
         totalGravado18: totals.gravado18,
         isv18: totals.isv18,
         total: totals.total,
+        montoSaldoFavorAplicado: montoSaldoFavorToApply,
         templateSettings: settings,
         documentoOrigenId: isNotaCredito ? initialData?.id : undefined,
         ordenTrabajoId: ordenTrabajoId || undefined,
@@ -5565,6 +5573,12 @@ export default function DocumentBuilderClient({
     clientPriceHistory
   }), [settings, clientPriceHistory]);
 
+  const isCreatingOrConvertingFactura = !effectiveViewMode && docType === 'factura' && (!initialData?.id || initialData?.estado === 'BORRADOR');
+  const montoSaldoFavorGuardado = Number((initialData as any)?.montoSaldoFavorAplicado || extractSaldoFavorAplicado(initialData) || 0);
+  const montoSaldoFavorEfectivo = isCreatingOrConvertingFactura
+    ? (aplicarSaldoFavor && saldoFavorCliente > 0 ? Number(Math.min(saldoFavorCliente, Math.max(0, totals.total)).toFixed(2)) : 0)
+    : montoSaldoFavorGuardado;
+
   return (
     <div className={`${isKioskMode ? 'fixed inset-0 z-[5000] bg-slate-50 overflow-y-auto' : (embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : `min-h-[calc(100vh-140px)] bg-slate-50 relative ${isLocked ? 'overflow-hidden' : 'overflow-x-hidden'}`)} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
       <MixedPaymentsModal
@@ -5677,6 +5691,21 @@ export default function DocumentBuilderClient({
       {/* Mobile Form View (Visible en móviles < md) */}
       {!embedMode && !isLocked && (
         <div className="block md:hidden px-0 py-0.5 print:hidden">
+          {docType === 'factura' && (
+            <div className="px-2 pt-2">
+              <SaldoFavorBadge
+                clienteId={selectedClient?.id}
+                clienteNombre={(selectedClient as any)?.name || (selectedClient as any)?.nombre}
+                totalFactura={totals.total}
+                aplicarSaldoFavor={aplicarSaldoFavor}
+                onToggleAplicar={setAplicarSaldoFavor}
+                onSaldoChange={setSaldoFavorCliente}
+                viewMode={!isCreatingOrConvertingFactura}
+                docType={docType}
+                montoAplicadoGuardado={montoSaldoFavorGuardado}
+              />
+            </div>
+          )}
           <MobileFacturacionTerminal
             allClients={allClients}
             docType={docType}
@@ -5821,7 +5850,17 @@ export default function DocumentBuilderClient({
              )}
 
              {docType === 'factura' && currentCanvasMode === 'document' && (
-               <SaldoFavorBadge clienteId={selectedClient?.id} clienteNombre={(selectedClient as any)?.name || (selectedClient as any)?.nombre} />
+               <SaldoFavorBadge
+                 clienteId={selectedClient?.id}
+                 clienteNombre={(selectedClient as any)?.name || (selectedClient as any)?.nombre}
+                 totalFactura={totals.total}
+                 aplicarSaldoFavor={aplicarSaldoFavor}
+                 onToggleAplicar={setAplicarSaldoFavor}
+                 onSaldoChange={setSaldoFavorCliente}
+                 viewMode={!isCreatingOrConvertingFactura}
+                 docType={docType}
+                 montoAplicadoGuardado={montoSaldoFavorGuardado}
+               />
              )}
 
              <div ref={templateContainerRef} className="w-[816px] max-w-[816px] mx-auto relative bg-white shrink-0">
@@ -5888,6 +5927,7 @@ export default function DocumentBuilderClient({
                     handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine} handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
                     emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} setNotes={setNotes} 
                     totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode || Boolean(showSuccessModal)} setSettings={setSettings} onToggleTerms={(show) => setSettings(s => ({ ...s, showTerms: show }))} clienteSignature={clienteSignaturePayload} numeroCAI={resolvedNumeroCAI} rangoAutorizado={resolvedRangoAutorizado} fechaLimiteEmision={resolvedFechaLimiteEmision} isSar={isDocumentoFiscal}
+                    montoSaldoFavorAplicado={montoSaldoFavorEfectivo}
                   />
                 )}
                 {currentCanvasMode === 'document' && searchParams.get('print') !== 'ticket' && settings.template === 'modern' && <ModernTemplate 
@@ -5912,6 +5952,7 @@ export default function DocumentBuilderClient({
                   rangoAutorizado={resolvedRangoAutorizado}
                   fechaLimiteEmision={resolvedFechaLimiteEmision}
                   isSar={isDocumentoFiscal}
+                  montoSaldoFavorAplicado={montoSaldoFavorEfectivo}
                 />}
                 {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
                    settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -5935,6 +5976,7 @@ export default function DocumentBuilderClient({
                    rangoAutorizado={resolvedRangoAutorizado}
                    fechaLimiteEmision={resolvedFechaLimiteEmision}
                    isSar={isDocumentoFiscal}
+                   montoSaldoFavorAplicado={montoSaldoFavorEfectivo}
                 />}
                 {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
                    settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -5958,6 +6000,7 @@ export default function DocumentBuilderClient({
                    rangoAutorizado={resolvedRangoAutorizado}
                    fechaLimiteEmision={resolvedFechaLimiteEmision}
                    isSar={isDocumentoFiscal}
+                   montoSaldoFavorAplicado={montoSaldoFavorEfectivo}
                 />}
                 {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
                    settings={augmentedSettings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -5981,6 +6024,7 @@ export default function DocumentBuilderClient({
                    rangoAutorizado={resolvedRangoAutorizado}
                    fechaLimiteEmision={resolvedFechaLimiteEmision}
                    isSar={isDocumentoFiscal}
+                   montoSaldoFavorAplicado={montoSaldoFavorEfectivo}
                 />}
               </>
             );
@@ -8340,6 +8384,18 @@ export default function DocumentBuilderClient({
                              <span>TOTAL:</span>
                              <span>L {Number(totals.total || initialData?.total || 0).toFixed(2)}</span>
                          </div>
+                         {montoSaldoFavorEfectivo > 0 && (
+                           <>
+                             <div className="flex justify-between w-[70%] text-xs font-bold border-t border-dashed border-black pt-1 mt-1">
+                               <span>(-) SALDO A FAVOR:</span>
+                               <span>-L {Number(montoSaldoFavorEfectivo).toFixed(2)}</span>
+                             </div>
+                             <div className="flex justify-between w-[70%] font-bold text-sm">
+                               <span>NETO A PAGAR:</span>
+                               <span>L {Math.max(0, Number(totals.total || initialData?.total || 0) - Number(montoSaldoFavorEfectivo)).toFixed(2)}</span>
+                             </div>
+                           </>
+                         )}
                      </div>
                      <div className="text-center">
                          *** GRACIAS POR SU COMPRA ***<br/>

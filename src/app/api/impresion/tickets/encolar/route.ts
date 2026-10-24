@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { resolveFacturaSarMetadata } from "@/lib/sar-utils";
-import { isEnvioItem } from "@/utils/facturaUtils";
+import { isEnvioItem, extractSaldoFavorAplicado } from "@/utils/facturaUtils";
 
 export async function POST(req: Request) {
     try {
@@ -153,7 +153,14 @@ export async function POST(req: Request) {
             include: {
                 detalles: true,
                 cliente: true,
-                organization: true
+                organization: true,
+                detallesPago: {
+                    include: {
+                        pago: {
+                            select: { metodoPago: true, anuladoAt: true }
+                        }
+                    }
+                }
             }
         });
 
@@ -210,6 +217,9 @@ export async function POST(req: Request) {
                 };
             });
 
+        const montoSaldoFavorAplicado = extractSaldoFavorAplicado(doc);
+        const netoAPagar = Math.max(0, Number((Number(doc.total || 0) - montoSaldoFavorAplicado).toFixed(2)));
+
         const invoiceData = {
             documento: {
                 ...doc,
@@ -217,7 +227,9 @@ export async function POST(req: Request) {
                 cai: resolvedSar.numeroCAI || doc.numeroCAI,
                 numeroCAI: resolvedSar.numeroCAI || doc.numeroCAI,
                 rangoAutorizado: resolvedSar.rangoAutorizado || doc.rangoAutorizado,
-                fechaLimiteEmision: resolvedSar.fechaLimiteEmision || doc.fechaLimiteEmision
+                fechaLimiteEmision: resolvedSar.fechaLimiteEmision || doc.fechaLimiteEmision,
+                montoSaldoFavorAplicado,
+                netoAPagar
             },
             organization: doc.organization,
             items: sortedCleanDetalles,
