@@ -239,12 +239,32 @@ export default function DocumentListTable({
 
   const [filterVendedor, setFilterVendedor] = useState<string>('TODOS');
   const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
+  const [filterEstado, setFilterEstado] = useState<'TODOS' | 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR'>('TODOS');
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
   const [showCredito, setShowCredito] = useState(false);
   const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [filterFechaDesde, setFilterFechaDesde] = useState<string>('');
   const [filterFechaHasta, setFilterFechaHasta] = useState<string>('');
+
+  const getDocStatusKey = (doc: DocumentRecord): 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR' | 'CONVERTIDA' => {
+    if (doc.estado === 'ANULADA') return 'ANULADA';
+    if (doc.estado === 'BORRADOR') return 'BORRADOR';
+    if (doc.estado === 'CONVERTIDA') return 'CONVERTIDA';
+
+    const isPaid = doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0) || doc.estado === 'PAGADA';
+    if (isPaid) return 'PAGADA';
+
+    if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
+      const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
+      const hoy = new Date();
+      const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
+      const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (diasRestantes < 0) return 'VENCIDA';
+    }
+
+    return 'PENDIENTE';
+  };
 
   // Lista dinámica de vendedores para el selector
   const availableVendedores = useMemo(() => {
@@ -267,7 +287,7 @@ export default function DocumentListTable({
   useEffect(() => {
     setCurrentPage(1);
     setProductPage(1);
-  }, [search, showAnuladas, type, filterVendedor, filterOrigen, filterFechaDesde, filterFechaHasta]);
+  }, [search, showAnuladas, type, filterVendedor, filterOrigen, filterEstado, showPendientesTrans, showCredito, showCreditosVencidos, filterFechaDesde, filterFechaHasta]);
 
   const confirmAnular = async () => {
     if (!docToAnul) return;
@@ -350,7 +370,13 @@ export default function DocumentListTable({
 
   const filteredData = useMemo(() => {
     const filtered = allDocs.filter(doc => {
-      if (!showAnuladas && doc.estado === 'ANULADA') return false;
+      const docStatus = getDocStatusKey(doc);
+
+      if (filterEstado !== 'TODOS') {
+        if (docStatus !== filterEstado) return false;
+      } else if (!showAnuladas && docStatus === 'ANULADA') {
+        return false;
+      }
       
       if (type === 'FACTURA') {
         if (doc.tipoDocumento !== 'FACTURA' && doc.tipoDocumento !== 'NOTA_CREDITO') return false;
@@ -371,7 +397,7 @@ export default function DocumentListTable({
       }
 
       if (showPendientesTrans) {
-        if (doc.metodoPago !== 'Transferencia' || doc.transferenciaConfirmada || isCredito(doc.terminosPago)) return false;
+        if (doc.metodoPago !== 'Transferencia' || doc.transferenciaConfirmada || docStatus === 'PAGADA') return false;
       }
 
       if (showCredito) {
@@ -379,9 +405,7 @@ export default function DocumentListTable({
       }
 
       if (showCreditosVencidos) {
-        if (!isCredito(doc.terminosPago) && doc.metodoPago !== 'Crédito' && doc.metodoPago !== 'CREDITO') return false;
-        const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
-        if (!fVenc || fVenc.getTime() >= new Date().getTime() || doc.estadoPago === 'PAGADA') return false;
+        if (docStatus !== 'VENCIDA') return false;
       }
 
       // Filtro por fecha (Emisión)
@@ -452,7 +476,7 @@ export default function DocumentListTable({
     }
 
     return filtered;
-  }, [allDocs, type, search, showAnuladas, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos, filterVendedor]);
+  }, [allDocs, type, search, showAnuladas, filterEstado, sortField, sortDirection, filterOrigen, showPendientesTrans, showCredito, showCreditosVencidos, filterVendedor, filterFechaDesde, filterFechaHasta]);
 
   // Resumen de productos facturados (cuando la búsqueda coincide con líneas de detalle)
   const productSummary = useMemo(() => {
@@ -535,61 +559,79 @@ export default function DocumentListTable({
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const getStatusBadge = (doc: DocumentRecord) => {
-    if (doc.estado === 'ANULADA') {
+    const statusKey = getDocStatusKey(doc);
+    const toggleStatusFilter = (target: 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR') => {
+      setFilterEstado(prev => prev === target ? 'TODOS' : target);
+    };
+
+    if (statusKey === 'ANULADA') {
       return (
-        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center gap-1.5 w-max">
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter('ANULADA')}
+          title="Clic para filtrar por estado Anulada"
+          className={`px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-50 text-rose-600 border flex items-center justify-center gap-1.5 w-max mx-auto cursor-pointer transition-all hover:scale-105 ${filterEstado === 'ANULADA' ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-rose-200'}`}
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Anulada
-        </span>
+        </button>
       );
     }
-    if (doc.estado === 'BORRADOR') {
+    if (statusKey === 'BORRADOR') {
       return (
-        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-slate-50 text-slate-600 border border-slate-200 flex items-center justify-center gap-1.5 w-max">
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter('BORRADOR')}
+          title="Clic para filtrar por estado Borrador"
+          className={`px-2.5 py-1 text-[11px] font-bold rounded-full bg-slate-50 text-slate-600 border flex items-center justify-center gap-1.5 w-max mx-auto cursor-pointer transition-all hover:scale-105 ${filterEstado === 'BORRADOR' ? 'border-slate-500 ring-2 ring-slate-500/20' : 'border-slate-200'}`}
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Borrador
-        </span>
+        </button>
       );
     }
-    if (doc.estado === 'CONVERTIDA') {
+    if (statusKey === 'CONVERTIDA') {
       return (
-        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1.5 w-max">
+        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1.5 w-max mx-auto">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Convertida
         </span>
       );
     }
 
-    const isPaid = doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0) || doc.estado === 'PAGADA';
-
-    if (isPaid) {
+    if (statusKey === 'PAGADA') {
       return (
-        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center gap-1.5 w-max shadow-2xs">
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter('PAGADA')}
+          title="Clic para filtrar por estado Pagada"
+          className={`px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-50 text-emerald-600 border flex items-center justify-center gap-1.5 w-max mx-auto shadow-2xs cursor-pointer transition-all hover:scale-105 ${filterEstado === 'PAGADA' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-emerald-200'}`}
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pagada
-        </span>
-      );
-    } else {
-      // Check if it's overdue (Vencida)
-      let isOverdue = false;
-      if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
-        const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
-        const hoy = new Date();
-        const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
-        const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        isOverdue = diasRestantes < 0;
-      }
-
-      if (isOverdue) {
-        return (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-50 text-rose-600 border border-rose-300 flex items-center justify-center gap-1.5 w-max shadow-2xs animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>Vencida
-          </span>
-        );
-      }
-
-      return (
-        <span className="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center gap-1.5 w-max shadow-2xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Pendiente
-        </span>
+        </button>
       );
     }
+
+    if (statusKey === 'VENCIDA') {
+      return (
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter('VENCIDA')}
+          title="Clic para filtrar por estado Vencida"
+          className={`px-2.5 py-1 text-[11px] font-bold rounded-full bg-rose-50 text-rose-600 border flex items-center justify-center gap-1.5 w-max mx-auto shadow-2xs animate-pulse cursor-pointer transition-all hover:scale-105 ${filterEstado === 'VENCIDA' ? 'border-rose-600 ring-2 ring-rose-500/20' : 'border-rose-300'}`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>Vencida
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => toggleStatusFilter('PENDIENTE')}
+        title="Clic para filtrar por estado Pendiente"
+        className={`px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-600 border flex items-center justify-center gap-1.5 w-max mx-auto shadow-2xs cursor-pointer transition-all hover:scale-105 ${filterEstado === 'PENDIENTE' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-amber-200'}`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Pendiente
+      </button>
+    );
   };
 
   return (
@@ -598,6 +640,7 @@ export default function DocumentListTable({
       {(() => {
         const activeFilters =
           (filterVendedor !== 'TODOS' ? 1 : 0) +
+          (filterEstado !== 'TODOS' ? 1 : 0) +
           (showAnuladas ? 1 : 0) +
           (showPendientesTrans ? 1 : 0) +
           (showCredito ? 1 : 0) +
@@ -607,7 +650,7 @@ export default function DocumentListTable({
         const chip = (active: boolean, color: string) =>
           `px-3.5 py-2 rounded-full border text-xs font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${active ? color : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
         const resetAll = () => {
-          setFilterVendedor('TODOS'); setShowAnuladas(false); setShowPendientesTrans(false);
+          setFilterVendedor('TODOS'); setFilterEstado('TODOS'); setShowAnuladas(false); setShowPendientesTrans(false);
           setShowCredito(false); setShowCreditosVencidos(false); setFilterOrigen('TODOS' as any);
           setFilterFechaDesde(''); setFilterFechaHasta('');
         };
@@ -664,7 +707,22 @@ export default function DocumentListTable({
 
         {showFiltersPanel && (
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-slate-600">Estado (Columna)</span>
+                <select
+                  value={filterEstado}
+                  onChange={(e) => setFilterEstado(e.target.value as any)}
+                  className="h-11 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="TODOS">Todos los Estados</option>
+                  <option value="PAGADA">🟢 Pagada</option>
+                  <option value="PENDIENTE">🟡 Pendiente</option>
+                  <option value="VENCIDA">🔴 Vencida</option>
+                  <option value="ANULADA">🚫 Anulada</option>
+                  <option value="BORRADOR">⚪ Borrador</option>
+                </select>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs font-bold text-slate-600">Vendedor</span>
                 <select
@@ -728,17 +786,45 @@ export default function DocumentListTable({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setFilterEstado(prev => prev === 'PAGADA' ? 'TODOS' : 'PAGADA')}
+                className={chip(filterEstado === 'PAGADA', 'bg-emerald-50 border-emerald-400 text-emerald-700 ring-1 ring-emerald-400')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Pagadas
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterEstado(prev => prev === 'PENDIENTE' ? 'TODOS' : 'PENDIENTE')}
+                className={chip(filterEstado === 'PENDIENTE', 'bg-amber-50 border-amber-400 text-amber-700 ring-1 ring-amber-400')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pendientes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterEstado(prev => prev === 'VENCIDA' ? 'TODOS' : 'VENCIDA');
+                  setShowCreditosVencidos(false);
+                }}
+                className={chip(filterEstado === 'VENCIDA' || showCreditosVencidos, 'bg-rose-50 border-rose-400 text-rose-700 ring-1 ring-rose-400')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Vencidas
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterEstado(prev => prev === 'ANULADA' ? 'TODOS' : 'ANULADA')}
+                className={chip(filterEstado === 'ANULADA', 'bg-rose-100 border-rose-400 text-rose-800 ring-1 ring-rose-400')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600" /> Solo Anuladas
+              </button>
               <button type="button" onClick={() => setShowAnuladas(v => !v)} className={chip(showAnuladas, 'bg-slate-800 border-slate-800 text-white')}>
-                <span className={`w-1.5 h-1.5 rounded-full ${showAnuladas ? 'bg-white' : 'bg-slate-400'}`} /> Mostrar Anuladas
+                <span className={`w-1.5 h-1.5 rounded-full ${showAnuladas ? 'bg-white' : 'bg-slate-400'}`} /> Incluir Anuladas
               </button>
               <button type="button" onClick={() => setShowPendientesTrans(v => !v)} className={chip(showPendientesTrans, 'bg-amber-50 border-amber-300 text-amber-700')}>
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pend. Transferencia
               </button>
               <button type="button" onClick={() => setShowCredito(v => !v)} className={chip(showCredito, 'bg-indigo-50 border-indigo-300 text-indigo-700')}>
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> Ventas a Crédito
-              </button>
-              <button type="button" onClick={() => setShowCreditosVencidos(v => !v)} className={chip(showCreditosVencidos, 'bg-rose-50 border-rose-300 text-rose-700')}>
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Créditos Vencidos
               </button>
               {activeFilters > 0 && (
                 <button type="button" onClick={resetAll} className="ml-auto text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer">
@@ -1113,7 +1199,29 @@ export default function DocumentListTable({
                   {sortField === 'total' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
                 </div>
               </th>
-              <th className="p-4 border-b border-slate-200 text-center">Estado</th>
+              <th className="p-3 border-b border-slate-200 text-center whitespace-nowrap">
+                <div className="inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-2xs">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase">Estado:</span>
+                  <select
+                    value={filterEstado}
+                    onChange={(e) => setFilterEstado(e.target.value as any)}
+                    className={`bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer ${
+                      filterEstado === 'PAGADA' ? 'text-emerald-600' :
+                      filterEstado === 'PENDIENTE' ? 'text-amber-600' :
+                      filterEstado === 'VENCIDA' || filterEstado === 'ANULADA' ? 'text-rose-600' :
+                      'text-slate-700'
+                    }`}
+                    title="Filtrar tabla directamente por la columna de Estado"
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="PAGADA">🟢 Pagada</option>
+                    <option value="PENDIENTE">🟡 Pendiente</option>
+                    <option value="VENCIDA">🔴 Vencida</option>
+                    <option value="ANULADA">🚫 Anulada</option>
+                    <option value="BORRADOR">⚪ Borrador</option>
+                  </select>
+                </div>
+              </th>
               <th className="p-4 border-b border-slate-200 text-center whitespace-nowrap min-w-[130px]">Acciones</th>
             </tr>
           </thead>

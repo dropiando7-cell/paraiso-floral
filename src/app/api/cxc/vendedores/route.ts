@@ -46,24 +46,37 @@ export async function GET() {
       dbUser.email === 'dropiando7@gmail.com' ||
       dbUser.email === 'admin@paraisofloral.com';
 
-    // Fetch all users in organization with sales/route roles
-    const vendedores = await prisma.user.findMany({
-      where: {
-        organizationId: dbUser.organizationId,
-        isAssignable: true
+    // Lista oficial de los 4 vendedores asignados en Facturación y CxC
+    const VENDEDORES_OFICIALES = [
+      {
+        id: 'Jose Mendez',
+        nombre: 'Jose Mendez',
+        email: 'jose.mendez@paraisofloral.com',
+        puesto: 'Ruta Occidente',
+        rutasAsignadas: ['Ruta Occidente']
       },
-      select: {
-        id: true,
-        nombre: true,
-        apellido: true,
-        email: true,
-        role: true,
-        puesto: true,
-        rutasAsignadas: true,
-        puedeVerTodasCxC: true
+      {
+        id: 'Isamara Vigil',
+        nombre: 'Isamara Vigil',
+        email: 'isamara.vigil@paraisofloral.com',
+        puesto: 'Ruta La Esperanza',
+        rutasAsignadas: ['Ruta La Esperanza']
       },
-      orderBy: { nombre: 'asc' }
-    });
+      {
+        id: 'Erick Saavedra',
+        nombre: 'Erick Saavedra',
+        email: 'erick.saavedra@paraisofloral.com',
+        puesto: 'Ruta Guamilito / Progreso',
+        rutasAsignadas: ['Ruta Guamilito / Progreso']
+      },
+      {
+        id: 'Francis Carias',
+        nombre: 'Francis Carias',
+        email: 'francis.carias@paraisofloral.com',
+        puesto: 'Cartera Francis Carías',
+        rutasAsignadas: ['Cartera Francis Carías']
+      }
+    ];
 
     return NextResponse.json({
       currentUser: {
@@ -75,13 +88,7 @@ export async function GET() {
         rutasAsignadas: dbUser.rutasAsignadas || [],
         puedeVerTodasCxC: esAdminOGerente
       },
-      vendedores: vendedores.map(v => ({
-        id: v.id,
-        nombre: `${v.nombre || ''} ${v.apellido || ''}`.trim() || v.email,
-        email: v.email,
-        puesto: v.puesto || 'Vendedor',
-        rutasAsignadas: v.rutasAsignadas || []
-      }))
+      vendedores: VENDEDORES_OFICIALES
     });
   } catch (error: any) {
     console.error('Error en /api/cxc/vendedores:', error);

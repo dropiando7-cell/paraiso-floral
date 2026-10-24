@@ -62,6 +62,63 @@ export async function GET(request: Request) {
       nombre: { not: 'CONSUMIDOR FINAL' }
     };
 
+    const buildVendedorWhereCondition = (rawVendedor: string) => {
+      const clean = rawVendedor.trim();
+      const norm = clean
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean);
+
+      const variants = new Set<string>([clean]);
+      if (norm.includes('jose') || norm.includes('mendez')) {
+        variants.add('Jose Mendez');
+        variants.add('José Méndez');
+        variants.add('Jose Méndez');
+        variants.add('José Mendez');
+      } else if (norm.includes('isamara') || norm.includes('vigil')) {
+        variants.add('Isamara Vigil');
+      } else if (norm.includes('erick') || norm.includes('saavedra')) {
+        variants.add('Erick Saavedra');
+      } else if (norm.includes('francis') || norm.includes('carias')) {
+        variants.add('Francis Carias');
+        variants.add('Francis Carías');
+      } else if (norm.includes('lucio') || norm.includes('barahona')) {
+        variants.add('Lucio Barahona');
+      }
+
+      const nameParts = clean.split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] || clean;
+
+      const orConditions: any[] = [
+        {
+          facturas: {
+            some: {
+              estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+              tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] },
+              OR: [
+                ...Array.from(variants).map(v => ({
+                  vendedorNombre: { equals: v, mode: 'insensitive' as const }
+                })),
+                { vendedorNombre: { contains: firstName, mode: 'insensitive' as const } }
+              ]
+            }
+          }
+        },
+        {
+          vendedor: {
+            nombre: { contains: firstName, mode: 'insensitive' as const }
+          }
+        }
+      ];
+
+      if (isUuid) {
+        orConditions.push({ vendedorId: clean });
+      }
+
+      return { OR: orConditions };
+    };
+
     if (!esAdminOGerente) {
       // Filtrar estrictamente a los clientes del vendedor o de sus rutas asignadas
       const allowedRutas = dbUser.rutasAsignadas || [];
@@ -76,9 +133,12 @@ export async function GET(request: Request) {
         { OR: userConditions }
       ];
     } else {
-      // Para admin / gerencia, aplicar filtros opcionales de vendedor o ruta
+      // Para admin / gerencia, aplicar filtros opcionales de vendedor (desde Facturación o Cliente) o ruta
       if (vendedorParam && vendedorParam !== 'TODOS') {
-        whereCliente.vendedorId = vendedorParam;
+        whereCliente.AND = [
+          ...(whereCliente.AND || []),
+          buildVendedorWhereCondition(vendedorParam)
+        ];
       }
       if (rutaParam && rutaParam !== 'TODOS') {
         whereCliente.ruta = { equals: rutaParam, mode: 'insensitive' };
@@ -162,7 +222,8 @@ export async function GET(request: Request) {
             fechaEmision: true,
             fechaVencimiento: true,
             terminosPago: true,
-            validezDias: true
+            validezDias: true,
+            vendedorNombre: true
           },
           orderBy: { fechaEmision: 'desc' }
         },
@@ -275,6 +336,9 @@ export async function GET(request: Request) {
       const sortedPagos = [...c.pagos].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
       const ultimoPago = sortedPagos[0] || null;
 
+      const facturaVendedor = c.facturas.find(f => f.vendedorNombre && f.vendedorNombre.trim())?.vendedorNombre?.trim() || null;
+      const clienteVendedor = c.vendedor?.nombre ? `${c.vendedor.nombre} ${c.vendedor.apellido || ''}`.trim() : null;
+
       return {
         id: c.id,
         nombre: c.nombre,
@@ -285,7 +349,7 @@ export async function GET(request: Request) {
         ruta: c.ruta || 'Ruta Occidente',
         alias: c.alias,
         vendedorId: c.vendedorId,
-        vendedorNombre: c.vendedor?.nombre ? `${c.vendedor.nombre} ${c.vendedor.apellido || ''}`.trim() : null,
+        vendedorNombre: facturaVendedor || clienteVendedor,
         rtn: c.rtn,
         notas: c.notas,
         limiteCredito: Number(c.limiteCredito || 0),
