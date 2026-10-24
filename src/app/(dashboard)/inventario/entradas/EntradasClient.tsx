@@ -15,9 +15,11 @@ import {
     ChevronDown, 
     FileSpreadsheet, 
     AlertTriangle, 
-    RefreshCw 
+    RefreshCw,
+    Zap
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { PlanillaIngresoRapido } from '@/components/inventario/PlanillaIngresoRapido';
 
 interface EntryRow {
     id: string;
@@ -214,7 +216,7 @@ function ProductCell({ productos, value, onChange, rowError, inputId }: ProductC
 
 export function EntradasClient({ productos, recientes, orgId, userId }: any) {
     const [isPending, startTransition] = useTransition();
-    const [activeTab, setActiveTab] = useState<'single' | 'batch'>('single');
+    const [activeTab, setActiveTab] = useState<'planilla' | 'single' | 'batch'>('planilla');
     const [showKardex, setShowKardex] = useState(false);
 
     // Single Entry form states
@@ -265,7 +267,7 @@ export function EntradasClient({ productos, recientes, orgId, userId }: any) {
                 }
             }
 
-            if (savedTab === 'single' || savedTab === 'batch') {
+            if (savedTab === 'planilla' || savedTab === 'single' || savedTab === 'batch') {
                 setActiveTab(savedTab);
             }
 
@@ -472,6 +474,17 @@ export function EntradasClient({ productos, recientes, orgId, userId }: any) {
             {/* Tab Selector */}
             <div className="flex border-b border-slate-200 gap-6" id="tabs-entradas">
                 <button
+                    onClick={() => setActiveTab('planilla')}
+                    className={`pb-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                        activeTab === 'planilla'
+                            ? 'border-emerald-600 text-emerald-700'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Zap className="w-4 h-4 text-emerald-600" />
+                    ⚡ Planilla Rápida (Modo Excel / Mermas)
+                </button>
+                <button
                     onClick={() => setActiveTab('single')}
                     className={`pb-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
                         activeTab === 'single'
@@ -491,10 +504,13 @@ export function EntradasClient({ productos, recientes, orgId, userId }: any) {
                     }`}
                 >
                     <FileSpreadsheet className="w-4 h-4" />
-                    Ingreso por Lote (Excel / CSV)
+                    Ingreso por Lote (CSV)
                 </button>
             </div>
 
+            {activeTab === 'planilla' ? (
+                <PlanillaIngresoRapido />
+            ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {/* SINGLE PRODUCT FORM PANEL */}
@@ -830,6 +846,7 @@ export function EntradasClient({ productos, recientes, orgId, userId }: any) {
                     </div>
                 )}
             </div>
+            )}
         </div>
     );
 }

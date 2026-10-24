@@ -27,6 +27,7 @@ import toast from 'react-hot-toast';
 import { getEquiposParaRenta, getRentaStats } from '../rentas/equipos/actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { RestockModal } from './RestockModal';
+import { PlanillaIngresoRapido } from '@/components/inventario/PlanillaIngresoRapido';
 import BuscadorCatWeb, { WebProductAlertPanel } from './BuscadorCatWeb';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
@@ -930,8 +931,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [], userRole, onOpenPreview }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[]; userRole?: string; onOpenPreview?: (activo: any, qty: string) => void;
+export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, onSelectPlanillaExcel, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [], userRole, onOpenPreview }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; onSelectPlanillaExcel?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[]; userRole?: string; onOpenPreview?: (activo: any, qty: string) => void;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -2068,6 +2069,21 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         </p>
                                     </div>
                                 </button>
+
+                                {onSelectPlanillaExcel && (
+                                    <button type="button" onClick={() => onSelectPlanillaExcel()}
+                                        className="w-full text-left p-6 border-2 border-emerald-200 bg-emerald-50/40 rounded-2xl hover:border-emerald-600 hover:bg-emerald-50 transition-all group flex items-start gap-5">
+                                        <div className="w-14 h-14 shrink-0 rounded-full bg-emerald-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                            <FileSpreadsheet className="w-7 h-7" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-emerald-950 group-hover:text-emerald-700">⚡ Planilla Rápida de Ingresos (Modo Excel)</h3>
+                                            <p className="text-sm text-emerald-800/80 mt-1.5 leading-relaxed">
+                                                Ingresa múltiples flores y paquetes seguidos con Enter (idéntico a Mermas) manteniendo siempre el mismo código padre (010055).
+                                            </p>
+                                        </div>
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
@@ -3857,6 +3873,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [isRefetching, setIsRefetching] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [restockModalOpen, setRestockModalOpen] = useState(false);
+    const [planillaExcelMode, setPlanillaExcelMode] = useState(false);
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
@@ -4390,6 +4407,22 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             <span>{isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}</span>
                         </button>
 
+                        {/* 1.5 Modo Planilla Rápida (Tipo Excel / Mermas) */}
+                        {!isRentaMode && (
+                            <button
+                                onClick={() => setPlanillaExcelMode(prev => !prev)}
+                                className={`w-full sm:w-auto h-11 px-5 text-sm font-bold rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print ${
+                                    planillaExcelMode
+                                        ? 'bg-slate-900 hover:bg-slate-800 text-white ring-2 ring-emerald-500/40'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                }`}
+                                title="Ingresar mercadería en modo Planilla tipo Excel (igual a Mermas)"
+                            >
+                                <FileSpreadsheet className="w-4.5 h-4.5" />
+                                <span>{planillaExcelMode ? 'Volver a Vista Inventario' : '⚡ Planilla Ingreso (Excel)'}</span>
+                            </button>
+                        )}
+
                         {/* 2. Consultar */}
                         <button
                             onClick={() => setSearchModalOpen(true)}
@@ -4854,6 +4887,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
             <div className="hide-on-print"><StatsCards stats={stats} /></div>
 
+            {planillaExcelMode && (
+                <div className="mb-6 hide-on-print animate-in fade-in duration-200">
+                    <PlanillaIngresoRapido
+                        onClose={() => {
+                            setPlanillaExcelMode(false);
+                            refresh(page);
+                        }}
+                        onStockChanged={() => refresh(page)}
+                    />
+                </div>
+            )}
+
             {/* Search + filter toggle */}
             <div className="flex gap-2 mb-3 hide-on-print">
                 <div className="relative flex-1">
@@ -5229,6 +5274,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 onSuccess={handleSuccess}
                 lockedArea={lockedArea}
                 onSelectRestock={() => { setModalOpen(false); setRestockModalOpen(true); }}
+                onSelectPlanillaExcel={() => { setModalOpen(false); setPlanillaExcelMode(true); }}
                 isRentaMode={isRentaMode}
                 originsList={originsList}
                 defaultOrigin={defaultOrigin}
