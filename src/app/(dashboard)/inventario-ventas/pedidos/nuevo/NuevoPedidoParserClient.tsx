@@ -46,6 +46,7 @@ interface NuevoPedidoParserClientProps {
   assistants: AssistantMember[];
   products: { id: string; nombre: string; sku: string; stockActual: number; precioVenta?: number }[];
   clients: { id: string; nombre: string; telefono: string; direccion: string }[];
+  stockComprometidoMap?: Record<string, number>;
 }
 
 interface ParsedItem {
@@ -229,7 +230,8 @@ export default function NuevoPedidoParserClient({
   dbUser,
   assistants,
   products,
-  clients
+  clients,
+  stockComprometidoMap = {}
 }: NuevoPedidoParserClientProps) {
   const router = useRouter();
   const [creationMode, setCreationMode] = useState<'ia' | 'manual'>('manual');
@@ -247,6 +249,8 @@ export default function NuevoPedidoParserClient({
   const [clienteNombreAI, setClienteNombreAI] = useState('');
   const [destino, setDestino] = useState('');
   const [estadoPago, setEstadoPago] = useState<'pagado' | 'contra_entrega' | 'credito'>('contra_entrega');
+  const [tipoDespacho, setTipoDespacho] = useState<'INMEDIATO' | 'PROGRAMADO' | 'RECOGE_TIENDA'>('INMEDIATO');
+  const [horaDespacho, setHoraDespacho] = useState('');
   const [auxiliarAsignadoId, setAuxiliarAsignadoId] = useState('');
   const [notas, setNotas] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedItem[]>([{ nombreProducto: '', cantidadSolicitada: 1 }]);
@@ -479,6 +483,8 @@ export default function NuevoPedidoParserClient({
         clienteId,
         destino: resolvedDestino,
         estadoPago,
+        tipoDespacho,
+        horaDespacho: horaDespacho || undefined,
         auxiliarAsignadoId: auxiliarAsignadoId || undefined,
         notas: notas || undefined,
         items: parsedItems.map(item => {
@@ -799,6 +805,36 @@ export default function NuevoPedidoParserClient({
                   />
                 </div>
 
+                {/* Tipo de Despacho */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                    Modalidad de Despacho
+                  </label>
+                  <select
+                    value={tipoDespacho}
+                    onChange={(e) => setTipoDespacho(e.target.value as any)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-emerald-500 shadow-xs h-[42px]"
+                  >
+                    <option value="INMEDIATO">⚡ Despacho Inmediato (Ruta Hoy)</option>
+                    <option value="RECOGE_TIENDA">🏪 Recoge en CEDI / Tienda</option>
+                    <option value="PROGRAMADO">📅 Despacho Programado</option>
+                  </select>
+                </div>
+
+                {/* Hora de Despacho / Salida */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                    Hora Estimada de Salida / Recolección (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={horaDespacho}
+                    onChange={(e) => setHoraDespacho(e.target.value)}
+                    placeholder="Ej. 10:30 AM, Ruta Mañana, 2:00 PM..."
+                    className="w-full border border-slate-200 rounded-xl p-2.5 text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:border-emerald-500 shadow-xs h-[42px]"
+                  />
+                </div>
+
                 {/* Special Notes */}
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Notas y Observaciones</label>
@@ -930,11 +966,26 @@ export default function NuevoPedidoParserClient({
                         <div className="md:col-span-9 flex flex-col gap-1">
                           <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider flex items-center justify-between">
                             <span>Producto en Catálogo</span>
-                            {!item.mappedProductoId && (
+                            {!item.mappedProductoId ? (
                               <span className="text-rose-500 text-[10px] font-extrabold flex items-center gap-0.5">
                                 <AlertCircle className="w-3 h-3" /> Requerido
                               </span>
-                            )}
+                            ) : (() => {
+                              const selectedProd = products.find(p => p.id === item.mappedProductoId);
+                              if (!selectedProd) return null;
+                              const fisico = selectedProd.stockActual ?? 0;
+                              const apartado = stockComprometidoMap[selectedProd.id] || 0;
+                              const disponible = Math.max(0, fisico - apartado);
+                              return (
+                                <span className="text-[10px] font-bold flex items-center gap-2">
+                                  <span className="text-slate-500">Físico: <b>{fisico}</b></span>
+                                  {apartado > 0 && <span className="text-amber-600">Apartado CEDI: <b>{apartado}</b></span>}
+                                  <span className={disponible > 0 ? 'text-emerald-700 font-black' : 'text-rose-600 font-black'}>
+                                    Disponible Real: {disponible}
+                                  </span>
+                                </span>
+                              );
+                            })()}
                           </label>
                           <ProductSmartAutocomplete
                             products={products}

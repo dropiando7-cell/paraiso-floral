@@ -1304,6 +1304,12 @@ function LineItemRow({
     for (const p of searchResults) map.set(p.id, p);
 
     const items = Array.from(map.values());
+    const cleanQuery = query.trim().replace(/^PF-/i, '').replace(/-\d{4,}$/, '');
+
+    // Priorizar coincidencia exacta por código padre si es un código o serial escaneado
+    const exactCodeMatch = items.filter(
+      p => p.code && p.code.trim().replace(/^PF-/i, '').toLowerCase() === cleanQuery.toLowerCase()
+    );
 
     // Configurar búsqueda difusa con Fuse.js
     const fuse = new Fuse(items, {
@@ -1315,9 +1321,10 @@ function LineItemRow({
       useExtendedSearch: true
     });
 
-    const results = fuse.search(query);
+    const results = fuse.search(cleanQuery || query).map(r => r.item);
+    const merged = [...exactCodeMatch, ...results.filter(r => !exactCodeMatch.some(e => e.id === r.id))];
 
-    return results.map(r => r.item).slice(0, 30);
+    return merged.slice(0, 30);
   }, [allProducts, searchResults, query, showAutocomplete]);
 
   useEffect(() => {
@@ -1481,6 +1488,9 @@ function LineItemRow({
           try {
             const res = await buscarItemPorCodigo(val);
             if (res) {
+              if ((res as any).sku) {
+                onChange(item.id, 'code', (res as any).sku);
+              }
               onChange(item.id, 'shortDesc', (res.name || '').toUpperCase());
               if ((res as any).marcaModelo) {
                 onChange(item.id, 'marcaModelo', (res as any).marcaModelo);
@@ -2125,6 +2135,9 @@ function LineItemRow({
                                 try {
                                   const res = await buscarItemPorCodigo(val);
                                   if (res) {
+                                    if ((res as any).sku) {
+                                      onChange(item.id, 'code', (res as any).sku);
+                                    }
                                     onChange(item.id, 'shortDesc', (res.name || '').toUpperCase());
                                     if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
                                     const priceRes = resolveProductPrice(res, settings?.clientPriceHistory || {});
@@ -5158,6 +5171,11 @@ export default function DocumentBuilderClient({
     }
 
     // 2. Configurar búsqueda difusa con Fuse.js (idéntico a la versión de escritorio)
+    const cleanModalQuery = trimmed.replace(/^PF-/i, '').replace(/-\d{4,}$/, '');
+    const exactModalMatches = items.filter(
+      p => p.code && p.code.trim().replace(/^PF-/i, '').toLowerCase() === cleanModalQuery.toLowerCase()
+    );
+
     const fuse = new Fuse(items, {
       keys: ['name', 'code', 'description', 'brand', 'category', 'serie'],
       threshold: 0.6, // Mayor tolerancia a errores ortográficos / typos
@@ -5167,9 +5185,10 @@ export default function DocumentBuilderClient({
       useExtendedSearch: true
     });
 
-    const results = fuse.search(trimmed);
-    if (results.length > 0) {
-      return results.map(r => r.item).slice(0, 50);
+    const results = fuse.search(cleanModalQuery || trimmed);
+    if (exactModalMatches.length > 0 || results.length > 0) {
+      const fuseItems = results.map(r => r.item);
+      return [...exactModalMatches, ...fuseItems.filter(r => !exactModalMatches.some(e => e.id === r.id))].slice(0, 50);
     }
 
     // 3. Fallback normalizado si Fuse no arroja resultados

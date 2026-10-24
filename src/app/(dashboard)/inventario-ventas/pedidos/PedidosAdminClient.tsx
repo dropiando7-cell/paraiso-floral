@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   ShoppingBag, 
@@ -20,14 +20,20 @@ import {
   PlusCircle,
   X,
   Package,
-  Layers
+  Layers,
+  ShieldCheck,
+  ScanBarcode,
+  RotateCcw,
+  Clock,
+  Truck,
+  BellRing
 } from 'lucide-react';
 import { Pedido } from '@/types/pedido';
-import { asignarAuxiliarPedido, iniciarPreparacionPedido, agregarItemAPedido, getPedidos } from './actions';
+import { asignarAuxiliarPedido, iniciarPreparacionPedido, agregarItemAPedido, getPedidos, procesarRetornoEtiquetaRuta } from './actions';
 import { toast } from 'react-hot-toast';
 import { VoiceOrderAssistantModal, FloatingVoiceOrderButton } from '@/components/pedidos/VoiceOrderAssistantModal';
 import { ProductSmartAutocomplete } from '@/components/pedidos/ProductSmartAutocomplete';
-import { playSuccessChime } from '@/utils/audioAlerts';
+import { playSuccessChime, playWarehouseAlertChime, playErrorBuzz } from '@/utils/audioAlerts';
 
 interface AssistantMember {
   id: string;
@@ -53,9 +59,85 @@ export default function PedidosAdminClient({
   products = []
 }: PedidosAdminClientProps) {
   const [pedidos, setPedidos] = useState<Pedido[]>(initialPedidos);
-  const [filterTab, setFilterTab] = useState<'todos' | 'pendiente' | 'en_preparacion' | 'completado'>('todos');
+  const [filterTab, setFilterTab] = useState<'todos' | 'pendiente' | 'en_preparacion' | 'en_chequeo' | 'listo_para_facturar' | 'completado'>('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const knownIdsRef = useRef<Set<string>>(new Set(initialPedidos.map(p => p.id)));
+
+  // Modal de Retorno de Ruta / Merma por Escáner Serializado
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnSerialCode, setReturnSerialCode] = useState('');
+  const [returnAction, setReturnAction] = useState<'DEVUELTO_BODEGA' | 'MERMA'>('DEVUELTO_BODEGA');
+  const [returnMotivo, setReturnMotivo] = useState('');
+  const [isProcessingReturn, setIsProcessingReturn] = useState(false);
+  const [returnHistory, setReturnHistory] = useState<{ codigoSerial: string; descripcion: string; accion: string; hora: string }[]>([]);
+
+  // Polling en vivo de la Bandeja CEDI cada 6 segundos (Cero Pedidos Olvidados)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await getPedidos();
+        let hasNewOrder = false;
+        for (const p of fresh) {
+          if (!knownIdsRef.current.has(p.id)) {
+            hasNewOrder = true;
+            knownIdsRef.current.add(p.id);
+          }
+        }
+        if (hasNewOrder) {
+          playWarehouseAlertChime();
+          toast('🔔 ¡Nuevo pedido recibido en Bandeja CEDI!', {
+            duration: 5000,
+            style: { background: '#065f46', color: '#fff', fontWeight: 800 }
+          });
+        }
+        setPedidos(fresh as any);
+      } catch (err) {
+        // Silencioso en caso de pérdida momentánea de red
+      }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleProcessReturnScan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = returnSerialCode.trim();
+    if (!clean) return;
+    setIsProcessingReturn(true);
+    try {
+      const res = await procesarRetornoEtiquetaRuta({
+        codigoSerial: clean,
+        accion: returnAction,
+        motivo: returnMotivo || undefined
+      });
+      if (res.success && res.etiqueta) {
+        playSuccessChime();
+        toast.success(
+          returnAction === 'DEVUELTO_BODEGA'
+            ? `✅ ${res.etiqueta.codigoSerial} devuelto a Cámara Fría (+1 Stock)`
+            : `⚠️ ${res.etiqueta.codigoSerial} dado de baja por Merma`
+        );
+        setReturnHistory(prev => [
+          {
+            codigoSerial: res.etiqueta!.codigoSerial,
+            descripcion: res.etiqueta!.descripcion,
+            accion: returnAction,
+            hora: new Date().toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          },
+          ...prev
+        ]);
+        setReturnSerialCode('');
+      } else {
+        playErrorBuzz();
+        toast.error(res.error || 'Error al procesar etiqueta');
+      }
+    } catch (err: any) {
+      playErrorBuzz();
+      toast.error(err.message || 'Error de red');
+    } finally {
+      setIsProcessingReturn(false);
+    }
+  };
 
   const userModules = dbUser?.accessibleModules || [];
   const isSuperOrOrgAdmin = dbUser?.role === 'SUPER_ADMIN' || dbUser?.role === 'ORG_ADMIN';
@@ -238,6 +320,10 @@ export default function PedidosAdminClient({
         return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'en_preparacion':
         return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'en_chequeo':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'listo_para_facturar':
+        return 'bg-teal-100 text-teal-800 border-teal-300';
       case 'completado':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       default:
@@ -248,7 +334,9 @@ export default function PedidosAdminClient({
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pendiente': return 'Pendiente';
-      case 'en_preparacion': return 'En Preparación';
+      case 'en_preparacion': return 'En Alistamiento';
+      case 'en_chequeo': return 'En Doble Chequeo';
+      case 'listo_para_facturar': return 'Listo p/ Facturar (100% OK)';
       case 'completado': return 'Completado';
       default: return status;
     }
@@ -292,44 +380,66 @@ export default function PedidosAdminClient({
           </div>
         </div>
         
-        {canCreateOrders && (
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Voice AI Assistant Trigger */}
-            <button
-              onClick={() => setIsVoiceModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-            >
-              <Mic className="w-4 h-4" />
-              <span>Dictar por Voz (IA)</span>
-            </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Botón Escáner de Retorno de Ruta / Merma */}
+          <button
+            type="button"
+            onClick={() => setIsReturnModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4 text-amber-600" />
+            <span>Retorno de Ruta / Merma</span>
+          </button>
 
-            {/* New Order Link */}
-            <Link
-              href="/inventario-ventas/pedidos/nuevo"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Nuevo Pedido</span>
-            </Link>
-          </div>
-        )}
+          {canCreateOrders && (
+            <>
+              {/* Voice AI Assistant Trigger */}
+              <button
+                onClick={() => setIsVoiceModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+              >
+                <Mic className="w-4 h-4" />
+                <span>Dictar por Voz (IA)</span>
+              </button>
+
+              {/* New Order Link */}
+              <Link
+                href="/inventario-ventas/pedidos/nuevo"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Nuevo Pedido</span>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Filters and search */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         {/* Tabs */}
         <div className="flex p-1 bg-slate-100 rounded-xl w-full md:w-auto overflow-x-auto">
-          {(['todos', 'pendiente', 'en_preparacion', 'completado'] as const).map(tab => (
+          {(['todos', 'pendiente', 'en_preparacion', 'en_chequeo', 'listo_para_facturar', 'completado'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setFilterTab(tab)}
-              className={`flex-1 md:flex-initial px-4 py-2 rounded-lg font-bold text-xs capitalize transition-all whitespace-nowrap ${
+              className={`flex-1 md:flex-initial px-3.5 py-2 rounded-lg font-bold text-xs transition-all whitespace-nowrap ${
                 filterTab === tab
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              {tab === 'todos' ? 'Todos' : tab === 'en_preparacion' ? 'En Preparación' : tab}
+              {tab === 'todos'
+                ? 'Todos'
+                : tab === 'pendiente'
+                ? 'Pendientes'
+                : tab === 'en_preparacion'
+                ? 'En Alistamiento'
+                : tab === 'en_chequeo'
+                ? 'En Chequeo'
+                : tab === 'listo_para_facturar'
+                ? 'Listos p/ Facturar'
+                : 'Completados'}
             </button>
           ))}
         </div>
@@ -358,7 +468,9 @@ export default function PedidosAdminClient({
         <div className="grid grid-cols-1 gap-4">
           {filteredPedidos.map(pedido => {
             const readyCount = pedido.items.filter(i => i.recolectado).length;
-            const isCompleted = pedido.estado === 'completado';
+            const checkedCount = pedido.items.filter(i => i.chequeado).length;
+            const isCompleted = pedido.estado === 'completado' || pedido.estado === 'listo_para_facturar';
+            const allSerials = pedido.items.flatMap(i => i.serialesEscaneados || []);
 
             return (
               <div
@@ -376,6 +488,13 @@ export default function PedidosAdminClient({
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider ${getPayStatusColor(pedido.estadoPago)}`}>
                         {getPayStatusText(pedido.estadoPago)}
                       </span>
+                      {pedido.tipoDespacho && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200 flex items-center gap-1">
+                          <Truck className="w-3 h-3 text-slate-500" />
+                          {pedido.tipoDespacho === 'INMEDIATO' ? 'Despacho Inmediato' : pedido.tipoDespacho === 'RECOGE_TIENDA' ? 'Recoge en Tienda' : 'Programado'}
+                          {pedido.horaDespacho ? ` • ${pedido.horaDespacho}` : ''}
+                        </span>
+                      )}
                     </div>
                     <h3 className="text-lg font-black text-slate-900 mt-1.5">{pedido.cliente.nombre}</h3>
                     <p className="text-xs text-slate-400 mt-0.5 font-bold">Teléfono: {pedido.cliente.telefono || 'Sin teléfono'}</p>
@@ -384,8 +503,14 @@ export default function PedidosAdminClient({
                       <span>📍 {pedido.destino}</span>
                       <span className="flex items-center gap-1 font-bold text-slate-700">
                         <Package className="w-3.5 h-3.5 text-emerald-600" />
-                        {pedido.items.length} productos ({readyCount} listos)
+                        {pedido.items.length} productos ({readyCount} alistados / {checkedCount} chequeados)
                       </span>
+                      {allSerials.length > 0 && (
+                        <span className="flex items-center gap-1 font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200">
+                          <ScanBarcode className="w-3.5 h-3.5" />
+                          {allSerials.length} etiquetas serializadas
+                        </span>
+                      )}
                     </div>
 
                     {/* Order items preview pills */}
@@ -394,17 +519,41 @@ export default function PedidosAdminClient({
                         <span
                           key={item.id}
                           className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${
-                            item.recolectado
+                            item.chequeado
+                              ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                              : item.recolectado
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-slate-50 text-slate-600 border-slate-200'
                           }`}
                         >
-                          {item.recolectado && '✓ '}
+                          {item.chequeado ? '✓✓ ' : item.recolectado ? '✓ ' : ''}
                           {item.cantidadSolicitada}x {item.nombreProducto}
                           {item.variedadTono ? ` (${item.variedadTono})` : ''}
                         </span>
                       ))}
                     </div>
+
+                    {/* Seriales hijos escaneados en este pedido */}
+                    {allSerials.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1 max-w-2xl">
+                        <span className="text-[10px] font-extrabold uppercase text-slate-400 mr-1">Seriales Hijos:</span>
+                        {allSerials.slice(0, 10).map(s => (
+                          <span
+                            key={s.id}
+                            className={`text-[10px] font-mono font-extrabold px-1.5 py-0.5 rounded border ${
+                              s.estado === 'CHEQUEADO_OK'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}
+                          >
+                            {s.codigoSerial}
+                          </span>
+                        ))}
+                        {allSerials.length > 10 && (
+                          <span className="text-[10px] font-bold text-slate-400">+{allSerials.length - 10} más</span>
+                        )}
+                      </div>
+                    )}
 
                     {pedido.notas && (
                       <p className="mt-2.5 text-xs text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100 max-w-lg">
@@ -470,13 +619,23 @@ export default function PedidosAdminClient({
                         href={`/inventario-ventas/pedidos/preparar/${pedido.id}`}
                         className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
                       >
-                        <ChevronRight className="w-3.5 h-3.5" /> Preparar
+                        <ChevronRight className="w-3.5 h-3.5" /> Alistar
                       </Link>
                     )}
 
-                    {pedido.estado === 'completado' && (
-                      <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold">
-                        <CheckCircle2 className="w-4 h-4" /> Completado
+                    {pedido.estado === 'en_chequeo' && (
+                      <Link
+                        href={`/inventario-ventas/pedidos/preparar/${pedido.id}`}
+                        className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                      >
+                        <ShieldCheck className="w-4 h-4" /> Chequear 100%
+                      </Link>
+                    )}
+
+                    {(pedido.estado === 'completado' || pedido.estado === 'listo_para_facturar') && (
+                      <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold">
+                        <CheckCircle2 className="w-4 h-4" />
+                        {pedido.estado === 'listo_para_facturar' ? '100% Chequeado • En Caja' : 'Completado'}
                       </div>
                     )}
 
@@ -601,6 +760,117 @@ export default function PedidosAdminClient({
                 </button>
               </div>
 
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Retorno de Ruta / Merma por Escáner Serializado */}
+      {isReturnModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-[2.5rem] sm:rounded-3xl border border-slate-200 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-slate-900">Escáner de Retorno de Ruta / Merma</h3>
+                  <p className="text-xs text-slate-500 font-medium">Escanea la etiqueta hija (ej. 010055-0001) para reintegrar a cámara fría o dar de baja</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsReturnModalOpen(false)}
+                className="p-2 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleProcessReturnScan} className="p-5 flex flex-col gap-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setReturnAction('DEVUELTO_BODEGA')}
+                  className={`py-2.5 px-3 rounded-lg text-xs font-extrabold transition-all ${
+                    returnAction === 'DEVUELTO_BODEGA'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  ✅ Reintegrar a Bodega (+1 Stock)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReturnAction('MERMA')}
+                  className={`py-2.5 px-3 rounded-lg text-xs font-extrabold transition-all ${
+                    returnAction === 'MERMA'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  ⚠️ Dar de Baja (Merma)
+                </button>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Motivo / Observación (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={returnMotivo}
+                  onChange={(e) => setReturnMotivo(e.target.value)}
+                  placeholder="Ej. Cliente cerrado, flor maltratada en ruta..."
+                  className="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-slate-400 text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block mb-1">
+                  Escanear o escribir Código Serial Hijo *
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={returnSerialCode}
+                    onChange={(e) => setReturnSerialCode(e.target.value.toUpperCase())}
+                    placeholder="Ej. 010055-0001"
+                    className="flex-1 px-4 py-3 font-mono font-black text-sm rounded-xl border-2 border-slate-300 focus:border-emerald-600 focus:outline-none text-slate-900"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isProcessingReturn || !returnSerialCode.trim()}
+                    className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl transition-all disabled:opacity-50"
+                  >
+                    {isProcessingReturn ? 'Procesando...' : 'Procesar'}
+                  </button>
+                </div>
+              </div>
+
+              {returnHistory.length > 0 && (
+                <div className="mt-2 border-t border-slate-100 pt-3">
+                  <p className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider mb-2">
+                    Etiquetas procesadas en esta sesión ({returnHistory.length})
+                  </p>
+                  <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                    {returnHistory.map((h, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                        <div>
+                          <span className="font-mono font-black text-slate-900 mr-2">{h.codigoSerial}</span>
+                          <span className="text-slate-600 font-semibold">{h.descripcion}</span>
+                        </div>
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                          h.accion === 'DEVUELTO_BODEGA' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {h.accion === 'DEVUELTO_BODEGA' ? '+1 Bodega' : 'Merma'} • {h.hora}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>

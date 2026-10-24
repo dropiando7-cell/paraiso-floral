@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { uploadToR2 } from '@/lib/storage/r2';
 import { redirect } from 'next/navigation';
 import { calcDepreciacion } from '@/lib/depreciation';
+import { generarYRegistrarEtiquetasSeriales } from '@/lib/etiquetaSerialServer';
 
 // ─── Helper: Get authenticated org ID ────────────────────────────────────────
 async function getOrgId(): Promise<string> {
@@ -1789,9 +1790,21 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
     // Preparar el host desde env variable o localhost temporalmente. 
     // Usualmente window.location.origin no está en servers actions, 
     // asumiendo hostname de prod si no está
-    const host = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemas-elim.vercel.app';
+    const host = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
+    const printJobs: any[] = [];
 
-    const printJobs = activosEnRango.map(activo => {
+    for (const activo of activosEnRango) {
+        const codigoBase = (activo.codigoBarras || activo.idQr || '000000').replace(/^PF-/i, '');
+        const seriales = await generarYRegistrarEtiquetasSeriales({
+            organizationId: orgId,
+            codigoPadre: codigoBase,
+            descripcion: activo.descripcionCorta,
+            cantidad: 1,
+            activoFijoId: activo.id,
+            productoId: (activo as any).productoId || null
+        });
+        const serialUnico = seriales[0] || codigoBase;
+
         const params = new URLSearchParams({
             idQr: activo.idQr,
             descripcion: activo.descripcionCorta,
@@ -1799,22 +1812,22 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
             cuenta: activo.cuentaAct,
             marca: activo.marca || '',
             modelo: activo.modelo || '',
-            codigoBarras: activo.codigoBarras || '',
+            codigoBarras: serialUnico,
             serie: activo.serie || ''
         });
         if (activo.fechaFabricacion) params.set('fechaFab', activo.fechaFabricacion.toISOString().split('T')[0]);
         if (activo.fechaVencimiento) params.set('fechaVenc', activo.fechaVencimiento.toISOString().split('T')[0]);
         params.set('size', size);
         const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
-        return {
+        printJobs.push({
             organizationId: orgId,
             activoId: activo.id,
             urlImagen,
             estado: 'PENDIENTE',
             impresora: impresora,
             tamano: size
-        };
-    });
+        });
+    }
 
     const countPayload = await prisma.colaImpresion.createMany({
         data: printJobs
@@ -1837,7 +1850,9 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number, s
             marca: true,
             modelo: true,
             codigoBarras: true,
-            serie: true
+            serie: true,
+            productoId: true,
+            lote: true
         }
     });
 
@@ -1846,28 +1861,41 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number, s
     }
 
     const host = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
-    
-    const params = new URLSearchParams({
-        idQr: activo.idQr,
-        descripcion: activo.descripcionCorta,
-        area: activo.area,
-        cuenta: activo.cuentaAct,
-        marca: activo.marca || '',
-        modelo: activo.modelo || '',
-        codigoBarras: activo.codigoBarras || '',
-        serie: activo.serie || '',
-        size: size
-    });
-    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+    const codigoBase = (activo.codigoBarras || activo.idQr || '000000').replace(/^PF-/i, '');
 
-    const printJobs = Array.from({ length: cantidad }).map(() => ({
+    const seriales = await generarYRegistrarEtiquetasSeriales({
         organizationId: orgId,
-        activoId: activo.id,
-        urlImagen,
-        estado: 'PENDIENTE',
-        impresora: impresora,
-        tamano: size
-    }));
+        codigoPadre: codigoBase,
+        descripcion: activo.descripcionCorta,
+        cantidad: Math.max(1, cantidad || 1),
+        activoFijoId: activo.id,
+        productoId: activo.productoId || null,
+        loteNumero: activo.lote || null
+    });
+
+    const printJobs = seriales.map((serial) => {
+        const params = new URLSearchParams({
+            idQr: activo.idQr,
+            descripcion: activo.descripcionCorta,
+            area: activo.area,
+            cuenta: activo.cuentaAct,
+            marca: activo.marca || '',
+            modelo: activo.modelo || '',
+            codigoBarras: serial,
+            serie: activo.serie || '',
+            size: size
+        });
+        const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
+        return {
+            organizationId: orgId,
+            activoId: activo.id,
+            urlImagen,
+            estado: 'PENDIENTE',
+            impresora: impresora,
+            tamano: size
+        };
+    });
 
     const countPayload = await prisma.colaImpresion.createMany({
         data: printJobs
@@ -2208,6 +2236,16 @@ export async function encolarLoteImportado(ids: string[]) {
         const printJobs: any[] = [];
 
         for (const activo of activos) {
+            const codigoBase = (activo.codigoBarras || activo.idQr || '000000').replace(/^PF-/i, '');
+            const seriales = await generarYRegistrarEtiquetasSeriales({
+                organizationId: orgId,
+                codigoPadre: codigoBase,
+                descripcion: activo.descripcionCorta,
+                cantidad: 1,
+                activoFijoId: activo.id
+            });
+            const serialUnico = seriales[0] || codigoBase;
+
             const params = new URLSearchParams({
                 idQr: activo.idQr,
                 descripcion: activo.descripcionCorta,
@@ -2215,7 +2253,7 @@ export async function encolarLoteImportado(ids: string[]) {
                 cuenta: activo.cuentaAct,
                 marca: activo.marca || '',
                 modelo: activo.modelo || '',
-                codigoBarras: activo.codigoBarras || '',
+                codigoBarras: serialUnico,
                 serie: activo.serie || '',
                 size: '50x25'
             });

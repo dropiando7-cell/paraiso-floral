@@ -3,13 +3,22 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import FichaTecnicaClient from './FichaTecnicaClient';
 import { createClient } from '@/utils/supabase/server';
+import { parseCodigoEtiqueta } from '@/utils/etiquetaSerialHelper';
 
 type Props = { params: Promise<{ idQr: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { idQr } = await params;
+    const rawQr = decodeURIComponent(idQr);
+    const parsed = parseCodigoEtiqueta(rawQr);
     const activo = await prisma.activoFijo.findFirst({
-        where: { idQr: decodeURIComponent(idQr) },
+        where: {
+            OR: [
+                { idQr: { equals: rawQr, mode: 'insensitive' } },
+                { idQr: { equals: parsed.codigoPadre, mode: 'insensitive' } },
+                { idQr: { equals: `PF-${parsed.codigoPadre}`, mode: 'insensitive' } }
+            ]
+        },
         select: { descripcionCorta: true, idQr: true },
     });
 
@@ -46,8 +55,17 @@ export default async function FichaTecnicaPage({ params }: Props) {
         console.error("Auth check failed in FichaTecnicaPage:", e);
     }
 
+    const rawQr = decodeURIComponent(idQr);
+    const parsedQr = parseCodigoEtiqueta(rawQr);
+
     const activo = await prisma.activoFijo.findFirst({
-        where: { idQr: decodeURIComponent(idQr) },
+        where: {
+            OR: [
+                { idQr: { equals: rawQr, mode: 'insensitive' } },
+                { idQr: { equals: parsedQr.codigoPadre, mode: 'insensitive' } },
+                { idQr: { equals: `PF-${parsedQr.codigoPadre}`, mode: 'insensitive' } }
+            ]
+        },
         select: {
             id: true,
             idQr: true,

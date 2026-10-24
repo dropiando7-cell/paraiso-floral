@@ -34,8 +34,12 @@ import {
   completarPedidoBodega,
   iniciarPreparacionPedido,
   getPedidoPickingItems,
-  agregarItemAPedido
+  agregarItemAPedido,
+  escanearEtiquetaPedido,
+  desvincularEtiquetaSerial,
+  pasarPedidoAChequeo
 } from '../../actions';
+import { parseCodigoEtiqueta } from '@/utils/etiquetaSerialHelper';
 import { toast } from 'react-hot-toast';
 import { 
   playTactileClick, 
@@ -62,6 +66,11 @@ export default function PrepararPedidoClient({
   const [pedido, setPedido] = useState<Pedido>(initialPedido);
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [terminalMode, setTerminalMode] = useState<'ALISTADOR' | 'CHEQUEADOR'>(
+    initialPedido.estado === 'en_chequeo' ? 'CHEQUEADOR' : 'ALISTADOR'
+  );
+  const [scannerAlert, setScannerAlert] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
+  const [manualBarcodeInput, setManualBarcodeInput] = useState('');
 
   // Hardware Barcode Scanner State (LANDI M20SE Keyboard Wedge listener)
   const barcodeBufferRef = useRef<string>('');
@@ -129,7 +138,16 @@ export default function PrepararPedidoClient({
           estado: liveStatus.estado as Pedido['estado'],
           items: liveStatus.items.map(item => {
             const existing = prev.items.find(i => i.id === item.id);
-            return existing ? { ...item, recolectado: existing.recolectado, cantidadPreparada: existing.cantidadPreparada } : item;
+            return existing
+              ? {
+                  ...item,
+                  recolectado: item.recolectado ?? existing.recolectado,
+                  cantidadPreparada: item.cantidadPreparada ?? existing.cantidadPreparada,
+                  cantidadChequeada: item.cantidadChequeada ?? existing.cantidadChequeada,
+                  chequeado: item.chequeado ?? existing.chequeado,
+                  serialesEscaneados: item.serialesEscaneados ?? existing.serialesEscaneados
+                }
+              : item;
           })
         }));
 
@@ -141,96 +159,120 @@ export default function PrepararPedidoClient({
     return () => clearInterval(interval);
   }, [pedido.id]);
 
-  // 3. Hardware Barcode Scanner Listener for LANDI M20SE
+  // 3. Hardware Barcode Scanner Listener for LANDI M20SE (Supports Serialized Labels 010055-0001 & Legacy SKUs)
   const handleBarcodeScanned = useCallback(async (code: string) => {
     const cleanCode = code.trim();
     if (!cleanCode) return;
 
     setLastScannedCode(cleanCode);
+    setScannerAlert(null);
 
-    // Look for item in current order by SKU, barcode or matching product
-    const targetItem = pedido.items.find(i => {
-      const p = products.find(prod => prod.id === (i.sustituidoPor?.productoId || i.productoId));
-      const cleanLower = cleanCode.toLowerCase();
-      const cleanNumeric = cleanLower.replace(/^0+/, '');
-      const cleanNoPrefix = cleanLower.replace(/^pf-/i, '');
-
-      const codeMatches = 
-        (i.codigoBarras && (
-          i.codigoBarras.toLowerCase() === cleanLower ||
-          i.codigoBarras.toLowerCase().replace(/^0+/, '') === cleanNumeric ||
-          i.codigoBarras.toLowerCase().replace(/^pf-/i, '') === cleanNoPrefix
-        )) ||
-        (p?.sku && (
-          p.sku.toLowerCase() === cleanLower ||
-          p.sku.toLowerCase().replace(/^0+/, '') === cleanNumeric ||
-          p.sku.toLowerCase().replace(/^pf-/i, '') === cleanNoPrefix
-        ));
-
-      return codeMatches;
+    const scanRes = await escanearEtiquetaPedido({
+      pedidoId: pedido.id,
+      codigoEscaneado: cleanCode,
+      modo: terminalMode
     });
 
-    if (targetItem) {
-      // Item found in order! Increment prepared count
+    if (scanRes.success) {
       playLaserBeep();
-      const currentQty = targetItem.cantidadPreparada || 0;
-      const newQty = currentQty + 1;
-      const isComplete = newQty >= targetItem.cantidadSolicitada;
+      triggerHaptic(40);
 
-      // Optimistic update
       setPedido(prev => ({
         ...prev,
-        items: prev.items.map(i => i.id === targetItem.id ? {
-          ...i,
-          cantidadPreparada: newQty,
-          recolectado: isComplete
-        } : i)
+        items: prev.items.map(i => {
+          if (i.id !== scanRes.itemId) return i;
+          const prevSerials = i.serialesEscaneados || [];
+          const updatedSerials = scanRes.serial
+            ? [
+                ...prevSerials.filter(s => s.codigoSerial !== scanRes.serial!.codigoSerial),
+                scanRes.serial
+              ]
+            : prevSerials;
+
+          return {
+            ...i,
+            cantidadPreparada: scanRes.cantidadPreparada ?? i.cantidadPreparada,
+            recolectado: scanRes.recolectado ?? i.recolectado,
+            cantidadChequeada: (scanRes as any).cantidadChequeada ?? i.cantidadChequeada,
+            chequeado: (scanRes as any).chequeado ?? i.chequeado,
+            serialesEscaneados: updatedSerials
+          };
+        })
       }));
 
-      toast.success(
-        `✓ ${targetItem.nombreProducto}: ${newQty}/${targetItem.cantidadSolicitada} paq ${isComplete ? '[COMPLETO]' : ''}`,
-        { icon: '🏷️', duration: 2500 }
-      );
-
-      await actualizarItemPicking(pedido.id, targetItem.id, isComplete, newQty);
-    } else {
-      // Check if it's in CEDI product catalog
-      const matchedCatalogProduct = products.find(p => p.sku.toLowerCase() === cleanCode.toLowerCase());
-      if (matchedCatalogProduct) {
-        playLaserBeep();
-        toast(
-          (t) => (
-            <div className="flex flex-col gap-2">
-              <span className="font-bold text-xs text-slate-800">
-                ¿Agregar {matchedCatalogProduct.nombre} al pedido?
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    toast.dismiss(t.id);
-                    await handleAddExtraProduct(matchedCatalogProduct, 1);
-                  }}
-                  className="bg-emerald-600 text-white font-bold text-[11px] px-3 py-1 rounded-lg"
-                >
-                  Sí, agregar 1
-                </button>
-                <button
-                  onClick={() => toast.dismiss(t.id)}
-                  className="bg-slate-200 text-slate-700 font-bold text-[11px] px-3 py-1 rounded-lg"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          ),
-          { duration: 6000 }
-        );
+      const labelTag = scanRes.serial ? `[${scanRes.serial.codigoSerial}] ` : '';
+      if (terminalMode === 'CHEQUEADOR') {
+        const msg = `✓ CHEQUEADO ${labelTag}${scanRes.nombreProducto}: ${(scanRes as any).cantidadChequeada}/${scanRes.cantidadPreparada || scanRes.cantidadSolicitada}`;
+        setScannerAlert({ type: 'success', message: msg });
+        toast.success(msg, { icon: '🛡️', duration: 2500 });
       } else {
-        playErrorBuzz();
-        toast.error(`Código no encontrado: ${cleanCode}`, { duration: 3000 });
+        const msg = `✓ ALISTADO ${labelTag}${scanRes.nombreProducto}: ${scanRes.cantidadPreparada}/${scanRes.cantidadSolicitada} paq ${scanRes.recolectado ? '[COMPLETO]' : ''}`;
+        setScannerAlert({ type: 'success', message: msg });
+        toast.success(msg, { icon: '🏷️', duration: 2500 });
       }
+      return;
     }
-  }, [pedido.items, pedido.id, products]);
+
+    // Bloqueos de seguridad: Doble Escaneo, Paquete Apartado en otro pedido, o Producto Cruzado
+    if (
+      scanRes.code === 'DOBLE_ESCANEO' ||
+      scanRes.code === 'APARTADO_OTRO_PEDIDO' ||
+      scanRes.code === 'PRODUCTO_CRUZADO' ||
+      scanRes.code === 'ESTADO_INVALIDO'
+    ) {
+      playErrorBuzz();
+      triggerHaptic([120, 60, 120]);
+      const errMsg = scanRes.error || `Alerta en etiqueta: ${cleanCode}`;
+      setScannerAlert({ type: 'error', message: errMsg });
+      toast.error(errMsg, { duration: 4500 });
+      return;
+    }
+
+    // Si no está en el pedido y estamos en modo ALISTADOR, verificar si existe en el catálogo para ofrecer agregarlo
+    const parsed = parseCodigoEtiqueta(cleanCode);
+    const baseSkuLower = parsed.codigoPadre.toLowerCase();
+    const matchedCatalogProduct = products.find(p => {
+      const skuClean = (p.sku || '').toLowerCase().replace(/^pf-/i, '');
+      return skuClean === baseSkuLower || skuClean.replace(/^0+/, '') === baseSkuLower.replace(/^0+/, '');
+    });
+
+    if (matchedCatalogProduct && terminalMode === 'ALISTADOR') {
+      playLaserBeep();
+      toast(
+        (t) => (
+          <div className="flex flex-col gap-2">
+            <span className="font-bold text-xs text-slate-800">
+              ¿Agregar {matchedCatalogProduct.nombre} ({parsed.codigoSerial}) al pedido?
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  toast.dismiss(t.id);
+                  await handleAddExtraProduct(matchedCatalogProduct, 1, parsed.isSerial ? parsed.codigoSerial : undefined);
+                }}
+                className="bg-emerald-600 text-white font-bold text-[11px] px-3 py-1 rounded-lg"
+              >
+                Sí, agregar 1
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="bg-slate-200 text-slate-700 font-bold text-[11px] px-3 py-1 rounded-lg"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ),
+        { duration: 6000 }
+      );
+    } else {
+      playErrorBuzz();
+      triggerHaptic([100, 50, 100]);
+      const errMsg = scanRes.error || `Código no encontrado: ${cleanCode}`;
+      setScannerAlert({ type: 'error', message: errMsg });
+      toast.error(errMsg, { duration: 3500 });
+    }
+  }, [pedido.id, products, terminalMode]);
 
   // Global Keydown Listener for Landi M20SE Laser Scanner
   useEffect(() => {
@@ -317,7 +359,7 @@ export default function PrepararPedidoClient({
   };
 
   // Add extra product on the fly
-  const handleAddExtraProduct = async (product: typeof products[0], qty: number) => {
+  const handleAddExtraProduct = async (product: typeof products[0], qty: number, serialToScan?: string) => {
     try {
       const res = await agregarItemAPedido({
         pedidoId: pedido.id,
@@ -340,17 +382,72 @@ export default function PrepararPedidoClient({
               nombreProducto: res.item!.nombreProducto,
               codigoBarras: res.item!.codigoBarras || undefined,
               cantidadSolicitada: res.item!.cantidadSolicitada,
-              cantidadPreparada: 1,
-              recolectado: res.item!.cantidadSolicitada <= 1
+              cantidadPreparada: serialToScan ? 0 : 1,
+              recolectado: serialToScan ? false : res.item!.cantidadSolicitada <= 1
             }
           ]
         }));
         setIsAddModalOpen(false);
+        if (serialToScan) {
+          await handleBarcodeScanned(serialToScan);
+        }
       } else {
         toast.error(res.error || 'Error al agregar ítem');
       }
     } catch {
       toast.error('Error de red al agregar producto');
+    }
+  };
+
+  // Unlink a scanned child serial from an item
+  const handleUnlinkSerial = async (itemId: string, serialId: string) => {
+    try {
+      const res = await desvincularEtiquetaSerial(pedido.id, serialId);
+      if (res.success) {
+        playTactileClick();
+        toast.success(`Etiqueta ${res.codigoSerial} devuelta a DISPONIBLE EN BODEGA`);
+        setPedido(prev => ({
+          ...prev,
+          items: prev.items.map(i => {
+            if (i.id !== itemId) return i;
+            const filteredSerials = (i.serialesEscaneados || []).filter(s => s.id !== serialId);
+            const newPrep = Math.max(0, (i.cantidadPreparada || 0) - 1);
+            return {
+              ...i,
+              cantidadPreparada: newPrep,
+              recolectado: newPrep >= i.cantidadSolicitada,
+              serialesEscaneados: filteredSerials
+            };
+          })
+        }));
+      } else {
+        toast.error(res.error || 'No se pudo desvincular etiqueta');
+      }
+    } catch {
+      toast.error('Error al desvincular etiqueta');
+    }
+  };
+
+  // Send from Alistador to Chequeador (Mesa de Salida)
+  const handleSendToChequeo = async () => {
+    const readyItemsCount = pedido.items.reduce((acc, i) => acc + (i.cantidadPreparada || 0), 0);
+    if (readyItemsCount === 0) {
+      toast.error('Por favor recolecta al menos un paquete antes de pasar a Chequeo.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await pasarPedidoAChequeo(pedido.id);
+      if (res.success) {
+        playSuccessChime();
+        setPedido(prev => ({ ...prev, estado: 'en_chequeo' }));
+        setTerminalMode('CHEQUEADOR');
+        toast.success('Pedido pasado a MESA DE CHEQUEO (Modo Chequeador activado)', { icon: '🛡️' });
+      } else {
+        toast.error(res.error || 'Error al pasar a chequeo');
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -442,10 +539,10 @@ export default function PrepararPedidoClient({
     p.sku.toLowerCase().includes(addSearchQuery.toLowerCase())
   );
 
-  // Compute metrics exactly like the user's mockup:
-  // e.g. 4 / 17 TOTAL ÍTEMS (prepared quantity / requested quantity)
+  // Compute metrics
   const totalQuantityRequested = pedido.items.reduce((acc, i) => acc + i.cantidadSolicitada, 0);
   const totalQuantityPrepared = pedido.items.reduce((acc, i) => acc + (i.cantidadPreparada || 0), 0);
+  const totalQuantityChequeada = pedido.items.reduce((acc, i) => acc + (i.cantidadChequeada || 0), 0);
 
   // Helper to determine if an item is LÁSER vs CUBETA/GRANEL
   const isBulkItem = (item: PedidoItem) => {
@@ -490,6 +587,90 @@ export default function PrepararPedidoClient({
         >
           <Plus className="w-5 h-5 stroke-[2.5]" />
         </button>
+      </div>
+
+      {/* ─── 1.B SELECTOR DE ROL PDA (ALISTADOR vs CHEQUEADOR) + BARRA DE ESCANEO ─── */}
+      <div className="bg-slate-900 text-white px-3.5 py-2.5 flex flex-col gap-2 shrink-0 z-20 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex bg-slate-800 p-1 rounded-xl w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setTerminalMode('ALISTADOR');
+                setScannerAlert(null);
+              }}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase tracking-wide transition-all ${
+                terminalMode === 'ALISTADOR'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              1. Alistador (Cámara Fría)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTerminalMode('CHEQUEADOR');
+                setScannerAlert(null);
+              }}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-black uppercase tracking-wide transition-all ${
+                terminalMode === 'CHEQUEADOR'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              2. Chequeador 100% ({totalQuantityChequeada}/{totalQuantityPrepared || totalQuantityRequested})
+            </button>
+          </div>
+        </div>
+
+        {/* Manual / Quick Laser Input */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (manualBarcodeInput.trim()) {
+              handleBarcodeScanned(manualBarcodeInput.trim());
+              setManualBarcodeInput('');
+            }
+          }}
+          className="flex items-center gap-2"
+        >
+          <div className="relative flex-1">
+            <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={manualBarcodeInput}
+              onChange={(e) => setManualBarcodeInput(e.target.value)}
+              placeholder={
+                terminalMode === 'CHEQUEADOR'
+                  ? 'Escanear etiqueta para CHEQUEO 100% (ej. 010055-0001)...'
+                  : 'Escanear etiqueta única en Cámara Fría (ej. 010055-0001)...'
+              }
+              className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-400 rounded-xl pl-9 pr-3 py-1.5 text-xs font-mono font-bold text-white placeholder:text-slate-400 focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shrink-0 active:scale-95 transition-all"
+          >
+            Validar
+          </button>
+        </form>
+
+        {scannerAlert && (
+          <div
+            className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-between gap-2 ${
+              scannerAlert.type === 'error'
+                ? 'bg-rose-600 text-white animate-pulse'
+                : 'bg-emerald-600/90 text-white'
+            }`}
+          >
+            <span>{scannerAlert.message}</span>
+            <button onClick={() => setScannerAlert(null)} className="text-white/80 hover:text-white">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Real-time Added Items Alert Banner */}
@@ -578,8 +759,41 @@ export default function PrepararPedidoClient({
                         </p>
                         {item.codigoBarras && (
                           <p className="text-[10px] font-mono text-slate-400 font-semibold mt-0.5">
-                            SKU: {item.codigoBarras}
+                            SKU Padre: {item.codigoBarras}
                           </p>
+                        )}
+                        {(item.cantidadChequeada || 0) > 0 && (
+                          <p className="text-[10px] font-extrabold text-indigo-700 mt-0.5">
+                            🛡️ Chequeado en Mesa: {item.cantidadChequeada} / {qtyPrepared || qtyRequested} paq
+                          </p>
+                        )}
+                        {item.serialesEscaneados && item.serialesEscaneados.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {item.serialesEscaneados.map((s) => (
+                              <span
+                                key={s.id}
+                                className={`inline-flex items-center gap-1 text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border ${
+                                  s.estado === 'CHEQUEADO_OK'
+                                    ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                }`}
+                              >
+                                <Tag className="w-2.5 h-2.5" />
+                                {s.codigoSerial}
+                                {s.estado === 'CHEQUEADO_OK' && <span title="Chequeado OK">✓</span>}
+                                {pedido.estado !== 'completado' && pedido.estado !== 'facturado' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnlinkSerial(item.id, s.id)}
+                                    className="ml-0.5 text-slate-400 hover:text-rose-600 font-bold"
+                                    title="Devolver paquete a cámara fría"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
                         )}
                         {item.sustituidoPor && (
                           <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-black text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
@@ -745,14 +959,34 @@ export default function PrepararPedidoClient({
             />
           </div>
 
-          <button
-            onClick={handleCompleteAndSendToCashier}
-            disabled={submitting}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 hover:from-emerald-800 hover:to-teal-800 active:scale-[0.98] text-white font-black text-sm sm:text-base shadow-xl shadow-emerald-700/30 flex items-center justify-center gap-2.5 transition-all disabled:opacity-50"
-          >
-            <SendHorizontal className="w-5 h-5 stroke-[2.5]" />
-            <span>{submitting ? 'Enviando a Caja...' : 'FINALIZAR ALISTAMIENTO Y ENVIAR A CAJA'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {terminalMode === 'ALISTADOR' && pedido.estado !== 'en_chequeo' && (
+              <button
+                type="button"
+                onClick={handleSendToChequeo}
+                disabled={submitting}
+                className="px-3.5 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-black text-xs sm:text-sm shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 shrink-0"
+              >
+                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                <span>PASAR A CHEQUEO</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleCompleteAndSendToCashier}
+              disabled={submitting}
+              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 hover:from-emerald-800 hover:to-teal-800 active:scale-[0.98] text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-700/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            >
+              <SendHorizontal className="w-5 h-5 stroke-[2.5]" />
+              <span>
+                {submitting
+                  ? 'Enviando a Caja...'
+                  : terminalMode === 'CHEQUEADOR'
+                  ? 'CONFIRMAR CHEQUEO 100% Y ENVIAR A CAJA'
+                  : 'FINALIZAR Y ENVIAR A CAJA'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 

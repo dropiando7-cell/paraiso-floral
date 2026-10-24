@@ -99,11 +99,13 @@ export default function ModalPrevisualizarImpresion({
         }
     };
 
-    // Generar la URL idéntica al modal de Inventario
+    // Generar la URL idéntica al modal de Inventario mostrando el formato serializado único (-0001)
+    const rawBaseCode = (selectedItem?.codigoBarras || selectedItem?.idQr || '000000').replace(/^PF-/i, '');
+    const previewSerialCode = /-\d{4,}$/.test(rawBaseCode) ? rawBaseCode : `${rawBaseCode}-0001`;
     const searchParams = new URLSearchParams({
         idQr: selectedItem?.idQr || '',
         descripcion: selectedItem?.descripcion || '',
-        codigoBarras: selectedItem?.codigoBarras || '',
+        codigoBarras: previewSerialCode,
         area: 'BODEGA RECEPCIÓN',
         size: tamano,
         impresora: impresora
@@ -202,9 +204,12 @@ export default function ModalPrevisualizarImpresion({
                 </div>
 
                 {/* Pre-visualización de la Etiqueta (Imagen idéntica a Inventario) */}
-                <div className="border-4 border-slate-100 rounded-xl p-4 bg-slate-50 flex justify-center mb-6 overflow-hidden min-h-[160px] items-center">
+                <div className="border-4 border-slate-100 rounded-xl p-4 bg-slate-50 flex flex-col justify-center mb-6 overflow-hidden min-h-[160px] items-center gap-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewUrl} className="w-full max-w-[406px] h-auto object-contain bg-white shadow-sm" alt="Preview Etiqueta" />
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        Identidad Única Activada: Cada copia imprimirá su propio serial correlativo ({rawBaseCode}-0001, -0002...)
+                    </span>
                 </div>
 
                 {/* Botones de Acción */}

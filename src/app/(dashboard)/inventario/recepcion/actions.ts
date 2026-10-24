@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { formatNombreProductoRecepcion } from '@/utils/recepcionHelpers';
+import { generarYRegistrarEtiquetasSeriales } from '@/lib/etiquetaSerialServer';
 
 async function getAuthContext() {
     const supabase = await createClient();
@@ -585,6 +586,7 @@ export async function encolarImpresionCaja(
         const caja = await prisma.recepcionCaja.findUnique({
             where: { id: cajaId },
             include: {
+                recepcion: { select: { id: true, numeroEnvio: true } },
                 items: {
                     include: { activoFijo: true }
                 }
@@ -601,15 +603,29 @@ export async function encolarImpresionCaja(
                 const cantidad = Math.max(0, itemCustom.cantidad || 0);
                 if (cantidad === 0) continue;
 
-                const params = new URLSearchParams({
-                    idQr: itemCustom.idQr || '000000',
-                    descripcion: formatNombreProductoRecepcion(itemCustom.descripcion),
-                    codigoBarras: itemCustom.codigoBarras || itemCustom.idQr || '',
-                    size: tamano
-                });
-                const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+                const descFormatted = formatNombreProductoRecepcion(itemCustom.descripcion);
+                const codigoBase = (itemCustom.codigoBarras || itemCustom.idQr || '000000').replace(/^PF-/i, '');
 
-                for (let i = 0; i < cantidad; i++) {
+                const seriales = await generarYRegistrarEtiquetasSeriales({
+                    organizationId: user.organizationId,
+                    codigoPadre: codigoBase,
+                    descripcion: descFormatted,
+                    cantidad,
+                    activoFijoId: itemCustom.activoFijoId || null,
+                    recepcionLoteId: caja.recepcionId,
+                    recepcionCajaId: caja.id,
+                    loteNumero: caja.recepcion?.numeroEnvio || null
+                });
+
+                for (const serial of seriales) {
+                    const params = new URLSearchParams({
+                        idQr: itemCustom.idQr || codigoBase,
+                        descripcion: descFormatted,
+                        codigoBarras: serial,
+                        size: tamano
+                    });
+                    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
                     printJobs.push({
                         organizationId: user.organizationId,
                         activoId: itemCustom.activoFijoId || null,
@@ -624,25 +640,39 @@ export async function encolarImpresionCaja(
             for (const item of caja.items) {
                 const activo = item.activoFijo;
                 const descLive = formatNombreProductoRecepcion(activo?.descripcionCorta || item.descripcion);
-                const codBarrasLive = item.codigoBarras || activo?.codigoBarras || activo?.idQr || '';
-                const idQrLive = activo?.idQr || '000000';
+                const codBarrasLive = (item.codigoBarras || activo?.codigoBarras || activo?.idQr || '000000').replace(/^PF-/i, '');
+                const idQrLive = activo?.idQr || codBarrasLive;
 
                 const cantidadEtiquetas = item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : item.bonchesEsperados;
+                if (cantidadEtiquetas <= 0) continue;
 
-                const params = new URLSearchParams({
-                    idQr: idQrLive,
+                const seriales = await generarYRegistrarEtiquetasSeriales({
+                    organizationId: user.organizationId,
+                    codigoPadre: codBarrasLive,
                     descripcion: descLive,
-                    area: activo?.area || 'BODEGA',
-                    cuenta: activo?.cuentaAct || 'INVENTARIO',
-                    marca: activo?.marca || '',
-                    modelo: activo?.modelo || '',
-                    codigoBarras: codBarrasLive,
-                    serie: activo?.serie || '',
-                    size: tamano
+                    cantidad: cantidadEtiquetas,
+                    activoFijoId: activo?.id || null,
+                    productoId: activo?.productoId || null,
+                    recepcionLoteId: caja.recepcionId,
+                    recepcionCajaId: caja.id,
+                    recepcionItemId: item.id,
+                    loteNumero: caja.recepcion?.numeroEnvio || null
                 });
-                const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 
-                for (let i = 0; i < cantidadEtiquetas; i++) {
+                for (const serial of seriales) {
+                    const params = new URLSearchParams({
+                        idQr: idQrLive,
+                        descripcion: descLive,
+                        area: activo?.area || 'BODEGA',
+                        cuenta: activo?.cuentaAct || 'INVENTARIO',
+                        marca: activo?.marca || '',
+                        modelo: activo?.modelo || '',
+                        codigoBarras: serial,
+                        serie: activo?.serie || '',
+                        size: tamano
+                    });
+                    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
                     printJobs.push({
                         organizationId: user.organizationId,
                         activoId: activo?.id || null,
@@ -705,15 +735,28 @@ export async function encolarImpresionLoteCompleto(
                 const cantidad = Math.max(0, itemCustom.cantidad || 0);
                 if (cantidad === 0) continue;
 
-                const params = new URLSearchParams({
-                    idQr: itemCustom.idQr || '000000',
-                    descripcion: formatNombreProductoRecepcion(itemCustom.descripcion),
-                    codigoBarras: itemCustom.codigoBarras || itemCustom.idQr || '',
-                    size: tamano
-                });
-                const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+                const descFormatted = formatNombreProductoRecepcion(itemCustom.descripcion);
+                const codigoBase = (itemCustom.codigoBarras || itemCustom.idQr || '000000').replace(/^PF-/i, '');
 
-                for (let i = 0; i < cantidad; i++) {
+                const seriales = await generarYRegistrarEtiquetasSeriales({
+                    organizationId: user.organizationId,
+                    codigoPadre: codigoBase,
+                    descripcion: descFormatted,
+                    cantidad,
+                    activoFijoId: itemCustom.activoFijoId || null,
+                    recepcionLoteId: lote.id,
+                    loteNumero: lote.numeroEnvio || null
+                });
+
+                for (const serial of seriales) {
+                    const params = new URLSearchParams({
+                        idQr: itemCustom.idQr || codigoBase,
+                        descripcion: descFormatted,
+                        codigoBarras: serial,
+                        size: tamano
+                    });
+                    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
                     printJobs.push({
                         organizationId: user.organizationId,
                         activoId: itemCustom.activoFijoId || null,
@@ -729,25 +772,39 @@ export async function encolarImpresionLoteCompleto(
                 for (const item of caja.items) {
                     const activo = item.activoFijo;
                     const descLive = formatNombreProductoRecepcion(activo?.descripcionCorta || item.descripcion);
-                    const codBarrasLive = item.codigoBarras || activo?.codigoBarras || activo?.idQr || '';
-                    const idQrLive = activo?.idQr || '000000';
+                    const codBarrasLive = (item.codigoBarras || activo?.codigoBarras || activo?.idQr || '000000').replace(/^PF-/i, '');
+                    const idQrLive = activo?.idQr || codBarrasLive;
 
                     const cantidadEtiquetas = item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : item.bonchesEsperados;
+                    if (cantidadEtiquetas <= 0) continue;
 
-                    const params = new URLSearchParams({
-                        idQr: idQrLive,
+                    const seriales = await generarYRegistrarEtiquetasSeriales({
+                        organizationId: user.organizationId,
+                        codigoPadre: codBarrasLive,
                         descripcion: descLive,
-                        area: activo?.area || 'BODEGA',
-                        cuenta: activo?.cuentaAct || 'INVENTARIO',
-                        marca: activo?.marca || '',
-                        modelo: activo?.modelo || '',
-                        codigoBarras: codBarrasLive,
-                        serie: activo?.serie || '',
-                        size: tamano
+                        cantidad: cantidadEtiquetas,
+                        activoFijoId: activo?.id || null,
+                        productoId: activo?.productoId || null,
+                        recepcionLoteId: lote.id,
+                        recepcionCajaId: caja.id,
+                        recepcionItemId: item.id,
+                        loteNumero: lote.numeroEnvio || null
                     });
-                    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 
-                    for (let i = 0; i < cantidadEtiquetas; i++) {
+                    for (const serial of seriales) {
+                        const params = new URLSearchParams({
+                            idQr: idQrLive,
+                            descripcion: descLive,
+                            area: activo?.area || 'BODEGA',
+                            cuenta: activo?.cuentaAct || 'INVENTARIO',
+                            marca: activo?.marca || '',
+                            modelo: activo?.modelo || '',
+                            codigoBarras: serial,
+                            serie: activo?.serie || '',
+                            size: tamano
+                        });
+                        const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
                         printJobs.push({
                             organizationId: user.organizationId,
                             activoId: activo?.id || null,

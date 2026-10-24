@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { parseCodigoEtiqueta } from '@/utils/etiquetaSerialHelper';
 
 // Helper to get logged in user from database
 async function getDbUser() {
@@ -32,7 +33,20 @@ export async function getPedidos() {
             avatarUrl: true
           }
         },
-        items: true
+        chequeadoPor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true
+          }
+        },
+        items: {
+          include: {
+            etiquetasSerial: {
+              orderBy: { createdAt: 'asc' }
+            }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -40,6 +54,11 @@ export async function getPedidos() {
     return pedidos.map(p => ({
       ...p,
       codigoPedido: p.codigoPedido,
+      tipoDespacho: p.tipoDespacho || 'INMEDIATO',
+      horaDespacho: p.horaDespacho || null,
+      motoristaRuta: p.motoristaRuta || null,
+      facturaId: p.facturaId || null,
+      chequeadoAt: p.chequeadoAt ? p.chequeadoAt.toISOString() : null,
       cliente: {
         id: p.cliente.id,
         nombre: p.cliente.nombre,
@@ -51,6 +70,10 @@ export async function getPedidos() {
         nombre: `${p.auxiliarAsignado.nombre || ''} ${p.auxiliarAsignado.apellido || ''}`.trim(),
         avatar: p.auxiliarAsignado.avatarUrl || undefined
       } : undefined,
+      chequeadoPor: p.chequeadoPor ? {
+        id: p.chequeadoPor.id,
+        nombre: `${p.chequeadoPor.nombre || ''} ${p.chequeadoPor.apellido || ''}`.trim()
+      } : undefined,
       items: p.items.map(item => ({
         id: item.id,
         productoId: item.productoId,
@@ -59,11 +82,21 @@ export async function getPedidos() {
         codigoBarras: item.codigoBarras || undefined,
         cantidadSolicitada: item.cantidadSolicitada,
         cantidadPreparada: item.cantidadPreparada,
+        cantidadChequeada: item.cantidadChequeada || 0,
+        chequeado: item.chequeado || false,
         recolectado: item.recolectado,
         sustituidoPor: item.sustituidoPorId ? {
           productoId: item.sustituidoPorId,
           nombreProducto: item.nombreSustituto || ''
-        } : undefined
+        } : undefined,
+        serialesEscaneados: (item.etiquetasSerial || []).map(s => ({
+          id: s.id,
+          codigoSerial: s.codigoSerial,
+          codigoPadre: s.codigoPadre,
+          estado: s.estado,
+          alistadoAt: s.alistadoAt ? s.alistadoAt.toISOString() : null,
+          chequeadoAt: s.chequeadoAt ? s.chequeadoAt.toISOString() : null
+        }))
       }))
     }));
   } catch (error) {
@@ -91,7 +124,20 @@ export async function getPedidoById(id: string) {
             avatarUrl: true
           }
         },
-        items: true
+        chequeadoPor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true
+          }
+        },
+        items: {
+          include: {
+            etiquetasSerial: {
+              orderBy: { createdAt: 'asc' }
+            }
+          }
+        }
       }
     });
 
@@ -99,6 +145,11 @@ export async function getPedidoById(id: string) {
 
     return {
       ...p,
+      tipoDespacho: p.tipoDespacho || 'INMEDIATO',
+      horaDespacho: p.horaDespacho || null,
+      motoristaRuta: p.motoristaRuta || null,
+      facturaId: p.facturaId || null,
+      chequeadoAt: p.chequeadoAt ? p.chequeadoAt.toISOString() : null,
       cliente: {
         id: p.cliente.id,
         nombre: p.cliente.nombre,
@@ -111,6 +162,10 @@ export async function getPedidoById(id: string) {
         nombre: `${p.auxiliarAsignado.nombre || ''} ${p.auxiliarAsignado.apellido || ''}`.trim(),
         avatar: p.auxiliarAsignado.avatarUrl || undefined
       } : undefined,
+      chequeadoPor: p.chequeadoPor ? {
+        id: p.chequeadoPor.id,
+        nombre: `${p.chequeadoPor.nombre || ''} ${p.chequeadoPor.apellido || ''}`.trim()
+      } : undefined,
       items: p.items.map(item => ({
         id: item.id,
         productoId: item.productoId,
@@ -119,11 +174,21 @@ export async function getPedidoById(id: string) {
         codigoBarras: item.codigoBarras || undefined,
         cantidadSolicitada: item.cantidadSolicitada,
         cantidadPreparada: item.cantidadPreparada,
+        cantidadChequeada: item.cantidadChequeada || 0,
+        chequeado: item.chequeado || false,
         recolectado: item.recolectado,
         sustituidoPor: item.sustituidoPorId ? {
           productoId: item.sustituidoPorId,
           nombreProducto: item.nombreSustituto || ''
-        } : undefined
+        } : undefined,
+        serialesEscaneados: (item.etiquetasSerial || []).map(s => ({
+          id: s.id,
+          codigoSerial: s.codigoSerial,
+          codigoPadre: s.codigoPadre,
+          estado: s.estado,
+          alistadoAt: s.alistadoAt ? s.alistadoAt.toISOString() : null,
+          chequeadoAt: s.chequeadoAt ? s.chequeadoAt.toISOString() : null
+        }))
       }))
     };
   } catch (error) {
@@ -194,6 +259,9 @@ export async function crearPedido(data: {
   clienteId: string;
   destino: string;
   estadoPago: 'pagado' | 'contra_entrega' | 'credito';
+  tipoDespacho?: string;
+  horaDespacho?: string;
+  motoristaRuta?: string;
   auxiliarAsignadoId?: string;
   notas?: string;
   items: {
@@ -229,6 +297,9 @@ export async function crearPedido(data: {
         destino: data.destino,
         estado: 'pendiente',
         estadoPago: data.estadoPago,
+        tipoDespacho: data.tipoDespacho || 'INMEDIATO',
+        horaDespacho: data.horaDespacho || null,
+        motoristaRuta: data.motoristaRuta || null,
         auxiliarAsignadoId: data.auxiliarAsignadoId || null,
         notas: data.notas,
         creadoPorId: dbUser.id,
@@ -407,7 +478,22 @@ export async function completarPedidoBodega(pedidoId: string) {
       await tx.pedido.update({
         where: { id: pedidoId },
         data: {
-          estado: 'listo_para_facturar'
+          estado: 'listo_para_facturar',
+          chequeadoPorId: dbUser.id,
+          chequeadoAt: new Date()
+        }
+      });
+
+      // 1.1 Update all associated EtiquetaSerial records to CHEQUEADO_OK
+      await tx.etiquetaSerial.updateMany({
+        where: {
+          pedidoId,
+          organizationId: dbUser.organizationId
+        },
+        data: {
+          estado: 'CHEQUEADO_OK',
+          chequeadoPorId: dbUser.id,
+          chequeadoAt: new Date()
         }
       });
 
@@ -463,16 +549,36 @@ export async function completarPedidoBodega(pedidoId: string) {
 export async function anularPedido(pedidoId: string) {
   try {
     const dbUser = await getDbUser();
-    await prisma.pedido.update({
-      where: {
-        id: pedidoId,
-        organizationId: dbUser.organizationId
-      },
-      data: {
-        estado: 'despachado', // Or a custom status, or logical deletion fields
-        anuladoPorId: dbUser.id,
-        anuladoAt: new Date()
-      }
+    await prisma.$transaction(async (tx) => {
+      await tx.pedido.update({
+        where: {
+          id: pedidoId,
+          organizationId: dbUser.organizationId
+        },
+        data: {
+          estado: 'despachado', // Or a custom status, or logical deletion fields
+          anuladoPorId: dbUser.id,
+          anuladoAt: new Date()
+        }
+      });
+
+      // Liberar cualquier etiqueta serializada que haya sido apartada en este pedido
+      await tx.etiquetaSerial.updateMany({
+        where: {
+          pedidoId,
+          organizationId: dbUser.organizationId,
+          estado: { in: ['ALISTADO_PEDIDO', 'CHEQUEADO_OK'] }
+        },
+        data: {
+          estado: 'DISPONIBLE_BODEGA',
+          pedidoId: null,
+          pedidoItemId: null,
+          alistadoPorId: null,
+          alistadoAt: null,
+          chequeadoPorId: null,
+          chequeadoAt: null
+        }
+      });
     });
 
     revalidatePath('/');
@@ -546,7 +652,13 @@ export async function getPedidoPickingItems(pedidoId: string) {
         organizationId: dbUser.organizationId
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            etiquetasSerial: {
+              orderBy: { createdAt: 'asc' }
+            }
+          }
+        },
         cliente: true,
         auxiliarAsignado: {
           select: { id: true, nombre: true, apellido: true }
@@ -568,11 +680,21 @@ export async function getPedidoPickingItems(pedidoId: string) {
         codigoBarras: item.codigoBarras || undefined,
         cantidadSolicitada: item.cantidadSolicitada,
         cantidadPreparada: item.cantidadPreparada,
+        cantidadChequeada: item.cantidadChequeada || 0,
+        chequeado: item.chequeado || false,
         recolectado: item.recolectado,
         sustituidoPor: item.sustituidoPorId ? {
           productoId: item.sustituidoPorId,
           nombreProducto: item.nombreSustituto || ''
-        } : undefined
+        } : undefined,
+        serialesEscaneados: (item.etiquetasSerial || []).map(s => ({
+          id: s.id,
+          codigoSerial: s.codigoSerial,
+          codigoPadre: s.codigoPadre,
+          estado: s.estado,
+          alistadoAt: s.alistadoAt ? s.alistadoAt.toISOString() : null,
+          chequeadoAt: s.chequeadoAt ? s.chequeadoAt.toISOString() : null
+        }))
       }))
     };
   } catch (error) {
@@ -680,15 +802,31 @@ export async function getPedidosListosParaFacturar() {
 export async function marcarPedidoFacturado(pedidoId: string, facturaId?: string) {
   try {
     const dbUser = await getDbUser();
-    await prisma.pedido.update({
-      where: {
-        id: pedidoId,
-        organizationId: dbUser.organizationId
-      },
-      data: {
-        estado: 'facturado',
-        notas: facturaId ? `Facturado bajo documento ID: ${facturaId}` : undefined
-      }
+    await prisma.$transaction(async (tx) => {
+      await tx.pedido.update({
+        where: {
+          id: pedidoId,
+          organizationId: dbUser.organizationId
+        },
+        data: {
+          estado: 'facturado',
+          facturaId: facturaId || null,
+          notas: facturaId ? `Facturado bajo documento ID: ${facturaId}` : undefined
+        }
+      });
+
+      // Actualizar todas las etiquetas serializadas casadas con este pedido a FACTURADO_EN_RUTA
+      await tx.etiquetaSerial.updateMany({
+        where: {
+          pedidoId,
+          organizationId: dbUser.organizationId
+        },
+        data: {
+          estado: 'FACTURADO_EN_RUTA',
+          facturaId: facturaId || null,
+          despachadoAt: new Date()
+        }
+      });
     });
 
     revalidatePath('/');
@@ -700,4 +838,648 @@ export async function marcarPedidoFacturado(pedidoId: string, facturaId?: string
     return { success: false, error: error.message };
   }
 }
+
+// Pasar pedido de alistamiento a mesa de chequeo (Rol Chequeador)
+export async function pasarPedidoAChequeo(pedidoId: string) {
+  try {
+    const dbUser = await getDbUser();
+    await prisma.pedido.update({
+      where: {
+        id: pedidoId,
+        organizationId: dbUser.organizationId
+      },
+      data: {
+        estado: 'en_chequeo'
+      }
+    });
+
+    revalidatePath('/');
+    revalidatePath('/inventario-ventas/pedidos');
+    revalidatePath(`/inventario-ventas/pedidos/preparar/${pedidoId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error en pasarPedidoAChequeo:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Escanear etiqueta en PDA (Modo ALISTADOR o Modo CHEQUEADOR) con bloqueo de doble escaneo y validación de apartados
+export async function escanearEtiquetaPedido(params: {
+  pedidoId: string;
+  codigoEscaneado: string;
+  modo: 'ALISTADOR' | 'CHEQUEADOR';
+}) {
+  try {
+    const dbUser = await getDbUser();
+    const { pedidoId, codigoEscaneado, modo } = params;
+    const parsed = parseCodigoEtiqueta(codigoEscaneado);
+
+    if (!parsed.clean) {
+      return { success: false, code: 'CODIGO_VACIO', error: 'Código vacío' };
+    }
+
+    const pedido = await prisma.pedido.findFirst({
+      where: {
+        id: pedidoId,
+        organizationId: dbUser.organizationId
+      },
+      include: {
+        items: {
+          include: {
+            producto: { select: { id: true, sku: true, nombre: true } },
+            sustituidoPor: { select: { id: true, sku: true, nombre: true } },
+            etiquetasSerial: true
+          }
+        }
+      }
+    });
+
+    if (!pedido) {
+      return { success: false, code: 'PEDIDO_NO_ENCONTRADO', error: 'Pedido no encontrado' };
+    }
+
+    // Helper para buscar el PedidoItem que corresponde al código padre
+    const findMatchingPedidoItem = (codigoPadre: string, preferIncomplete: boolean) => {
+      const padreLower = codigoPadre.toLowerCase().replace(/^pf-/i, '');
+      const padreNum = padreLower.replace(/^0+/, '');
+
+      const matches = pedido.items.filter(i => {
+        const activeProd = i.sustituidoPor || i.producto;
+        const itemBar = (i.codigoBarras || '').toLowerCase().replace(/^pf-/i, '');
+        const prodSku = (activeProd?.sku || '').toLowerCase().replace(/^pf-/i, '');
+
+        return (
+          (itemBar && (itemBar === padreLower || itemBar.replace(/^0+/, '') === padreNum)) ||
+          (prodSku && (prodSku === padreLower || prodSku.replace(/^0+/, '') === padreNum))
+        );
+      });
+
+      if (matches.length === 0) return null;
+      if (preferIncomplete) {
+        if (modo === 'ALISTADOR') {
+          const incomplete = matches.find(m => m.cantidadPreparada < m.cantidadSolicitada);
+          if (incomplete) return incomplete;
+        } else {
+          const incomplete = matches.find(m => (m.cantidadChequeada || 0) < (m.cantidadPreparada || m.cantidadSolicitada));
+          if (incomplete) return incomplete;
+        }
+      }
+      return matches[0];
+    };
+
+    // ─── CASO A: Etiqueta Hija Serializada (ej. 010055-0042) ─────────────────
+    if (parsed.isSerial) {
+      let etiqueta = await prisma.etiquetaSerial.findFirst({
+        where: {
+          organizationId: dbUser.organizationId,
+          codigoSerial: { equals: parsed.codigoSerial, mode: 'insensitive' }
+        },
+        include: {
+          pedido: {
+            include: {
+              cliente: { select: { nombre: true } }
+            }
+          }
+        }
+      });
+
+      // 1. Validar si ya pertenece a OTRO pedido (Respeto de Apartados y Pedidos Programados)
+      if (
+        etiqueta &&
+        etiqueta.pedidoId &&
+        etiqueta.pedidoId !== pedidoId &&
+        ['ALISTADO_PEDIDO', 'CHEQUEADO_OK', 'FACTURADO_EN_RUTA'].includes(etiqueta.estado)
+      ) {
+        const otroCodigo = etiqueta.pedido?.codigoPedido || 'Otro Pedido';
+        const otroCliente = etiqueta.pedido?.cliente?.nombre || 'Cliente';
+        return {
+          success: false,
+          code: 'APARTADO_OTRO_PEDIDO',
+          error: `🚫 Paquete ${parsed.codigoSerial} ya está apartado en ${otroCodigo} (${otroCliente}).`
+        };
+      }
+
+      // 2. Validar si está en MERMA o ENTREGADO
+      if (etiqueta && ['MERMA', 'ENTREGADO'].includes(etiqueta.estado)) {
+        return {
+          success: false,
+          code: 'ESTADO_INVALIDO',
+          error: `🚫 Etiqueta ${parsed.codigoSerial} figura como ${etiqueta.estado}.`
+        };
+      }
+
+      // 3. MODO ALISTADOR
+      if (modo === 'ALISTADOR') {
+        // Bloqueo de Doble Escaneo en el mismo pedido
+        if (etiqueta && etiqueta.pedidoId === pedidoId && etiqueta.estado !== 'DISPONIBLE_BODEGA') {
+          return {
+            success: false,
+            code: 'DOBLE_ESCANEO',
+            error: `⚠️ Este paquete (${parsed.codigoSerial}) ya fue escaneado en este pedido.`
+          };
+        }
+
+        const targetItem = findMatchingPedidoItem(parsed.codigoPadre, true);
+        if (!targetItem) {
+          return {
+            success: false,
+            code: 'NO_EN_PEDIDO',
+            codigoPadre: parsed.codigoPadre,
+            codigoSerial: parsed.codigoSerial,
+            error: `El producto ${parsed.codigoPadre} (${parsed.codigoSerial}) no está solicitado en este pedido.`
+          };
+        }
+
+        const activeProdId = targetItem.sustituidoPorId || targetItem.productoId;
+        const newQty = (targetItem.cantidadPreparada || 0) + 1;
+        const isComplete = newQty >= targetItem.cantidadSolicitada;
+
+        const updatedSerial = await prisma.$transaction(async (tx) => {
+          let serialRec;
+          if (etiqueta) {
+            serialRec = await tx.etiquetaSerial.update({
+              where: { id: etiqueta.id },
+              data: {
+                estado: 'ALISTADO_PEDIDO',
+                pedidoId,
+                pedidoItemId: targetItem.id,
+                productoId: etiqueta.productoId || activeProdId,
+                alistadoPorId: dbUser.id,
+                alistadoAt: new Date()
+              }
+            });
+          } else {
+            serialRec = await tx.etiquetaSerial.create({
+              data: {
+                organizationId: dbUser.organizationId,
+                codigoSerial: parsed.codigoSerial,
+                codigoPadre: parsed.codigoPadre,
+                correlativo: parsed.correlativo || 1,
+                descripcion: targetItem.nombreProducto,
+                estado: 'ALISTADO_PEDIDO',
+                productoId: activeProdId,
+                pedidoId,
+                pedidoItemId: targetItem.id,
+                alistadoPorId: dbUser.id,
+                alistadoAt: new Date()
+              }
+            });
+          }
+
+          await tx.pedidoItem.update({
+            where: { id: targetItem.id },
+            data: {
+              cantidadPreparada: newQty,
+              recolectado: isComplete
+            }
+          });
+
+          return serialRec;
+        });
+
+        revalidatePath(`/inventario-ventas/pedidos/preparar/${pedidoId}`);
+
+        return {
+          success: true,
+          modo: 'ALISTADOR',
+          isSerial: true,
+          itemId: targetItem.id,
+          nombreProducto: targetItem.nombreProducto,
+          cantidadPreparada: newQty,
+          cantidadSolicitada: targetItem.cantidadSolicitada,
+          recolectado: isComplete,
+          serial: {
+            id: updatedSerial.id,
+            codigoSerial: updatedSerial.codigoSerial,
+            codigoPadre: updatedSerial.codigoPadre,
+            estado: updatedSerial.estado,
+            alistadoAt: updatedSerial.alistadoAt ? updatedSerial.alistadoAt.toISOString() : null,
+            chequeadoAt: updatedSerial.chequeadoAt ? updatedSerial.chequeadoAt.toISOString() : null
+          }
+        };
+      }
+
+      // 4. MODO CHEQUEADOR (Doble Verificación 100%)
+      if (modo === 'CHEQUEADOR') {
+        if (etiqueta && etiqueta.pedidoId === pedidoId && etiqueta.estado === 'CHEQUEADO_OK') {
+          return {
+            success: false,
+            code: 'DOBLE_ESCANEO',
+            error: `⚠️ Este paquete (${parsed.codigoSerial}) ya fue chequeado en este pedido.`
+          };
+        }
+
+        const targetItem = etiqueta?.pedidoItemId
+          ? pedido.items.find(i => i.id === etiqueta!.pedidoItemId) || findMatchingPedidoItem(parsed.codigoPadre, true)
+          : findMatchingPedidoItem(parsed.codigoPadre, true);
+
+        if (!targetItem) {
+          return {
+            success: false,
+            code: 'PRODUCTO_CRUZADO',
+            error: `🚫 Paquete ajeno al pedido: ${parsed.codigoSerial} no corresponde a ningún ítem solicitado.`
+          };
+        }
+
+        const activeProdId = targetItem.sustituidoPorId || targetItem.productoId;
+        const wasAlreadyAlistado = etiqueta && etiqueta.pedidoId === pedidoId;
+        const newPrepQty = wasAlreadyAlistado
+          ? targetItem.cantidadPreparada
+          : (targetItem.cantidadPreparada || 0) + 1;
+        const targetGoal = Math.max(targetItem.cantidadSolicitada, newPrepQty);
+        const newCheqQty = (targetItem.cantidadChequeada || 0) + 1;
+        const isCheqComplete = newCheqQty >= targetGoal;
+
+        const updatedSerial = await prisma.$transaction(async (tx) => {
+          let serialRec;
+          if (etiqueta) {
+            serialRec = await tx.etiquetaSerial.update({
+              where: { id: etiqueta.id },
+              data: {
+                estado: 'CHEQUEADO_OK',
+                pedidoId,
+                pedidoItemId: targetItem.id,
+                productoId: etiqueta.productoId || activeProdId,
+                alistadoPorId: etiqueta.alistadoPorId || dbUser.id,
+                alistadoAt: etiqueta.alistadoAt || new Date(),
+                chequeadoPorId: dbUser.id,
+                chequeadoAt: new Date()
+              }
+            });
+          } else {
+            serialRec = await tx.etiquetaSerial.create({
+              data: {
+                organizationId: dbUser.organizationId,
+                codigoSerial: parsed.codigoSerial,
+                codigoPadre: parsed.codigoPadre,
+                correlativo: parsed.correlativo || 1,
+                descripcion: targetItem.nombreProducto,
+                estado: 'CHEQUEADO_OK',
+                productoId: activeProdId,
+                pedidoId,
+                pedidoItemId: targetItem.id,
+                alistadoPorId: dbUser.id,
+                alistadoAt: new Date(),
+                chequeadoPorId: dbUser.id,
+                chequeadoAt: new Date()
+              }
+            });
+          }
+
+          await tx.pedidoItem.update({
+            where: { id: targetItem.id },
+            data: {
+              cantidadPreparada: newPrepQty,
+              recolectado: newPrepQty >= targetItem.cantidadSolicitada,
+              cantidadChequeada: newCheqQty,
+              chequeado: isCheqComplete
+            }
+          });
+
+          return serialRec;
+        });
+
+        revalidatePath(`/inventario-ventas/pedidos/preparar/${pedidoId}`);
+
+        return {
+          success: true,
+          modo: 'CHEQUEADOR',
+          isSerial: true,
+          itemId: targetItem.id,
+          nombreProducto: targetItem.nombreProducto,
+          cantidadPreparada: newPrepQty,
+          cantidadSolicitada: targetItem.cantidadSolicitada,
+          cantidadChequeada: newCheqQty,
+          chequeado: isCheqComplete,
+          serial: {
+            id: updatedSerial.id,
+            codigoSerial: updatedSerial.codigoSerial,
+            codigoPadre: updatedSerial.codigoPadre,
+            estado: updatedSerial.estado,
+            alistadoAt: updatedSerial.alistadoAt ? updatedSerial.alistadoAt.toISOString() : null,
+            chequeadoAt: updatedSerial.chequeadoAt ? updatedSerial.chequeadoAt.toISOString() : null
+          }
+        };
+      }
+    }
+
+    // ─── CASO B: Etiqueta Clásica / Padre sin sufijo serial (ej. 010055) ─────
+    const targetItem = findMatchingPedidoItem(parsed.codigoPadre, true);
+    if (!targetItem) {
+      return {
+        success: false,
+        code: 'NO_EN_PEDIDO',
+        codigoPadre: parsed.codigoPadre,
+        codigoSerial: parsed.codigoSerial,
+        error: `Código no encontrado en este pedido: ${parsed.clean}`
+      };
+    }
+
+    if (modo === 'ALISTADOR') {
+      const newQty = (targetItem.cantidadPreparada || 0) + 1;
+      const isComplete = newQty >= targetItem.cantidadSolicitada;
+      await prisma.pedidoItem.update({
+        where: { id: targetItem.id },
+        data: {
+          cantidadPreparada: newQty,
+          recolectado: isComplete
+        }
+      });
+      revalidatePath(`/inventario-ventas/pedidos/preparar/${pedidoId}`);
+      return {
+        success: true,
+        modo: 'ALISTADOR',
+        isSerial: false,
+        itemId: targetItem.id,
+        nombreProducto: targetItem.nombreProducto,
+        cantidadPreparada: newQty,
+        cantidadSolicitada: targetItem.cantidadSolicitada,
+        recolectado: isComplete
+      };
+    } else {
+      const targetGoal = Math.max(targetItem.cantidadSolicitada, targetItem.cantidadPreparada || 0);
+      const newCheqQty = (targetItem.cantidadChequeada || 0) + 1;
+      const isCheqComplete = newCheqQty >= targetGoal;
+      await prisma.pedidoItem.update({
+        where: { id: targetItem.id },
+        data: {
+          cantidadChequeada: newCheqQty,
+          chequeado: isCheqComplete
+        }
+      });
+      revalidatePath(`/inventario-ventas/pedidos/preparar/${pedidoId}`);
+      return {
+        success: true,
+        modo: 'CHEQUEADOR',
+        isSerial: false,
+        itemId: targetItem.id,
+        nombreProducto: targetItem.nombreProducto,
+        cantidadPreparada: targetItem.cantidadPreparada,
+        cantidadSolicitada: targetItem.cantidadSolicitada,
+        cantidadChequeada: newCheqQty,
+        chequeado: isCheqComplete
+      };
+    }
+  } catch (error: any) {
+    console.error('Error en escanearEtiquetaPedido:', error);
+    return { success: false, error: error.message || 'Error al procesar escaneo' };
+  }
+}
+
+// Desvincular un serial específico de un pedido y devolverlo a DISPONIBLE_BODEGA
+export async function desvincularEtiquetaSerial(pedidoId: string, etiquetaId: string) {
+  try {
+    const dbUser = await getDbUser();
+    const etiqueta = await prisma.etiquetaSerial.findFirst({
+      where: {
+        id: etiquetaId,
+        pedidoId,
+        organizationId: dbUser.organizationId
+      }
+    });
+
+    if (!etiqueta) {
+      return { success: false, error: 'Etiqueta no encontrada en este pedido' };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.etiquetaSerial.update({
+        where: { id: etiqueta.id },
+        data: {
+          estado: 'DISPONIBLE_BODEGA',
+          pedidoId: null,
+          pedidoItemId: null,
+          alistadoPorId: null,
+          alistadoAt: null,
+          chequeadoPorId: null,
+          chequeadoAt: null
+        }
+      });
+
+      if (etiqueta.pedidoItemId) {
+        const item = await tx.pedidoItem.findUnique({
+          where: { id: etiqueta.pedidoItemId }
+        });
+        if (item) {
+          const newPrep = Math.max(0, (item.cantidadPreparada || 0) - 1);
+          const newCheq = etiqueta.estado === 'CHEQUEADO_OK'
+            ? Math.max(0, (item.cantidadChequeada || 0) - 1)
+            : (item.cantidadChequeada || 0);
+
+          await tx.pedidoItem.update({
+            where: { id: item.id },
+            data: {
+              cantidadPreparada: newPrep,
+              recolectado: newPrep >= item.cantidadSolicitada,
+              cantidadChequeada: newCheq,
+              chequeado: newCheq >= item.cantidadSolicitada
+            }
+          });
+        }
+      }
+    });
+
+    revalidatePath(`/inventario-ventas/pedidos/preparar/${pedidoId}`);
+    return { success: true, codigoSerial: etiqueta.codigoSerial };
+  } catch (error: any) {
+    console.error('Error en desvincularEtiquetaSerial:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Obtener mapa de Stock Comprometido / Apartado en pedidos activos (pendiente, en_preparacion, en_chequeo)
+export async function getStockComprometidoMap(): Promise<Record<string, number>> {
+  try {
+    const dbUser = await getDbUser();
+    const pedidosActivos = await prisma.pedido.findMany({
+      where: {
+        organizationId: dbUser.organizationId,
+        estado: { in: ['pendiente', 'en_preparacion', 'en_chequeo'] },
+        anuladoAt: null
+      },
+      include: {
+        items: true
+      }
+    });
+
+    const map: Record<string, number> = {};
+    for (const p of pedidosActivos) {
+      for (const item of p.items) {
+        const prodId = item.sustituidoPorId || item.productoId;
+        const qty = Math.max(item.cantidadSolicitada, item.cantidadPreparada || 0);
+        map[prodId] = (map[prodId] || 0) + qty;
+      }
+    }
+    return map;
+  } catch (error) {
+    console.error('Error en getStockComprometidoMap:', error);
+    return {};
+  }
+}
+
+// Fase E: Liquidación / Retorno de Ruta por escaneo de etiqueta (Reingreso a Bodega o Merma)
+export async function procesarRetornoEtiquetaRuta(params: {
+  codigoSerial: string;
+  accion: 'DEVUELTO_BODEGA' | 'MERMA';
+  motivo?: string;
+}) {
+  try {
+    const dbUser = await getDbUser();
+    const parsed = parseCodigoEtiqueta(params.codigoSerial);
+
+    if (!parsed.clean) {
+      return { success: false, error: 'Código inválido' };
+    }
+
+    const etiqueta = await prisma.etiquetaSerial.findFirst({
+      where: {
+        organizationId: dbUser.organizationId,
+        codigoSerial: { equals: parsed.codigoSerial, mode: 'insensitive' }
+      },
+      include: {
+        producto: true,
+        activoFijo: true,
+        pedido: {
+          include: { cliente: { select: { nombre: true } } }
+        }
+      }
+    });
+
+    if (!etiqueta) {
+      return {
+        success: false,
+        error: `No se encontró la etiqueta serializada ${parsed.codigoSerial} en el sistema.`
+      };
+    }
+
+    if (etiqueta.estado === 'DISPONIBLE_BODEGA' && params.accion === 'DEVUELTO_BODEGA') {
+      return {
+        success: false,
+        error: `La etiqueta ${etiqueta.codigoSerial} ya se encuentra DISPONIBLE EN BODEGA.`
+      };
+    }
+
+    if (etiqueta.estado === 'MERMA') {
+      return {
+        success: false,
+        error: `La etiqueta ${etiqueta.codigoSerial} ya había sido registrada como MERMA.`
+      };
+    }
+
+    const estabaDescontadoStock = ['FACTURADO_EN_RUTA', 'CHEQUEADO_OK', 'ENTREGADO'].includes(etiqueta.estado);
+
+    await prisma.$transaction(async (tx) => {
+      if (params.accion === 'DEVUELTO_BODEGA') {
+        await tx.etiquetaSerial.update({
+          where: { id: etiqueta.id },
+          data: {
+            estado: 'DISPONIBLE_BODEGA',
+            retornadoAt: new Date(),
+            motivoRetorno: params.motivo || 'Retorno de ruta en buen estado (Reintegrado a cámara fría)',
+            pedidoId: null,
+            pedidoItemId: null
+          }
+        });
+
+        // Si el paquete ya había descontado stock al completarse el pedido, reintegrar +1 al inventario
+        if (estabaDescontadoStock && etiqueta.productoId) {
+          await tx.producto.update({
+            where: { id: etiqueta.productoId },
+            data: { stockActual: { increment: 1 } }
+          });
+
+          if (etiqueta.activoFijoId) {
+            await tx.activoFijo.update({
+              where: { id: etiqueta.activoFijoId },
+              data: { stock: { increment: 1 } }
+            });
+          }
+
+          await tx.movimientoInventario.create({
+            data: {
+              organizationId: dbUser.organizationId,
+              productoId: etiqueta.productoId,
+              tipoMovimiento: 'ENTRADA',
+              cantidad: 1,
+              motivo: `Retorno de Ruta (${etiqueta.codigoSerial}): ${params.motivo || 'Reingreso a cámara fría'}`,
+              referencia: etiqueta.codigoSerial,
+              usuarioId: dbUser.id
+            }
+          });
+        }
+      } else {
+        // ACCIÓN: MERMA
+        await tx.etiquetaSerial.update({
+          where: { id: etiqueta.id },
+          data: {
+            estado: 'MERMA',
+            retornadoAt: new Date(),
+            motivoRetorno: params.motivo || 'Dañado en retorno de ruta'
+          }
+        });
+
+        // Si aún estaba en DISPONIBLE_BODEGA o ALISTADO_PEDIDO (no había descontado stock de salida), descontar 1 por merma
+        if (!estabaDescontadoStock && etiqueta.productoId) {
+          await tx.producto.update({
+            where: { id: etiqueta.productoId },
+            data: { stockActual: { decrement: 1 } }
+          });
+          if (etiqueta.activoFijoId) {
+            await tx.activoFijo.update({
+              where: { id: etiqueta.activoFijoId },
+              data: { stock: { decrement: 1 } }
+            });
+          }
+        }
+
+        if (etiqueta.productoId) {
+          await tx.movimientoInventario.create({
+            data: {
+              organizationId: dbUser.organizationId,
+              productoId: etiqueta.productoId,
+              tipoMovimiento: 'MERMA',
+              cantidad: 1,
+              motivo: `Merma por Retorno de Etiqueta ${etiqueta.codigoSerial}: ${params.motivo || 'Maltratado / Dañado'}`,
+              referencia: etiqueta.codigoSerial,
+              usuarioId: dbUser.id
+            }
+          });
+        }
+
+        await tx.registroMerma.create({
+          data: {
+            organizationId: dbUser.organizationId,
+            productoId: etiqueta.productoId || null,
+            nombreProducto: etiqueta.descripcion,
+            sku: etiqueta.codigoSerial,
+            categoria: etiqueta.producto?.categoria || 'FLOR',
+            cantidad: 1,
+            unidadMedida: 'PAQUETE',
+            motivo: params.motivo || 'RETORNO_RUTA_DANADO',
+            notas: `Etiqueta serializada: ${etiqueta.codigoSerial}${etiqueta.pedido ? ` (Pedido ${etiqueta.pedido.codigoPedido})` : ''}`,
+            costoUnitario: etiqueta.producto?.costoBase || 0,
+            usuarioId: dbUser.id
+          }
+        });
+      }
+    });
+
+    revalidatePath('/inventario');
+    revalidatePath('/inventario-ventas/pedidos');
+    return {
+      success: true,
+      etiqueta: {
+        codigoSerial: etiqueta.codigoSerial,
+        descripcion: etiqueta.descripcion,
+        nuevoEstado: params.accion === 'DEVUELTO_BODEGA' ? 'DISPONIBLE_BODEGA' : 'MERMA',
+        pedidoCodigo: etiqueta.pedido?.codigoPedido || null,
+        clienteNombre: etiqueta.pedido?.cliente?.nombre || null
+      }
+    };
+  } catch (error: any) {
+    console.error('Error en procesarRetornoEtiquetaRuta:', error);
+    return { success: false, error: error.message || 'Error al procesar retorno de etiqueta' };
+  }
+}
+
 

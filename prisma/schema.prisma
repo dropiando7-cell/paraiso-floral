@@ -74,6 +74,7 @@ model Organization {
   reportesHorasExtras  ReporteHorasExtras[]
   registrosCompras      RegistroCompra[]
   registrosMerma        RegistroMerma[]
+  etiquetasSerial       EtiquetaSerial[]
 
   @@map("organizations")
 }
@@ -186,10 +187,13 @@ model User {
 
   // Pedidos
   pedidosAsignados         Pedido[]              @relation("AuxiliarPedidos")
+  pedidosChequeados        Pedido[]              @relation("ChequeadorPedidos")
   pedidosCreados           Pedido[]              @relation("CreatedPedidos")
   pedidosAnulados          Pedido[]              @relation("AnuladoPedidos")
   comprasCreadas           RegistroCompra[]      @relation("ComprasCreadas")
   mermasRegistradas        RegistroMerma[]       @relation("MermasRegistradas")
+  etiquetasAlistadas       EtiquetaSerial[]      @relation("EtiquetaAlistadoPor")
+  etiquetasChequeadas      EtiquetaSerial[]      @relation("EtiquetaChequeadoPor")
 
   @@map("users")
 }
@@ -494,6 +498,7 @@ model ActivoFijo {
   ordenesTrabajo        OrdenTrabajo[]
   auditoriasDetalle     AuditoriaDetalle[]
   recepcionesItem       RecepcionItem[]
+  etiquetasSerial       EtiquetaSerial[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -680,6 +685,7 @@ model Producto {
   pedidoItems             PedidoItem[]           @relation("PedidoItemsProducto")
   pedidoItemsSustituidos  PedidoItem[]           @relation("PedidoItemsSustituto")
   registrosMerma          RegistroMerma[]
+  etiquetasSerial         EtiquetaSerial[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -847,6 +853,8 @@ model Factura {
   detallesPago             PagoDetalleFactura[]
   notasCredito             NotaCreditoCliente[]
   pagosMixtos              FacturaMetodoPago[] @relation("FacturaPagosMixtos")
+  etiquetasSerial          EtiquetaSerial[]
+  pedidosFacturados        Pedido[]            @relation("FacturaPedidos")
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])
@@ -1802,9 +1810,15 @@ model Pedido {
   codigoPedido       String       // ej. PED-2026-0042
   clienteId          String       @db.Uuid
   destino            String
-  estado             String       @default("pendiente") // pendiente, en_preparacion, completado, despachado
+  estado             String       @default("pendiente") // pendiente, en_preparacion, en_chequeo, listo_para_facturar, completado, facturado, despachado
   estadoPago         String       @default("pagado") // pagado, contra_entrega, credito
+  tipoDespacho       String?      @default("INMEDIATO") // INMEDIATO, PROGRAMADO, RECOGE_TIENDA
+  horaDespacho       String?      // ej. "14:00" o fecha/hora programada
+  motoristaRuta      String?
   auxiliarAsignadoId String?      @db.Uuid
+  chequeadoPorId     String?      @db.Uuid
+  chequeadoAt        DateTime?
+  facturaId          String?      @db.Uuid
   notas              String?      @db.Text
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
@@ -1818,13 +1832,17 @@ model Pedido {
 
   cliente            Cliente      @relation(fields: [clienteId], references: [id])
   auxiliarAsignado   User?        @relation("AuxiliarPedidos", fields: [auxiliarAsignadoId], references: [id])
+  chequeadoPor       User?        @relation("ChequeadorPedidos", fields: [chequeadoPorId], references: [id])
+  factura            Factura?     @relation("FacturaPedidos", fields: [facturaId], references: [id])
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   items              PedidoItem[]
+  etiquetasSerial    EtiquetaSerial[]
 
   @@unique([organizationId, codigoPedido])
   @@index([organizationId])
   @@index([clienteId])
   @@index([auxiliarAsignadoId])
+  @@index([facturaId])
   @@map("pedidos")
 }
 
@@ -1838,6 +1856,8 @@ model PedidoItem {
   cantidadSolicitada Int
   cantidadPreparada  Int          @default(0)
   recolectado        Boolean      @default(false)
+  cantidadChequeada  Int          @default(0)
+  chequeado          Boolean      @default(false)
   
   // Sustituto
   sustituidoPorId    String?      @db.Uuid
@@ -1846,6 +1866,7 @@ model PedidoItem {
   pedido             Pedido       @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
   producto           Producto     @relation("PedidoItemsProducto", fields: [productoId], references: [id])
   sustituidoPor      Producto?    @relation("PedidoItemsSustituto", fields: [sustituidoPorId], references: [id])
+  etiquetasSerial    EtiquetaSerial[]
 
   @@index([pedidoId])
   @@index([productoId])
@@ -1868,6 +1889,7 @@ model RecepcionLote {
 
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cajas          RecepcionCaja[]
+  etiquetasSerial EtiquetaSerial[]
 
   @@unique([organizationId, numeroEnvio])
   @@index([organizationId])
@@ -1888,6 +1910,7 @@ model RecepcionCaja {
 
   recepcion      RecepcionLote   @relation(fields: [recepcionId], references: [id], onDelete: Cascade)
   items          RecepcionItem[]
+  etiquetasSerial EtiquetaSerial[]
 
   @@index([recepcionId])
   @@index([codigoProveedor])
@@ -1914,10 +1937,61 @@ model RecepcionItem {
 
   caja             RecepcionCaja @relation(fields: [cajaId], references: [id], onDelete: Cascade)
   activoFijo       ActivoFijo?   @relation(fields: [activoFijoId], references: [id])
+  etiquetasSerial  EtiquetaSerial[]
 
   @@index([cajaId])
   @@index([activoFijoId])
   @@map("recepciones_item")
+}
+
+model EtiquetaSerial {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String         @db.Uuid
+  codigoSerial    String         // Ej. "010055-0001"
+  codigoPadre     String         // Ej. "010055"
+  correlativo     Int            // Ej. 1
+  descripcion     String
+  estado          String         @default("DISPONIBLE_BODEGA") // DISPONIBLE_BODEGA, ALISTADO_PEDIDO, CHEQUEADO_OK, FACTURADO_EN_RUTA, ENTREGADO, DEVUELTO_BODEGA, MERMA
+  activoFijoId    String?        @db.Uuid
+  productoId      String?        @db.Uuid
+  recepcionLoteId String?        @db.Uuid
+  recepcionCajaId String?        @db.Uuid
+  recepcionItemId String?        @db.Uuid
+  pedidoId        String?        @db.Uuid
+  pedidoItemId    String?        @db.Uuid
+  facturaId       String?        @db.Uuid
+  loteNumero      String?
+  alistadoPorId   String?        @db.Uuid
+  alistadoAt      DateTime?
+  chequeadoPorId  String?        @db.Uuid
+  chequeadoAt     DateTime?
+  despachadoAt    DateTime?
+  retornadoAt     DateTime?
+  motivoRetorno   String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  activoFijo      ActivoFijo?    @relation(fields: [activoFijoId], references: [id], onDelete: SetNull)
+  producto        Producto?      @relation(fields: [productoId], references: [id], onDelete: SetNull)
+  recepcionLote   RecepcionLote? @relation(fields: [recepcionLoteId], references: [id], onDelete: SetNull)
+  recepcionCaja   RecepcionCaja? @relation(fields: [recepcionCajaId], references: [id], onDelete: SetNull)
+  recepcionItem   RecepcionItem? @relation(fields: [recepcionItemId], references: [id], onDelete: SetNull)
+  pedido          Pedido?        @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  pedidoItem      PedidoItem?    @relation(fields: [pedidoItemId], references: [id], onDelete: SetNull)
+  factura         Factura?       @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  alistadoPor     User?          @relation("EtiquetaAlistadoPor", fields: [alistadoPorId], references: [id], onDelete: SetNull)
+  chequeadoPor    User?          @relation("EtiquetaChequeadoPor", fields: [chequeadoPorId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, codigoSerial])
+  @@index([organizationId, codigoPadre])
+  @@index([organizationId, estado])
+  @@index([pedidoId])
+  @@index([pedidoItemId])
+  @@index([activoFijoId])
+  @@index([productoId])
+  @@index([facturaId])
+  @@map("etiquetas_serial")
 }
 
 model ReporteHorasExtras {

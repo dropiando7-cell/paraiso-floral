@@ -11,6 +11,7 @@ import {
     resolveSarRolloverForNextSequence,
     resolveFacturaSarMetadata
 } from '@/lib/sar-utils';
+import { parseCodigoEtiqueta } from '@/utils/etiquetaSerialHelper';
 
 // Helper for Auth — returns full user object with nombre+apellido
 export async function getAuthenticatedUser() {
@@ -213,7 +214,10 @@ export async function searchClientes(query: string = "") {
 export async function searchProductos(query: string = "", limitOverride?: number) {
     try {
         const organizationId = await getOrganizationId();
-        const queryTrim = query.trim();
+        const rawTrim = query.trim();
+        const parsedSerial = parseCodigoEtiqueta(rawTrim);
+        // Si se escanea una etiqueta hija serializada (ej. 010055-0001), buscar por su código padre (010055)
+        const queryTrim = parsedSerial.isSerial ? parsedSerial.codigoPadre : rawTrim;
         const words = queryTrim
             .split(/\s+/)
             .map(w => w.trim())
@@ -1857,14 +1861,63 @@ export async function buscarItemPorCodigo(codigo: string) {
     if (!codigo || codigo.trim() === '') return null;
     try {
         const organizationId = await getOrganizationId();
-        const codigoTrim = codigo.trim();
+        const rawTrim = codigo.trim();
+        const parsedSerial = parseCodigoEtiqueta(rawTrim);
+        const codigoTrim = parsedSerial.isSerial ? parsedSerial.codigoPadre : rawTrim;
+        const candidatosCodigo = Array.from(new Set([
+            rawTrim,
+            codigoTrim,
+            `PF-${codigoTrim}`,
+            codigoTrim.replace(/^PF-/i, '')
+        ].filter(Boolean)));
+
+        // 0. Si es una etiqueta serializada (ej. 010055-0001), verificar primero en EtiquetaSerial si tiene vínculo directo
+        if (parsedSerial.isSerial) {
+            const etiqueta = await prisma.etiquetaSerial.findFirst({
+                where: {
+                    organizationId,
+                    codigoSerial: { equals: parsedSerial.codigoSerial, mode: 'insensitive' }
+                },
+                include: {
+                    producto: true,
+                    activoFijo: { include: { producto: true } }
+                }
+            });
+
+            if (etiqueta?.producto) {
+                const prod = etiqueta.producto;
+                return {
+                    id: prod.id,
+                    sku: prod.sku,
+                    type: 'producto',
+                    name: prod.nombre,
+                    description: prod.descripcion || '',
+                    price: Number(prod.precioVenta) || 0,
+                    imageUrl: prod.imagenWeb || (prod.imagenes && prod.imagenes[0]) || undefined
+                };
+            }
+            if (etiqueta?.activoFijo) {
+                const act = etiqueta.activoFijo;
+                return {
+                    id: act.id,
+                    sku: act.idQr,
+                    type: 'activo',
+                    name: act.descripcionCorta,
+                    description: act.descripcionDetallada || (act.esConsumible ? '' : `Serie: ${act.serie || 'N/A'} - Modelo: ${act.modelo || 'N/A'}`),
+                    price: act.producto && act.producto.precioVenta ? Number(act.producto.precioVenta) : (Number(act.costoAdq) || 0),
+                    fechaVencimiento: act.fechaVencimiento ? act.fechaVencimiento.toISOString() : undefined,
+                    imageUrl: act.imagenUrl || undefined,
+                    serie: act.serie || null
+                };
+            }
+        }
         
         // 1. Buscar en Productos (Stock Generico)
         const producto = await prisma.producto.findFirst({
             where: {
                 organizationId,
                 estado: 'ACTIVO',
-                sku: codigoTrim,
+                OR: candidatosCodigo.map(c => ({ sku: { equals: c, mode: 'insensitive' as const } })),
                 activosFijos: { none: {} }
             }
         });
@@ -1872,6 +1925,7 @@ export async function buscarItemPorCodigo(codigo: string) {
         if (producto) {
             return {
                 id: producto.id,
+                sku: producto.sku,
                 type: 'producto',
                 name: producto.nombre,
                 description: producto.descripcion || '',
@@ -1885,8 +1939,9 @@ export async function buscarItemPorCodigo(codigo: string) {
             where: {
                 organizationId,
                 OR: [
-                    { idQr: { equals: codigoTrim, mode: 'insensitive' } },
-                    { serie: { equals: codigoTrim, mode: 'insensitive' } }
+                    ...candidatosCodigo.map(c => ({ idQr: { equals: c, mode: 'insensitive' as const } })),
+                    ...candidatosCodigo.map(c => ({ codigoBarras: { equals: c, mode: 'insensitive' as const } })),
+                    { serie: { equals: rawTrim, mode: 'insensitive' } }
                 ],
                 estatusContable: { notIn: ['DE BAJA', 'ELIMINADO'] }
             },
@@ -1896,6 +1951,7 @@ export async function buscarItemPorCodigo(codigo: string) {
         if (activo) {
             return {
                 id: activo.id,
+                sku: activo.idQr,
                 type: 'activo',
                 name: activo.descripcionCorta,
                 description: activo.descripcionDetallada || (activo.esConsumible ? '' : `Serie: ${activo.serie || 'N/A'} - Modelo: ${activo.modelo || 'N/A'}`),

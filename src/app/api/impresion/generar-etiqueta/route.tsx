@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         barcodeTextSize: is70x40 ? 16 : 14,
     };
 
-    const qrText = encodeURIComponent(`${req.nextUrl.origin}/f/${idQr}`);
+    const qrText = encodeURIComponent(`${req.nextUrl.origin}/f/${barcodeData || idQr}`);
     // Usamos eclevel=L (menor densidad) para que los puntos del QR sean más grandes y definidos en impresoras térmicas
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=4&eclevel=L&includetext=false`;
 

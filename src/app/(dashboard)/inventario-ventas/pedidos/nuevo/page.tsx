@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { withRoleGuard } from '@/utils/rbac';
-import { getAuxiliares } from '../actions';
+import { getAuxiliares, getStockComprometidoMap } from '../actions';
 import { getCediProductos, getCediClientes } from '../../rutas/actions';
 import NuevoPedidoParserClient from './NuevoPedidoParserClient';
 
@@ -40,6 +40,7 @@ async function NuevoPedidoPage() {
   const assistants = await getAuxiliares();
   const products = await getCediProductos();
   const clients = await getCediClientes();
+  const stockComprometidoMap = await getStockComprometidoMap();
 
   const serializedUser = JSON.parse(JSON.stringify(dbUser));
 
@@ -49,6 +50,7 @@ async function NuevoPedidoPage() {
       assistants={assistants}
       products={products}
       clients={clients}
+      stockComprometidoMap={stockComprometidoMap}
     />
   );
 }
