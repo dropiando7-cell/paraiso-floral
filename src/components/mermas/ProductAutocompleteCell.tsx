@@ -26,6 +26,8 @@ interface ProductAutocompleteCellProps {
   inputRef?: React.RefObject<HTMLInputElement | null>;
   /** Si se define, muestra la opción "Crear producto nuevo" al final de la lista cuando no existe coincidencia exacta */
   onCreateNew?: (nombre: string) => void;
+  /** Si se presiona Ctrl+Enter con una sugerencia resaltada, la selecciona y ejecuta guardado directo */
+  onCtrlEnterSelectAndSubmit?: (product: ProductCatalogItem) => void;
 }
 
 // ============================================================================
@@ -415,7 +417,8 @@ export function ProductAutocompleteCell({
   onKeyDown,
   className = '',
   inputRef: inputRefProp,
-  onCreateNew
+  onCreateNew,
+  onCtrlEnterSelectAndSubmit
 }: ProductAutocompleteCellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [allCatalog, setAllCatalog] = useState<ProductCatalogItem[]>(catalogCache || []);
@@ -570,6 +573,17 @@ export function ProductAutocompleteCell({
         e.preventDefault();
         setSelectedIndex(prev => (prev - 1 + totalOptions) % totalOptions);
         return;
+      }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (results[selectedIndex] && onCtrlEnterSelectAndSubmit) {
+          e.preventDefault();
+          e.stopPropagation();
+          const chosen = results[selectedIndex];
+          setIsOpen(false);
+          onChange(chosen.name);
+          onCtrlEnterSelectAndSubmit(chosen);
+          return;
+        }
       }
       if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
         if (results[selectedIndex]) {

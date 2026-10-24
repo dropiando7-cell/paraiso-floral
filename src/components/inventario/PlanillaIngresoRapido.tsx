@@ -295,15 +295,20 @@ export function PlanillaIngresoRapido({
     }
   };
 
-  // Guardar nueva fila con Enter y regresar foco a Flor inmediatamente
-  const handleGuardarNuevaFila = async () => {
-    if (!newProductoNombre.trim()) {
+  // Guardar nueva fila con Enter o Ctrl+Enter (permite pasar producto directo si se invocó con Ctrl+Enter desde el buscador)
+  const handleGuardarNuevaFila = async (overrideProduct?: ProductCatalogItem) => {
+    const targetId = overrideProduct ? overrideProduct.id : newProductoId;
+    const targetNombre = overrideProduct ? overrideProduct.name : newProductoNombre;
+    const targetSku = overrideProduct ? overrideProduct.code : newSku;
+    const targetCat = overrideProduct ? (overrideProduct.category || 'FLORISTERIA') : newCategoria;
+
+    if (!targetNombre.trim()) {
       toast.error('Escribe o selecciona una flor del catálogo');
       newFlorInputRef.current?.focus();
       return;
     }
 
-    if (!newProductoId) {
+    if (!targetId) {
       toast.error('Selecciona la flor de la lista desplegable o usa "+ Crear producto nuevo"');
       newFlorInputRef.current?.focus();
       return;
@@ -316,6 +321,8 @@ export function PlanillaIngresoRapido({
       return;
     }
 
+    if (isSubmittingNew) return;
+
     try {
       setIsSubmittingNew(true);
       const res = await fetch('/api/inventario/ingresos-planilla', {
@@ -323,10 +330,10 @@ export function PlanillaIngresoRapido({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fecha: newFecha,
-          productoId: newProductoId,
-          nombreProducto: newProductoNombre.trim().toUpperCase(),
-          sku: newSku,
-          categoria: newCategoria,
+          productoId: targetId,
+          nombreProducto: targetNombre.trim().toUpperCase(),
+          sku: targetSku,
+          categoria: targetCat,
           area: newArea,
           cantidad: cantNum,
           motivo: newMotivo,
@@ -390,6 +397,26 @@ export function PlanillaIngresoRapido({
       setIsSubmittingNew(false);
     }
   };
+
+  // Atajo global Ctrl + Enter / Cmd + Enter en toda la Planilla para guardar directamente y abrir nueva línea
+  const guardarRef = useRef(handleGuardarNuevaFila);
+  guardarRef.current = handleGuardarNuevaFila;
+
+  useEffect(() => {
+    const handleGlobalCtrlEnter = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (crearOpen) return;
+        e.preventDefault();
+        if (newProductoId) {
+          guardarRef.current();
+        } else {
+          newFlorInputRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalCtrlEnter);
+    return () => window.removeEventListener('keydown', handleGlobalCtrlEnter);
+  }, [newProductoId, crearOpen]);
 
   // Edición en línea de una fila existente (ajusta stock automáticamente)
   const handleActualizarFila = async (id: string, campo: string, valor: any) => {
@@ -560,24 +587,34 @@ export function PlanillaIngresoRapido({
                 </span>
               </h3>
               <p className="text-[11px] text-emerald-800/80 font-medium">
-                1. Escribe la flor y presiona <kbd className="px-1 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300">Enter</kbd> → 2. Digita la cantidad y presiona <kbd className="px-1.5 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300">Enter</kbd> → Salta automático a la siguiente flor.
+                1. Escribe la flor y presiona <kbd className="px-1 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300">Enter</kbd> → 2. Digita la cantidad y presiona <kbd className="px-1.5 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300">Enter</kbd> o <kbd className="px-1.5 py-0.5 bg-white text-emerald-900 rounded font-mono font-bold border border-emerald-300 shadow-2xs">Ctrl + Enter</kbd> para guardar directo y abrir nueva línea.
               </p>
             </div>
           </div>
 
-          {/* Toggle de Auto-Impresión de Etiquetas Serializadas al Insertar */}
-          <label className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 cursor-pointer shadow-2xs select-none">
-            <input
-              type="checkbox"
-              checked={autoPrintOnInsert}
-              onChange={(e) => setAutoPrintOnInsert(e.target.checked)}
-              className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-            />
-            <Printer className="w-3.5 h-3.5 text-emerald-700" />
-            <span className="text-[11px] font-extrabold text-emerald-950">
-              Auto-Imprimir etiquetas serializadas al dar Enter
-            </span>
-          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Indicador de atajo rápido Ctrl + Enter */}
+            <div className="hidden md:flex items-center gap-1.5 text-[11px] text-emerald-900 font-bold bg-emerald-100/80 px-2.5 py-1.5 rounded-xl border border-emerald-300">
+              <span>Guardar directo + Nueva línea:</span>
+              <kbd className="px-2 py-0.5 bg-white border border-emerald-300 rounded text-emerald-950 font-mono font-black shadow-2xs">
+                Ctrl + Enter ↵
+              </kbd>
+            </div>
+
+            {/* Toggle de Auto-Impresión de Etiquetas Serializadas al Insertar */}
+            <label className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 cursor-pointer shadow-2xs select-none">
+              <input
+                type="checkbox"
+                checked={autoPrintOnInsert}
+                onChange={(e) => setAutoPrintOnInsert(e.target.checked)}
+                className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+              />
+              <Printer className="w-3.5 h-3.5 text-emerald-700" />
+              <span className="text-[11px] font-extrabold text-emerald-950">
+                Auto-Imprimir etiquetas serializadas al dar Enter
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Fila Principal de Captura - Altura Uniforme h-10 */}
@@ -639,6 +676,13 @@ export function PlanillaIngresoRapido({
               value={newProductoNombre}
               onChange={handleNombreNewRowChange}
               onSelectProduct={handleSelectProductNewRow}
+              onCtrlEnterSelectAndSubmit={(prod) => {
+                setNewProductoId(prod.id);
+                setNewProductoNombre(prod.name);
+                setNewSku(prod.code);
+                setNewCategoria(prod.category || 'FLORISTERIA');
+                handleGuardarNuevaFila(prod);
+              }}
               onCreateNew={abrirCrearProducto}
               inputRef={newFlorInputRef}
               placeholder="Escribe flor o código (ej. Rosa Roja, Girasol, 010055)..."
@@ -648,6 +692,7 @@ export function PlanillaIngresoRapido({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleGuardarNuevaFila();
                 }
               }}
@@ -677,6 +722,7 @@ export function PlanillaIngresoRapido({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleGuardarNuevaFila();
                 }
               }}
@@ -693,6 +739,13 @@ export function PlanillaIngresoRapido({
             <select
               value={newArea}
               onChange={(e) => setNewArea(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleGuardarNuevaFila();
+                }
+              }}
               className="w-full h-10 px-2.5 text-xs font-bold text-slate-900 bg-white border border-emerald-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs cursor-pointer"
             >
               {Array.from(new Set(['CUARTO FRÍO', ...areasDisponibles])).map((a) => (
@@ -703,19 +756,20 @@ export function PlanillaIngresoRapido({
             </select>
           </div>
 
-          {/* 5. Botón Insertar (Enter) */}
+          {/* 5. Botón Insertar (Enter / Ctrl+Enter) */}
           <div className="lg:col-span-2 space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider block opacity-0 select-none hidden lg:block">
               &nbsp;
             </label>
             <button
               type="button"
-              onClick={handleGuardarNuevaFila}
+              onClick={() => handleGuardarNuevaFila()}
               disabled={isSubmittingNew || !newProductoId}
-              className="w-full h-10 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500"
+              className="w-full h-10 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500"
+              title="Guardar línea y saltar a la siguiente (Enter o Ctrl+Enter)"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>{isSubmittingNew ? 'Sumando...' : 'Ingresar (Enter)'}</span>
+              <span>{isSubmittingNew ? 'Guardando...' : 'Ingresar (Ctrl+Enter)'}</span>
             </button>
           </div>
         </div>
