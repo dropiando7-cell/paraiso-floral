@@ -5603,7 +5603,7 @@ export default function DocumentBuilderClient({
       <MixedPaymentsModal
         isOpen={showMixedPaymentsModal}
         onClose={() => setShowMixedPaymentsModal(false)}
-        totalAmount={totals.total}
+        totalAmount={Math.max(0, Number((totals.total - montoSaldoFavorEfectivo).toFixed(2)))}
         payments={mixedPayments}
         onSave={(payments) => setMixedPayments(payments)}
       />

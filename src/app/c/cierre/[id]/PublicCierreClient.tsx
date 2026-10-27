@@ -90,7 +90,8 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
     }
 
     const totalFacturadoCredito = totals.totalVentasCredito || 0;
-    const totalFacturadoTotal = totals.totalFacturado || (totals.totalVentas + totalFacturadoCredito);
+    const saldoFavorAplicadoTotal = totals.saldoFavorAplicado || 0;
+    const totalFacturadoTotal = totals.totalFacturado || (totals.totalVentas + totalFacturadoCredito + saldoFavorAplicadoTotal);
 
     const efectivoRecaudadoTotal = (totals.ventasEfectivo || 0) + (totals.abonosEfectivo || 0) + (totals.rentasEfectivo || 0) + (totals.soporteEfectivo || 0);
 
@@ -110,7 +111,7 @@ export default function PublicCierreClient({ initialData }: PublicCierreClientPr
 
 💳 *DESGLOSE POR MÉTODO DE PAGO:*
 ${desgloseMetodos || '• Sin ingresos registrados'}
-${totalFacturadoCredito > 0 ? `\n📑 *VENTAS AL CRÉDITO DEL DÍA (Por Cobrar):* ${fmt(totalFacturadoCredito)}\n📈 *TOTAL FACTURADO DEL DÍA (Contado + Crédito):* ${fmt(totalFacturadoTotal)}\n` : ''}${desgloseMovimientos}
+${saldoFavorAplicadoTotal > 0 ? `\n🟣 *SALDO A FAVOR APLICADO (Ajuste Monedero - No es efectivo):* ${fmt(saldoFavorAplicadoTotal)}` : ''}${totalFacturadoCredito > 0 || saldoFavorAplicadoTotal > 0 ? `\n📑 *VENTAS AL CRÉDITO DEL DÍA (Por Cobrar):* ${fmt(totalFacturadoCredito)}\n📈 *TOTAL FACTURADO DEL DÍA (Contado + Crédito + Saldo a Favor):* ${fmt(totalFacturadoTotal)}\n` : ''}${desgloseMovimientos}
 ━━━━━━━━━━━━━━━━━━━━
 💵 *ARQUEO DE EFECTIVO EN CAJA:*
 • Fondo Inicial de Gaveta: ${fmt(session.saldoInicial)}
@@ -149,22 +150,53 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`;
     }> = [];
 
     const facturas = session.facturas || [];
-    facturas.filter((f: any) => (f.metodoPago || 'Efectivo') === metodo)
-        .forEach((f: any) => {
-            txList.push({
-                id: f.id,
-                fechaStr: f.fechaEmision,
-                concepto: `Facturación POS (${f.correlativo})`,
-                cliente: f.cliente?.nombre || f.clienteNombre || 'Cliente General',
-                monto: Number(f.total),
-                isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+    facturas.forEach((f: any) => {
+        const sfAplicado = Number(f.saldoFavorAplicado || 0);
+        const sfNota = sfAplicado > 0 ? ` [Total: ${fmt(Number(f.total))} − Saldo a Favor: ${fmt(sfAplicado)}]` : '';
+
+        if (f.metodoPago === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
+            f.pagosMixtos.forEach((p: any) => {
+                if (p.metodoPago === metodo) {
+                    txList.push({
+                        id: `${f.id}-${p.id}`,
+                        fechaStr: f.fechaEmision,
+                        concepto: `Facturación POS (${f.correlativo}) - Pago Mixto${sfNota}`,
+                        cliente: f.cliente?.nombre || f.clienteNombre || 'Cliente General',
+                        monto: Number(p.monto),
+                        isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+                    });
+                }
             });
-        });
+            return;
+        }
+
+        const pMetodo = f.metodoPago || 'Efectivo';
+        const isCredito = pMetodo === 'Crédito' || pMetodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO');
+        const matchedMetodo = isCredito ? 'Crédito' : (pMetodo === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (pMetodo === 'Transferencia Bancaria' ? 'Transferencia' : pMetodo));
+
+        if (matchedMetodo === metodo) {
+            const montoNeto = f.netoCobrado !== undefined ? Number(f.netoCobrado) : Math.max(0, Number(f.total) - sfAplicado);
+            if (montoNeto > 0 || sfAplicado === 0) {
+                txList.push({
+                    id: f.id,
+                    fechaStr: f.fechaEmision,
+                    concepto: `Facturación POS (${f.correlativo})${sfNota}`,
+                    cliente: f.cliente?.nombre || f.clienteNombre || 'Cliente General',
+                    monto: montoNeto,
+                    isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+                });
+            }
+        }
+    });
 
     const pagosCliente = session.pagosCliente || [];
     pagosCliente.filter((p: any) => {
         if (p.anulado) return false;
         let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
+        // Excluir aplicaciones de Saldo a Favor / Monedero (no es efectivo ni ingreso nuevo)
+        if (p.esSaldoFavor || rawMetodo === 'MONEDERO' || rawMetodo.includes('SALDO A FAVOR') || rawMetodo.includes('SALDO_FAVOR')) {
+            return false;
+        }
         let pMetodo = 'Efectivo';
         if (rawMetodo.includes('TARJETA')) pMetodo = 'Tarjeta';
         else if (rawMetodo.includes('TRANSFERENCIA')) pMetodo = 'Transferencia';
@@ -220,6 +252,47 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`;
         });
 
     return txList.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
+  };
+
+  const getSaldoFavorTransactions = () => {
+    if (!session) return [];
+    const items: Array<{ id: string; fechaStr: string; concepto: string; cliente: string; monto: number }> = [];
+    const seenFacturas = new Set<string>();
+
+    (session.facturas || []).forEach((f: any) => {
+        const sf = Number(f.saldoFavorAplicado || 0);
+        if (sf > 0) {
+            seenFacturas.add(f.correlativo);
+            items.push({
+                id: `sf-fac-${f.id}`,
+                fechaStr: f.fechaEmision,
+                concepto: `Aplicación de Saldo a Favor en Factura ${f.correlativo} (Total: ${fmt(Number(f.total))})`,
+                cliente: f.cliente?.nombre || f.clienteNombre || 'Cliente General',
+                monto: sf
+            });
+        }
+    });
+
+    (session.pagosCliente || []).forEach((p: any) => {
+        if (p.anulado) return;
+        const rawMetodo = (p.metodoPago || '').toUpperCase();
+        const isSF = p.esSaldoFavor || rawMetodo === 'MONEDERO' || rawMetodo.includes('SALDO A FAVOR') || rawMetodo.includes('SALDO_FAVOR');
+        if (!isSF) return;
+        if (p.facturaCorrelativo && seenFacturas.has(p.facturaCorrelativo)) return;
+        // Evitar duplicar si el texto de notas ya menciona una factura vista
+        const matchedSeen = Array.from(seenFacturas).some(corr => corr && String(p.notas || '').includes(corr));
+        if (matchedSeen) return;
+
+        items.push({
+            id: `sf-pago-${p.id}`,
+            fechaStr: p.fecha,
+            concepto: p.notas || 'Aplicación de Saldo a Favor (Monedero)',
+            cliente: p.clienteNombre || p.cliente?.nombre || 'Cliente General',
+            monto: Number(p.monto)
+        });
+    });
+
+    return items.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
   };
 
   return (
@@ -511,8 +584,49 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`;
               </div>
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">
                 <span className="text-emerald-900 font-bold">TOTAL FACTURADO DEL DÍA (Contado + Crédito):</span>
-                <span className="font-black text-emerald-800 text-sm">{fmt(totals.totalFacturado || (totals.totalVentas + (totals.totalVentasCredito || 0)))}</span>
+                <span className="font-black text-emerald-800 text-sm">{fmt(totals.totalFacturado || (totals.totalVentas + (totals.totalVentasCredito || 0) + (totals.saldoFavorAplicado || 0)))}</span>
               </div>
+              {(totals.saldoFavorAplicado || 0) > 0 && (
+                <div className="sm:col-span-2 p-3 bg-violet-50 border border-violet-200 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-violet-900 font-black uppercase tracking-wide">
+                        Ajustes por Saldo a Favor Aplicado (Monedero Virtual)
+                      </span>
+                      <span className="block text-[10px] text-violet-700 font-medium">
+                        Ajuste contable de saldos a favor previos del cliente · No representa ingreso de efectivo en caja hoy
+                      </span>
+                    </div>
+                    <span className="font-black text-violet-900 text-sm">{fmt(totals.saldoFavorAplicado || 0)}</span>
+                  </div>
+                  {getSaldoFavorTransactions().length > 0 && (
+                    <div className="bg-white rounded-lg border border-violet-200 p-2">
+                      <table className="w-full text-left text-[10px] text-slate-600">
+                        <thead>
+                          <tr className="text-violet-500 border-b border-violet-100 font-bold uppercase">
+                            <th className="px-1 py-0.5">Hora</th>
+                            <th className="px-1 py-0.5">Detalle de Ajuste</th>
+                            <th className="px-1 py-0.5">Cliente</th>
+                            <th className="px-1 py-0.5 text-right">Saldo Aplicado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getSaldoFavorTransactions().map(item => (
+                            <tr key={item.id}>
+                              <td className="px-1 py-0.5 text-slate-500">
+                                {new Date(item.fechaStr).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                              </td>
+                              <td className="px-1 py-0.5 font-semibold text-violet-900">{item.concepto}</td>
+                              <td className="px-1 py-0.5">{item.cliente}</td>
+                              <td className="px-1 py-0.5 text-right font-bold text-violet-800">{fmt(item.monto)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

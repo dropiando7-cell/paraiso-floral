@@ -502,7 +502,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         }
 
         const totalFacturadoCredito = totals.totalVentasCredito || 0;
-        const totalFacturadoTotal = totals.totalFacturado || ((totals.totalVentas || 0) + totalFacturadoCredito);
+        const saldoFavorAplicadoTotal = totals.saldoFavorAplicado || 0;
+        const totalFacturadoTotal = totals.totalFacturado || ((totals.totalVentas || 0) + totalFacturadoCredito + saldoFavorAplicadoTotal);
 
         const fechaApertura = session.aperturaAt ? formatDate(session.aperturaAt) : 'N/A';
         const fechaCierre = session.cierreAt ? formatDate(session.cierreAt) : 'En curso (Turno Abierto)';
@@ -527,7 +528,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
 
 💳 *DESGLOSE POR MÉTODO DE PAGO:*
 ${desgloseMetodos || '• Sin ingresos registrados'}
-${totalFacturadoCredito > 0 ? `\n📑 *VENTAS AL CRÉDITO DEL DÍA (Por Cobrar):* ${formatCurrency(totalFacturadoCredito)}\n📈 *TOTAL FACTURADO DEL DÍA (Contado + Crédito):* ${formatCurrency(totalFacturadoTotal)}\n` : ''}${desgloseMovimientos}
+${saldoFavorAplicadoTotal > 0 ? `\n🟣 *SALDO A FAVOR APLICADO (Ajuste Monedero - No es efectivo):* ${formatCurrency(saldoFavorAplicadoTotal)}` : ''}${totalFacturadoCredito > 0 || saldoFavorAplicadoTotal > 0 ? `\n📑 *VENTAS AL CRÉDITO DEL DÍA (Por Cobrar):* ${formatCurrency(totalFacturadoCredito)}\n📈 *TOTAL FACTURADO DEL DÍA (Contado + Crédito + Saldo a Favor):* ${formatCurrency(totalFacturadoTotal)}\n` : ''}${desgloseMovimientos}
 ━━━━━━━━━━━━━━━━━━━━
 💵 *ARQUEO DE EFECTIVO EN CAJA:*
 • Fondo Inicial de Gaveta: ${formatCurrency(session.saldoInicial || 0)}
@@ -582,13 +583,16 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
         // Add invoices
         const facturas = session.facturas || [];
         facturas.forEach((f: any) => {
+            const sfAplicado = Number(f.saldoFavorAplicado || 0);
+            const sfNota = sfAplicado > 0 ? ` [Total: ${formatCurrency(Number(f.total))} − Saldo a Favor: ${formatCurrency(sfAplicado)}]` : '';
+
             if (f.metodoPago === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
                 f.pagosMixtos.forEach((p: any) => {
                     if (p.metodoPago === metodo) {
                         txList.push({
                             id: `${f.id}-${p.id}`,
                             fechaStr: f.fechaEmision,
-                            concepto: `Facturación POS (${f.correlativo}) - Pago Mixto`,
+                            concepto: `Facturación POS (${f.correlativo}) - Pago Mixto${sfNota}`,
                             cliente: f.clienteNombre || 'Cliente General',
                             monto: p.monto,
                             isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
@@ -598,17 +602,20 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
             } else {
                 const pMetodo = f.metodoPago || 'Efectivo';
                 const isCredito = pMetodo === 'Crédito' || pMetodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO');
-                const matchedMetodo = isCredito ? 'Crédito' : (pMetodo === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : pMetodo);
+                const matchedMetodo = isCredito ? 'Crédito' : (pMetodo === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (pMetodo === 'Transferencia Bancaria' ? 'Transferencia' : pMetodo));
                 
                 if (matchedMetodo === metodo) {
-                    txList.push({
-                        id: f.id,
-                        fechaStr: f.fechaEmision,
-                        concepto: `Facturación POS (${f.correlativo})`,
-                        cliente: f.clienteNombre || 'Cliente General',
-                        monto: f.total,
-                        isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
-                    });
+                    const montoNeto = f.netoCobrado !== undefined ? Number(f.netoCobrado) : Math.max(0, Number(f.total) - sfAplicado);
+                    if (montoNeto > 0 || sfAplicado === 0) {
+                        txList.push({
+                            id: f.id,
+                            fechaStr: f.fechaEmision,
+                            concepto: `Facturación POS (${f.correlativo})${sfNota}`,
+                            cliente: f.clienteNombre || 'Cliente General',
+                            monto: montoNeto,
+                            isPendingTransfer: metodo === 'Transferencia' && f.transferenciaConfirmada === false
+                        });
+                    }
                 }
             }
         });
@@ -658,6 +665,10 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
         pagosCliente.filter((p: any) => {
             if (p.anulado) return false;
             let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
+            // Excluir aplicaciones de Saldo a Favor / Monedero (no es efectivo ni ingreso nuevo)
+            if (p.esSaldoFavor || rawMetodo === 'MONEDERO' || rawMetodo.includes('SALDO A FAVOR') || rawMetodo.includes('SALDO_FAVOR')) {
+                return false;
+            }
             let pMetodo = 'Efectivo';
             if (rawMetodo.includes('TARJETA')) pMetodo = 'Tarjeta';
             else if (rawMetodo.includes('TRANSFERENCIA')) pMetodo = 'Transferencia';
@@ -677,6 +688,46 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
 
         // Sort by date descending
         return txList.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
+    };
+
+    const getSaldoFavorTransactions = (session: any) => {
+        if (!session) return [];
+        const items: Array<{ id: string; fechaStr: string; concepto: string; cliente: string; monto: number }> = [];
+        const seenFacturas = new Set<string>();
+
+        (session.facturas || []).forEach((f: any) => {
+            const sf = Number(f.saldoFavorAplicado || 0);
+            if (sf > 0) {
+                seenFacturas.add(f.correlativo);
+                items.push({
+                    id: `sf-fac-${f.id}`,
+                    fechaStr: f.fechaEmision,
+                    concepto: `Aplicación de Saldo a Favor en Factura ${f.correlativo} (Total: ${formatCurrency(Number(f.total))})`,
+                    cliente: f.clienteNombre || 'Cliente General',
+                    monto: sf
+                });
+            }
+        });
+
+        (session.pagosCliente || []).forEach((p: any) => {
+            if (p.anulado) return;
+            const rawMetodo = (p.metodoPago || '').toUpperCase();
+            const isSF = p.esSaldoFavor || rawMetodo === 'MONEDERO' || rawMetodo.includes('SALDO A FAVOR') || rawMetodo.includes('SALDO_FAVOR');
+            if (!isSF) return;
+            if (p.facturaCorrelativo && seenFacturas.has(p.facturaCorrelativo)) return;
+            const matchedSeen = Array.from(seenFacturas).some(corr => corr && String(p.notas || '').includes(corr));
+            if (matchedSeen) return;
+
+            items.push({
+                id: `sf-pago-${p.id}`,
+                fechaStr: p.fecha,
+                concepto: p.notas || 'Aplicación de Saldo a Favor (Monedero)',
+                cliente: p.clienteNombre || 'Cliente General',
+                monto: Number(p.monto)
+            });
+        });
+
+        return items.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
     };
 
     const renderBreakdownRow = (metodo: string, session: any, isExpanded: boolean, colSpan: number = 5) => {
@@ -1065,12 +1116,40 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                             <span className="font-black text-slate-900">{formatCurrency(summaryData?.totals?.totalVentasCredito || 0)}</span>
                                         </div>
                                         {(summaryData?.totals?.saldoFavorAplicado || 0) > 0 && (
-                                            <div className="sm:col-span-2 p-3 bg-violet-50 border border-violet-200 rounded-xl flex justify-between items-center text-xs shadow-xs">
-                                                <span className="text-violet-900 font-semibold">
-                                                    Saldo a Favor Aplicado (Monedero)
-                                                    <span className="block text-[10px] text-violet-600 font-normal">Parte de facturas pagada con dinero que el cliente ya tenía a favor · no es efectivo de hoy</span>
-                                                </span>
-                                                <span className="font-black text-violet-800">{formatCurrency(summaryData?.totals?.saldoFavorAplicado || 0)}</span>
+                                            <div className="sm:col-span-2 p-3 bg-violet-50 border border-violet-200 rounded-xl space-y-2 text-xs shadow-xs">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-violet-900 font-bold">
+                                                        Ajustes por Saldo a Favor Aplicado (Monedero Virtual)
+                                                        <span className="block text-[10px] text-violet-700 font-normal">Ajuste contable de saldos previos del cliente · No representa ingreso de efectivo en gaveta hoy</span>
+                                                    </span>
+                                                    <span className="font-black text-violet-800 text-sm">{formatCurrency(summaryData?.totals?.saldoFavorAplicado || 0)}</span>
+                                                </div>
+                                                {getSaldoFavorTransactions(summaryData?.session).length > 0 && (
+                                                    <div className="bg-white rounded-lg border border-violet-200 p-2">
+                                                        <table className="w-full text-left text-[11px] text-slate-600">
+                                                            <thead>
+                                                                <tr className="text-violet-500 border-b border-violet-100 font-bold uppercase text-[10px]">
+                                                                    <th className="px-2 py-1">Hora</th>
+                                                                    <th className="px-2 py-1">Detalle de Ajuste</th>
+                                                                    <th className="px-2 py-1">Cliente</th>
+                                                                    <th className="px-2 py-1 text-right">Saldo Aplicado</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-violet-50">
+                                                                {getSaldoFavorTransactions(summaryData?.session).map((item) => (
+                                                                    <tr key={item.id}>
+                                                                        <td className="px-2 py-1 text-slate-500">
+                                                                            {new Date(item.fechaStr).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                                        </td>
+                                                                        <td className="px-2 py-1 font-semibold text-violet-900">{item.concepto}</td>
+                                                                        <td className="px-2 py-1">{item.cliente}</td>
+                                                                        <td className="px-2 py-1 text-right font-bold text-violet-800">{formatCurrency(item.monto)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs shadow-xs">
@@ -1670,9 +1749,39 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                             <span className="font-bold text-slate-900">{formatCurrency(pastSummaryData?.totals?.totalVentasCredito || 0)}</span>
                                         </div>
                                         {(pastSummaryData?.totals?.saldoFavorAplicado || 0) > 0 && (
-                                            <div className="sm:col-span-2 p-2.5 bg-violet-50 border border-violet-200 rounded-xl flex justify-between items-center text-xs">
-                                                <span className="text-violet-900 font-semibold">Saldo a Favor Aplicado (no es efectivo):</span>
-                                                <span className="font-bold text-violet-800">{formatCurrency(pastSummaryData?.totals?.saldoFavorAplicado || 0)}</span>
+                                            <div className="sm:col-span-2 p-2.5 bg-violet-50 border border-violet-200 rounded-xl space-y-2 text-xs">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-violet-900 font-bold">
+                                                        Ajustes por Saldo a Favor Aplicado (Monedero Virtual — No es efectivo):
+                                                    </span>
+                                                    <span className="font-bold text-violet-800">{formatCurrency(pastSummaryData?.totals?.saldoFavorAplicado || 0)}</span>
+                                                </div>
+                                                {getSaldoFavorTransactions(pastSummaryData?.session).length > 0 && (
+                                                    <div className="bg-white rounded-lg border border-violet-200 p-2">
+                                                        <table className="w-full text-left text-[11px] text-slate-600">
+                                                            <thead>
+                                                                <tr className="text-violet-500 border-b border-violet-100 font-bold uppercase text-[10px]">
+                                                                    <th className="px-2 py-1">Hora</th>
+                                                                    <th className="px-2 py-1">Detalle de Ajuste</th>
+                                                                    <th className="px-2 py-1">Cliente</th>
+                                                                    <th className="px-2 py-1 text-right">Saldo Aplicado</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-violet-50">
+                                                                {getSaldoFavorTransactions(pastSummaryData?.session).map((item) => (
+                                                                    <tr key={item.id}>
+                                                                        <td className="px-2 py-1 text-slate-500">
+                                                                            {new Date(item.fechaStr).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                                        </td>
+                                                                        <td className="px-2 py-1 font-semibold text-violet-900">{item.concepto}</td>
+                                                                        <td className="px-2 py-1">{item.cliente}</td>
+                                                                        <td className="px-2 py-1 text-right font-bold text-violet-800">{formatCurrency(item.monto)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center text-xs">

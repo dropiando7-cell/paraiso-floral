@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getR2UploadUrl } from '@/lib/storage/r2';
 import { Prisma } from '@prisma/client';
+import { extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 
 export async function getCajaVentasStatus(organizationId: string) {
   try {
@@ -32,6 +33,9 @@ export async function getCajaVentasStatus(organizationId: string) {
         pagosCliente: {
           where: {
             anulado: false
+          },
+          include: {
+            detalles: true
           }
         }
       }
@@ -48,11 +52,24 @@ export async function getCajaVentasStatus(organizationId: string) {
 
     const saldoInicial = Number(active.saldoInicial);
 
+    const monederoPorFactura: Record<string, number> = {};
+    active.pagosCliente.forEach((p) => {
+      const raw = (p.metodoPago || '').toUpperCase();
+      if (raw === 'MONEDERO' || raw.includes('SALDO A FAVOR') || raw.includes('SALDO_FAVOR')) {
+        (p.detalles || []).forEach((d) => {
+          monederoPorFactura[d.facturaId] = (monederoPorFactura[d.facturaId] || 0) + Number(d.montoAplicado);
+        });
+      }
+    });
+
     let ventasEfectivo = 0;
     active.facturas.forEach((f) => {
       let metodo = f.metodoPago || 'Efectivo';
       if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
       if (metodo === 'Transferencia' && f.transferenciaConfirmada === false) return;
+
+      const sfAplicado = Math.min(Number(f.total), monederoPorFactura[f.id] || extractSaldoFavorAplicado(f) || 0);
+      const netoFactura = Math.max(0, Number(f.total) - sfAplicado);
 
       if (metodo === 'MIXTO' && f.pagosMixtos && f.pagosMixtos.length > 0) {
         f.pagosMixtos.forEach((p: any) => {
@@ -62,7 +79,7 @@ export async function getCajaVentasStatus(organizationId: string) {
           }
         });
       } else if (metodo === 'Efectivo') {
-        ventasEfectivo += Number(f.total);
+        ventasEfectivo += netoFactura;
       }
     });
 

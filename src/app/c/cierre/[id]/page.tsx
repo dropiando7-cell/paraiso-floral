@@ -2,6 +2,7 @@ import React from 'react';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import PublicCierreClient from './PublicCierreClient';
+import { extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 
 import type { Metadata } from 'next';
 
@@ -98,7 +99,12 @@ export default async function PublicCierrePage({ params }: PageProps) {
       movimientos: true,
       pagosCliente: {
         include: {
-            cliente: true
+            cliente: true,
+            detalles: {
+                include: {
+                    factura: true
+                }
+            }
         }
       }
     }
@@ -117,13 +123,49 @@ export default async function PublicCierrePage({ params }: PageProps) {
       abonos: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
       ventasCredito: 0,
       transaccionesPorMetodo: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
-      egresos: 0
+      egresos: 0,
+      saldoFavorAplicado: 0,
+      transaccionesSaldoFavor: 0
   };
+
+  const isMetodoMonedero = (m?: string | null) => {
+      const upper = (m || '').toUpperCase();
+      return upper === 'MONEDERO' || upper.includes('SALDO A FAVOR') || upper.includes('SALDO_FAVOR');
+  };
+
+  const monederoPorFactura: Record<string, number> = {};
+  const facturasIdsEnSesion = new Set(session.facturas.map(f => f.id));
+  (session.pagosCliente || []).forEach(p => {
+      if (p.anulado || !isMetodoMonedero(p.metodoPago)) return;
+      if (p.detalles && p.detalles.length > 0) {
+          p.detalles.forEach(d => {
+              monederoPorFactura[d.facturaId] = (monederoPorFactura[d.facturaId] || 0) + Number(d.montoAplicado);
+              if (!facturasIdsEnSesion.has(d.facturaId)) {
+                  summary.saldoFavorAplicado += Number(d.montoAplicado);
+                  summary.transaccionesSaldoFavor += 1;
+              }
+          });
+      } else {
+          summary.saldoFavorAplicado += Number(p.monto);
+          summary.transaccionesSaldoFavor += 1;
+      }
+  });
 
   session.facturas.forEach(f => {
       let metodo = f.metodoPago || 'Efectivo';
       if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
-      const total = Number(f.total);
+      if (metodo === 'Transferencia Bancaria') metodo = 'Transferencia';
+
+      const montoMonedero = Math.min(
+          Number(f.total),
+          monederoPorFactura[f.id] || extractSaldoFavorAplicado(f) || 0
+      );
+      if (montoMonedero > 0) {
+          summary.saldoFavorAplicado += montoMonedero;
+          summary.transaccionesSaldoFavor += 1;
+      }
+      // Solo la parte NO cubierta por saldo a favor es dinero que entra hoy
+      const total = Math.max(0, Number(f.total) - montoMonedero);
       
       // Credit sale
       if (metodo === 'Crédito' || metodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO')) {
@@ -140,6 +182,7 @@ export default async function PublicCierrePage({ params }: PageProps) {
           f.pagosMixtos.forEach((p: any) => {
               let pMetodo = p.metodoPago;
               if (pMetodo === 'Tarjeta de Crédito/Débito') pMetodo = 'Tarjeta';
+              if (pMetodo === 'Transferencia Bancaria') pMetodo = 'Transferencia';
               const pTotal = Number(p.monto);
               
               if (pMetodo === 'Transferencia' && f.transferenciaConfirmada === false) {
@@ -193,6 +236,8 @@ export default async function PublicCierrePage({ params }: PageProps) {
 
   (session.pagosCliente || []).forEach(p => {
       if (p.anulado) return;
+      // El saldo a favor aplicado ya se refleja en la factura; no es abono en efectivo ni dinero nuevo
+      if (isMetodoMonedero(p.metodoPago)) return;
       let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
       let metodo = 'Efectivo';
       if (rawMetodo.includes('TARJETA')) metodo = 'Tarjeta';
@@ -240,7 +285,7 @@ export default async function PublicCierrePage({ params }: PageProps) {
 
   const totalVentas = Object.values(summary.ventas).reduce((sum, v) => sum + v, 0);
   const totalVentasCredito = summary.ventasCredito || 0;
-  const totalFacturado = totalVentas + totalVentasCredito;
+  const totalFacturado = totalVentas + totalVentasCredito + summary.saldoFavorAplicado;
   const totalRentas = Object.values(summary.rentas).reduce((sum, r) => sum + r, 0);
   const totalSoporte = Object.values(summary.soporte).reduce((sum, s) => sum + s, 0);
   const totalAbonos = Object.values(summary.abonos).reduce((sum, a) => sum + a, 0);
@@ -266,15 +311,30 @@ export default async function PublicCierrePage({ params }: PageProps) {
         cierreAt: session.cierreAt ? session.cierreAt.toISOString() : null,
         creadoPor: session.creadoPor ? { nombre: session.creadoPor.nombre, apellido: session.creadoPor.apellido } : null,
         cerradoPor: session.cerradoPor ? { nombre: session.cerradoPor.nombre, apellido: session.cerradoPor.apellido } : null,
-        facturas: session.facturas.map(f => ({
-            id: f.id,
-            metodoPago: f.metodoPago,
-            fechaEmision: f.fechaEmision.toISOString(),
-            correlativo: f.correlativo,
-            cliente: f.cliente ? { nombre: f.cliente.nombre } : null,
-            total: Number(f.total),
-            transferenciaConfirmada: f.transferenciaConfirmada
-        })),
+        facturas: session.facturas.map(f => {
+            const sfAplicado = Math.min(
+                Number(f.total),
+                monederoPorFactura[f.id] || extractSaldoFavorAplicado(f) || 0
+            );
+            return {
+                id: f.id,
+                metodoPago: f.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (f.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : f.metodoPago),
+                fechaEmision: f.fechaEmision.toISOString(),
+                correlativo: f.correlativo,
+                cliente: f.cliente ? { nombre: f.cliente.nombre } : null,
+                total: Number(f.total),
+                netoCobrado: Math.max(0, Number(f.total) - sfAplicado),
+                saldoFavorAplicado: sfAplicado,
+                saldoPendiente: f.saldoPendiente !== null ? Number(f.saldoPendiente) : null,
+                estadoPago: f.estadoPago,
+                transferenciaConfirmada: f.transferenciaConfirmada,
+                pagosMixtos: f.pagosMixtos ? f.pagosMixtos.map((p: any) => ({
+                    id: p.id,
+                    metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (p.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : p.metodoPago),
+                    monto: Number(p.monto)
+                })) : []
+            };
+        }),
         rentasPagos: session.rentasPagos.map(p => ({
             id: p.id,
             metodoPago: p.metodoPago,
@@ -305,15 +365,25 @@ export default async function PublicCierrePage({ params }: PageProps) {
             descripcion: m.descripcion,
             monto: Number(m.monto)
         })),
-        pagosCliente: (session.pagosCliente || []).map(p => ({
-            id: p.id,
-            monto: Number(p.monto),
-            metodoPago: p.metodoPago,
-            fecha: p.fecha.toISOString(),
-            clienteNombre: p.cliente?.nombre || 'Cliente General',
-            notas: p.notas || '',
-            anulado: p.anulado
-        }))
+        pagosCliente: (session.pagosCliente || []).map(p => {
+            const facturaCorrelativo = p.detalles && p.detalles.length > 0 && p.detalles[0].factura 
+                ? p.detalles[0].factura.correlativo 
+                : null;
+            const esMonedero = isMetodoMonedero(p.metodoPago);
+            return {
+                id: p.id,
+                monto: Number(p.monto),
+                metodoPago: esMonedero ? 'Saldo a Favor' : p.metodoPago,
+                fecha: p.fecha.toISOString(),
+                clienteNombre: p.cliente?.nombre || 'Cliente General',
+                facturaCorrelativo,
+                notas: esMonedero
+                    ? `Saldo a favor aplicado${facturaCorrelativo ? ` a Factura ${facturaCorrelativo}` : ''} (no es efectivo)`
+                    : (p.notas || ''),
+                anulado: p.anulado,
+                esSaldoFavor: esMonedero
+            };
+        })
     },
     totals: {
         totalVentas,
@@ -330,6 +400,7 @@ export default async function PublicCierrePage({ params }: PageProps) {
         ingresosMovimientosEfectivo: movimientosResumen.ingresosEfec,
         egresosMovimientosEfectivo: movimientosResumen.egresosEfec,
         esperadoEfectivo,
+        saldoFavorAplicado: summary.saldoFavorAplicado,
     },
     summary
   };

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
+import { extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 
 // Auth Helper - Returns current database user & full name
 export async function getAuthenticatedUser() {
@@ -80,7 +81,10 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                 // Saldo a favor aplicado por factura (no es dinero nuevo en caja)
                 const monederoPorFacturaBefore: Record<string, number> = {};
                 pagosClienteBefore
-                    .filter(p => (p.metodoPago || '').toUpperCase() === 'MONEDERO')
+                    .filter(p => {
+                        const m = (p.metodoPago || '').toUpperCase();
+                        return m === 'MONEDERO' || m.includes('SALDO A FAVOR') || m.includes('SALDO_FAVOR');
+                    })
                     .forEach(p => p.detalles.forEach(d => {
                         monederoPorFacturaBefore[d.facturaId] = (monederoPorFacturaBefore[d.facturaId] || 0) + Number(d.montoAplicado);
                     }));
@@ -88,7 +92,10 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                 const saldoInicial = Number(active.saldoInicial);
                 const ventasEfectivo = facturasBefore
                     .filter(f => (f.metodoPago || 'Efectivo') === 'Efectivo')
-                    .reduce((sum, f) => sum + Math.max(0, Number(f.total) - (monederoPorFacturaBefore[f.id] || 0)), 0);
+                    .reduce((sum, f) => {
+                        const sf = monederoPorFacturaBefore[f.id] || extractSaldoFavorAplicado(f) || 0;
+                        return sum + Math.max(0, Number(f.total) - sf);
+                    }, 0);
                 const rentasEfectivo = rentasBefore
                     .filter(r => (r.metodoPago || 'Efectivo') === 'Efectivo')
                     .reduce((sum, r) => sum + Number(r.monto), 0);
@@ -442,12 +449,26 @@ export async function getCajaSessionSummary(sessionId: string) {
     };
 
     // Saldo a favor (monedero) aplicado por factura: ese dinero ya estaba en caja desde antes.
+    const isMetodoMonedero = (m?: string | null) => {
+        const upper = (m || '').toUpperCase();
+        return upper === 'MONEDERO' || upper.includes('SALDO A FAVOR') || upper.includes('SALDO_FAVOR');
+    };
     const monederoPorFactura: Record<string, number> = {};
+    const facturasIdsEnSesion = new Set(session.facturas.map(f => f.id));
     session.pagosCliente.forEach(p => {
-        if (p.anulado || (p.metodoPago || '').toUpperCase() !== 'MONEDERO') return;
-        p.detalles.forEach(d => {
-            monederoPorFactura[d.facturaId] = (monederoPorFactura[d.facturaId] || 0) + Number(d.montoAplicado);
-        });
+        if (p.anulado || !isMetodoMonedero(p.metodoPago)) return;
+        if (p.detalles && p.detalles.length > 0) {
+            p.detalles.forEach(d => {
+                monederoPorFactura[d.facturaId] = (monederoPorFactura[d.facturaId] || 0) + Number(d.montoAplicado);
+                if (!facturasIdsEnSesion.has(d.facturaId)) {
+                    summary.saldoFavorAplicado += Number(d.montoAplicado);
+                    summary.transaccionesSaldoFavor += 1;
+                }
+            });
+        } else {
+            summary.saldoFavorAplicado += Number(p.monto);
+            summary.transaccionesSaldoFavor += 1;
+        }
     });
 
     // Classify Facturas
@@ -456,13 +477,16 @@ export async function getCajaSessionSummary(sessionId: string) {
         if (metodo === 'Tarjeta de Crédito/Débito') metodo = 'Tarjeta';
         if (metodo === 'Transferencia Bancaria') metodo = 'Transferencia';
         
-        const montoMonedero = Math.min(Number(f.total), monederoPorFactura[f.id] || 0);
+        const montoMonedero = Math.min(
+            Number(f.total),
+            monederoPorFactura[f.id] || extractSaldoFavorAplicado(f) || 0
+        );
         if (montoMonedero > 0) {
             summary.saldoFavorAplicado += montoMonedero;
             summary.transaccionesSaldoFavor += 1;
         }
         // Solo la parte NO cubierta por saldo a favor es dinero que entra hoy
-        const total = Number(f.total) - montoMonedero;
+        const total = Math.max(0, Number(f.total) - montoMonedero);
         
         // Check if it is a credit sale
         if (metodo === 'Crédito' || metodo === 'CREDITO' || (f.saldoPendiente && Number(f.saldoPendiente) > 0 && f.estadoPago !== 'PAGADO')) {
@@ -539,8 +563,8 @@ export async function getCajaSessionSummary(sessionId: string) {
     // Classify PagosCliente (Abonos Cuentas por Cobrar)
     session.pagosCliente.forEach(p => {
         if (p.anulado) return;
-        // El saldo a favor aplicado ya se refleja en la factura; no es abono en efectivo
-        if ((p.metodoPago || '').toUpperCase() === 'MONEDERO') return;
+        // El saldo a favor aplicado ya se refleja en la factura; no es abono en efectivo ni dinero nuevo
+        if (isMetodoMonedero(p.metodoPago)) return;
         let rawMetodo = (p.metodoPago || 'Efectivo').toUpperCase();
         let metodo = 'Efectivo'; // Default
         
@@ -628,21 +652,30 @@ export async function getCajaSessionSummary(sessionId: string) {
             apellido: session.cerradoPor.apellido,
             email: session.cerradoPor.email
         } : null,
-        facturas: session.facturas.map(f => ({
-            id: f.id,
-            correlativo: f.correlativo,
-            total: Number(f.total),
-            metodoPago: f.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (f.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : f.metodoPago),
-            fechaEmision: f.fechaEmision.toISOString(),
-            clienteNombre: f.cliente?.nombre || 'Cliente General',
-            transferenciaConfirmada: f.transferenciaConfirmada,
-            saldoFavorAplicado: monederoPorFactura[f.id] || 0,
-            pagosMixtos: f.pagosMixtos ? f.pagosMixtos.map((p: any) => ({
-                id: p.id,
-                metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (p.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : p.metodoPago),
-                monto: Number(p.monto)
-            })) : []
-        })),
+        facturas: session.facturas.map(f => {
+            const sfAplicado = Math.min(
+                Number(f.total),
+                monederoPorFactura[f.id] || extractSaldoFavorAplicado(f) || 0
+            );
+            return {
+                id: f.id,
+                correlativo: f.correlativo,
+                total: Number(f.total),
+                netoCobrado: Math.max(0, Number(f.total) - sfAplicado),
+                metodoPago: f.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (f.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : f.metodoPago),
+                fechaEmision: f.fechaEmision.toISOString(),
+                clienteNombre: f.cliente?.nombre || 'Cliente General',
+                transferenciaConfirmada: f.transferenciaConfirmada,
+                saldoFavorAplicado: sfAplicado,
+                saldoPendiente: f.saldoPendiente !== null ? Number(f.saldoPendiente) : null,
+                estadoPago: f.estadoPago,
+                pagosMixtos: f.pagosMixtos ? f.pagosMixtos.map((p: any) => ({
+                    id: p.id,
+                    metodoPago: p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : (p.metodoPago === 'Transferencia Bancaria' ? 'Transferencia' : p.metodoPago),
+                    monto: Number(p.monto)
+                })) : []
+            };
+        }),
         rentasPagos: session.rentasPagos.map(p => ({
             id: p.id,
             monto: Number(p.monto),
@@ -678,13 +711,14 @@ export async function getCajaSessionSummary(sessionId: string) {
             const facturaCorrelativo = p.detalles && p.detalles.length > 0 && p.detalles[0].factura 
                 ? p.detalles[0].factura.correlativo 
                 : null;
-            const esMonedero = (p.metodoPago || '').toUpperCase() === 'MONEDERO';
+            const esMonedero = isMetodoMonedero(p.metodoPago);
             return {
                 id: p.id,
                 monto: Number(p.monto),
                 metodoPago: esMonedero ? 'Saldo a Favor' : (p.metodoPago === 'Tarjeta de Crédito/Débito' ? 'Tarjeta' : p.metodoPago),
                 fecha: p.fecha.toISOString(),
                 clienteNombre: p.cliente?.nombre || 'Cliente General',
+                facturaCorrelativo,
                 notas: esMonedero
                     ? `Saldo a favor aplicado${facturaCorrelativo ? ` a Factura ${facturaCorrelativo}` : ''} (no es efectivo)`
                     : (facturaCorrelativo ? `Factura ${facturaCorrelativo}` : (p.notas || '')),
