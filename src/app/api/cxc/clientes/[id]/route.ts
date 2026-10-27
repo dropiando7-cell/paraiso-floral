@@ -34,6 +34,17 @@ export async function GET(
         organizationId: orgId
       },
       include: {
+        organization: {
+          select: {
+            name: true,
+            logoUrl: true,
+            direccion: true,
+            rtn: true,
+            telefono: true,
+            correoContacto: true,
+            invoiceSettings: true
+          }
+        },
         facturas: {
           where: {
             estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
@@ -41,6 +52,7 @@ export async function GET(
           },
           include: {
             detalles: true,
+            pagosMixtos: true,
             creadoPor: { select: { nombre: true, apellido: true } }
           },
           orderBy: { fechaEmision: 'desc' }
@@ -149,6 +161,7 @@ export async function GET(
 
     return NextResponse.json({
       esSuperAdmin: dbUser.role === 'SUPER_ADMIN',
+      organization: cliente.organization,
       cliente: {
         id: cliente.id,
         nombre: cliente.nombre,
@@ -156,6 +169,8 @@ export async function GET(
         email: cliente.email,
         direccion: cliente.direccion,
         rtn: cliente.rtn,
+        nombreContacto: cliente.nombreContacto,
+        telefonoContacto: cliente.telefonoContacto,
         limiteCredito: Number(cliente.limiteCredito || 0),
         saldoInicial: sInicial,
         fechaSaldoInicial: cliente.fechaSaldoInicial,

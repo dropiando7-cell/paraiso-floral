@@ -23,12 +23,14 @@ import {
   ArrowUpRight,
   TrendingDown,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportarCarteraGeneralExcel, exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
+import ModalVistaPreviaFacturaCxC from '@/components/cxc/ModalVistaPreviaFacturaCxC';
 
 interface ClienteTab {
   id: string;
@@ -88,6 +90,7 @@ export default function ExcelLiveGrid({
   // Modal de WhatsApp
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false);
   const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
+  const [facturaVistaPrevia, setFacturaVistaPrevia] = useState<any | null>(null);
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<'ESTADO' | 'CORDIAL' | 'COBRO'>('ESTADO');
 
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -639,7 +642,26 @@ export default function ExcelLiveGrid({
 
                     {/* Documento */}
                     <td className="py-2 px-3 font-mono font-bold text-slate-900 border-r border-slate-200">
-                      {m.documento}
+                      {m.tipo === 'FACTURA' && m.originalId && m.originalId !== 'saldo-inicial-excel' ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFacturaVistaPrevia({
+                              id: m.originalId,
+                              correlativo: m.documento.replace(/^#/, ''),
+                              fechaEmision: m.fecha,
+                              total: m.debito
+                            })
+                          }
+                          title="Clic para ver vista previa de la factura (sin salir de CxC)"
+                          className="inline-flex items-center gap-1.5 text-slate-900 hover:text-emerald-700 hover:underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer group"
+                        >
+                          <span>{m.documento}</span>
+                          <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                        </button>
+                      ) : (
+                        m.documento
+                      )}
                     </td>
 
                     {/* Detalle */}
@@ -828,6 +850,14 @@ export default function ExcelLiveGrid({
         isOpen={modalImagenOpen}
         onClose={() => setModalImagenOpen(false)}
         clienteId={selectedClienteId}
+      />
+
+      {/* Modal de Vista Previa de Factura Controlada */}
+      <ModalVistaPreviaFacturaCxC
+        isOpen={Boolean(facturaVistaPrevia)}
+        onClose={() => setFacturaVistaPrevia(null)}
+        factura={facturaVistaPrevia}
+        cliente={clienteActual}
       />
     </div>
   );

@@ -19,7 +19,8 @@ import {
   Trash2,
   Plus,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ModalAbono from '@/components/cxc/ModalAbono';
@@ -30,6 +31,7 @@ import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import ModalVisorExcelHistorico from '@/components/cxc/ModalVisorExcelHistorico';
 import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
+import ModalVistaPreviaFacturaCxC from '@/components/cxc/ModalVistaPreviaFacturaCxC';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 import { eliminarSaldoInicialCliente } from '@/app/(dashboard)/contactos/actions';
@@ -116,6 +118,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   const [modalVisorExcelOpen, setModalVisorExcelOpen] = useState<boolean>(false);
   const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
   const [pagoAEditar, setPagoAEditar] = useState<any>(null);
+  const [facturaVistaPrevia, setFacturaVistaPrevia] = useState<any | null>(null);
 
   const cargarEstadoCuenta = async () => {
     try {
@@ -197,6 +200,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
 
     const list: Array<{
       id: string;
+      facturaId?: string;
       fecha: Date;
       tipo: 'SALDO_INICIAL' | 'FACTURA' | 'PAGO_FACTURACION' | 'ABONO' | 'NOTA_CREDITO' | 'ABONO_ANULADO';
       documento: string;
@@ -229,6 +233,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
 
         list.push({
           id: f.id,
+          facturaId: f.id,
           fecha: new Date(f.fechaEmision),
           tipo: 'FACTURA',
           documento: `#${f.correlativo}`,
@@ -241,6 +246,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
         if (pagadoEnFac > 0) {
           list.push({
             id: `pago-fac-${f.id}`,
+            facturaId: f.id,
             fecha: new Date(f.fechaEmision),
             tipo: 'PAGO_FACTURACION',
             documento: `#${f.correlativo}`,
@@ -962,7 +968,26 @@ ${publicUrl}
                           </td>
                           <td className="py-3 px-3 font-extrabold text-slate-900 whitespace-nowrap">
                             <span className="inline-flex items-center gap-2">
-                              <span className={m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}>{m.documento}</span>
+                              {m.facturaId ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const fac = facturas.find(f => f.id === m.facturaId);
+                                    if (fac) {
+                                      setFacturaVistaPrevia(fac);
+                                    } else {
+                                      setFacturaVistaPrevia({ id: m.facturaId, correlativo: m.documento.replace(/^#/, '') });
+                                    }
+                                  }}
+                                  title="Clic para abrir vista previa de la factura (sin salir de CxC)"
+                                  className="inline-flex items-center gap-1.5 text-slate-900 hover:text-emerald-700 hover:underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer group"
+                                >
+                                  <span>{m.documento}</span>
+                                  <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors print:hidden" />
+                                </button>
+                              ) : (
+                                <span className={m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}>{m.documento}</span>
+                              )}
                               {m.tipo === 'PAGO_FACTURACION' && (
                                 <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 text-[9px] font-black uppercase tracking-wider">
                                   Pagada en Facturación
@@ -1083,7 +1108,21 @@ ${publicUrl}
                     <tbody className="divide-y divide-slate-100 text-xs">
                       {facturas.map(f => (
                         <tr key={f.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-3 font-bold text-slate-900">#{f.correlativo}</td>
+                          <td className="py-3 px-3 font-bold text-slate-900">
+                            {f.id !== 'saldo-inicial-excel' ? (
+                              <button
+                                type="button"
+                                onClick={() => setFacturaVistaPrevia(f)}
+                                title="Clic para abrir vista previa de la factura (sin salir de CxC)"
+                                className="inline-flex items-center gap-1.5 text-slate-900 hover:text-emerald-700 hover:underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer group"
+                              >
+                                <span>#{f.correlativo}</span>
+                                <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                              </button>
+                            ) : (
+                              <span>#{f.correlativo}</span>
+                            )}
+                          </td>
                           <td className="py-3 px-3 text-slate-500">
                             {new Date(f.fechaEmision).toLocaleDateString('es-HN')}
                           </td>
@@ -1352,6 +1391,14 @@ ${publicUrl}
         isOpen={modalImagenOpen}
         onClose={() => setModalImagenOpen(false)}
         initialData={data}
+      />
+
+      <ModalVistaPreviaFacturaCxC
+        isOpen={Boolean(facturaVistaPrevia)}
+        onClose={() => setFacturaVistaPrevia(null)}
+        factura={facturaVistaPrevia}
+        cliente={data?.cliente}
+        organization={(data as any)?.organization}
       />
     </>
   );

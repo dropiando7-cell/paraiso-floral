@@ -175,7 +175,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   <div className="flex flex-col pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Términos de pago:</span>
   {viewMode ? (
-    <span className="text-gray-700 font-semibold mt-1 text-xs select-none">{paymentTerms}</span>
+    <span className="text-gray-700 font-semibold mt-1 print:hidden text-xs select-none" data-pdf-hide>{paymentTerms}</span>
   ) : (
     <select
       value={paymentTerms}
@@ -199,9 +199,9 @@ export default function LegacyTemplate(props: TemplateProps) {
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Método de pago:</span>
   {viewMode ? (
     isCredito(paymentTerms) || paymentMethod === 'Crédito' ? (
-      <span className="text-indigo-700 font-bold mt-1 print:hidden text-xs select-none">Al Crédito</span>
+      <span className="text-indigo-700 font-bold mt-1 print:hidden text-xs select-none" data-pdf-hide>Al Crédito</span>
     ) : (
-      <span className="text-gray-700 font-semibold mt-1 print:hidden text-xs select-none">{paymentMethod}</span>
+      <span className="text-gray-700 font-semibold mt-1 print:hidden text-xs select-none" data-pdf-hide>{paymentMethod}</span>
     )
   ) : (
     <select
