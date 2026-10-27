@@ -130,7 +130,7 @@ export default async function PublicCierrePage({ params }: PageProps) {
 
   const isMetodoMonedero = (m?: string | null) => {
       const upper = (m || '').toUpperCase();
-      return upper === 'MONEDERO' || upper.includes('SALDO A FAVOR') || upper.includes('SALDO_FAVOR');
+      return upper === 'MONEDERO' || upper.includes('SALDO A FAVOR') || upper.includes('SALDO_FAVOR') || upper.includes('REDONDEO') || upper === 'AJUSTE_REDONDEO';
   };
 
   const monederoPorFactura: Record<string, number> = {};

@@ -324,6 +324,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                 { id: 'Tigo Money', label: 'Tigo Money' },
                 { id: 'Cheque', label: 'Cheque' },
                 { id: 'Depósito Bancario', label: 'Depósito Bancario' },
+                { id: 'Ajuste por Redondeo', label: '⚖️ Ajuste Redondeo (No Caja)' },
                 { id: 'Otro', label: 'Otro' }
               ].map((item) => (
                 <button
@@ -331,7 +332,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                   key={item.id}
                   onClick={() => {
                     setMetodoPago(item.id);
-                    if (item.id.toLowerCase() === 'efectivo') {
+                    if (item.id.toLowerCase() === 'efectivo' || item.id === 'Ajuste por Redondeo') {
                       setBankDropdownOpen(false);
                     }
                   }}
@@ -348,7 +349,11 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
           </div>
 
           {/* Banco y Referencia */}
-          {metodoPago.toLowerCase().trim() !== 'efectivo' ? (
+          {metodoPago === 'Ajuste por Redondeo' ? (
+            <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-900">
+              <strong>⚖️ Ajuste por Redondeo / Centavos:</strong> Saldará la diferencia en el estado de cuenta del cliente sin sumar efectivo a la caja de ventas.
+            </div>
+          ) : metodoPago.toLowerCase().trim() !== 'efectivo' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Selector Inteligente de Banco Destino */}
               <div className="relative" ref={bankDropdownRef}>

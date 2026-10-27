@@ -100,6 +100,13 @@ export default function DocumentListTable({
       setPagoRapidoFecha(new Date().toISOString().split('T')[0]);
       setPagoBankDropdownOpen(false);
       setPagoBankSearchQuery('');
+      const saldoRestante = docToMarkPaid.saldoPendiente ?? docToMarkPaid.total;
+      if (typeof saldoRestante === 'number' && saldoRestante > 0 && saldoRestante <= 5 && saldoRestante < docToMarkPaid.total) {
+        setPagoRapidoMethod('Ajuste por Redondeo');
+        setPagoRapidoNotas('Ajuste por diferencia de centavos / redondeo');
+      } else {
+        setPagoRapidoMethod('Transferencia');
+      }
     }
   }, [docToMarkPaid]);
 
@@ -239,7 +246,7 @@ export default function DocumentListTable({
 
   const [filterVendedor, setFilterVendedor] = useState<string>('TODOS');
   const [filterOrigen, setFilterOrigen] = useState<'TODOS' | 'PARAISO' | 'HF'>('TODOS');
-  const [filterEstado, setFilterEstado] = useState<'TODOS' | 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR'>('TODOS');
+  const [filterEstado, setFilterEstado] = useState<'TODOS' | 'PAGADA' | 'PARCIAL' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR'>('TODOS');
   const [showPendientesTrans, setShowPendientesTrans] = useState(false);
   const [showCredito, setShowCredito] = useState(false);
   const [showCreditosVencidos, setShowCreditosVencidos] = useState(false);
@@ -247,7 +254,21 @@ export default function DocumentListTable({
   const [filterFechaDesde, setFilterFechaDesde] = useState<string>('');
   const [filterFechaHasta, setFilterFechaHasta] = useState<string>('');
 
-  const getDocStatusKey = (doc: DocumentRecord): 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR' | 'CONVERTIDA' => {
+  const isDocOverdue = (doc: DocumentRecord): boolean => {
+    if (doc.estado === 'ANULADA' || doc.estado === 'BORRADOR' || doc.estado === 'CONVERTIDA') return false;
+    const isPaid = doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0) || doc.estado === 'PAGADA';
+    if (isPaid) return false;
+    if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
+      const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
+      const hoy = new Date();
+      const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
+      const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      return diasRestantes < 0;
+    }
+    return false;
+  };
+
+  const getDocStatusKey = (doc: DocumentRecord): 'PAGADA' | 'PARCIAL' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR' | 'CONVERTIDA' => {
     if (doc.estado === 'ANULADA') return 'ANULADA';
     if (doc.estado === 'BORRADOR') return 'BORRADOR';
     if (doc.estado === 'CONVERTIDA') return 'CONVERTIDA';
@@ -255,13 +276,12 @@ export default function DocumentListTable({
     const isPaid = doc.estadoPago === 'PAGADA' || (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente <= 0) || doc.estado === 'PAGADA';
     if (isPaid) return 'PAGADA';
 
-    if (isCredito(doc.terminosPago) || doc.metodoPago === 'Crédito' || doc.metodoPago === 'CREDITO') {
-      const fVenc = doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : calcularFechaVencimiento(doc.fechaEmision, doc.terminosPago, doc.validezDias || 30);
-      const hoy = new Date();
-      const diffMs = (fVenc ? fVenc.getTime() : 0) - hoy.getTime();
-      const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      if (diasRestantes < 0) return 'VENCIDA';
-    }
+    const hasPartialPayment =
+      doc.estadoPago === 'PARCIAL' ||
+      (typeof doc.saldoPendiente === 'number' && doc.saldoPendiente > 0 && doc.saldoPendiente < Number(doc.total) - 0.009);
+    if (hasPartialPayment) return 'PARCIAL';
+
+    if (isDocOverdue(doc)) return 'VENCIDA';
 
     return 'PENDIENTE';
   };
@@ -373,7 +393,11 @@ export default function DocumentListTable({
       const docStatus = getDocStatusKey(doc);
 
       if (filterEstado !== 'TODOS') {
-        if (docStatus !== filterEstado) return false;
+        if (filterEstado === 'VENCIDA') {
+          if (docStatus !== 'VENCIDA' && !(docStatus === 'PARCIAL' && isDocOverdue(doc))) return false;
+        } else if (docStatus !== filterEstado) {
+          return false;
+        }
       } else if (!showAnuladas && docStatus === 'ANULADA') {
         return false;
       }
@@ -405,7 +429,7 @@ export default function DocumentListTable({
       }
 
       if (showCreditosVencidos) {
-        if (docStatus !== 'VENCIDA') return false;
+        if (docStatus !== 'VENCIDA' && !(docStatus === 'PARCIAL' && isDocOverdue(doc))) return false;
       }
 
       // Filtro por fecha (Emisión)
@@ -560,7 +584,7 @@ export default function DocumentListTable({
 
   const getStatusBadge = (doc: DocumentRecord) => {
     const statusKey = getDocStatusKey(doc);
-    const toggleStatusFilter = (target: 'PAGADA' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR') => {
+    const toggleStatusFilter = (target: 'PAGADA' | 'PARCIAL' | 'PENDIENTE' | 'VENCIDA' | 'ANULADA' | 'BORRADOR') => {
       setFilterEstado(prev => prev === target ? 'TODOS' : target);
     };
 
@@ -606,6 +630,50 @@ export default function DocumentListTable({
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pagada
         </button>
+      );
+    }
+
+    if (statusKey === 'PARCIAL') {
+      const saldoRestante = Number(doc.saldoPendiente ?? 0);
+      const vencida = isDocOverdue(doc);
+      const esCentavos = saldoRestante > 0 && saldoRestante <= 5;
+      return (
+        <div className="flex flex-col items-center justify-center gap-1">
+          <div className="flex items-center justify-center gap-1 flex-wrap">
+            <button
+              type="button"
+              onClick={() => toggleStatusFilter('PARCIAL')}
+              title="Clic para filtrar por estado Pago Parcial"
+              className={`px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-orange-50 text-orange-700 border flex items-center justify-center gap-1.5 w-max cursor-pointer transition-all hover:scale-105 shadow-2xs ${filterEstado === 'PARCIAL' ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-orange-200'}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Pago Parcial
+            </button>
+            {vencida && (
+              <span
+                title="El plazo de crédito de esta factura ya venció"
+                className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase rounded-full bg-rose-50 text-rose-600 border border-rose-200"
+              >
+                Vencida
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50/80 border border-rose-200/70 px-2 py-0.5 rounded-md whitespace-nowrap">
+            Resta: {fmt(saldoRestante)}
+          </span>
+          {esCentavos && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDocToMarkPaid(doc);
+              }}
+              title="Liquidar diferencia de centavos / redondeo sin afectar efectivo de caja"
+              className="text-[9px] font-black text-violet-700 hover:text-white bg-violet-50 hover:bg-violet-600 border border-violet-300 px-2 py-0.5 rounded-md transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+            >
+              ✓ Saldar {fmt(saldoRestante)}
+            </button>
+          )}
+        </div>
       );
     }
 
@@ -717,6 +785,7 @@ export default function DocumentListTable({
                 >
                   <option value="TODOS">Todos los Estados</option>
                   <option value="PAGADA">🟢 Pagada</option>
+                  <option value="PARCIAL">🟠 Pago Parcial</option>
                   <option value="PENDIENTE">🟡 Pendiente</option>
                   <option value="VENCIDA">🔴 Vencida</option>
                   <option value="ANULADA">🚫 Anulada</option>
@@ -792,6 +861,13 @@ export default function DocumentListTable({
                 className={chip(filterEstado === 'PAGADA', 'bg-emerald-50 border-emerald-400 text-emerald-700 ring-1 ring-emerald-400')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Pagadas
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterEstado(prev => prev === 'PARCIAL' ? 'TODOS' : 'PARCIAL')}
+                className={chip(filterEstado === 'PARCIAL', 'bg-orange-50 border-orange-400 text-orange-700 ring-1 ring-orange-400')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Pago Parcial
               </button>
               <button
                 type="button"
@@ -1089,6 +1165,11 @@ export default function DocumentListTable({
                 <div className="text-right shrink-0">
                   <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Monto Total</span>
                   <span className="text-base font-black text-slate-900 tracking-tight">{fmt(doc.total)}</span>
+                  {getDocStatusKey(doc) === 'PARCIAL' && typeof doc.saldoPendiente === 'number' && (
+                    <span className="block text-[10px] font-bold text-emerald-600">
+                      Abonado: {fmt(Math.max(0, Number(doc.total) - doc.saldoPendiente))}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1207,6 +1288,7 @@ export default function DocumentListTable({
                     onChange={(e) => setFilterEstado(e.target.value as any)}
                     className={`bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer ${
                       filterEstado === 'PAGADA' ? 'text-emerald-600' :
+                      filterEstado === 'PARCIAL' ? 'text-orange-600' :
                       filterEstado === 'PENDIENTE' ? 'text-amber-600' :
                       filterEstado === 'VENCIDA' || filterEstado === 'ANULADA' ? 'text-rose-600' :
                       'text-slate-700'
@@ -1215,6 +1297,7 @@ export default function DocumentListTable({
                   >
                     <option value="TODOS">Todos</option>
                     <option value="PAGADA">🟢 Pagada</option>
+                    <option value="PARCIAL">🟠 Pago Parcial</option>
                     <option value="PENDIENTE">🟡 Pendiente</option>
                     <option value="VENCIDA">🔴 Vencida</option>
                     <option value="ANULADA">🚫 Anulada</option>
@@ -1305,6 +1388,11 @@ export default function DocumentListTable({
                 </td>
                 <td className="p-4 align-middle text-right">
                   <p className="font-bold text-slate-800 tracking-tight text-base">{fmt(doc.total)}</p>
+                  {getDocStatusKey(doc) === 'PARCIAL' && typeof doc.saldoPendiente === 'number' && (
+                    <p className="text-[11px] font-bold text-emerald-600 mt-0.5 whitespace-nowrap">
+                      Abonado: {fmt(Math.max(0, Number(doc.total) - doc.saldoPendiente))}
+                    </p>
+                  )}
                 </td>
                 <td className="p-4 align-middle text-center">
                   {getStatusBadge(doc)}
@@ -1672,6 +1760,7 @@ export default function DocumentListTable({
       {/* Modal Confirmar Pago Rápido (Con campos condicionales tipo CxC: Banco, Referencia, Fecha, Notas) */}
       {docToMarkPaid && (() => {
         const isEfectivoMethod = pagoRapidoMethod.toLowerCase().trim() === 'efectivo';
+        const isAjusteRedondeo = pagoRapidoMethod === 'Ajuste por Redondeo';
         const isMixtoMethod = pagoRapidoMethod === 'MIXTO';
         const filteredPagoBanks = HONDURAS_BANKS.filter(b =>
           b.name.toLowerCase().includes(pagoBankSearchQuery.toLowerCase())
@@ -1759,7 +1848,7 @@ export default function DocumentListTable({
                       onChange={e => {
                         const val = e.target.value;
                         setPagoRapidoMethod(val);
-                        if (val.toLowerCase() === 'efectivo' || val === 'MIXTO') {
+                        if (val.toLowerCase() === 'efectivo' || val === 'MIXTO' || val === 'Ajuste por Redondeo') {
                           setPagoBankDropdownOpen(false);
                         }
                       }}
@@ -1772,6 +1861,7 @@ export default function DocumentListTable({
                       <option value="Depósito Bancario">🏦 Depósito Bancario</option>
                       <option value="Tigo Money">📱 Tigo Money</option>
                       <option value="Cheque">📄 Cheque</option>
+                      <option value="Ajuste por Redondeo">⚖️ Ajuste por Redondeo / Centavos (No afecta Caja)</option>
                       <option value="MIXTO">🧮 Pago Dividido / Mixto</option>
                     </select>
                   </div>
@@ -1796,6 +1886,13 @@ export default function DocumentListTable({
                     <p className="font-bold">🧮 Desglose de Pago Dividido / Mixto</p>
                     <p className="text-[11px] text-blue-700">
                       Al pulsar <strong>&quot;Configurar Desglose Mixto&quot;</strong> podrás dividir el monto en varios métodos (Efectivo, Transferencia, Tarjeta, etc.) e ingresar el banco y referencia de cada transacción.
+                    </p>
+                  </div>
+                ) : isAjusteRedondeo ? (
+                  <div className="p-3.5 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-900 space-y-1">
+                    <p className="font-bold">⚖️ Ajuste por Redondeo / Centavos (No afecta Efectivo de Caja)</p>
+                    <p className="text-[11px] text-violet-700">
+                      Se saldará el remanente de <strong>{fmt(docToMarkPaid.saldoPendiente ?? docToMarkPaid.total)}</strong> como ajuste interno en Facturación y Cuentas por Cobrar, sin sumar dinero a la gaveta ni a bancos.
                     </p>
                   </div>
                 ) : !isEfectivoMethod ? (

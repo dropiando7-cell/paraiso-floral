@@ -448,10 +448,10 @@ export async function getCajaSessionSummary(sessionId: string) {
         transaccionesSaldoFavor: 0
     };
 
-    // Saldo a favor (monedero) aplicado por factura: ese dinero ya estaba en caja desde antes.
+    // Saldo a favor (monedero) o ajuste por redondeo aplicado por factura: no es dinero nuevo que entra hoy en caja.
     const isMetodoMonedero = (m?: string | null) => {
         const upper = (m || '').toUpperCase();
-        return upper === 'MONEDERO' || upper.includes('SALDO A FAVOR') || upper.includes('SALDO_FAVOR');
+        return upper === 'MONEDERO' || upper.includes('SALDO A FAVOR') || upper.includes('SALDO_FAVOR') || upper.includes('REDONDEO') || upper === 'AJUSTE_REDONDEO';
     };
     const monederoPorFactura: Record<string, number> = {};
     const facturasIdsEnSesion = new Set(session.facturas.map(f => f.id));

@@ -66,6 +66,9 @@ export async function POST(request: Request) {
 
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+    const isAjusteRedondeo = String(metodoPago || '').toUpperCase().includes('REDONDEO') || String(metodoPago || '').toUpperCase().includes('AJUSTE');
+    const metodoPagoFinal = isAjusteRedondeo ? 'AJUSTE_REDONDEO' : metodoPago;
+
     const nuevoPago = await prisma.$transaction(async (tx) => {
       // Crear el registro del Pago
       const pagoCreado = await tx.pagoCliente.create({
@@ -74,13 +77,13 @@ export async function POST(request: Request) {
           clienteId,
           correlativo,
           monto: montoNum,
-          metodoPago,
-          banco,
-          referencia,
-          notas,
+          metodoPago: metodoPagoFinal,
+          banco: isAjusteRedondeo ? null : banco,
+          referencia: isAjusteRedondeo ? null : referencia,
+          notas: isAjusteRedondeo ? (notas || 'Ajuste por diferencia de centavos / redondeo (No afecta caja)') : notas,
           comprobanteUrl,
           creadoPorId: dbUser.id,
-          cajaSessionId: activeSession?.id
+          cajaSessionId: isAjusteRedondeo ? null : activeSession?.id
         }
       });
 

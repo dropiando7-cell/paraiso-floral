@@ -3769,8 +3769,9 @@ export async function registrarPagoRapido(
         }
 
         const isEfectivo = metodoPago.toLowerCase().trim() === 'efectivo';
-        const cleanBanco = isEfectivo ? null : (extraDetails?.banco?.trim() || null);
-        const cleanReferencia = extraDetails?.referencia?.trim() || null;
+        const isAjusteRedondeo = metodoPago.toUpperCase().includes('REDONDEO') || metodoPago.toUpperCase().includes('AJUSTE');
+        const cleanBanco = (isEfectivo || isAjusteRedondeo) ? null : (extraDetails?.banco?.trim() || null);
+        const cleanReferencia = isAjusteRedondeo ? null : (extraDetails?.referencia?.trim() || null);
         const cleanNotas = extraDetails?.notas?.trim() || null;
         const parsedFecha = extraDetails?.fechaPago ? new Date(`${extraDetails.fechaPago}T12:00:00`) : new Date();
         const fechaPagoFinal = isNaN(parsedFecha.getTime()) ? new Date() : parsedFecha;
@@ -3784,14 +3785,45 @@ export async function registrarPagoRapido(
             }
         });
 
-        const isSameSession = cajaActiva && doc.cajaSessionId === cajaActiva.id;
+        const isSameSession = !isAjusteRedondeo && cajaActiva && doc.cajaSessionId === cajaActiva.id;
 
         const countPagosBase = await prisma.pagoCliente.count({
             where: { organizationId: user.organizationId }
         });
 
         await prisma.$transaction(async (tx) => {
-            if (isSameSession) {
+            if (isAjusteRedondeo) {
+                const correlativoAbono = `AB-${String(countPagosBase + 1).padStart(5, '0')}`;
+                await tx.pagoCliente.create({
+                    data: {
+                        organizationId: user.organizationId,
+                        clienteId: doc.clienteId,
+                        correlativo: correlativoAbono,
+                        monto: saldoActual,
+                        fecha: fechaPagoFinal,
+                        metodoPago: 'AJUSTE_REDONDEO',
+                        banco: null,
+                        referencia: null,
+                        notas: cleanNotas || `Ajuste por redondeo de centavos en factura ${doc.correlativo} (No afecta caja)`,
+                        creadoPorId: user.id,
+                        cajaSessionId: null,
+                        detalles: {
+                            create: {
+                                facturaId: doc.id,
+                                montoAplicado: saldoActual
+                            }
+                        }
+                    }
+                });
+
+                await tx.factura.update({
+                    where: { id: doc.id },
+                    data: {
+                        saldoPendiente: 0,
+                        estadoPago: 'PAGADA'
+                    }
+                });
+            } else if (isSameSession) {
                 // Si la factura es del mismo turno, se convierte directamente a venta de contado
                 const metodosToCreate = (pagosMixtosArray && pagosMixtosArray.length > 0)
                     ? pagosMixtosArray.map(p => ({
