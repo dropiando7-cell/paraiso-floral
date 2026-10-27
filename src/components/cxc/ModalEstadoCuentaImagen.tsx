@@ -90,7 +90,8 @@ export default function ModalEstadoCuentaImagen({
 }: ModalEstadoCuentaImagenProps) {
   const [data, setData] = useState<ClienteDetalleData | null>(initialData || null);
   const [loadingData, setLoadingData] = useState(false);
-  const [vistaModo, setVistaModo] = useState<'MAYOR' | 'RESUMEN_FACTURAS'>('MAYOR');
+  // Por defecto mostramos únicamente la lista limpia de facturas pendientes y saldos
+  const [vistaModo, setVistaModo] = useState<'PENDIENTES' | 'MAYOR'>('PENDIENTES');
   const [phone, setPhone] = useState('88542199');
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
@@ -100,6 +101,7 @@ export default function ModalEstadoCuentaImagen({
   useEffect(() => {
     if (!isOpen) return;
     setCopiedSuccess(false);
+    setVistaModo('PENDIENTES');
 
     if (initialData) {
       setData(initialData);
@@ -127,6 +129,35 @@ export default function ModalEstadoCuentaImagen({
     }
   }, [isOpen, clienteId, initialData]);
 
+  // Facturas pendientes ordenadas cronológicamente (de más antigua a más reciente) con su saldo acumulado
+  const facturasPendientesConAcumulado = useMemo(() => {
+    if (!data?.facturas) return [];
+    const pendientes = data.facturas
+      .filter(f => Number(f.saldoPendiente) > 0.009)
+      .sort((a, b) => new Date(a.fechaEmision).getTime() - new Date(b.fechaEmision).getTime());
+
+    let acumulado = 0;
+    return pendientes.map(f => {
+      const total = Number(f.total || 0);
+      const saldo = Number(f.saldoPendiente || 0);
+      const abonado = Math.max(0, Number((total - saldo).toFixed(2)));
+      acumulado = Number((acumulado + saldo).toFixed(2));
+      return {
+        ...f,
+        total,
+        saldoPendiente: saldo,
+        abonado,
+        saldoAcumulado: acumulado
+      };
+    });
+  }, [data]);
+
+  const tieneAbonosParciales = useMemo(
+    () => facturasPendientesConAcumulado.some(f => f.abonado > 0.009),
+    [facturasPendientesConAcumulado]
+  );
+
+  // Libro Mayor resumido (sin desglose de ítems de flores, 1 sola línea limpia por movimiento)
   const movimientosContables = useMemo(() => {
     if (!data) return [];
 
@@ -145,8 +176,8 @@ export default function ModalEstadoCuentaImagen({
         id: 'saldo-inicial-excel',
         fecha: data.cliente.fechaSaldoInicial ? new Date(data.cliente.fechaSaldoInicial) : new Date('2026-01-01'),
         tipo: 'SALDO_INICIAL',
-        documento: 'SALDO INICIAL EXCEL',
-        detalles: 'Carga de deuda previa registrada de libreta Excel',
+        documento: 'SALDO INICIAL',
+        detalles: 'Saldo inicial anterior',
         debito: data.cliente.saldoInicial,
         credito: 0
       });
@@ -154,25 +185,12 @@ export default function ModalEstadoCuentaImagen({
 
     (data.facturas || []).forEach(f => {
       if (f.correlativo !== 'SALDO INICIAL EXCEL') {
-        const desc =
-          f.detalles && f.detalles.length > 0
-            ? f.detalles
-                .map(
-                  d =>
-                    `${d.cantidad > 1 ? `${d.cantidad}x ` : ''}${(d.descripcion || '')
-                      .replace(/__METADATA__[\s\S]*$/, '')
-                      .split('\n')[0]
-                      .trim()}`
-                )
-                .join(', ')
-            : 'Venta a Crédito Comercial';
-
         list.push({
           id: f.id,
           fecha: new Date(f.fechaEmision),
           tipo: 'FACTURA',
           documento: `#${f.correlativo}`,
-          detalles: desc,
+          detalles: 'Factura Oficial',
           debito: f.total,
           credito: 0
         });
@@ -184,7 +202,7 @@ export default function ModalEstadoCuentaImagen({
             fecha: new Date(f.fechaEmision),
             tipo: 'PAGO_FACTURACION',
             documento: `#${f.correlativo}`,
-            detalles: `Pago en Facturación (${f.metodoPago || 'Contado'}) — Factura #${f.correlativo}`,
+            detalles: `Pago en Facturación (${f.metodoPago || 'Contado'})`,
             debito: 0,
             credito: pagadoEnFac
           });
@@ -193,7 +211,7 @@ export default function ModalEstadoCuentaImagen({
     });
 
     (data.pagos || []).forEach(p => {
-      const desc = `Abono (${p.metodoPago})${p.banco ? ` en ${p.banco}` : ''}${p.referencia ? ` Ref: ${p.referencia}` : ''}${p.notas ? ` [${p.notas}]` : ''}`;
+      const desc = `Abono (${p.metodoPago})${p.banco ? ` • ${p.banco}` : ''}${p.referencia ? ` • Ref: ${p.referencia}` : ''}`;
       list.push({
         id: p.id,
         fecha: new Date(p.fecha),
@@ -213,27 +231,13 @@ export default function ModalEstadoCuentaImagen({
           ? 'Error de Cobro'
           : n.motivo === 'DESCUENTO_ESPECIAL'
           ? 'Descuento / Rebaja'
-          : n.motivo || 'Ajuste Flor';
-      const desc = `Ajuste (${motivoLegible})${n.descripcion ? ` — ${n.descripcion}` : ''}`;
-
-      let fechaNC = new Date(n.fecha);
-      const rawFecha = String(n.fecha || '');
-      if (rawFecha.endsWith('T00:00:00.000Z')) {
-        const soloDia = rawFecha.slice(0, 10);
-        const createdRaw = String((n as any).createdAt || '');
-        if (createdRaw && createdRaw.slice(0, 10) === soloDia) {
-          fechaNC = new Date(createdRaw);
-        } else {
-          fechaNC = new Date(`${soloDia}T23:59:00-06:00`);
-        }
-      }
-
+          : n.motivo || 'Ajuste';
       list.push({
         id: n.id,
-        fecha: fechaNC,
+        fecha: new Date(n.fecha),
         tipo: 'NOTA_CREDITO',
-        documento: n.correlativo || 'NOTA CREDITO',
-        detalles: desc,
+        documento: n.correlativo || 'NOTA CRÉDITO',
+        detalles: `Nota de Crédito (${motivoLegible})`,
         debito: 0,
         credito: n.monto
       });
@@ -353,8 +357,6 @@ export default function ModalEstadoCuentaImagen({
     minute: '2-digit'
   });
 
-  const facturasPendientes = (data?.facturas || []).filter(f => Number(f.saldoPendiente) > 0.009);
-
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[3100] flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:hidden">
       <div className="bg-white rounded-3xl w-full max-w-5xl max-h-[94vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
@@ -379,27 +381,27 @@ export default function ModalEstadoCuentaImagen({
             <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 text-xs">
               <button
                 type="button"
+                onClick={() => setVistaModo('PENDIENTES')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  vistaModo === 'PENDIENTES'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText size={13} />
+                <span>Facturas Pendientes</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setVistaModo('MAYOR')}
-                className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   vistaModo === 'MAYOR'
                     ? 'bg-slate-900 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <BookOpen size={13} />
-                <span>Libro Mayor</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setVistaModo('RESUMEN_FACTURAS')}
-                className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  vistaModo === 'RESUMEN_FACTURAS'
-                    ? 'bg-emerald-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <FileText size={13} />
-                <span>Facturas y Abonos</span>
+                <span>Historial Completo</span>
               </button>
             </div>
 
@@ -491,7 +493,7 @@ export default function ModalEstadoCuentaImagen({
         )}
 
         {/* Área de Vista Previa del Documento Capturable */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-200/70 flex justify-center">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-200/70 flex justify-center items-start">
           {loadingData || !data ? (
             <div className="py-20 text-center space-y-3">
               <Loader2 className="w-9 h-9 animate-spin text-emerald-600 mx-auto" />
@@ -502,7 +504,7 @@ export default function ModalEstadoCuentaImagen({
               {/* CONTENEDOR CAPTURABLE EN ALTA RESOLUCIÓN */}
               <div
                 ref={captureRef}
-                className="w-[860px] bg-white p-7 text-slate-900 space-y-5 shadow-lg rounded-none border border-slate-200"
+                className="w-[780px] bg-white p-8 text-slate-900 space-y-5 shadow-lg border border-slate-200"
               >
                 {/* Encabezado Membretado */}
                 <div className="flex items-start justify-between border-b-2 border-emerald-600 pb-4">
@@ -532,27 +534,35 @@ export default function ModalEstadoCuentaImagen({
                   </div>
                 </div>
 
-                {/* Bloque de Cliente */}
-                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5">
+                {/* Bloque de Cliente y Saldo Total */}
+                <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4">
                   <div>
                     <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest block">
                       Cliente
                     </span>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">{data.cliente.nombre}</h2>
-                    <div className="flex items-center gap-4 text-xs text-slate-600 font-medium mt-0.5">
-                      <span>Tel: {data.cliente.telefono || 'Sin teléfono'}</span>
-                      <span>•</span>
-                      <span>RTN: {data.cliente.rtn || 'Consumidor Final'}</span>
-                      <span>•</span>
-                      <span>Ubicación: {data.cliente.departamento || data.cliente.direccion || 'General'}</span>
+                    <div className="flex items-center gap-3 text-xs text-slate-600 font-medium mt-1 flex-wrap">
+                      {data.cliente.telefono && <span>Tel: {data.cliente.telefono}</span>}
+                      {data.cliente.rtn && (
+                        <>
+                          {data.cliente.telefono && <span>•</span>}
+                          <span>RTN: {data.cliente.rtn}</span>
+                        </>
+                      )}
+                      {(data.cliente.departamento || data.cliente.direccion) && (
+                        <>
+                          {(data.cliente.telefono || data.cliente.rtn) && <span>•</span>}
+                          <span>Ubicación: {data.cliente.departamento || data.cliente.direccion}</span>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                      {data.resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Pendiente Actual'}
+                  <div className="text-right pl-4">
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                      {data.resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Total Pendiente'}
                     </span>
                     <span
-                      className={`text-2xl font-black font-mono ${
+                      className={`text-3xl font-black font-mono tracking-tight ${
                         data.resumen.saldoTotal < 0 ? 'text-blue-600' : 'text-emerald-700'
                       }`}
                     >
@@ -561,64 +571,124 @@ export default function ModalEstadoCuentaImagen({
                   </div>
                 </div>
 
-                {/* 4 KPIs Financieros (idénticos al perfil) */}
-                <div className="grid grid-cols-4 gap-3">
-                  <div
-                    className={`p-3.5 rounded-2xl border ${
-                      data.resumen.saldoTotal < 0
-                        ? 'bg-blue-50/70 border-blue-200'
-                        : 'bg-emerald-50/70 border-emerald-200'
-                    }`}
-                  >
-                    <span
-                      className={`text-[10px] font-extrabold uppercase ${
-                        data.resumen.saldoTotal < 0 ? 'text-blue-800' : 'text-emerald-800'
-                      }`}
-                    >
-                      {data.resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Pendiente'}
-                    </span>
-                    <p
-                      className={`text-xl font-black mt-1 font-mono ${
-                        data.resumen.saldoTotal < 0 ? 'text-blue-600' : 'text-emerald-600'
-                      }`}
-                    >
-                      L. {Math.abs(data.resumen.saldoTotal).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
-                    <span className="text-[10px] font-extrabold text-slate-500 uppercase">Total Facturado</span>
-                    <p className="text-xl font-black text-slate-900 mt-1 font-mono">
-                      L. {data.resumen.totalFacturado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-teal-50/70 rounded-2xl border border-teal-200">
-                    <span className="text-[10px] font-extrabold text-teal-800 uppercase">Total Abonado</span>
-                    <p className="text-xl font-black text-teal-600 mt-1 font-mono">
-                      L. {data.resumen.totalAbonado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-amber-50/70 rounded-2xl border border-amber-200">
-                    <span className="text-[10px] font-extrabold text-amber-800 uppercase">
-                      Notas de Crédito / Mermas
-                    </span>
-                    <p className="text-xl font-black text-amber-600 mt-1 font-mono">
-                      L. {data.resumen.totalNotasCredito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </div>
-
                 {/* Contenido Principal Según Modo Seleccionado */}
-                {vistaModo === 'MAYOR' ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                {vistaModo === 'PENDIENTES' ? (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                        Libro Mayor Contable (Débitos y Créditos)
+                        Detalle de Facturas Pendientes de Pago
+                      </h3>
+                      <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                        {facturasPendientesConAcumulado.length}{' '}
+                        {facturasPendientesConAcumulado.length === 1 ? 'Factura Pendiente' : 'Facturas Pendientes'}
+                      </span>
+                    </div>
+
+                    {facturasPendientesConAcumulado.length === 0 ? (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 py-8 text-center">
+                        <p className="text-sm font-bold text-emerald-800">
+                          El cliente se encuentra al día — Sin facturas pendientes de pago.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-slate-300 overflow-hidden">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-800 text-white text-[10.5px] font-black uppercase tracking-wider">
+                              <th className="py-2.5 px-3 w-10 text-center">#</th>
+                              <th className="py-2.5 px-3">Fecha Emisión</th>
+                              <th className="py-2.5 px-3">N° de Factura</th>
+                              <th className="py-2.5 px-3 text-center">Estado</th>
+                              <th className="py-2.5 px-3 text-right">Valor Factura</th>
+                              {tieneAbonosParciales && (
+                                <th className="py-2.5 px-3 text-right text-emerald-300">Abonado</th>
+                              )}
+                              <th className="py-2.5 px-3 text-right">Saldo Factura</th>
+                              <th className="py-2.5 px-3.5 text-right bg-slate-900">Saldo Acumulado</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                            {facturasPendientesConAcumulado.map((f, idx) => {
+                              const esParcial = f.abonado > 0.009;
+                              return (
+                                <tr
+                                  key={f.id}
+                                  className={idx % 2 === 1 ? 'bg-slate-50/70' : 'bg-white'}
+                                >
+                                  <td className="py-2.5 px-3 text-center font-mono text-[11px] font-bold text-slate-400">
+                                    {idx + 1}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">
+                                    {new Date(f.fechaEmision).toLocaleDateString('es-HN', {
+                                      timeZone: 'America/Tegucigalpa',
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-mono font-black text-slate-900 whitespace-nowrap">
+                                    {f.correlativo === 'SALDO INICIAL EXCEL' ? 'SALDO INICIAL' : `#${f.correlativo}`}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                    <span
+                                      className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${
+                                        esParcial
+                                          ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                                          : 'bg-amber-100 text-amber-900 border border-amber-200'
+                                      }`}
+                                    >
+                                      {esParcial ? 'Pago Parcial' : 'Pendiente'}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-700 whitespace-nowrap">
+                                    L. {f.total.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  {tieneAbonosParciales && (
+                                    <td className="py-2.5 px-3 text-right font-mono font-bold text-teal-700 whitespace-nowrap">
+                                      {f.abonado > 0.009
+                                        ? `- L. ${f.abonado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}`
+                                        : '—'}
+                                    </td>
+                                  )}
+                                  <td className="py-2.5 px-3 text-right font-mono font-extrabold text-slate-900 whitespace-nowrap">
+                                    L. {f.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2.5 px-3.5 text-right font-mono font-black text-emerald-900 bg-emerald-50/60 whitespace-nowrap">
+                                    L. {f.saldoAcumulado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-slate-900 text-white font-black">
+                              <td
+                                colSpan={tieneAbonosParciales ? 6 : 5}
+                                className="py-3 px-4 text-right text-xs uppercase tracking-wider text-slate-200"
+                              >
+                                Total Saldo Pendiente a Pagar ({facturasPendientesConAcumulado.length}{' '}
+                                {facturasPendientesConAcumulado.length === 1 ? 'Factura' : 'Facturas'}):
+                              </td>
+                              <td
+                                colSpan={2}
+                                className="py-3 px-3.5 text-right font-mono text-base text-emerald-400 whitespace-nowrap"
+                              >
+                                L. {Math.abs(data.resumen.saldoTotal).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                        Historial de Facturas y Abonos (Libro Mayor)
                       </h3>
                       <span className="text-[11px] font-bold text-slate-500">
-                        {movimientosContables.length} Movimientos Registrados
+                        {movimientosContables.length} Movimientos
                       </span>
                     </div>
 
@@ -627,150 +697,73 @@ export default function ModalEstadoCuentaImagen({
                         No hay movimientos registrados para este cliente.
                       </p>
                     ) : (
-                      <div className="rounded-xl border border-slate-200 overflow-hidden">
-                        <table className="w-full text-left border-collapse text-[11px]">
+                      <div className="rounded-xl border border-slate-300 overflow-hidden">
+                        <table className="w-full text-left border-collapse text-xs">
                           <thead>
-                            <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                            <tr className="bg-slate-800 text-white text-[10.5px] font-black uppercase tracking-wider">
                               <th className="py-2.5 px-3">Fecha</th>
-                              <th className="py-2.5 px-3">Comprobante</th>
-                              <th className="py-2.5 px-3">Concepto / Detalles</th>
-                              <th className="py-2.5 px-3 text-right text-slate-900">Débito (+) [Cargo]</th>
-                              <th className="py-2.5 px-3 text-right text-emerald-700">Crédito (-) [Abono]</th>
-                              <th className="py-2.5 px-3 text-right text-indigo-900 bg-indigo-50/60">
-                                Saldo Acumulado
-                              </th>
+                              <th className="py-2.5 px-3">Documento</th>
+                              <th className="py-2.5 px-3">Concepto</th>
+                              <th className="py-2.5 px-3 text-right">Cargo (+)</th>
+                              <th className="py-2.5 px-3 text-right text-emerald-300">Abono (-)</th>
+                              <th className="py-2.5 px-3.5 text-right bg-slate-900">Saldo Acumulado</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {movimientosContables.map(m => (
+                          <tbody className="divide-y divide-slate-200">
+                            {movimientosContables.map((m, idx) => (
                               <tr
                                 key={m.id}
-                                className={m.tipo === 'NOTA_CREDITO' ? 'bg-amber-50/30' : 'bg-white'}
+                                className={
+                                  m.tipo === 'NOTA_CREDITO'
+                                    ? 'bg-amber-50/40'
+                                    : idx % 2 === 1
+                                    ? 'bg-slate-50/70'
+                                    : 'bg-white'
+                                }
                               >
-                                <td className="py-2 px-3 font-medium text-slate-600 whitespace-nowrap">
+                                <td className="py-2 px-3 font-semibold text-slate-700 whitespace-nowrap">
                                   {m.fecha.toLocaleDateString('es-HN', {
                                     timeZone: 'America/Tegucigalpa',
-                                    year: 'numeric',
+                                    day: '2-digit',
                                     month: 'short',
-                                    day: 'numeric'
+                                    year: 'numeric'
                                   })}
                                 </td>
-                                <td className="py-2 px-3 font-extrabold text-slate-900 whitespace-nowrap">
+                                <td className="py-2 px-3 font-mono font-black text-slate-900 whitespace-nowrap">
                                   {m.documento}
                                 </td>
-                                <td className="py-2 px-3 text-slate-700 font-medium max-w-[280px] break-words">
+                                <td className="py-2 px-3 text-slate-700 font-medium whitespace-nowrap">
                                   {m.detalles}
                                 </td>
                                 <td className="py-2 px-3 text-right font-bold text-slate-900 whitespace-nowrap font-mono">
                                   {m.debito > 0
                                     ? `+ L. ${m.debito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}`
-                                    : '-'}
+                                    : '—'}
                                 </td>
-                                <td className="py-2 px-3 text-right font-bold text-emerald-600 whitespace-nowrap font-mono">
+                                <td className="py-2 px-3 text-right font-bold text-emerald-700 whitespace-nowrap font-mono">
                                   {m.credito > 0
                                     ? `- L. ${m.credito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}`
-                                    : '-'}
+                                    : '—'}
                                 </td>
-                                <td className="py-2 px-3 text-right font-mono font-black text-indigo-950 whitespace-nowrap bg-indigo-50/40">
+                                <td className="py-2 px-3.5 text-right font-mono font-black text-emerald-950 whitespace-nowrap bg-emerald-50/50">
                                   L. {m.saldoAcumulado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                                 </td>
                               </tr>
                             ))}
                           </tbody>
+                          <tfoot>
+                            <tr className="bg-slate-900 text-white font-black">
+                              <td colSpan={4} className="py-3 px-4 text-right text-xs uppercase tracking-wider text-slate-200">
+                                Saldo Pendiente Actual:
+                              </td>
+                              <td colSpan={2} className="py-3 px-3.5 text-right font-mono text-base text-emerald-400 whitespace-nowrap">
+                                L. {Math.abs(data.resumen.saldoTotal).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tfoot>
                         </table>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Tabla 1: Facturas con Saldo Pendiente */}
-                    <div className="space-y-1.5">
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
-                        1. Facturas Pendientes de Pago ({facturasPendientes.length})
-                      </h3>
-                      {facturasPendientes.length === 0 ? (
-                        <p className="text-xs text-slate-500 italic py-2">
-                          El cliente no tiene facturas pendientes de pago.
-                        </p>
-                      ) : (
-                        <div className="rounded-xl border border-slate-200 overflow-hidden">
-                          <table className="w-full text-left border-collapse text-[11px]">
-                            <thead>
-                              <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase">
-                                <th className="py-2 px-3"># Factura</th>
-                                <th className="py-2 px-3">Fecha Emisión</th>
-                                <th className="py-2 px-3 text-right">Total Factura</th>
-                                <th className="py-2 px-3 text-right">Saldo Pendiente</th>
-                                <th className="py-2 px-3 text-center">Estado</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {facturasPendientes.map(f => (
-                                <tr key={f.id}>
-                                  <td className="py-2 px-3 font-extrabold text-slate-900">#{f.correlativo}</td>
-                                  <td className="py-2 px-3 text-slate-600">
-                                    {new Date(f.fechaEmision).toLocaleDateString('es-HN')}
-                                  </td>
-                                  <td className="py-2 px-3 text-right font-mono text-slate-800">
-                                    L. {f.total.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td className="py-2 px-3 text-right font-mono font-black text-emerald-700">
-                                    L. {f.saldoPendiente.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td className="py-2 px-3 text-center font-bold text-amber-800">
-                                    {f.estadoPago || 'PENDIENTE'}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tabla 2: Historial de Abonos Recientes */}
-                    <div className="space-y-1.5">
-                      <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
-                        2. Abonos y Pagos Recibidos ({data.pagos.length})
-                      </h3>
-                      {data.pagos.length === 0 ? (
-                        <p className="text-xs text-slate-500 italic py-2">No hay abonos registrados.</p>
-                      ) : (
-                        <div className="rounded-xl border border-slate-200 overflow-hidden">
-                          <table className="w-full text-left border-collapse text-[11px]">
-                            <thead>
-                              <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-black text-slate-600 uppercase">
-                                <th className="py-2 px-3">Recibo #</th>
-                                <th className="py-2 px-3">Fecha Pago</th>
-                                <th className="py-2 px-3">Método</th>
-                                <th className="py-2 px-3">Banco / Referencia</th>
-                                <th className="py-2 px-3 text-right">Monto Abonado</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {data.pagos.slice(0, 15).map(p => (
-                                <tr key={p.id}>
-                                  <td className="py-2 px-3 font-bold text-slate-900">
-                                    {p.correlativo || 'REC-ABONO'}
-                                  </td>
-                                  <td className="py-2 px-3 text-slate-600">
-                                    {new Date(p.fecha).toLocaleDateString('es-HN')}
-                                  </td>
-                                  <td className="py-2 px-3 font-semibold text-slate-700">{p.metodoPago}</td>
-                                  <td className="py-2 px-3 text-slate-600">
-                                    {p.banco ? `${p.banco} - ` : ''}
-                                    {p.referencia || p.notas || 'N/A'}
-                                  </td>
-                                  <td className="py-2 px-3 text-right font-mono font-black text-teal-700">
-                                    L. {p.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
 
