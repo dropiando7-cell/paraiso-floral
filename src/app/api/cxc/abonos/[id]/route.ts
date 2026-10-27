@@ -99,16 +99,20 @@ export async function PATCH(
       // 2. Actualizar datos del pago
       const fechaObj = fecha ? new Date(fecha) : pago.fecha;
       const notasBase = stripMonederoTagFromNotas(notas !== undefined ? notas : pago.notas);
+      const rawMetodoNuevo = String(metodoPago || pago.metodoPago || '');
+      const isAjusteRedondeo = rawMetodoNuevo.toUpperCase().includes('REDONDEO') || rawMetodoNuevo.toUpperCase() === 'AJUSTE_REDONDEO';
+      const metodoPagoFinal = isAjusteRedondeo ? 'AJUSTE_REDONDEO' : (metodoPago || pago.metodoPago);
 
       const actualizado = await tx.pagoCliente.update({
         where: { id: pagoId },
         data: {
           monto: montoNum,
           fecha: fechaObj,
-          metodoPago: metodoPago || pago.metodoPago,
-          banco: banco !== undefined ? banco : pago.banco,
-          referencia: referencia !== undefined ? referencia : pago.referencia,
-          notas: notasBase || null
+          metodoPago: metodoPagoFinal,
+          banco: isAjusteRedondeo ? null : (banco !== undefined ? banco : pago.banco),
+          referencia: isAjusteRedondeo ? null : (referencia !== undefined ? referencia : pago.referencia),
+          notas: notasBase || null,
+          ...(isAjusteRedondeo ? { cajaSessionId: null } : {})
         }
       });
 
@@ -216,14 +220,15 @@ export async function PATCH(
           userId: dbUser.id,
           action: 'UPDATE',
           module: '/cxc/abonos',
-          description: `Abono ${pago.correlativo || pago.id} editado: L. ${Number(pago.monto).toFixed(2)} → L. ${montoNum.toFixed(2)}`,
+          description: `Abono ${pago.correlativo || pago.id} editado: L. ${Number(pago.monto).toFixed(2)} (${pago.metodoPago}) → L. ${montoNum.toFixed(2)} (${metodoPagoFinal})`,
           metadata: {
             pagoId,
             clienteId: pago.clienteId,
             montoAnterior: Number(pago.monto),
             montoNuevo: montoNum,
             fechaAnterior: pago.fecha,
-            metodoPagoAnterior: pago.metodoPago
+            metodoPagoAnterior: pago.metodoPago,
+            metodoPagoNuevo: metodoPagoFinal
           }
         }
       });

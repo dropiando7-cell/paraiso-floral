@@ -195,16 +195,20 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
               {[
                 { id: 'Transferencia', label: 'Transferencia' },
                 { id: 'Efectivo', label: 'Efectivo en Caja' },
+                { id: 'Tarjeta', label: '💳 Tarjeta (POS)' },
                 { id: 'Link de Pago', label: 'Link de Pago' },
                 { id: 'Tigo Money', label: 'Tigo Money' },
                 { id: 'Cheque', label: 'Cheque' },
                 { id: 'Depósito Bancario', label: 'Depósito Bancario' },
+                { id: 'Ajuste por Redondeo', label: '⚖️ Ajuste Redondeo (No Caja)' },
                 { id: 'Otro', label: 'Otro' }
               ].map((item) => {
                 const normActual = (metodoPago || '').toUpperCase().replace(/_/g, ' ').trim();
                 const normItem = item.id.toUpperCase().replace(/_/g, ' ').trim();
                 const isSelected =
                   normActual === normItem ||
+                  (normItem === 'TARJETA' && normActual.includes('TARJETA')) ||
+                  (normItem === 'AJUSTE POR REDONDEO' && (normActual.includes('REDONDEO') || normActual === 'AJUSTE REDONDEO')) ||
                   (normItem === 'DEPOSITO BANCARIO' && (normActual === 'DEPOSITO' || normActual === 'DEPÓSITO BANCARIO'));
                 return (
                 <button
@@ -212,11 +216,11 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
                   key={item.id}
                   onClick={() => {
                     setMetodoPago(item.id);
-                    if (item.id === 'EFECTIVO' || item.id.toLowerCase() === 'efectivo') {
+                    if (item.id === 'EFECTIVO' || item.id.toLowerCase() === 'efectivo' || item.id === 'Ajuste por Redondeo') {
                       setBankDropdownOpen(false);
                     }
                   }}
-                  className={`py-2 px-3 rounded-xl border text-xs font-semibold text-left transition-all ${
+                  className={`py-2 px-3 rounded-xl border text-xs font-semibold text-left transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-500 font-bold'
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -230,7 +234,11 @@ export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNo
           </div>
 
           {/* Banco y Referencia */}
-          {metodoPago?.toUpperCase() !== 'EFECTIVO' && metodoPago?.toLowerCase() !== 'efectivo' ? (
+          {(metodoPago || '').toUpperCase().includes('REDONDEO') ? (
+            <div className="p-3 bg-violet-50 border border-violet-200 rounded-xl text-xs text-violet-900">
+              <strong>⚖️ Ajuste por Redondeo / Centavos:</strong> Este abono no suma dinero físico a la caja de ventas.
+            </div>
+          ) : metodoPago?.toUpperCase() !== 'EFECTIVO' && metodoPago?.toLowerCase() !== 'efectivo' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Selector Inteligente de Banco Destino */}
               <div className="relative" ref={bankDropdownRef}>

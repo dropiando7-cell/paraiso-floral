@@ -320,6 +320,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
               {[
                 { id: 'Transferencia', label: 'Transferencia' },
                 { id: 'Efectivo', label: 'Efectivo en Caja' },
+                { id: 'Tarjeta', label: '💳 Tarjeta (POS)' },
                 { id: 'Link de Pago', label: 'Link de Pago' },
                 { id: 'Tigo Money', label: 'Tigo Money' },
                 { id: 'Cheque', label: 'Cheque' },

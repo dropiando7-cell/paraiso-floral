@@ -987,14 +987,30 @@ ${publicUrl}
                                 </button>
                               )}
                               {m.tipo === 'ABONO' && (data as any)?.esSuperAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAnularAbono(m.id, m.documento)}
-                                  title="Anular abono (solo Super Admin)"
-                                  className="print:hidden p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const pagoObj = pagos.find(p => p.id === m.id);
+                                      if (pagoObj) {
+                                        setPagoAEditar(pagoObj);
+                                        setModalEditarAbonoOpen(true);
+                                      }
+                                    }}
+                                    title="Editar abono / Cambiar forma de pago (solo Super Admin)"
+                                    className="print:hidden p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAnularAbono(m.id, m.documento)}
+                                    title="Anular abono (solo Super Admin)"
+                                    className="print:hidden p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
                               )}
                               {m.tipo === 'NOTA_CREDITO' && (data as any)?.esSuperAdmin && (
                                 <button
@@ -1155,13 +1171,28 @@ ${publicUrl}
                             {p.creadoPor ? `${p.creadoPor.nombre || ''} ${p.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </td>
                           <td className="py-3 px-3 text-center">
-                            <button
-                              onClick={() => handleAnularAbono(p.id, p.correlativo)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Anular Abono"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="inline-flex items-center gap-1">
+                              {(data as any)?.esSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPagoAEditar(p);
+                                    setModalEditarAbonoOpen(true);
+                                  }}
+                                  className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Editar Abono / Cambiar Forma de Pago"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleAnularAbono(p.id, p.correlativo)}
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Anular Abono"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
