@@ -199,7 +199,7 @@ export default function ModernTemplate(props: TemplateProps) {
     </label>
   )}
  </div>
- {docType !== 'nota_credito' && (
+ {docType !== 'nota_credito' && Boolean(settings?.showPaymentTerms) && (
  <div className="w-32">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Términos de Pago</p>
  {viewMode ? (
@@ -220,7 +220,7 @@ export default function ModernTemplate(props: TemplateProps) {
  )}
  </div>
  )}
- {docType !== 'nota_credito' && (
+ {docType !== 'nota_credito' && Boolean(settings?.showPaymentTerms) && (
  <div className="w-24">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Vigencia</p>
  <div className="flex items-center gap-1">
@@ -238,18 +238,30 @@ export default function ModernTemplate(props: TemplateProps) {
  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
  <div className="w-36">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Método de Pago</p>
- {isCredito(paymentTerms) ? (
-   <span className={`bg-transparent ${theme.headerText} text-sm font-bold p-0 block`}>Al Crédito</span>
+ {viewMode ? (
+   <span className={`bg-transparent ${theme.headerText} text-sm font-bold p-0 block select-none`}>
+     {isCredito(paymentTerms) || paymentMethod === 'Crédito' ? 'Al Crédito' : paymentMethod}
+   </span>
  ) : (
    <select
-     value={paymentMethod}
-     onChange={e => setPaymentMethod(e.target.value)}
+     value={isCredito(paymentTerms) || paymentMethod === 'Crédito' ? 'Crédito' : paymentMethod}
+     onChange={e => {
+       const val = e.target.value;
+       if (val === 'Crédito') {
+         if (!isCredito(paymentTerms)) setPaymentTerms('15 días netos');
+         setPaymentMethod('Crédito');
+       } else {
+         if (isCredito(paymentTerms)) setPaymentTerms('Pago inmediato');
+         setPaymentMethod(val);
+       }
+     }}
      disabled={viewMode}
      className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
    >
      <option value="Efectivo" className="bg-slate-800 text-white">Efectivo</option>
      <option value="Tarjeta" className="bg-slate-800 text-white">Tarjeta</option>
      <option value="Transferencia" className="bg-slate-800 text-white">Transferencia</option>
+     <option value="Crédito" className="bg-slate-800 text-white">Al Crédito</option>
      <option value="MIXTO" className="bg-slate-800 text-white">Pago Dividido / Mixto</option>
      <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
      <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>

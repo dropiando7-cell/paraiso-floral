@@ -24,13 +24,15 @@ import {
   MapPin,
   Sparkles,
   ArrowUpRight,
-  Printer
+  Printer,
+  Image as ImageIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ModalAbono from '@/components/cxc/ModalAbono';
 import ModalNotaCredito from '@/components/cxc/ModalNotaCredito';
 import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
+import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
 import ExcelLiveGrid from '@/components/cxc/ExcelLiveGrid';
 import { exportarCarteraGeneralExcel } from '@/utils/cxcExportUtils';
 
@@ -118,6 +120,7 @@ export default function CuentasPorCobrarPage() {
   const [modalNCOpen, setModalNCOpen] = useState<boolean>(false);
   const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
   const [modalFacturaOpen, setModalFacturaOpen] = useState<boolean>(false);
+  const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
 
   // Cargar perfil y lista de vendedores
   useEffect(() => {
@@ -735,27 +738,19 @@ ${publicUrl}
                     <span>Saldo</span>
                   </button>
 
-                  {/* Botón WhatsApp Directo */}
-                  {waLink ? (
-                    <a
-                      href={waLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2 px-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-0.5"
-                      title="Enviar Estado de Cuenta por WhatsApp"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>WApp</span>
-                    </a>
-                  ) : (
-                    <button
-                      disabled
-                      className="py-2 px-1 bg-slate-100 text-slate-300 font-bold text-[11px] rounded-xl cursor-not-allowed flex items-center justify-center gap-0.5"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>WApp</span>
-                    </button>
-                  )}
+                  {/* Botón WhatsApp (Imagen) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClienteSeleccionado(c);
+                      setModalImagenOpen(true);
+                    }}
+                    className="py-2 px-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-0.5 cursor-pointer"
+                    title="Capturar y copiar Estado de Cuenta como imagen para WhatsApp"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>WApp Img</span>
+                  </button>
                 </div>
 
                 {/* Enlace a Detalle */}
@@ -891,13 +886,27 @@ ${publicUrl}
                             <span>Ajuste</span>
                           </button>
 
-                          {/* 4. WApp */}
+                          {/* 4. WhatsApp (Imagen) */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setClienteSeleccionado(c);
+                              setModalImagenOpen(true);
+                            }}
+                            className="px-2.5 h-8 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-700 border border-emerald-200 font-extrabold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 shrink-0 cursor-pointer"
+                            title="Capturar y copiar Estado de Cuenta como imagen para WhatsApp"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                            <span>Imagen WApp</span>
+                          </button>
+
+                          {/* 5. WApp Texto/Enlace */}
                           {waLink ? (
                             <a
                               href={waLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="w-[78px] h-8 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 shrink-0"
+                              className="w-[74px] h-8 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 shrink-0"
                               title="Enviar por WhatsApp"
                             >
                               <MessageCircle className="w-3.5 h-3.5 shrink-0" />
@@ -906,7 +915,7 @@ ${publicUrl}
                           ) : (
                             <button
                               disabled
-                              className="w-[78px] h-8 bg-slate-100 text-slate-300 font-bold text-xs rounded-xl cursor-not-allowed flex items-center justify-center gap-1 shrink-0 border border-slate-200/50"
+                              className="w-[74px] h-8 bg-slate-100 text-slate-300 font-bold text-xs rounded-xl cursor-not-allowed flex items-center justify-center gap-1 shrink-0 border border-slate-200/50"
                               title="Sin teléfono registrado"
                             >
                               <MessageCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1065,6 +1074,15 @@ ${publicUrl}
         }}
         onSuccess={cargarDatos}
         cliente={clienteSeleccionado}
+      />
+
+      <ModalEstadoCuentaImagen
+        isOpen={modalImagenOpen}
+        onClose={() => {
+          setModalImagenOpen(false);
+          setClienteSeleccionado(null);
+        }}
+        clienteId={clienteSeleccionado?.id}
       />
     </div>
   );

@@ -154,48 +154,64 @@ export default function MinimalistTemplate(props: TemplateProps) {
  
  {docType !== 'nota_credito' && (
  <div className="w-full sm:w-48 print:w-48 sm:text-right print:text-right">
- <p className="text-[10px] text-slate-400 uppercase mb-1">Pago</p>
- {viewMode ? (
-   <p className="w-full sm:text-right print:text-right text-slate-800 text-sm font-medium mb-1 select-none">{paymentTerms}</p>
- ) : (
-   <select
-     value={paymentTerms}
-     onChange={e => setPaymentTerms(e.target.value)}
-     disabled={viewMode}
-     className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
-   >
-     <option value="Pago inmediato">Pago inmediato</option>
-     <option value="15 días netos">15 días netos</option>
-     <option value="30 días netos">30 días netos</option>
-     <option value="60 días netos">60 días netos</option>
-     <option value="90 días netos">90 días netos</option>
-   </select>
+ {Boolean(settings?.showPaymentTerms) && (
+   <>
+     <p className="text-[10px] text-slate-400 uppercase mb-1">Pago</p>
+     {viewMode ? (
+       <p className="w-full sm:text-right print:text-right text-slate-800 text-sm font-medium mb-1 select-none">{paymentTerms}</p>
+     ) : (
+       <select
+         value={paymentTerms}
+         onChange={e => setPaymentTerms(e.target.value)}
+         disabled={viewMode}
+         className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
+       >
+         <option value="Pago inmediato">Pago inmediato</option>
+         <option value="15 días netos">15 días netos</option>
+         <option value="30 días netos">30 días netos</option>
+         <option value="60 días netos">60 días netos</option>
+         <option value="90 días netos">90 días netos</option>
+       </select>
+     )}
+     <div className="flex items-center justify-start sm:justify-end print:justify-end gap-2">
+       <span className="text-[10px] text-slate-400">Validez:</span>
+       <input
+         type="number"
+         value={validityDays}
+         onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
+         disabled={viewMode}
+         className="w-8 border-none bg-transparent text-sm font-medium text-slate-800 p-0 text-right focus:ring-0 print:p-0"
+       />
+     </div>
+   </>
  )}
- <div className="flex items-center justify-start sm:justify-end print:justify-end gap-2">
- <span className="text-[10px] text-slate-400">Validez:</span>
- <input
- type="number"
- value={validityDays}
- onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
- disabled={viewMode}
- className="w-8 border-none bg-transparent text-sm font-medium text-slate-800 p-0 text-right focus:ring-0 print:p-0"
- />
- </div>
  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
   <div className="mt-2">
   <p className="text-[10px] text-slate-400 uppercase mb-1">Método de Pago</p>
-  {isCredito(paymentTerms) ? (
-    <span className="w-full sm:text-right print:text-right text-indigo-700 text-sm font-bold block">Al Crédito</span>
+  {viewMode ? (
+    <span className={`w-full sm:text-right print:text-right ${isCredito(paymentTerms) || paymentMethod === 'Crédito' ? 'text-indigo-700 font-bold' : 'text-slate-800 font-medium'} text-sm block select-none`}>
+      {isCredito(paymentTerms) || paymentMethod === 'Crédito' ? 'Al Crédito' : paymentMethod}
+    </span>
   ) : (
     <select
-      value={paymentMethod}
-      onChange={e => setPaymentMethod(e.target.value)}
+      value={isCredito(paymentTerms) || paymentMethod === 'Crédito' ? 'Crédito' : paymentMethod}
+      onChange={e => {
+        const val = e.target.value;
+        if (val === 'Crédito') {
+          if (!isCredito(paymentTerms)) setPaymentTerms('15 días netos');
+          setPaymentMethod('Crédito');
+        } else {
+          if (isCredito(paymentTerms)) setPaymentTerms('Pago inmediato');
+          setPaymentMethod(val);
+        }
+      }}
       disabled={viewMode}
       className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium"
     >
       <option value="Efectivo">Efectivo</option>
       <option value="Tarjeta">Tarjeta</option>
       <option value="Transferencia">Transferencia</option>
+      <option value="Crédito">Al Crédito</option>
       <option value="MIXTO">Pago Dividido / Mixto</option>
       <option value="Cheque">Cheque</option>
       <option value="Link de pago de Occidente">Link de pago</option>

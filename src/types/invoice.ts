@@ -93,6 +93,7 @@ export interface InvoiceSettings {
   warrantySignatureSpacing?: number;
   // Terms and observations for quote
   showTerms?: boolean;
+  showPaymentTerms?: boolean;
   advancePercentage?: number;
   completionPercentage?: number;
   termsTextDefault1?: string;
@@ -192,6 +193,7 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   warrantySealY: 0,
   warrantySignatureSpacing: 0,
   showTerms: false,
+  showPaymentTerms: false,
   advancePercentage: 80,
   completionPercentage: 20,
   termsTextDefault1: 'Para iniciar los trabajos aquí descritos se deberá cancelar el {p1}% del valor total y el {p2}% restante al finalizar.',

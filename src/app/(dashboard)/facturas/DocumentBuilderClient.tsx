@@ -468,12 +468,22 @@ function MobileDocumentForm({
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Forma de Pago</label>
               <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
+                value={isCredito(paymentTerms) || paymentMethod === 'Crédito' ? 'Crédito' : paymentMethod}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'Crédito') {
+                    if (!isCredito(paymentTerms)) setPaymentTerms('15 días netos');
+                    setPaymentMethod('Crédito');
+                  } else {
+                    if (isCredito(paymentTerms)) setPaymentTerms('Pago inmediato');
+                    setPaymentMethod(val);
+                  }
+                }}
                 className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Efectivo">Efectivo</option>
                 <option value="Transferencia Bancaria">Transferencia</option>
+                <option value="Crédito">Al Crédito</option>
                 <option value="MIXTO">Pago Dividido / Mixto</option>
                 <option value="Tarjeta de Crédito/Débito">Tarjeta</option>
                 <option value="Link de Pago">Link de Pago</option>
@@ -2597,7 +2607,7 @@ export default function DocumentBuilderClient({
         setPaymentMethod('Efectivo');
       }
     }
-  }, [paymentTerms, paymentMethod]);
+  }, [paymentTerms]);
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
   const [clientSearch, setClientSearch] = useState('');
@@ -3282,7 +3292,13 @@ export default function DocumentBuilderClient({
     if (initialData?.templateSettings && typeof initialData.templateSettings === 'object') {
       const docSettings = { ...initialData.templateSettings };
       delete docSettings.roundAdjustment;
-      return { ...DEFAULT_INVOICE_SETTINGS, ...docSettings, showTerms: false };
+      const orgShowPaymentTerms = organization?.invoiceSettings?.showPaymentTerms;
+      return {
+        ...DEFAULT_INVOICE_SETTINGS,
+        ...docSettings,
+        showPaymentTerms: orgShowPaymentTerms !== undefined ? Boolean(orgShowPaymentTerms) : Boolean(docSettings.showPaymentTerms),
+        showTerms: false
+      };
     }
 
     // 2. If organization has saved settings and an active custom template, load it

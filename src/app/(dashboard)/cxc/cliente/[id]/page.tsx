@@ -29,6 +29,7 @@ import ModalMonederoVirtual from '@/components/cxc/ModalMonederoVirtual';
 import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import ModalVisorExcelHistorico from '@/components/cxc/ModalVisorExcelHistorico';
+import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 import { eliminarSaldoInicialCliente } from '@/app/(dashboard)/contactos/actions';
@@ -113,6 +114,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   const [modalMonederoOpen, setModalMonederoOpen] = useState<boolean>(false);
   const [modalEditarAbonoOpen, setModalEditarAbonoOpen] = useState<boolean>(false);
   const [modalVisorExcelOpen, setModalVisorExcelOpen] = useState<boolean>(false);
+  const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
   const [pagoAEditar, setPagoAEditar] = useState<any>(null);
 
   const cargarEstadoCuenta = async () => {
@@ -692,6 +694,16 @@ ${publicUrl}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Botón WhatsApp (Imagen) igual que en Facturación */}
+            <button
+              onClick={() => setModalImagenOpen(true)}
+              className="py-2 px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs rounded-xl border border-emerald-200 transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              title="Capturar y copiar Estado de Cuenta como imagen para WhatsApp"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-600" />
+              <span>WhatsApp (Imagen)</span>
+            </button>
+
             {/* Botón Exportar a Excel */}
             <button
               onClick={handleExportarExcel}
@@ -1303,6 +1315,12 @@ ${publicUrl}
         isOpen={modalVisorExcelOpen}
         onClose={() => setModalVisorExcelOpen(false)}
         clienteNombre={cliente.nombre}
+      />
+
+      <ModalEstadoCuentaImagen
+        isOpen={modalImagenOpen}
+        onClose={() => setModalImagenOpen(false)}
+        initialData={data}
       />
     </>
   );

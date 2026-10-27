@@ -28,6 +28,7 @@ import {
 import toast from 'react-hot-toast';
 import { exportarCarteraGeneralExcel, exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
+import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
 
 interface ClienteTab {
   id: string;
@@ -86,6 +87,7 @@ export default function ExcelLiveGrid({
 
   // Modal de WhatsApp
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false);
+  const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<'ESTADO' | 'CORDIAL' | 'COBRO'>('ESTADO');
 
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -401,13 +403,23 @@ export default function ExcelLiveGrid({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              {/* Botón WhatsApp */}
+              {/* Botón WhatsApp (Imagen) */}
               <button
-                onClick={() => setModalWhatsAppOpen(true)}
-                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white rounded-xl font-extrabold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                type="button"
+                onClick={() => setModalImagenOpen(true)}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-extrabold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Cobrar por WhatsApp</span>
+                <span>WhatsApp (Imagen)</span>
+              </button>
+
+              {/* Botón WhatsApp Texto */}
+              <button
+                onClick={() => setModalWhatsAppOpen(true)}
+                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-700 border border-emerald-200 rounded-xl font-extrabold text-xs transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Cobrar por WhatsApp (Texto)</span>
               </button>
 
               {/* Botón Exportar Hoja a Excel */}
@@ -811,6 +823,12 @@ export default function ExcelLiveGrid({
           </div>
         </div>
       )}
+      {/* Modal de Imagen de Estado de Cuenta para WhatsApp */}
+      <ModalEstadoCuentaImagen
+        isOpen={modalImagenOpen}
+        onClose={() => setModalImagenOpen(false)}
+        clienteId={selectedClienteId}
+      />
     </div>
   );
 }

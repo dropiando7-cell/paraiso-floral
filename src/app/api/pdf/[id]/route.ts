@@ -733,7 +733,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const docSettings = (doc as any).templateSettings || {};
     const orgSettings = (org as any).invoiceSettings || {};
-    const settings = { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings, ...docSettings };
+    const settings = {
+      ...DEFAULT_INVOICE_SETTINGS,
+      ...orgSettings,
+      ...docSettings,
+      showPaymentTerms: orgSettings?.showPaymentTerms !== undefined ? Boolean(orgSettings.showPaymentTerms) : Boolean(docSettings?.showPaymentTerms),
+    };
 
     const totals = {
       subtotal: lineItems.reduce((acc: number, item: any) => acc + calcLine(item, settings?.pricesIncludeTax).base, 0),

@@ -420,9 +420,31 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
             </div>
             
             <div className="pt-4 border-t border-slate-200 mt-6 space-y-3">
-              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opciones de Tabla</h3>
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opciones de Documento y Tabla</h3>
               <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Mostrar Términos de Pago (Días)</p>
+                    <p className="text-[10px] text-slate-400">
+                      {settings.showPaymentTerms
+                        ? 'Visible: Muestra los días de crédito en la factura'
+                        : 'Oculto: Solo muestra "Método de pago: Al Crédito"'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onChange('showPaymentTerms', !settings.showPaymentTerms)}
+                    className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${
+                      settings.showPaymentTerms ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showPaymentTerms ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                   <div>
                     <p className="text-xs font-bold text-slate-700">Imágenes de Producto</p>
                     <p className="text-[10px] text-slate-400">Mostrar columna de imagen</p>
