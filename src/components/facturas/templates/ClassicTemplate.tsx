@@ -4,12 +4,13 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
-import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, isHondufloresClient } from '@/utils/facturaUtils';
 
 export default function ClassicTemplate(props: TemplateProps) {
   const {
     settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
-    today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+    today, futureDate, selectedClient, setShowClientModal, selectedSubClient, setShowSubClientModal, onClearSubClient,
+    paymentTerms, setPaymentTerms,
     paymentMethod, setPaymentMethod,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
     handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
@@ -155,10 +156,42 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="grid grid-cols-2 gap-8 mb-8">
  <div>
  <h3 className={`font-bold uppercase border-b border-slate-300 pb-1 mb-2 ${headerSmallSize}`}>{docType === 'nota_credito' ? 'Cliente:' : 'Facturado A:'}</h3>
- <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-left group w-full ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'}`}>
-<p className={`font-bold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-400 italic'} ${viewMode ? '' : 'group-hover:' + baseColor} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
- <p className={`text-sm text-slate-600 mt-1 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient?.rtn || '—'}</p>
- </button>
+ <div className="flex items-start gap-4">
+   <button type="button" onClick={() => { if (!viewMode) setShowClientModal(true); }} disabled={viewMode} className={`text-left group flex-1 min-w-0 ${viewMode ? 'cursor-default select-none' : 'cursor-pointer'}`}>
+     <p className={`font-bold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-400 italic'} ${viewMode ? '' : 'group-hover:' + baseColor} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
+     <p className={`text-sm text-slate-600 mt-1 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient?.rtn || '—'}</p>
+   </button>
+   {isHondufloresClient(selectedClient) && (
+     <div className="flex-1 min-w-0 pl-3 border-l-2 border-dashed border-emerald-300 bg-emerald-50/50 rounded-r-lg p-2 print:hidden" data-pdf-hide>
+       <div className="flex items-center justify-between gap-1 mb-1">
+         <span className="font-extrabold uppercase text-emerald-800 text-[10px] tracking-wider">Subcliente HF:</span>
+         <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">Interno</span>
+       </div>
+       {selectedSubClient ? (
+         <div>
+           <div onClick={() => setShowSubClientModal?.(true)} className="cursor-pointer hover:opacity-80">
+             <p className="font-bold text-xs text-emerald-900 truncate">{selectedSubClient.name || selectedSubClient.nombre}</p>
+             {(selectedSubClient.rtn || selectedSubClient.phone || selectedSubClient.telefono) && (
+               <p className="text-[10px] text-emerald-700 font-mono truncate">
+                 {selectedSubClient.rtn ? `RTN: ${selectedSubClient.rtn}` : `Tel: ${selectedSubClient.phone || selectedSubClient.telefono}`}
+               </p>
+             )}
+           </div>
+           {!viewMode && onClearSubClient && (
+             <button type="button" onClick={onClearSubClient} className="mt-1 text-[10px] font-bold text-rose-600 hover:underline">
+               Quitar subcliente
+             </button>
+           )}
+         </div>
+       ) : (
+         <div onClick={() => setShowSubClientModal?.(true)} className="cursor-pointer group">
+           <span className="font-bold text-emerald-700 group-hover:text-emerald-900 underline decoration-dotted text-xs block">+ Elegir subcliente...</span>
+           <span className="text-[9px] text-emerald-600 block">No sale en la factura</span>
+         </div>
+       )}
+     </div>
+   )}
+ </div>
  </div>
  {docType !== 'nota_credito' && (
  <div>

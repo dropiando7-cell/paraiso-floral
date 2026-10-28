@@ -771,6 +771,7 @@ model Cliente {
   organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vendedor           User?          @relation("ClientesVendedor", fields: [vendedorId], references: [id])
   facturas           Factura[]
+  facturasSubCliente Factura[]      @relation("FacturasSubCliente")
   ordenesTrabajo     OrdenTrabajo[]
   rentasEquipo       RentaEquipo[]
   equiposCliente     EquipoCliente[]
@@ -795,6 +796,7 @@ model Factura {
   numeroInterno            Int              @default(autoincrement())
   fechaEmision             DateTime         @default(now())
   clienteId                String           @db.Uuid
+  subClienteId             String?          @db.Uuid
   subTotal                 Decimal          @default(0) @db.Decimal(12, 2)
   descuentos               Decimal          @default(0) @db.Decimal(12, 2)
   totalExento              Decimal          @default(0) @db.Decimal(12, 2)
@@ -836,6 +838,7 @@ model Factura {
   referenciasDerivadas     Factura[]        @relation("ReferenciaDocumentos")
   detalles                 DetalleFactura[]
   cliente                  Cliente          @relation(fields: [clienteId], references: [id])
+  subCliente               Cliente?         @relation("FacturasSubCliente", fields: [subClienteId], references: [id])
   organization             Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   estadoPago               String?          @default("PENDIENTE")
   saldoPendiente           Decimal          @default(0) @db.Decimal(12, 2)
@@ -859,6 +862,7 @@ model Factura {
   @@unique([organizationId, correlativo])
   @@index([organizationId])
   @@index([estado])
+  @@index([subClienteId])
   @@map("facturas")
 }
 

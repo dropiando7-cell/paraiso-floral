@@ -27,6 +27,9 @@ export interface DocumentRecord {
   validezDias: number | null;
   clienteNombre: string;
   clienteRtn: string;
+  subClienteId?: string | null;
+  subClienteNombre?: string | null;
+  subClienteRtn?: string | null;
   total: number;
   metodoPago?: string | null;
   pagoBanco?: string | null;
@@ -408,8 +411,8 @@ export default function DocumentListTable({
         return false;
       }
 
-      if (filterOrigen === 'PARAISO' && doc.aliasVenta === 'HonduFlores') return false;
-      if (filterOrigen === 'HF' && doc.aliasVenta !== 'HonduFlores') return false;
+      if (filterOrigen === 'PARAISO' && (doc.aliasVenta === 'HonduFlores' || doc.subClienteNombre)) return false;
+      if (filterOrigen === 'HF' && doc.aliasVenta !== 'HonduFlores' && !doc.subClienteNombre && !doc.clienteNombre.toUpperCase().includes('HONDUFLORES')) return false;
       
       // Filtro por Vendedor
       if (filterVendedor === 'CON_VENDEDOR') {
@@ -457,9 +460,11 @@ export default function DocumentListTable({
       // 1. Correlativo (soporta búsqueda exacta o últimos dígitos como "3354")
       if (doc.correlativo.toLowerCase().includes(q)) return true;
 
-      // 2. Cliente y RTN
+      // 2. Cliente, Subcliente (Honduflores) y RTN
       if (doc.clienteNombre.toLowerCase().includes(q)) return true;
       if (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q)) return true;
+      if (doc.subClienteNombre && doc.subClienteNombre.toLowerCase().includes(q)) return true;
+      if (doc.subClienteRtn && doc.subClienteRtn.toLowerCase().includes(q)) return true;
 
       // 3. Vendedor asignado (ej. "erick", "saavedra")
       if (doc.vendedorNombre && doc.vendedorNombre.toLowerCase().includes(q)) return true;
@@ -1145,6 +1150,13 @@ export default function DocumentListTable({
                     )}
                   </div>
                   {doc.clienteRtn && <p className="text-[11px] text-slate-500 font-mono">RTN: {doc.clienteRtn}</p>}
+                  {doc.subClienteNombre && (
+                    <div className="mt-0.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded" title="Subcliente de Honduflores (Control Interno)">
+                        ↳ Subcliente HF: {doc.subClienteNombre}
+                      </span>
+                    </div>
+                  )}
                   <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
                     Emisión: {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </p>
@@ -1347,6 +1359,13 @@ export default function DocumentListTable({
                     )}
                   </div>
                   {doc.clienteRtn && <p className="text-xs text-slate-400 font-mono mt-0.5">RTN: {doc.clienteRtn}</p>}
+                  {doc.subClienteNombre && (
+                    <div className="mt-1">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md" title="Subcliente de Honduflores (Control Interno)">
+                        ↳ Subcliente HF: {doc.subClienteNombre}
+                      </span>
+                    </div>
+                  )}
                   {productSummary && doc.detalles && (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {doc.detalles

@@ -18,8 +18,10 @@ export interface TemplateProps {
   fechaLimiteEmision?: string | Date | null;
   isSar?: boolean;
   selectedClient: any | null;
-
   setShowClientModal: (v: boolean) => void;
+  selectedSubClient?: any | null;
+  setShowSubClientModal?: (v: boolean) => void;
+  onClearSubClient?: () => void;
   paymentTerms: string;
   setPaymentTerms: (v: string) => void;
   paymentMethod: string;

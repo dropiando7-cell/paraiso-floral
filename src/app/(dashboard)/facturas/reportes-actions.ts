@@ -163,6 +163,13 @@ export async function getReporteContableData(filtros: ReporteFiltros): Promise<R
             telefono: true
           }
         },
+        subCliente: {
+          select: {
+            id: true,
+            nombre: true,
+            rtn: true
+          }
+        },
         detalles: {
           select: {
             descripcion: true,

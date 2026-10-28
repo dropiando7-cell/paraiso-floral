@@ -237,7 +237,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
           fecha: new Date(f.fechaEmision),
           tipo: 'FACTURA',
           documento: `#${f.correlativo}`,
-          detalles: desc,
+          detalles: (f as any).subCliente?.nombre ? `[Subcliente HF: ${(f as any).subCliente.nombre}] · ${desc}` : desc,
           debito: f.total,
           credito: 0
         });
@@ -1121,6 +1121,11 @@ ${publicUrl}
                               </button>
                             ) : (
                               <span>#{f.correlativo}</span>
+                            )}
+                            {(f as any).subCliente?.nombre && (
+                              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold">
+                                ↳ Subcliente HF: {(f as any).subCliente.nombre}
+                              </span>
                             )}
                           </td>
                           <td className="py-3 px-3 text-slate-500">

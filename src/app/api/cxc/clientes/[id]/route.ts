@@ -53,6 +53,7 @@ export async function GET(
           include: {
             detalles: true,
             pagosMixtos: true,
+            subCliente: { select: { id: true, nombre: true, rtn: true } },
             creadoPor: { select: { nombre: true, apellido: true } }
           },
           orderBy: { fechaEmision: 'desc' }

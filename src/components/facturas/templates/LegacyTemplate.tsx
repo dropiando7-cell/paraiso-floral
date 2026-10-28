@@ -4,12 +4,13 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
-import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, isHondufloresClient } from '@/utils/facturaUtils';
 
 export default function LegacyTemplate(props: TemplateProps) {
   const {
     settings, organization, docNumber, docType, currentDocType,
-    today, futureDate, selectedClient, paymentTerms, paymentMethod, setPaymentMethod,
+    today, futureDate, selectedClient, selectedSubClient, setShowSubClientModal, onClearSubClient,
+    paymentTerms, paymentMethod, setPaymentMethod,
     validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
     handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
     notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
@@ -271,19 +272,83 @@ export default function LegacyTemplate(props: TemplateProps) {
   </div>
   )}
 
- <div className={`flex flex-col pl-3 ${viewMode ? 'cursor-default select-none' : 'cursor-pointer hover:opacity-80'}`} onClick={() => { if (!viewMode) setShowClientModal(true); }}>
- <span className={`font-bold uppercase text-slate-800 mb-1 ${headerSmallSize}`}>Cliente:</span>
- {selectedClient ? (
- <div className="text-[10px] leading-tight text-slate-700">
- <span className={`font-bold text-xs ${theme.text} block mb-0.5`}>{selectedClient.name}</span>
- <span className="block line-clamp-2">{selectedClient.address || selectedClient.city}</span>
- {selectedClient.rtn && <span className={`block mt-0.5 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient.rtn}</span>}
- {selectedClient.nombreContacto && <span className="block mt-0.5 text-slate-500 font-medium">Contacto: {selectedClient.nombreContacto}</span>}
- {selectedClient.telefonoContacto && <span className="block mt-0.5 text-slate-700 font-semibold">Tel. Contacto: {selectedClient.telefonoContacto}</span>}
- </div>
- ) : (
- <span className="font-bold text-rose-600 italic print:hidden mt-1">Seleccionar...</span>
- )}
+ <div className="flex items-start gap-3 pl-3">
+   <div
+     className={`flex flex-col flex-1 min-w-0 ${viewMode ? 'cursor-default select-none' : 'cursor-pointer hover:opacity-80'}`}
+     onClick={() => { if (!viewMode) setShowClientModal(true); }}
+   >
+     <span className={`font-bold uppercase text-slate-800 mb-1 ${headerSmallSize}`}>Cliente:</span>
+     {selectedClient ? (
+       <div className="text-[10px] leading-tight text-slate-700">
+         <span className={`font-bold text-xs ${theme.text} block mb-0.5`}>{selectedClient.name}</span>
+         <span className="block line-clamp-2">{selectedClient.address || selectedClient.city}</span>
+         {selectedClient.rtn && <span className={`block mt-0.5 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient.rtn}</span>}
+         {selectedClient.nombreContacto && <span className="block mt-0.5 text-slate-500 font-medium">Contacto: {selectedClient.nombreContacto}</span>}
+         {selectedClient.telefonoContacto && <span className="block mt-0.5 text-slate-700 font-semibold">Tel. Contacto: {selectedClient.telefonoContacto}</span>}
+       </div>
+     ) : (
+       <span className="font-bold text-rose-600 italic print:hidden mt-1">Seleccionar...</span>
+     )}
+   </div>
+
+   {isHondufloresClient(selectedClient) && (
+     <div
+       className="flex flex-col flex-1 min-w-0 pl-3 border-l-2 border-dashed border-emerald-300 bg-emerald-50/50 rounded-r-lg p-1.5 -my-1 print:hidden"
+       data-pdf-hide
+     >
+       <div className="flex items-center justify-between gap-1 mb-0.5">
+         <span className="font-extrabold uppercase text-emerald-800 text-[9px] tracking-wider">
+           Subcliente HF:
+         </span>
+         <span className="text-[8px] font-bold uppercase px-1 py-0.2 bg-emerald-100 text-emerald-700 rounded">
+           Interno
+         </span>
+       </div>
+       {selectedSubClient ? (
+         <div className="text-[10px] leading-tight text-emerald-950">
+           <div
+             onClick={() => setShowSubClientModal?.(true)}
+             className="cursor-pointer hover:opacity-80"
+             title="Clic para cambiar subcliente de Honduflores"
+           >
+             <span className="font-bold text-xs text-emerald-800 block mb-0.5 truncate">
+               {selectedSubClient.name || selectedSubClient.nombre}
+             </span>
+             {(selectedSubClient.rtn || selectedSubClient.phone || selectedSubClient.telefono) && (
+               <span className="block text-[9px] text-emerald-700 font-mono truncate">
+                 {selectedSubClient.rtn ? `RTN: ${selectedSubClient.rtn}` : `Tel: ${selectedSubClient.phone || selectedSubClient.telefono}`}
+               </span>
+             )}
+           </div>
+           {!viewMode && onClearSubClient && (
+             <button
+               type="button"
+               onClick={(e) => {
+                 e.stopPropagation();
+                 onClearSubClient();
+               }}
+               className="mt-1 text-[9px] font-bold text-rose-600 hover:underline"
+             >
+               Quitar subcliente
+             </button>
+           )}
+         </div>
+       ) : (
+         <div
+           onClick={() => setShowSubClientModal?.(true)}
+           className="cursor-pointer group mt-0.5"
+           title="Seleccionar subcliente de Honduflores (solo control interno)"
+         >
+           <span className="font-bold text-emerald-700 group-hover:text-emerald-900 underline decoration-dotted text-[11px] block">
+             + Elegir subcliente...
+           </span>
+           <span className="text-[8.5px] text-emerald-600/90 leading-tight block mt-0.5">
+             No sale en la factura
+           </span>
+         </div>
+       )}
+     </div>
+   )}
  </div>
  </div>
 

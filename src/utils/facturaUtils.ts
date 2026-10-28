@@ -67,6 +67,21 @@ export function isEnvioItem(itemOrDesc: any): boolean {
 }
 
 /**
+ * Determina si un cliente corresponde a HONDUFLORES (floristería hija de Paraíso Floral),
+ * ya sea por nombre o por RTN (0501199108836).
+ */
+export function isHondufloresClient(client?: { id?: string; name?: string; nombre?: string; rtn?: string | null } | null): boolean {
+  if (!client) return false;
+  const rawName = String(client.name || client.nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, '');
+  const rawRtn = String(client.rtn || '').trim();
+  return rawName.includes('HONDUFLORES') || rawRtn === '0501199108836';
+}
+
+/**
  * Determina si una factura fue emitida bajo modalidad de Crédito (por términos o método de pago).
  */
 export function isCreditoFactura(terminosPago?: string | null, metodoPago?: string | null): boolean {

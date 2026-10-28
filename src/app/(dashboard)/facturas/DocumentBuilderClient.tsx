@@ -20,7 +20,7 @@ import WhatsAppShareModal from '@/components/facturas/WhatsAppShareModal';
 import SupervisorAuthModal from '@/components/facturas/SupervisorAuthModal';
 import { captureAndProcessInvoiceImage } from '@/utils/invoiceImageUtils';
 import SignatureCanvas from 'react-signature-canvas';
-import { isCredito, isEnvioItem, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, extractSaldoFavorAplicado, isHondufloresClient } from '@/utils/facturaUtils';
 import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
 import Fuse from 'fuse.js';
 import { useFloating, autoUpdate, flip, shift, offset, FloatingPortal } from '@floating-ui/react';
@@ -90,7 +90,7 @@ interface Product {
   isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages, eliminarDocumentoBorrador, getClientPriceHistory, ClientProductPriceInfo } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, actualizarActiveTemplate, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages, eliminarDocumentoBorrador, getClientPriceHistory, ClientProductPriceInfo, actualizarSubClienteFactura } from './actions';
 import { resolveProductPrice } from '@/utils/productPricing';
 import SaldoFavorBadge from '@/components/facturas/SaldoFavorBadge';
 import { createContacto, updateContacto } from '../contactos/actions';
@@ -2567,6 +2567,10 @@ export default function DocumentBuilderClient({
     }
   }, [docType, editMode, viewMode, isLocked]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedSubClient, setSelectedSubClient] = useState<Client | null>(null);
+  const [showSubClientModal, setShowSubClientModal] = useState(false);
+  const [subClientSearch, setSubClientSearch] = useState('');
+  const [selectedSubClientIndex, setSelectedSubClientIndex] = useState(0);
   const [saldoFavorCliente, setSaldoFavorCliente] = useState(0);
   const [aplicarSaldoFavor, setAplicarSaldoFavor] = useState(true);
   const [clientPriceHistory, setClientPriceHistory] = useState<Record<string, ClientProductPriceInfo>>({});
@@ -2584,6 +2588,16 @@ export default function DocumentBuilderClient({
     }
     return () => { isMounted = false; };
   }, [selectedClient?.id]);
+
+  // Limpiar subcliente si el cliente principal deja de ser Honduflores
+  useEffect(() => {
+    if (!selectedClient) return;
+    if (!isHondufloresClient(selectedClient)) {
+      if (selectedSubClient) setSelectedSubClient(null);
+    } else if (!effectiveViewMode && aliasVenta !== 'HonduFlores') {
+      setAliasVenta('HonduFlores');
+    }
+  }, [selectedClient?.id, selectedClient?.name, selectedClient?.rtn]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
@@ -3666,6 +3680,7 @@ export default function DocumentBuilderClient({
         }
         if (parsed.docNumber) setDocNumber(parsed.docNumber);
         if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
+        if (parsed.selectedSubClient) setSelectedSubClient(parsed.selectedSubClient);
         if (parsed.aliasVenta) setAliasVenta(parsed.aliasVenta);
         if (typeof parsed.vendedorNombre === 'string' && parsed.vendedorNombre) {
           setVendedorNombre(parsed.vendedorNombre);
@@ -3773,6 +3788,7 @@ export default function DocumentBuilderClient({
       docType,
       docNumber: docNumber || '',
       selectedClient,
+      selectedSubClient,
       lineItems,
       notes,
       paymentTerms,
@@ -4339,6 +4355,7 @@ export default function DocumentBuilderClient({
       });
       const savePayload = {
         clienteId: selectedClient?.id,
+        subClienteId: isHondufloresClient(selectedClient) ? (selectedSubClient?.id || null) : null,
         tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : 
                        docType === 'proforma' ? 'PROFORMA' : 
                        docType === 'nota_credito' ? 'NOTA_CREDITO' : 
@@ -4670,6 +4687,21 @@ export default function DocumentBuilderClient({
           category: 'Cliente',
           nombreContacto: initialData.cliente.nombreContacto || '',
           telefonoContacto: initialData.cliente.telefonoContacto || '',
+        });
+      }
+      if ((initialData as any).subCliente) {
+        const sc = (initialData as any).subCliente;
+        setSelectedSubClient({
+          id: sc.id,
+          name: sc.nombre,
+          rtn: sc.rtn || '',
+          email: sc.email || '',
+          phone: sc.telefono || '',
+          address: sc.direccion || '',
+          city: '',
+          category: 'Subcliente HF',
+          nombreContacto: sc.nombreContacto || '',
+          telefonoContacto: sc.telefonoContacto || '',
         });
       }
 
@@ -5111,9 +5143,18 @@ export default function DocumentBuilderClient({
           telefonoContacto: created.telefonoContacto || '',
         };
         setAllClients(prev => [...prev, newClientObj]);
-        setSelectedClient(newClientObj);
-        setShowNewClientModal(false);
-        setShowClientModal(false);
+        if (showSubClientModal) {
+          setSelectedSubClient(newClientObj);
+          setShowNewClientModal(false);
+          setShowSubClientModal(false);
+          if (effectiveViewMode && initialData?.id) {
+            actualizarSubClienteFactura(initialData.id, newClientObj.id);
+          }
+        } else {
+          setSelectedClient(newClientObj);
+          setShowNewClientModal(false);
+          setShowClientModal(false);
+        }
         setNewClientData({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
         toast.success('Cliente registrado correctamente');
       }
@@ -5421,6 +5462,7 @@ export default function DocumentBuilderClient({
 
       const data = {
         clienteId: selectedClient.id,
+        subClienteId: isHondufloresClient(selectedClient) ? (selectedSubClient?.id || null) : null,
         tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : 
                        docType === 'proforma' ? 'PROFORMA' : 
                        docType === 'nota_credito' ? 'NOTA_CREDITO' : 
@@ -5994,7 +6036,16 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setShowClientModal={handleSafeSetShowClientModal}
+                   selectedSubClient={selectedSubClient}
+                   setShowSubClientModal={setShowSubClientModal}
+                   onClearSubClient={() => {
+                     setSelectedSubClient(null);
+                     if (effectiveViewMode && initialData?.id) {
+                       actualizarSubClienteFactura(initialData.id, null);
+                     }
+                   }}
+                   paymentTerms={paymentTerms} 
                    setPaymentTerms={handleSafeSetPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
                    aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
@@ -6018,7 +6069,16 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setShowClientModal={handleSafeSetShowClientModal}
+                   selectedSubClient={selectedSubClient}
+                   setShowSubClientModal={setShowSubClientModal}
+                   onClearSubClient={() => {
+                     setSelectedSubClient(null);
+                     if (effectiveViewMode && initialData?.id) {
+                       actualizarSubClienteFactura(initialData.id, null);
+                     }
+                   }}
+                   paymentTerms={paymentTerms} 
                    setPaymentTerms={handleSafeSetPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
                    aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
@@ -6042,7 +6102,16 @@ export default function DocumentBuilderClient({
                    nombreUsuario={resolvedNombreUsuario}
                    docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
                    today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
-                   setShowClientModal={handleSafeSetShowClientModal} paymentTerms={paymentTerms} 
+                   setShowClientModal={handleSafeSetShowClientModal}
+                   selectedSubClient={selectedSubClient}
+                   setShowSubClientModal={setShowSubClientModal}
+                   onClearSubClient={() => {
+                     setSelectedSubClient(null);
+                     if (effectiveViewMode && initialData?.id) {
+                       actualizarSubClienteFactura(initialData.id, null);
+                     }
+                   }}
+                   paymentTerms={paymentTerms} 
                    setPaymentTerms={handleSafeSetPaymentTerms}
                    paymentMethod={paymentMethod} setPaymentMethod={handleSafeSetPaymentMethod} pagosMixtos={mixedPayments}
                    aliasVenta={aliasVenta} setAliasVenta={handleSafeSetAliasVenta}
@@ -7258,15 +7327,20 @@ export default function DocumentBuilderClient({
                     } else if (e.key === 'Enter') {
                       e.preventDefault();
                       if (filteredClients.length > 0 && filteredClients[selectedClientIndex]) {
-                        setSelectedClient(filteredClients[selectedClientIndex]);
+                        const pickedClient = filteredClients[selectedClientIndex];
+                        setSelectedClient(pickedClient);
                         setShowClientModal(false);
-                        setTimeout(() => {
-                          const firstQtyInput = document.querySelector('input[data-qty-index="0"]') as HTMLInputElement;
-                          if (firstQtyInput) {
-                            firstQtyInput.focus();
-                            firstQtyInput.select();
-                          }
-                        }, 150);
+                        if (isHondufloresClient(pickedClient) && !selectedSubClient) {
+                          setTimeout(() => setShowSubClientModal(true), 120);
+                        } else {
+                          setTimeout(() => {
+                            const firstQtyInput = document.querySelector('input[data-qty-index="0"]') as HTMLInputElement;
+                            if (firstQtyInput) {
+                              firstQtyInput.focus();
+                              firstQtyInput.select();
+                            }
+                          }, 150);
+                        }
                       }
                     } else if (e.key === 'Escape') {
                       e.preventDefault();
@@ -7361,13 +7435,17 @@ export default function DocumentBuilderClient({
                           onClick={() => {
                             setSelectedClient(client);
                             setShowClientModal(false);
-                            setTimeout(() => {
-                              const firstQtyInput = document.querySelector('input[data-qty-index="0"]') as HTMLInputElement;
-                              if (firstQtyInput) {
-                                firstQtyInput.focus();
-                                firstQtyInput.select();
-                              }
-                            }, 150);
+                            if (isHondufloresClient(client) && !selectedSubClient) {
+                              setTimeout(() => setShowSubClientModal(true), 120);
+                            } else {
+                              setTimeout(() => {
+                                const firstQtyInput = document.querySelector('input[data-qty-index="0"]') as HTMLInputElement;
+                                if (firstQtyInput) {
+                                  firstQtyInput.focus();
+                                  firstQtyInput.select();
+                                }
+                              }, 150);
+                            }
                           }}
                           className="flex-1 flex items-center gap-4 text-left min-w-0"
                         >
@@ -7422,6 +7500,195 @@ export default function DocumentBuilderClient({
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSubClientModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 print:hidden animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4 border border-emerald-200">
+            <div className="px-6 py-4 border-b border-emerald-100 flex items-center justify-between bg-emerald-50/70">
+              <div>
+                <h3 className="font-bold text-emerald-950 flex items-center gap-2 text-sm sm:text-base">
+                  <User size={18} className="text-emerald-600" /> Subcliente de Honduflores
+                </h3>
+                <p className="text-[11px] text-emerald-700 font-medium mt-0.5">
+                  Solo control interno · La factura saldrá a nombre de HONDUFLORES
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowNewClientModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Plus size={14} /> Nuevo
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSubClientModal(false);
+                    setSubClientSearch('');
+                  }}
+                  className="p-2 hover:bg-emerald-100 rounded-full text-emerald-700 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 border-b border-slate-100 bg-white">
+              <div className="relative">
+                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={subClientSearch}
+                  onChange={e => {
+                    setSubClientSearch(e.target.value);
+                    setSelectedSubClientIndex(0);
+                  }}
+                  onKeyDown={(e) => {
+                    const nSub = normalizeText(subClientSearch);
+                    const subList = allClients.filter(c =>
+                      !isHondufloresClient(c) && (
+                        !nSub ||
+                        normalizeText(c.name).includes(nSub) ||
+                        normalizeText(c.rtn).includes(nSub) ||
+                        normalizeText(c.phone || '').includes(nSub)
+                      )
+                    );
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSelectedSubClientIndex(prev => Math.min(prev + 1, Math.max(0, subList.length - 1)));
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSelectedSubClientIndex(prev => Math.max(0, prev - 1));
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const chosen = subList[selectedSubClientIndex];
+                      if (chosen) {
+                        setSelectedSubClient(chosen);
+                        setShowSubClientModal(false);
+                        setSubClientSearch('');
+                        if (effectiveViewMode && initialData?.id) {
+                          actualizarSubClienteFactura(initialData.id, chosen.id).then(res => {
+                            if (res.success) toast.success(`Subcliente ${chosen.name} asignado`);
+                          });
+                        }
+                      }
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowSubClientModal(false);
+                      setSubClientSearch('');
+                    }
+                  }}
+                  placeholder="Buscar cliente de Honduflores por nombre o RTN..."
+                  className="w-full pl-11 pr-4 py-3 text-sm border-2 border-emerald-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
+                />
+              </div>
+            </div>
+            <div className="overflow-y-auto p-2 bg-slate-50/50 flex-1">
+              {selectedSubClient && !subClientSearch && (
+                <div className="mb-3 pb-3 border-b border-slate-200">
+                  <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider px-2 block mb-1.5">
+                    Subcliente Actual
+                  </span>
+                  <div className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-200">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-600 text-white shadow-sm">
+                        <User size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{selectedSubClient.name}</p>
+                        <p className="text-xs text-slate-500">{selectedSubClient.rtn || 'Sin RTN'}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSubClient(null);
+                        setShowSubClientModal(false);
+                        setSubClientSearch('');
+                        if (effectiveViewMode && initialData?.id) {
+                          actualizarSubClienteFactura(initialData.id, null).then(res => {
+                            if (res.success) toast.success('Subcliente removido');
+                          });
+                        }
+                      }}
+                      className="text-xs font-bold text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(() => {
+                const nSub = normalizeText(subClientSearch);
+                const subList = allClients.filter(c =>
+                  !isHondufloresClient(c) && (
+                    !nSub ||
+                    normalizeText(c.name).includes(nSub) ||
+                    normalizeText(c.rtn).includes(nSub) ||
+                    normalizeText(c.phone || '').includes(nSub)
+                  )
+                );
+                if (subList.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-slate-400">
+                      <p>No se encontraron clientes con ese criterio.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-1">
+                    {subList.map((client, idx) => {
+                      const isSelected = selectedSubClientIndex === idx;
+                      const isCurrent = selectedSubClient?.id === client.id;
+                      return (
+                        <div
+                          key={client.id}
+                          onMouseEnter={() => setSelectedSubClientIndex(idx)}
+                          onClick={() => {
+                            setSelectedSubClient(client);
+                            setShowSubClientModal(false);
+                            setSubClientSearch('');
+                            if (effectiveViewMode && initialData?.id) {
+                              actualizarSubClienteFactura(initialData.id, client.id).then(res => {
+                                if (res.success) toast.success(`Subcliente ${client.name} asignado`);
+                              });
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left cursor-pointer group ${
+                            isSelected
+                              ? 'bg-emerald-50 ring-2 ring-emerald-500 shadow-sm'
+                              : isCurrent
+                              ? 'bg-emerald-50/60 ring-1 ring-emerald-200'
+                              : 'bg-white border border-slate-100 hover:bg-emerald-50/30'
+                          }`}
+                        >
+                          <div className="flex-1 flex items-center gap-3 text-left min-w-0">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${
+                              isSelected || isCurrent
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-700'
+                            }`}>
+                              <User size={15} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-bold truncate ${isSelected ? 'text-emerald-950 font-extrabold' : 'text-slate-800'}`}>
+                                {client.name}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {client.rtn || 'Sin RTN'} {client.phone ? `• Tel: ${client.phone}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          {(isSelected || isCurrent) && <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mx-1" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

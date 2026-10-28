@@ -686,6 +686,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                 data: {
                     organizationId,
                     clienteId,
+                    subClienteId: facturaData.subClienteId || null,
                     correlativo: correlativoGenerado,
                     tipoDocumento: tipoCorrelativo, // Explicitly save the document type
                     numeroCAI: sarNumeroCAI || facturaData.numeroCAI || null,
@@ -1039,6 +1040,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 where: { id },
                 data: {
                     clienteId,
+                    subClienteId: data.subClienteId !== undefined ? (data.subClienteId || null) : docExistente.subClienteId,
                     correlativo: nuevoCorrelativo,
                     ...sarFieldsUpdate,
                     notas: notasConSaldoFavorUpdate,
@@ -1502,6 +1504,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                 data: {
                     organizationId,
                     clienteId,
+                    subClienteId: data.subClienteId || null,
                     correlativo: 'TEMP', // Temporal — se actualiza abajo con el numeroInterno real
                     tipoDocumento: data.tipoDocumento,
                     estado: data.estado || ((data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE'),
@@ -2185,6 +2188,14 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                         rtn: true
                     }
                 },
+                subClienteId: true,
+                subCliente: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        rtn: true
+                    }
+                },
                 detalles: {
                     select: {
                         descripcion: true,
@@ -2221,6 +2232,9 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
                 validezDias: doc.validezDias,
                 clienteNombre: doc.cliente?.nombre || 'Desconocido',
                 clienteRtn: doc.cliente?.rtn || '',
+                subClienteId: doc.subClienteId || null,
+                subClienteNombre: doc.subCliente?.nombre || null,
+                subClienteRtn: doc.subCliente?.rtn || null,
                 total: Number(doc.total),
                 montoSaldoFavorAplicado,
                 notas: doc.notas,
@@ -2273,6 +2287,8 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 { correlativo: { contains: q, mode: 'insensitive' } },
                 { cliente: { nombre: { contains: q, mode: 'insensitive' } } },
                 { cliente: { rtn: { contains: q, mode: 'insensitive' } } },
+                { subCliente: { nombre: { contains: q, mode: 'insensitive' } } },
+                { subCliente: { rtn: { contains: q, mode: 'insensitive' } } },
                 { vendedorNombre: { contains: q, mode: 'insensitive' } },
                 { detalles: { some: { descripcion: { contains: q, mode: 'insensitive' } } } },
                 { pagosMixtos: { some: { referencia: { contains: q, mode: 'insensitive' } } } },
@@ -2329,6 +2345,14 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                         rtn: true
                     }
                 },
+                subClienteId: true,
+                subCliente: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        rtn: true
+                    }
+                },
                 detalles: {
                     select: {
                         descripcion: true,
@@ -2365,6 +2389,9 @@ export async function buscarHistorialDocumentos(query: string, soloPropiosUserId
                 validezDias: doc.validezDias,
                 clienteNombre: doc.cliente?.nombre || 'Desconocido',
                 clienteRtn: doc.cliente?.rtn || '',
+                subClienteId: doc.subClienteId || null,
+                subClienteNombre: doc.subCliente?.nombre || null,
+                subClienteRtn: doc.subCliente?.rtn || null,
                 total: Number(doc.total),
                 montoSaldoFavorAplicado,
                 notas: doc.notas,
@@ -2475,6 +2502,29 @@ function sortDetallesByMetadataOrden<T extends { descripcion?: string | null }>(
     return withIndex.map(x => x.d);
 }
 
+// --- ACTUALIZAR SUBCLIENTE DE HONDUFLORES (CONTROL INTERNO) ---
+export async function actualizarSubClienteFactura(facturaId: string, subClienteId: string | null) {
+    try {
+        const user = await getAuthenticatedUser();
+        const doc = await prisma.factura.findFirst({
+            where: { id: facturaId, organizationId: user.organizationId }
+        });
+        if (!doc) {
+            return { success: false, error: 'Documento no encontrado.' };
+        }
+        await prisma.factura.update({
+            where: { id: facturaId },
+            data: { subClienteId: subClienteId || null }
+        });
+        revalidatePath('/facturas');
+        revalidatePath(`/facturas/${facturaId}`);
+        revalidatePath('/cxc');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Error al actualizar subcliente' };
+    }
+}
+
 // --- OBTENER DOCUMENTO ESPECIFICO ---
 export async function getDocumentoById(id: string) {
     try {
@@ -2483,6 +2533,7 @@ export async function getDocumentoById(id: string) {
             where: { id, organizationId },
             include: {
                 cliente: true,
+                subCliente: true,
                 creadoPor: true,
                 ordenTrabajo: {
                     select: {
