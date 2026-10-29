@@ -260,6 +260,9 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
 
     // 3. Abonos
     (data.pagos || []).forEach(p => {
+      const matchMonedero = p.notas ? String(p.notas).match(/\[MONEDERO:\+(\d+(?:\.\d+)?)\]/i) : null;
+      const excedenteMonedero = matchMonedero ? Number(matchMonedero[1]) || 0 : 0;
+      const creditoNetoCxc = Math.max(0, Number((Number(p.monto || 0) - excedenteMonedero).toFixed(2)));
       const desc = `Abono (${p.metodoPago})${p.banco ? ` en ${p.banco}` : ''}${p.referencia ? ` Ref: ${p.referencia}` : ''}${p.notas ? ` [${p.notas}]` : ''}`;
       list.push({
         id: p.id,
@@ -268,7 +271,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
         documento: p.correlativo || 'RECIBO PAGO',
         detalles: desc,
         debito: 0,
-        credito: p.monto
+        credito: creditoNetoCxc
       });
     });
 

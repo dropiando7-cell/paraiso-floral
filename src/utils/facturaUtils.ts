@@ -241,9 +241,14 @@ export function calcularEstadoCuentaClienteCxC(params: {
       return sum + (nc.facturaId === f.id ? Number(nc.monto || 0) : 0);
     }, 0);
 
-    const saldoFavorAplicado = extractSaldoFavorAplicado(f);
+    const pagosMonederoDirectos = (params.pagos || []).reduce((sum, p) => {
+      if (String(p.metodoPago || '').toUpperCase() !== 'MONEDERO') return sum;
+      const det = (p.detalles || []).find((d) => d.facturaId === f.id);
+      return sum + (det ? Number(det.montoAplicado || 0) : 0);
+    }, 0);
+    const saldoFavorExtra = Math.max(0, extractSaldoFavorAplicado(f) - pagosMonederoDirectos);
 
-    const cubiertoDirecto = Math.min(total, pagosDirectos + ncDirectas + saldoFavorAplicado);
+    const cubiertoDirecto = Math.min(total, pagosDirectos + ncDirectas + saldoFavorExtra);
     let restante = Math.max(0, total - cubiertoDirecto);
     let cubiertoLibre = 0;
     let pagadoEnFacturacion = 0;

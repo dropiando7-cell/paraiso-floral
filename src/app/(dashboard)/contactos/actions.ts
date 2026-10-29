@@ -302,14 +302,81 @@ export async function deleteContacto(id: string) {
     return true;
 }
 
-export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoInicial: number, notas?: string, fecha?: Date | null) {
-    const updated = await prisma.cliente.update({
-        where: { id: clienteId },
-        data: {
-            saldoInicial: nuevoSaldoInicial,
-            fechaSaldoInicial: fecha || null,
-            ...(notas ? { notas: notas.trim() } : {})
+async function reconciliarAbonosLibresFifoCliente(tx: any, clienteId: string, nuevoSaldoInicial: number) {
+    const pagos = await tx.pagoCliente.findMany({
+        where: { clienteId, anulado: false },
+        include: { detalles: true },
+        orderBy: { fecha: 'asc' }
+    });
+    let cupoSaldoInicial = Math.max(0, Number(nuevoSaldoInicial || 0));
+
+    const facturasPendientes = await tx.factura.findMany({
+        where: {
+            clienteId,
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] },
+            OR: [{ estadoPago: { not: 'PAGADA' } }, { estadoPago: null }]
+        },
+        orderBy: { fechaEmision: 'asc' }
+    });
+
+    for (const p of pagos) {
+        const matchMon = p.notas ? String(p.notas).match(/\[MONEDERO:\+(\d+(?:\.\d+)?)\]/i) : null;
+        const excMon = matchMon ? Number(matchMon[1]) || 0 : 0;
+        const montoNeto = Math.max(0, Number(p.monto || 0) - excMon);
+        const yaAplicado = (p.detalles || []).reduce((s: number, d: any) => s + Number(d.montoAplicado || 0), 0);
+        let libreEnPago = Number(Math.max(0, montoNeto - yaAplicado).toFixed(2));
+        if (libreEnPago <= 0.01) continue;
+
+        if (cupoSaldoInicial > 0) {
+            const usarSI = Math.min(cupoSaldoInicial, libreEnPago);
+            cupoSaldoInicial = Number((cupoSaldoInicial - usarSI).toFixed(2));
+            libreEnPago = Number((libreEnPago - usarSI).toFixed(2));
         }
+
+        for (const fac of facturasPendientes) {
+            if (libreEnPago <= 0.01) break;
+            const saldoFac = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : Number(fac.total);
+            if (saldoFac <= 0.01) continue;
+
+            const aplicar = Number(Math.min(libreEnPago, saldoFac).toFixed(2));
+            const nuevoSaldo = Number(Math.max(0, saldoFac - aplicar).toFixed(2));
+            fac.saldoPendiente = nuevoSaldo;
+            fac.estadoPago = nuevoSaldo <= 0.01 ? 'PAGADA' : 'PARCIAL';
+
+            await tx.factura.update({
+                where: { id: fac.id },
+                data: {
+                    saldoPendiente: nuevoSaldo,
+                    estadoPago: fac.estadoPago
+                }
+            });
+
+            await tx.pagoDetalleFactura.create({
+                data: {
+                    pagoId: p.id,
+                    facturaId: fac.id,
+                    montoAplicado: aplicar
+                }
+            });
+
+            libreEnPago = Number((libreEnPago - aplicar).toFixed(2));
+        }
+    }
+}
+
+export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoInicial: number, notas?: string, fecha?: Date | null) {
+    const updated = await prisma.$transaction(async (tx) => {
+        const u = await tx.cliente.update({
+            where: { id: clienteId },
+            data: {
+                saldoInicial: nuevoSaldoInicial,
+                fechaSaldoInicial: fecha || null,
+                ...(notas ? { notas: notas.trim() } : {})
+            }
+        });
+        await reconciliarAbonosLibresFifoCliente(tx, clienteId, nuevoSaldoInicial);
+        return u;
     });
 
     revalidatePath('/cxc');
@@ -350,6 +417,7 @@ export async function eliminarSaldoInicialCliente(clienteId: string, motivo: str
             where: { id: clienteId },
             data: { saldoInicial: 0, fechaSaldoInicial: null }
         });
+        await reconciliarAbonosLibresFifoCliente(tx, clienteId, 0);
         await tx.activityLog.create({
             data: {
                 organizationId: dbUser.organizationId,
