@@ -1036,6 +1036,31 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                         }
                     }
 
+                    let montoYaCubiertoCxc = 0;
+                    if (esCreditoUpdate) {
+                        const [sumPagosDet, sumNotasCred] = await Promise.all([
+                            tx.pagoDetalleFactura.aggregate({
+                                where: { facturaId: id, pago: { anulado: false } },
+                                _sum: { montoAplicado: true }
+                            }),
+                            tx.notaCreditoCliente.aggregate({
+                                where: { facturaId: id, anulado: false },
+                                _sum: { monto: true }
+                            })
+                        ]);
+                        const saldoFavorPrevioDoc = montoSaldoFavorUpdate === 0
+                            ? (() => {
+                                const m = String(notasConSaldoFavorUpdate || docExistente.notas || '').match(/\[SALDO_FAVOR_APLICADO:(\d+(?:\.\d+)?)\]/i);
+                                return m ? Number(m[1]) || 0 : 0;
+                            })()
+                            : 0;
+                        montoYaCubiertoCxc = Number(sumPagosDet._sum.montoAplicado || 0) + Number(sumNotasCred._sum.monto || 0) + saldoFavorPrevioDoc;
+                    }
+                    const saldoCreditoCalculado = Math.max(0, Number((totalAfterSaldoFavorUpdate - montoYaCubiertoCxc).toFixed(2)));
+                    const estadoCreditoCalculado = saldoCreditoCalculado <= 0.01
+                        ? 'PAGADA'
+                        : (saldoCreditoCalculado < Number(data.total || 0) - 0.01 ? 'PARCIAL' : 'PENDIENTE');
+
                     const docActualizado = await tx.factura.update({
                 where: { id },
                 data: {
@@ -1053,16 +1078,12 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     saldoPendiente: esNotaCreditoUpdate
                         ? 0
                         : (esCreditoUpdate
-                            ? (montoSaldoFavorUpdate > 0
-                                ? totalAfterSaldoFavorUpdate
-                                : (docExistente.saldoPendiente !== null && Number(docExistente.saldoPendiente) > 0 && Number(docExistente.saldoPendiente) <= Number(data.total) ? docExistente.saldoPendiente : data.total))
+                            ? saldoCreditoCalculado
                             : (isUnconfirmedTransferUpdate ? totalAfterSaldoFavorUpdate : 0)),
                     estadoPago: esNotaCreditoUpdate
                         ? 'PAGADA'
                         : (esCreditoUpdate
-                            ? (montoSaldoFavorUpdate > 0
-                                ? (totalAfterSaldoFavorUpdate <= 0.01 ? 'PAGADA' : 'PARCIAL')
-                                : (docExistente.estadoPago === 'PARCIAL' ? 'PARCIAL' : (docExistente.estadoPago === 'PAGADA' && Number(docExistente.saldoPendiente) === 0 && Number(data.total) === 0 ? 'PAGADA' : 'PENDIENTE')))
+                            ? estadoCreditoCalculado
                             : (isUnconfirmedTransferUpdate
                                 ? (montoSaldoFavorUpdate > 0 && totalAfterSaldoFavorUpdate > 0.01 ? 'PARCIAL' : (totalAfterSaldoFavorUpdate <= 0.01 ? 'PAGADA' : 'PENDIENTE'))
                                 : 'PAGADA')),

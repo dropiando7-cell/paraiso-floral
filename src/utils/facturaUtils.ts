@@ -214,12 +214,12 @@ export function calcularEstadoCuentaClienteCxC(params: {
     .filter((n) => !n.facturaId)
     .reduce((sum, n) => sum + Number(n.monto || 0), 0);
 
-  let creditoDisponible = abonosLibres + ncLibres;
-
   // 1. El crédito libre en CXC cubre primero el saldo inicial de libreta Excel
-  const aplicadoSaldoInicial = Math.min(sInicial, creditoDisponible);
-  creditoDisponible = Math.max(0, creditoDisponible - aplicadoSaldoInicial);
-  const saldoInicialPendiente = Number(Math.max(0, sInicial - aplicadoSaldoInicial).toFixed(2));
+  const abonoAplicadoSI = Math.min(sInicial, abonosLibres);
+  let abonosLibresRestantes = Math.max(0, abonosLibres - abonoAplicadoSI);
+  const ncAplicadoSI = Math.min(Math.max(0, sInicial - abonoAplicadoSI), ncLibres);
+  let ncLibresRestantes = Math.max(0, ncLibres - ncAplicadoSI);
+  const saldoInicialPendiente = Number(Math.max(0, sInicial - abonoAplicadoSI - ncAplicadoSI).toFixed(2));
 
   // 2. Ordenar facturas cronológicamente (antiguas primero) para cascada FIFO
   const facturasAsc = [...(params.facturas || [])].sort(
@@ -241,24 +241,52 @@ export function calcularEstadoCuentaClienteCxC(params: {
       return sum + (nc.facturaId === f.id ? Number(nc.monto || 0) : 0);
     }, 0);
 
-    const cubiertoDirecto = Math.min(total, pagosDirectos + ncDirectas);
+    const saldoFavorAplicado = extractSaldoFavorAplicado(f);
+
+    const cubiertoDirecto = Math.min(total, pagosDirectos + ncDirectas + saldoFavorAplicado);
     let restante = Math.max(0, total - cubiertoDirecto);
     let cubiertoLibre = 0;
-
-    // Si la factura fue pagada directamente en Facturación (Contado / Caja / Transferencia confirmada),
-    // el monto restante se reconoce como Pago en Facturación (sin absorber abonos libres de CXC)
     let pagadoEnFacturacion = 0;
-    if (esFacturaPagadaEnFacturacion(f) && restante > 0) {
-      pagadoEnFacturacion = Number(restante.toFixed(2));
-      totalPagadoEnFacturacion += pagadoEnFacturacion;
-      restante = 0;
-    }
 
-    // Si es factura de crédito y hay crédito libre en CXC, aplicarlo en orden FIFO
-    if (restante > 0 && creditoDisponible > 0) {
-      cubiertoLibre = Math.min(restante, creditoDisponible);
-      restante = Math.max(0, restante - cubiertoLibre);
-      creditoDisponible = Math.max(0, creditoDisponible - cubiertoLibre);
+    if (esFacturaPagadaEnFacturacion(f)) {
+      // Si se registró un abono manual en CXC para cubrir una factura de contado,
+      // consumir primero ese abono libre para no duplicar el pago en el Libro Mayor ni afectar facturas de crédito.
+      if (restante > 0 && abonosLibresRestantes > 0) {
+        cubiertoLibre = Math.min(restante, abonosLibresRestantes);
+        restante = Math.max(0, restante - cubiertoLibre);
+        abonosLibresRestantes = Math.max(0, abonosLibresRestantes - cubiertoLibre);
+      }
+      if (restante > 0) {
+        pagadoEnFacturacion = Number(restante.toFixed(2));
+        totalPagadoEnFacturacion += pagadoEnFacturacion;
+        restante = 0;
+      }
+    } else {
+      // Para facturas de crédito, aplicar únicamente el crédito libre en CXC que ya haya sido
+      // reconocido en el saldo de la factura en base de datos (evita que ajustes de saldoInicial
+      // o abonos no vinculados marquen como PAGADA una factura que sigue PENDIENTE en Facturación).
+      const saldoEnDB =
+        f.estadoPago === 'PAGADA' || f.estado === 'PAGADA'
+          ? 0
+          : f.saldoPendiente !== null && f.saldoPendiente !== undefined
+            ? Number(f.saldoPendiente)
+            : restante;
+      let brechaReconocidaEnDB = Math.max(0, restante - saldoEnDB);
+
+      if (brechaReconocidaEnDB > 0 && ncLibresRestantes > 0) {
+        const cubNC = Math.min(brechaReconocidaEnDB, ncLibresRestantes);
+        cubiertoLibre += cubNC;
+        restante = Math.max(0, restante - cubNC);
+        brechaReconocidaEnDB = Math.max(0, brechaReconocidaEnDB - cubNC);
+        ncLibresRestantes = Math.max(0, ncLibresRestantes - cubNC);
+      }
+
+      if (brechaReconocidaEnDB > 0 && abonosLibresRestantes > 0) {
+        const cubAbono = Math.min(brechaReconocidaEnDB, abonosLibresRestantes);
+        cubiertoLibre += cubAbono;
+        restante = Math.max(0, restante - cubAbono);
+        abonosLibresRestantes = Math.max(0, abonosLibresRestantes - cubAbono);
+      }
     }
 
     const saldo = restante <= 0.01 ? 0 : Number(restante.toFixed(2));
@@ -277,7 +305,8 @@ export function calcularEstadoCuentaClienteCxC(params: {
   const totalFacturado = Number((sInicial + totalFacturas).toFixed(2));
   totalPagadoEnFacturacion = Number(totalPagadoEnFacturacion.toFixed(2));
   const totalAbonado = Number((totalPagosCxc + totalPagadoEnFacturacion).toFixed(2));
-  const saldoTotal = Number(Math.max(0, totalFacturado - totalAbonado - totalNotasCredito).toFixed(2));
+  const sumaSaldosFacturas = Object.values(mapaFacturasInfo).reduce((sum, info) => sum + info.saldoPendiente, 0);
+  const saldoTotal = Number(Math.max(0, saldoInicialPendiente + sumaSaldosFacturas).toFixed(2));
 
   return {
     sInicial,

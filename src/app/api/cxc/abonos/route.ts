@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
-import { extractExcedenteMonedero } from '@/utils/facturaUtils';
+import { extractExcedenteMonedero, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
 
 export async function POST(request: Request) {
   try {
@@ -105,11 +105,27 @@ export async function POST(request: Request) {
           });
           if (!fac) continue;
 
-          const saldoActual = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : Number(fac.total);
+          const [pagosPrevios, ncsPrevias] = await Promise.all([
+            tx.pagoDetalleFactura.aggregate({
+              where: { facturaId: fac.id, pago: { anulado: false, id: { not: pagoCreado.id } } },
+              _sum: { montoAplicado: true }
+            }),
+            tx.notaCreditoCliente.aggregate({
+              where: { facturaId: fac.id, anulado: false },
+              _sum: { monto: true }
+            })
+          ]);
+          const cubiertoPrevio =
+            Number(pagosPrevios._sum.montoAplicado || 0) +
+            Number(ncsPrevias._sum.monto || 0) +
+            extractSaldoFavorAplicado(fac);
+          const saldoCalculado = Math.max(0, Number((Number(fac.total) - cubiertoPrevio).toFixed(2)));
+          const saldoDB = fac.saldoPendiente !== null ? Number(fac.saldoPendiente) : Number(fac.total);
+          const saldoActual = Math.max(saldoDB, saldoCalculado);
           if (saldoActual <= 0) continue;
 
           const montoAplicar = Math.min(pedido, saldoActual, saldoDisponible);
-          const nuevoSaldo = Math.max(0, saldoActual - montoAplicar);
+          const nuevoSaldo = Math.max(0, Number((saldoActual - montoAplicar).toFixed(2)));
 
           await tx.factura.update({
             where: { id: fac.id },
