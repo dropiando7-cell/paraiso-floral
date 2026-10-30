@@ -120,19 +120,19 @@ def numero_a_letras_lempiras(monto):
         if millones > 0:
             resultado += "un millon " if millones == 1 else f"{convertir_menor_mil(millones)} millones "
         if miles > 0:
-            resultado += "mil " if miles == 1 else f"{convertir_menor_mil(miles)} mil "
+            resultado += "un mil " if miles == 1 else f"{convertir_menor_mil(miles)} mil "
         if resto_u > 0:
             resultado += convertir_menor_mil(resto_u)
         return resultado.strip()
 
-    texto_enteros = convertir_entero(enteros)
-    moneda_enteros = "lempira" if enteros == 1 else "lempiras"
+    texto_enteros = convertir_entero(enteros).upper()
+    moneda_enteros = "LEMPIRA" if enteros == 1 else "LEMPIRAS"
     if centavos == 0:
-        exacto_palabra = "exacto" if enteros == 1 else "exactos"
+        exacto_palabra = "EXACTO" if enteros == 1 else "EXACTOS"
         return f"{texto_enteros} {moneda_enteros} {exacto_palabra}"
-    texto_centavos = convertir_menor_mil(centavos)
-    moneda_centavos = "centavo" if centavos == 1 else "centavos"
-    return f"{texto_enteros} {moneda_enteros} con {texto_centavos} {moneda_centavos}"
+    texto_centavos = convertir_menor_mil(centavos).upper()
+    moneda_centavos = "CENTAVO" if centavos == 1 else "CENTAVOS"
+    return f"{texto_enteros} {moneda_enteros} CON {texto_centavos} {moneda_centavos}"
 
 def build_remesa_or_caja_chica_receipt(data):
     """
@@ -474,9 +474,10 @@ def build_receipt(data):
     receipt.extend(CMD_BOLD_OFF)
 
     # Monto en letras debajo del TOTAL
-    monto_letras = remove_accents(str(doc.get('montoLetras') or numero_a_letras_lempiras(total_num))).upper()
+    monto_letras = remove_accents(str(doc.get('montoLetras') or numero_a_letras_lempiras(total_num))).upper().strip('*')
     if monto_letras:
-        for line in textwrap.wrap(f"SON: {monto_letras}", width=ANCHO_CONTENIDO):
+        receipt.extend(f"{MARGIN_LEFT}Valor en letras:".encode('ascii', 'ignore') + LF)
+        for line in textwrap.wrap(f"***{monto_letras}***", width=ANCHO_CONTENIDO):
             receipt.extend(f"{MARGIN_LEFT}{line}".encode('ascii', 'ignore') + LF)
 
     # Si hay Saldo a Favor aplicado, mostrar desglose y Neto a Pagar

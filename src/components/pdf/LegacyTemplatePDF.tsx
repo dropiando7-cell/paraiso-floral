@@ -809,6 +809,12 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
           <View style={styles.notesSection}>
             <Text style={styles.notesLabel}>{docType === 'nota_credito' ? 'Motivo / Observaciones:' : (settings?.showPaymentTerms ? 'Nota / Plazo de pago:' : 'Nota / Observaciones:')}</Text>
             <Text style={styles.notesText}>{docType === 'nota_credito' ? (notes || '') : (notes || (settings?.showPaymentTerms ? paymentTerms : ''))}</Text>
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 8.5, color: '#334155', marginBottom: 2 }}>Valor en letras:</Text>
+              <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: '#0f172a', textDecoration: 'underline' }}>
+                ***{numeroALetrasLempiras(totals?.total || 0)}***
+              </Text>
+            </View>
           </View>
           
           <View style={[
@@ -847,12 +853,6 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               <Text style={[styles.grandTotalLabel, { color: totalTextColor, fontSize: totalLabelSizeVal }]}>TOTAL</Text>
               <Text style={[styles.grandTotalValue, { color: totalTextColor, fontSize: totalSizeVal }]}>
                 {fmt ? fmt(totals?.total || 0) : String(totals?.total || 0)}
-              </Text>
-            </View>
-            <View style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 3, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 2 }}>
-              <Text style={{ fontSize: 7.5, color: '#334155' }}>
-                <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0f172a' }}>SON: </Text>
-                {numeroALetrasLempiras(totals?.total || 0)}
               </Text>
             </View>
             {(Number(data.montoSaldoFavorAplicado) || 0) > 0 && (

@@ -418,7 +418,7 @@ export function numeroALetrasLempiras(monto: any): string {
       resultado += millones === 1 ? 'un millón ' : `${convertirMenorMil(millones)} millones `;
     }
     if (miles > 0) {
-      resultado += miles === 1 ? 'mil ' : `${convertirMenorMil(miles)} mil `;
+      resultado += miles === 1 ? 'un mil ' : `${convertirMenorMil(miles)} mil `;
     }
     if (restoUnidades > 0) {
       resultado += convertirMenorMil(restoUnidades);
@@ -426,16 +426,16 @@ export function numeroALetrasLempiras(monto: any): string {
     return resultado.trim();
   }
 
-  const textoEnteros = convertirEntero(enteros);
-  const monedaEnteros = enteros === 1 ? 'lempira' : 'lempiras';
+  const textoEnteros = convertirEntero(enteros).toUpperCase();
+  const monedaEnteros = enteros === 1 ? 'LEMPIRA' : 'LEMPIRAS';
 
   if (centavos === 0) {
-    const exactoPalabra = enteros === 1 ? 'exacto' : 'exactos';
+    const exactoPalabra = enteros === 1 ? 'EXACTO' : 'EXACTOS';
     return `${textoEnteros} ${monedaEnteros} ${exactoPalabra}`;
   }
 
-  const textoCentavos = convertirMenorMil(centavos);
-  const monedaCentavos = centavos === 1 ? 'centavo' : 'centavos';
-  return `${textoEnteros} ${monedaEnteros} con ${textoCentavos} ${monedaCentavos}`;
+  const textoCentavos = convertirMenorMil(centavos).toUpperCase();
+  const monedaCentavos = centavos === 1 ? 'CENTAVO' : 'CENTAVOS';
+  return `${textoEnteros} ${monedaEnteros} CON ${textoCentavos} ${monedaCentavos}`;
 }
 

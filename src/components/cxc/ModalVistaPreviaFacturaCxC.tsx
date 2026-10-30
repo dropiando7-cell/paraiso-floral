@@ -792,6 +792,13 @@ export default function ModalVistaPreviaFacturaCxC({
                         {cleanNotes || (showPaymentTerms ? terminosPago : '')}
                       </div>
 
+                      <div className="mt-3 text-left">
+                        <p className="text-[11px] text-slate-700 font-medium">Valor en letras:</p>
+                        <p className="text-[11px] font-bold text-slate-900 uppercase underline underline-offset-2 decoration-slate-700 mt-0.5">
+                          ***{numeroALetrasLempiras(computedTotals.total)}***
+                        </p>
+                      </div>
+
                       {metodoPagoRaw === 'MIXTO' &&
                         Array.isArray(activeFactura.pagosMixtos) &&
                         activeFactura.pagosMixtos.length > 0 && (
@@ -897,11 +904,6 @@ export default function ModalVistaPreviaFacturaCxC({
                         <span className="font-bold font-mono text-2xl">
                           {fmt(computedTotals.total)}
                         </span>
-                      </div>
-
-                      <div className="px-2.5 py-1 bg-slate-50 border-t border-[#1e293b] text-[10px] text-slate-700 leading-snug">
-                        <span className="font-bold text-slate-900">SON: </span>
-                        <span className="italic">{numeroALetrasLempiras(computedTotals.total)}</span>
                       </div>
 
                       {montoSaldoFavor > 0 && (

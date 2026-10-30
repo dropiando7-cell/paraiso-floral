@@ -435,6 +435,12 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="hidden print:block text-xs text-slate-700 whitespace-pre-wrap break-words w-full mt-1" data-pdf-show>
  {notes}
  </div>
+ <div className="mt-3 text-left">
+   <p className="text-[11px] text-slate-700 font-medium">Valor en letras:</p>
+   <p className="text-[11px] font-bold text-slate-900 uppercase underline underline-offset-2 decoration-slate-700 mt-0.5">
+     ***{numeroALetrasLempiras(totals.total)}***
+   </p>
+ </div>
  {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
    <div className="mt-3 border-t border-slate-200 pt-2">
      <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-1">Desglose de Pago Mixto</h4>
@@ -529,10 +535,6 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="flex justify-between items-end pt-2">
  <span className="font-bold uppercase text-slate-800">TOTAL L.</span>
  <span className={`${totalSizeClass} font-bold ${monoClass} ${baseColor}`} style={totalStyle}>{fmt(totals.total)}</span>
- </div>
- <div className="mt-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[10px] text-slate-700 leading-snug">
-   <span className="font-bold text-slate-900">SON: </span>
-   <span className="italic">{numeroALetrasLempiras(totals.total)}</span>
  </div>
  {(props.montoSaldoFavorAplicado || 0) > 0 && (
    <div className="mt-2 pt-2 border-t border-dashed border-emerald-300 space-y-1">

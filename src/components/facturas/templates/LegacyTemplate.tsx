@@ -472,6 +472,12 @@ export default function LegacyTemplate(props: TemplateProps) {
  placeholder={docType === 'nota_credito' ? 'Detalle el motivo de la devolución o ajuste...' : (settings?.showPaymentTerms ? 'Pago inmediato...' : 'Observaciones o notas adicionales...')}
  />
  <div className="hidden print:block text-[11px] whitespace-pre-wrap break-words w-full" data-pdf-show>{docType === 'nota_credito' ? notes : (notes || (settings?.showPaymentTerms ? paymentTerms : ''))}</div>
+ <div className="mt-3 text-left">
+   <p className="text-[11px] text-slate-700 font-medium">Valor en letras:</p>
+   <p className="text-[11px] font-bold text-slate-900 uppercase underline underline-offset-2 decoration-slate-700 mt-0.5">
+     ***{numeroALetrasLempiras(totals.total)}***
+   </p>
+ </div>
  {paymentMethod === 'MIXTO' && props.pagosMixtos && props.pagosMixtos.length > 0 && (
    <div className="mt-3 border-t border-slate-200 pt-2">
      <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-1">Desglose de Pago Mixto</h4>
@@ -563,10 +569,6 @@ export default function LegacyTemplate(props: TemplateProps) {
   >
   <span className="font-bold print:font-black" style={totalLabelStyle}>TOTAL</span>
   <span className={`font-bold print:font-black ${totalSizeClass} ${monoClass}`} style={totalStyle}>{fmt(totals.total)}</span>
-  </div>
-  <div className="mt-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-sm text-[10px] text-slate-700 leading-snug">
-    <span className="font-bold text-slate-900">SON: </span>
-    <span className="italic">{numeroALetrasLempiras(totals.total)}</span>
   </div>
   {(props.montoSaldoFavorAplicado || 0) > 0 && (
     <div className="mt-1 border border-emerald-600/40 rounded-sm overflow-hidden">
