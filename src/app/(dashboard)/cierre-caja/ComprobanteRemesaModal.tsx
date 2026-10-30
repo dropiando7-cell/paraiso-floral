@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Printer, X, Banknote, Receipt, FileText, Send } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -134,6 +135,8 @@ export default function ComprobanteRemesaModal({ movimiento, session, onClose }:
     const printRef = useRef<HTMLDivElement>(null);
     const [formatoVista, setFormatoVista] = useState<'TICKET' | 'CARTA'>('TICKET');
     const [enviandoPrintServer, setEnviandoPrintServer] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
 
     const esGastoRuta = movimiento.concepto === 'GASTO_RUTA';
     const meta = parseRemesaMetadata(movimiento);
@@ -413,13 +416,15 @@ export default function ComprobanteRemesaModal({ movimiento, session, onClose }:
         win.document.close();
     };
 
-    return (
-        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center z-[110] p-3 sm:p-6 overflow-y-auto animate-fade-in">
-            <div className={`bg-white rounded-3xl border border-slate-200 shadow-2xl w-full overflow-hidden my-auto transition-all duration-200 ${
+    if (!mounted) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center z-[10050] p-4 sm:p-6 overflow-y-auto animate-fade-in">
+            <div className={`bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-h-[90vh] flex flex-col overflow-hidden my-auto transition-all duration-200 ${
                 formatoVista === 'TICKET' ? 'max-w-lg' : 'max-w-3xl'
             }`}>
                 {/* Barra superior de acciones y selector de formato */}
-                <div className="bg-slate-900 px-5 py-4 text-white flex flex-col gap-3">
+                <div className="bg-slate-900 px-5 py-4 text-white flex flex-col gap-3 shrink-0">
                     <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
                             <div className={`p-2 rounded-xl ${esGastoRuta ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
@@ -480,7 +485,7 @@ export default function ComprobanteRemesaModal({ movimiento, session, onClose }:
 
                 {/* CONTENIDO DE VISTA PREVIA EN MODAL */}
                 {formatoVista === 'TICKET' ? (
-                    <div className="p-5 max-h-[72vh] overflow-y-auto bg-slate-100 flex justify-center">
+                    <div className="p-5 flex-1 min-h-0 overflow-y-auto bg-slate-100 flex justify-center items-start">
                         <div className="bg-white w-[310px] shadow-lg border border-slate-300 p-4 font-mono text-[11px] text-slate-900 leading-snug select-all rounded-xl">
                             <div className="text-center">
                                 <p className="font-black text-xs tracking-tight">DISTRIBUIDORA PARAÍSO FLORAL</p>
@@ -633,7 +638,7 @@ export default function ComprobanteRemesaModal({ movimiento, session, onClose }:
                     </div>
                 ) : (
                     /* VISTA PREVIA FORMATO CARTA */
-                    <div className="p-4 sm:p-8 max-h-[72vh] overflow-y-auto bg-slate-100/70">
+                    <div className="p-4 sm:p-8 flex-1 min-h-0 overflow-y-auto bg-slate-100/70">
                         <div
                             ref={printRef}
                             className="bg-white border-2 border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 text-slate-900 shadow-sm"
@@ -816,7 +821,7 @@ export default function ComprobanteRemesaModal({ movimiento, session, onClose }:
                 )}
 
                 {/* Pie del Modal con botones según formato activo */}
-                <div className="bg-slate-50 px-5 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <div className="bg-slate-50 px-5 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
                     <button
                         type="button"
                         onClick={onClose}
@@ -860,6 +865,7 @@ export default function ComprobanteRemesaModal({ movimiento, session, onClose }:
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

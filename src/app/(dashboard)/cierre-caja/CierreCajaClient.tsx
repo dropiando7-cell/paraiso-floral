@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
@@ -1595,10 +1596,10 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
             </div>
 
             {/* DETAIL MODAL FOR PAST CLOSED SESSION */}
-            {selectedPastSession && (
-                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-3xl w-full">
-                        <div className="bg-slate-900 px-6 py-5 text-white flex justify-between items-center">
+            {isMounted && selectedPastSession && createPortal(
+                <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-3xl w-full max-h-[90vh] flex flex-col my-auto">
+                        <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
                             <div>
                                 <h3 className="font-bold text-lg">Detalles del Cierre de Caja</h3>
                                 <p className="text-xs text-slate-400">ID del Turno: {selectedPastSession.id.substring(0, 8)}...</p>
@@ -1640,7 +1641,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </div>
                         </div>
 
-                        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                        <div className="p-6 space-y-6 flex-1 min-h-0 overflow-y-auto">
                             {/* GENERAL STATISTICS OF DETAILED SHIFT */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="bg-slate-50 p-3.5 border border-slate-200 rounded-xl">
@@ -1858,7 +1859,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             ) : null}
                         </div>
 
-                        <div className="bg-slate-50 px-6 py-4 flex justify-end border-t border-slate-200">
+                        <div className="bg-slate-50 px-6 py-4 flex justify-end border-t border-slate-200 shrink-0">
                             <button
                                 onClick={() => {
                                     setSelectedPastSession(null);
@@ -1870,14 +1871,15 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL RETIRO / REMESA BANCARIA / GASTO DE RUTA */}
-            {showModalRetiro && (
-                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-lg w-full animate-scale-in">
-                        <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+            {isMounted && showModalRetiro && createPortal(
+                <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-lg w-full max-h-[90vh] flex flex-col my-auto animate-scale-in">
+                        <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
                             <div>
                                 <h3 className="font-bold text-base">Registrar Remesa / Gasto de Ventas o Ruta</h3>
                                 <p className="text-[11px] text-slate-400">Registra remesas a banco o gastos descontados por vendedores y emite el ticket para firma</p>
@@ -1889,7 +1891,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleSaveRetiro} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+                        <form onSubmit={handleSaveRetiro} className="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                             {/* Pestañas rápidas: Remesa vs Gasto de Ruta */}
                             <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
                                 <button
@@ -2190,14 +2192,15 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL INGRESO EXTRAORDINARIO / AJUSTE */}
-            {showModalIngreso && (
-                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-md w-full animate-scale-in">
-                        <div className="bg-emerald-900 px-6 py-4 text-white flex justify-between items-center">
+            {isMounted && showModalIngreso && createPortal(
+                <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-md w-full max-h-[90vh] flex flex-col my-auto animate-scale-in">
+                        <div className="bg-emerald-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
                             <h3 className="font-bold text-base text-white">Registrar Ingreso / Ajuste Extraordinario</h3>
                             <button
                                 onClick={() => setShowModalIngreso(false)}
@@ -2206,7 +2209,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleSaveIngreso} className="p-6 space-y-4">
+                        <form onSubmit={handleSaveIngreso} className="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                                     Método de Ingreso
@@ -2290,14 +2293,15 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL REEMBOLSO DE GARANTIA */}
-            {showModalReembolso && (
-                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-md w-full animate-scale-in">
-                        <div className="bg-brand-950 px-6 py-4 text-white flex justify-between items-center">
+            {isMounted && showModalReembolso && createPortal(
+                <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-md w-full max-h-[90vh] flex flex-col my-auto animate-scale-in">
+                        <div className="bg-brand-950 px-6 py-4 text-white flex justify-between items-center shrink-0">
                             <h3 className="font-bold text-base text-white">Reembolsar Depósito en Garantía</h3>
                             <button
                                 onClick={() => setShowModalReembolso(false)}
@@ -2306,7 +2310,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleSaveReembolso} className="p-6 space-y-4">
+                        <form onSubmit={handleSaveReembolso} className="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                             <div className="space-y-2">
                                 <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
                                     Buscar Alquiler Original (Serie / QR / Cliente / Equipo)
@@ -2493,7 +2497,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
             {/* CALCULADORA MODAL */}
             {isCalcOpen && (
@@ -2505,11 +2510,11 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
             )}
 
             {/* CONFIRMAR CIERRE MODAL */}
-            {showConfirmCloseModal && activeSession && (
-                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden animate-scale-up">
+            {isMounted && showConfirmCloseModal && activeSession && createPortal(
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto animate-fade-in">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-scale-up">
                         {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-red-50 via-rose-50 to-amber-50 border-b border-rose-100 flex items-start gap-4">
+                        <div className="p-6 bg-gradient-to-br from-red-50 via-rose-50 to-amber-50 border-b border-rose-100 flex items-start gap-4 shrink-0">
                             <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-500/30">
                                 <Lock className="w-6 h-6" />
                             </div>
@@ -2537,7 +2542,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                         </div>
 
                         {/* Body */}
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5">
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Fondo Inicial</p>
@@ -2624,7 +2629,7 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                         </div>
 
                         {/* Footer */}
-                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setShowConfirmCloseModal(false)}
@@ -2648,7 +2653,8 @@ ${typeof window !== 'undefined' ? `${window.location.origin}/c/cierre/${session.
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* MODAL COMPROBANTE DE ENTREGA DE EFECTIVO / REMESA IMPRIMIBLE */}

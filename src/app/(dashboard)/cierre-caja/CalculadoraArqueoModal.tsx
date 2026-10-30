@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Props {
@@ -8,6 +9,12 @@ interface Props {
 }
 
 export default function CalculadoraArqueoModal({ onClose, onConfirm, efectivoEsperado }: Props) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Billetes y monedas de Honduras por defecto, pero se puede extender
   const [denominaciones, setDenominaciones] = useState<{ valor: number; cantidad: number }[]>([
     { valor: 500, cantidad: 0 },
@@ -50,10 +57,12 @@ export default function CalculadoraArqueoModal({ onClose, onConfirm, efectivoEsp
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-lg w-full my-auto">
-        <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center sticky top-0 z-10">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-fade-in overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-lg w-full max-h-[90vh] flex flex-col my-auto">
+        <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center shrink-0">
           <div>
             <h3 className="font-bold text-lg">Calculadora de Billetes</h3>
             <p className="text-xs text-slate-400">Cuadre exacto de efectivo en caja</p>
@@ -63,14 +72,14 @@ export default function CalculadoraArqueoModal({ onClose, onConfirm, efectivoEsp
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-y-auto">
           <div className="flex justify-between items-center mb-4 px-2">
             <span className="text-xs font-bold text-slate-500 uppercase">Denominación</span>
             <span className="text-xs font-bold text-slate-500 uppercase">Cantidad</span>
             <span className="text-xs font-bold text-slate-500 uppercase">Subtotal</span>
           </div>
 
-          <div className="space-y-2.5 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-2.5 pr-1 custom-scrollbar">
             {denominaciones.map((item) => (
               <div key={`billete-${item.valor}`} className="flex items-center gap-3">
                 <div className="w-24 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-bold text-right shrink-0">
@@ -120,7 +129,7 @@ export default function CalculadoraArqueoModal({ onClose, onConfirm, efectivoEsp
           </div>
         </div>
 
-        <div className="bg-slate-50 p-6 border-t border-slate-200">
+        <div className="bg-slate-50 p-5 border-t border-slate-200 shrink-0">
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-bold text-slate-600">Total Calculado:</span>
             <span className="text-2xl font-black text-slate-900">L. {totalCalculado.toFixed(2)}</span>
@@ -157,6 +166,7 @@ export default function CalculadoraArqueoModal({ onClose, onConfirm, efectivoEsp
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
