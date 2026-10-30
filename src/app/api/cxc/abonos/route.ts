@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
-import { extractExcedenteMonedero, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
+import { calcularEstadoCuentaClienteCxC, extractExcedenteMonedero, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
+import { FacturaAfectadaRecibo, ReciboAbonoData, triggerTwilioReciboWhatsApp } from '@/lib/cxc-recibo-service';
 
 export async function POST(request: Request) {
   try {
@@ -66,8 +67,14 @@ export async function POST(request: Request) {
 
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    const isAjusteRedondeo = String(metodoPago || '').toUpperCase().includes('REDONDEO') || String(metodoPago || '').toUpperCase().includes('AJUSTE');
+    const isAjusteRedondeo =
+      String(metodoPago || '').toUpperCase().includes('REDONDEO') ||
+      String(metodoPago || '').toUpperCase().includes('AJUSTE');
     const metodoPagoFinal = isAjusteRedondeo ? 'AJUSTE_REDONDEO' : metodoPago;
+
+    const facturasAfectadasRecibo: FacturaAfectadaRecibo[] = [];
+    let montoAplicadoASaldoInicial = 0;
+    let excedenteRegistrado = 0;
 
     const nuevoPago = await prisma.$transaction(async (tx) => {
       // Crear el registro del Pago
@@ -139,6 +146,12 @@ export async function POST(request: Request) {
             data: { pagoId: pagoCreado.id, facturaId: fac.id, montoAplicado: montoAplicar }
           });
 
+          facturasAfectadasRecibo.push({
+            id: fac.id,
+            correlativo: fac.correlativo,
+            montoAplicado: Number(montoAplicar.toFixed(2))
+          });
+
           saldoDisponible -= montoAplicar;
         }
       }
@@ -168,7 +181,11 @@ export async function POST(request: Request) {
             totalPastPagosNeto - Number(totalPastAllocations._sum.montoAplicado || 0)
           );
           const sInicialActual = Math.max(0, Number(clienteData.saldoInicial) - pastAppliedToSInicial);
-          saldoDisponible -= Math.min(saldoDisponible, sInicialActual);
+          const aplicarSInicial = Math.min(saldoDisponible, sInicialActual);
+          if (aplicarSInicial > 0) {
+            montoAplicadoASaldoInicial = Number(aplicarSInicial.toFixed(2));
+            saldoDisponible -= aplicarSInicial;
+          }
         }
 
         if (saldoDisponible > 0) {
@@ -203,6 +220,12 @@ export async function POST(request: Request) {
               data: { pagoId: pagoCreado.id, facturaId: fac.id, montoAplicado: montoAplicar }
             });
 
+            facturasAfectadasRecibo.push({
+              id: fac.id,
+              correlativo: fac.correlativo,
+              montoAplicado: Number(montoAplicar.toFixed(2))
+            });
+
             saldoDisponible -= montoAplicar;
           }
         }
@@ -211,6 +234,7 @@ export async function POST(request: Request) {
       // 3. Si después de cubrir toda la deuda pendiente aún sobra dinero, sumarlo al Monedero Virtual (saldoFavor)
       const excedente = Number(saldoDisponible.toFixed(2));
       if (excedente >= 0.01) {
+        excedenteRegistrado = excedente;
         const cliActual = await tx.cliente.findUnique({
           where: { id: clienteId },
           select: { saldoFavor: true, nombre: true }
@@ -256,9 +280,75 @@ export async function POST(request: Request) {
       return pagoCreado;
     });
 
+    // Calcular el estado de cuenta actualizado del cliente para el Recibo de Abono / Caja
+    const clienteActualizado = await prisma.cliente.findUnique({
+      where: { id: clienteId },
+      include: {
+        facturas: {
+          where: {
+            estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] },
+            tipoDocumento: { notIn: ['NOTA_CREDITO', 'COTIZACION', 'PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO'] }
+          },
+          include: { pagosMixtos: true }
+        },
+        pagos: {
+          where: { anulado: false }
+        },
+        notasCredito: {
+          where: { anulado: false }
+        }
+      }
+    });
+
+    let nuevoSaldoPendiente = 0;
+    if (clienteActualizado) {
+      const estadoCxc = calcularEstadoCuentaClienteCxC({
+        saldoInicial: clienteActualizado.saldoInicial,
+        facturas: clienteActualizado.facturas,
+        pagos: clienteActualizado.pagos,
+        notasCredito: clienteActualizado.notasCredito
+      });
+      nuevoSaldoPendiente = Math.max(0, Number(estadoCxc.saldoTotal.toFixed(2)));
+    }
+
+    const creditoAplicadoDeuda = Math.max(0, Number((montoNum - excedenteRegistrado).toFixed(2)));
+    const saldoAnterior = Math.max(0, Number((nuevoSaldoPendiente + creditoAplicadoDeuda).toFixed(2)));
+    const usuarioNombre = [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ').trim() || 'Cajero / Vendedor';
+
+    const reciboData: ReciboAbonoData = {
+      id: nuevoPago.id,
+      correlativo: nuevoPago.correlativo || correlativo,
+      fecha: nuevoPago.fecha,
+      monto: montoNum,
+      metodoPago: nuevoPago.metodoPago,
+      banco: nuevoPago.banco,
+      referencia: nuevoPago.referencia,
+      notas: nuevoPago.notas,
+      usuarioNombre,
+      cliente: {
+        id: cliente.id,
+        nombre: cliente.nombre,
+        rtn: cliente.rtn,
+        telefono: cliente.telefono,
+        direccion: cliente.direccion,
+        departamento: cliente.departamento
+      },
+      facturasAfectadas: facturasAfectadasRecibo,
+      aplicadoASaldoInicial: montoAplicadoASaldoInicial > 0 ? montoAplicadoASaldoInicial : 0,
+      excedenteMonedero: excedenteRegistrado > 0 ? excedenteRegistrado : 0,
+      saldoAnterior,
+      nuevoSaldoPendiente
+    };
+
+    // Hook preparado para envío automático por Twilio WhatsApp (Fase 2)
+    triggerTwilioReciboWhatsApp(reciboData).catch(err =>
+      console.error('Aviso: servicio Twilio WhatsApp en espera:', err)
+    );
+
     return NextResponse.json({
       success: true,
-      pago: nuevoPago
+      pago: nuevoPago,
+      recibo: reciboData
     });
   } catch (error: any) {
     console.error('Error registrando abono:', error);

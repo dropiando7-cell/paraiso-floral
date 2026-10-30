@@ -20,10 +20,7 @@ import {
   FileSpreadsheet,
   Plus,
   Download,
-  Filter,
   MapPin,
-  Sparkles,
-  ArrowUpRight,
   Printer,
   Image as ImageIcon
 } from 'lucide-react';
@@ -33,6 +30,8 @@ import ModalNotaCredito from '@/components/cxc/ModalNotaCredito';
 import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
 import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
+import ModalReciboAbono from '@/components/cxc/ModalReciboAbono';
+import { ReciboAbonoData } from '@/lib/cxc-recibo-service';
 import ExcelLiveGrid from '@/components/cxc/ExcelLiveGrid';
 import { exportarCarteraGeneralExcel } from '@/utils/cxcExportUtils';
 
@@ -121,6 +120,7 @@ export default function CuentasPorCobrarPage() {
   const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
   const [modalFacturaOpen, setModalFacturaOpen] = useState<boolean>(false);
   const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
+  const [reciboVistaPrevia, setReciboVistaPrevia] = useState<ReciboAbonoData | null>(null);
 
   // Cargar perfil y lista de vendedores
   useEffect(() => {
@@ -247,6 +247,7 @@ export default function CuentasPorCobrarPage() {
     });
     return Array.from(depts);
   }, [clientes]);
+  void departamentosDisponibles;
 
   const generarWhatsAppLink = (cliente: ClienteCxC) => {
     if (!cliente.telefono) return null;
@@ -636,8 +637,6 @@ ${publicUrl}
         /* VISTA 2: MODO TARJETAS */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clientes.map(c => {
-            const waLink = generarWhatsAppLink(c);
-
             return (
               <div
                 key={c.id}
@@ -1052,7 +1051,12 @@ ${publicUrl}
           setModalAbonoOpen(false);
           setClienteSeleccionado(null);
         }}
-        onSuccess={cargarDatos}
+        onSuccess={(nuevoRecibo) => {
+          cargarDatos();
+          if (nuevoRecibo) {
+            setReciboVistaPrevia(nuevoRecibo);
+          }
+        }}
         cliente={clienteSeleccionado}
       />
 
@@ -1083,6 +1087,12 @@ ${publicUrl}
           setClienteSeleccionado(null);
         }}
         clienteId={clienteSeleccionado?.id}
+      />
+
+      <ModalReciboAbono
+        isOpen={Boolean(reciboVistaPrevia)}
+        onClose={() => setReciboVistaPrevia(null)}
+        recibo={reciboVistaPrevia}
       />
     </div>
   );

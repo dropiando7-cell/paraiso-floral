@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, DollarSign, AlertCircle, Loader2, CheckCircle, ChevronDown, Building2 } from 'lucide-react';
+import { ReciboAbonoData } from '@/lib/cxc-recibo-service';
 
 export const HONDURAS_BANKS = [
   { id: 'ficohsa', name: 'Ficohsa', logo: '/logos_bancos/ficohsa.png' },
@@ -23,7 +24,7 @@ export const HONDURAS_BANKS = [
 interface ModalAbonoProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (recibo?: ReciboAbonoData) => void;
   cliente: {
     id: string;
     nombre: string;
@@ -151,7 +152,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
       setReferencia('');
       setNotas('');
       setFacturaSeleccionadaId('');
-      onSuccess();
+      onSuccess(data.recibo);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error registrando el abono');

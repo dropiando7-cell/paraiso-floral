@@ -12,15 +12,14 @@ import {
   AlertTriangle,
   RefreshCw,
   Share2,
-  FileCheck,
   Clock,
   BookOpen,
   Edit3,
   Trash2,
   Plus,
-  Download,
   FileSpreadsheet,
-  Eye
+  Eye,
+  Receipt
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ModalAbono from '@/components/cxc/ModalAbono';
@@ -32,6 +31,8 @@ import ModalRegistrarFactura from '@/components/cxc/ModalRegistrarFactura';
 import ModalVisorExcelHistorico from '@/components/cxc/ModalVisorExcelHistorico';
 import ModalEstadoCuentaImagen from '@/components/cxc/ModalEstadoCuentaImagen';
 import ModalVistaPreviaFacturaCxC from '@/components/cxc/ModalVistaPreviaFacturaCxC';
+import ModalReciboAbono from '@/components/cxc/ModalReciboAbono';
+import { ReciboAbonoData, buildReciboFromHistorial } from '@/lib/cxc-recibo-service';
 import { exportarEstadoCuentaClienteExcel } from '@/utils/cxcExportUtils';
 import ClienteSearchSwitcher from '@/components/cxc/ClienteSearchSwitcher';
 import { eliminarSaldoInicialCliente } from '@/app/(dashboard)/contactos/actions';
@@ -86,6 +87,11 @@ interface ClienteDetalle {
     referencia: string | null;
     notas: string | null;
     creadoPor: { nombre: string | null; apellido: string | null } | null;
+    detalles?: Array<{
+      facturaId?: string;
+      montoAplicado: number | string;
+      factura?: { correlativo?: string | null } | null;
+    }>;
   }>;
   notasCredito: Array<{
     id: string;
@@ -119,6 +125,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
   const [modalImagenOpen, setModalImagenOpen] = useState<boolean>(false);
   const [pagoAEditar, setPagoAEditar] = useState<any>(null);
   const [facturaVistaPrevia, setFacturaVistaPrevia] = useState<any | null>(null);
+  const [reciboVistaPrevia, setReciboVistaPrevia] = useState<ReciboAbonoData | null>(null);
 
   const cargarEstadoCuenta = async () => {
     try {
@@ -350,6 +357,17 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       };
     });
   }, [data]);
+
+  const handleAbrirReciboHistorico = (pagoObj: any) => {
+    if (!data || !pagoObj) return;
+    const recibo = buildReciboFromHistorial(
+      pagoObj,
+      data.cliente,
+      movimientosContables,
+      data.resumen.saldoTotal
+    );
+    setReciboVistaPrevia(recibo);
+  };
 
   const handlePrint = () => {
     window.print();
@@ -988,6 +1006,19 @@ ${publicUrl}
                                   <span>{m.documento}</span>
                                   <Eye className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors print:hidden" />
                                 </button>
+                              ) : m.tipo === 'ABONO' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const pagoObj = pagos.find(p => p.id === m.id);
+                                    if (pagoObj) handleAbrirReciboHistorico(pagoObj);
+                                  }}
+                                  title="Clic para ver y copiar el Recibo de Abono / Caja"
+                                  className="inline-flex items-center gap-1.5 text-emerald-800 hover:text-emerald-600 hover:underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer group"
+                                >
+                                  <span>{m.documento}</span>
+                                  <Receipt className="w-3.5 h-3.5 text-emerald-500 group-hover:text-emerald-700 transition-colors print:hidden" />
+                                </button>
                               ) : (
                                 <span className={m.tipo === 'ABONO_ANULADO' ? 'line-through text-slate-400' : ''}>{m.documento}</span>
                               )}
@@ -1199,7 +1230,17 @@ ${publicUrl}
                     <tbody className="divide-y divide-slate-100 text-xs">
                       {pagos.map(p => (
                         <tr key={p.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-3 font-bold text-slate-900">{p.correlativo || 'REC-ABONO'}</td>
+                          <td className="py-3 px-3 font-bold text-slate-900">
+                            <button
+                              type="button"
+                              onClick={() => handleAbrirReciboHistorico(p)}
+                              title="Clic para abrir el Recibo de Abono / Caja"
+                              className="inline-flex items-center gap-1.5 text-emerald-800 hover:text-emerald-600 hover:underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer group"
+                            >
+                              <span>{p.correlativo || 'REC-ABONO'}</span>
+                              <Receipt className="w-3.5 h-3.5 text-emerald-500 group-hover:text-emerald-700 transition-colors" />
+                            </button>
+                          </td>
                           <td className="py-3 px-3 text-slate-500">
                             {new Date(p.fecha).toLocaleDateString('es-HN')}
                           </td>
@@ -1218,7 +1259,16 @@ ${publicUrl}
                             {p.creadoPor ? `${p.creadoPor.nombre || ''} ${p.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </td>
                           <td className="py-3 px-3 text-center">
-                            <div className="inline-flex items-center gap-1">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleAbrirReciboHistorico(p)}
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg font-bold text-[11px] inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Ver y copiar Recibo de Abono / Caja para WhatsApp"
+                              >
+                                <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Recibo</span>
+                              </button>
                               {(data as any)?.esSuperAdmin && (
                                 <button
                                   type="button"
@@ -1333,7 +1383,12 @@ ${publicUrl}
       <ModalAbono
         isOpen={modalAbonoOpen}
         onClose={() => setModalAbonoOpen(false)}
-        onSuccess={cargarEstadoCuenta}
+        onSuccess={(nuevoRecibo) => {
+          cargarEstadoCuenta();
+          if (nuevoRecibo) {
+            setReciboVistaPrevia(nuevoRecibo);
+          }
+        }}
         cliente={
           data?.cliente
             ? {
@@ -1407,6 +1462,12 @@ ${publicUrl}
         factura={facturaVistaPrevia}
         cliente={data?.cliente}
         organization={(data as any)?.organization}
+      />
+
+      <ModalReciboAbono
+        isOpen={Boolean(reciboVistaPrevia)}
+        onClose={() => setReciboVistaPrevia(null)}
+        recibo={reciboVistaPrevia}
       />
     </>
   );
