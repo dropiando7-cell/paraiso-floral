@@ -1,10 +1,19 @@
 /**
- * Utilidades para renderizar y copiar la factura como imagen PNG en memoria (sin descargas locales)
+ * Utilidades para renderizar y copiar la factura o recibo como imagen PNG en memoria (sin descargas locales)
  */
 
-export async function captureInvoiceImageBlob(container: HTMLElement): Promise<Blob> {
+export interface CaptureImageOptions {
+  exactWidth?: boolean;
+  width?: number;
+  scale?: number;
+}
+
+export async function captureInvoiceImageBlob(
+  container: HTMLElement,
+  options?: CaptureImageOptions
+): Promise<Blob> {
   if (!container) {
-    throw new Error('Contenedor de factura no encontrado');
+    throw new Error('Contenedor de documento no encontrado');
   }
 
   // 1. Ocultar elementos de UI interactivos que no deben salir en la imagen
@@ -58,20 +67,29 @@ export async function captureInvoiceImageBlob(container: HTMLElement): Promise<B
   let canvas: HTMLCanvasElement;
   try {
     // Breve pausa para que el motor del navegador pinte las imágenes base64
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 450));
 
     const html2canvasModule = await import('html2canvas-pro');
     const html2canvas = html2canvasModule.default;
 
-    const targetWidth = Math.max(container.offsetWidth || 816, 816);
+    const useExactWidth =
+      options?.exactWidth || container.getAttribute('data-capture-exact-width') === 'true';
+
+    const targetWidth = useExactWidth
+      ? options?.width || container.offsetWidth || 440
+      : Math.max(container.offsetWidth || 816, 816);
+
+    const targetHeight = useExactWidth ? container.offsetHeight : undefined;
+
     canvas = await html2canvas(container, {
-      scale: 2, // Calidad HD para que todo el texto y números sean ultra legibles en WhatsApp
+      scale: options?.scale || (useExactWidth ? 3 : 2), // Calidad HD nítida para pantallas móviles y WhatsApp
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
       windowWidth: targetWidth,
       width: targetWidth,
+      ...(targetHeight ? { height: targetHeight } : {})
     });
   } finally {
     // Restaurar siempre los elementos y las imágenes
@@ -95,7 +113,7 @@ export async function captureInvoiceImageBlob(container: HTMLElement): Promise<B
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
-        reject(new Error('No se pudo generar el archivo de imagen de la factura'));
+        reject(new Error('No se pudo generar el archivo de imagen del comprobante'));
       } else {
         resolve(blob);
       }
@@ -104,10 +122,13 @@ export async function captureInvoiceImageBlob(container: HTMLElement): Promise<B
 }
 
 /**
- * Copia la imagen de la factura directamente al portapapeles del sistema operativo
+ * Copia la imagen de la factura o recibo directamente al portapapeles del sistema operativo
  */
-export async function copyInvoiceImageToClipboard(container: HTMLElement): Promise<boolean> {
-  const blob = await captureInvoiceImageBlob(container);
+export async function copyInvoiceImageToClipboard(
+  container: HTMLElement,
+  options?: CaptureImageOptions
+): Promise<boolean> {
+  const blob = await captureInvoiceImageBlob(container, options);
 
   if (typeof window !== 'undefined' && navigator.clipboard && window.ClipboardItem) {
     const item = new ClipboardItem({ 'image/png': blob });
@@ -133,9 +154,10 @@ export async function captureAndProcessInvoiceImage(
     filename?: string;
     title?: string;
     shareIfAvailable?: boolean;
+    exactWidth?: boolean;
   }
 ): Promise<InvoiceCaptureResult> {
-  const blob = await captureInvoiceImageBlob(container);
+  const blob = await captureInvoiceImageBlob(container, { exactWidth: options?.exactWidth });
   let copied = false;
   let shared = false;
 

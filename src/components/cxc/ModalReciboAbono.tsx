@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   MessageCircle,
@@ -28,11 +29,16 @@ interface ModalReciboAbonoProps {
 }
 
 export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalReciboAbonoProps) {
+  const [mounted, setMounted] = useState(false);
   const [phone, setPhone] = useState('88542199');
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
 
   const captureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !recibo) return;
@@ -42,7 +48,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     setPhone(clean || '88542199');
   }, [isOpen, recibo]);
 
-  if (!isOpen || !recibo) return null;
+  if (!mounted || !isOpen || !recibo) return null;
 
   const handleCopyOnly = async () => {
     if (!captureRef.current) {
@@ -53,9 +59,9 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     setIsProcessing(true);
     setCopiedSuccess(false);
     try {
-      await copyInvoiceImageToClipboard(captureRef.current);
+      await copyInvoiceImageToClipboard(captureRef.current, { exactWidth: true, width: 420, scale: 3 });
       setCopiedSuccess(true);
-      toast.success('¡Recibo de Abono copiado como imagen! Presiona Ctrl + V en WhatsApp.', {
+      toast.success('¡Recibo de Abono copiado en formato vertical móvil! Presiona Ctrl + V en WhatsApp.', {
         duration: 5000,
         icon: '🧾'
       });
@@ -86,7 +92,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     setIsProcessing(true);
     setCopiedSuccess(false);
     try {
-      await copyInvoiceImageToClipboard(captureRef.current);
+      await copyInvoiceImageToClipboard(captureRef.current, { exactWidth: true, width: 420, scale: 3 });
       setCopiedSuccess(true);
       toast.success('¡Recibo copiado! Abriendo WhatsApp Web para que presiones Ctrl + V...', {
         duration: 5000,
@@ -106,7 +112,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     if (!captureRef.current) return;
     setIsProcessing(true);
     try {
-      const blob = await captureInvoiceImageBlob(captureRef.current);
+      const blob = await captureInvoiceImageBlob(captureRef.current, { exactWidth: true, width: 420, scale: 3 });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       const safeName = (recibo.cliente.nombre || 'Cliente').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -117,7 +123,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success('Recibo PNG descargado exitosamente');
+      toast.success('Recibo PNG vertical descargado exitosamente');
     } catch (err: any) {
       toast.error(err.message || 'Error al descargar la imagen del recibo');
     } finally {
@@ -153,9 +159,9 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     });
   });
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[3200] flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:hidden">
-      <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[95vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+  return createPortal(
+    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[9999] flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:hidden">
+      <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] my-auto shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header del Modal */}
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200 bg-emerald-50/70 shrink-0">
           <div className="flex items-center gap-3">
@@ -245,7 +251,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
           <div className="mx-5 mt-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-emerald-900 shrink-0">
             <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
             <p className="text-xs font-semibold">
-              <strong>¡Recibo copiado al portapapeles!</strong> Ve al chat de WhatsApp del cliente y presiona{' '}
+              <strong>¡Recibo vertical copiado al portapapeles!</strong> Ve al chat de WhatsApp del cliente y presiona{' '}
               <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-800">
                 Ctrl
               </kbd>{' '}
@@ -259,34 +265,35 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
         )}
 
         {/* Área de Vista Previa del Recibo Capturable */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-200/75 flex justify-center items-start">
-          <div className="overflow-x-auto max-w-full">
-            {/* TARJETA DE RECIBO EN MODO CLARO (DISEÑO FIEL A REFERENCIA) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-200/75 flex justify-center items-start">
+          <div className="overflow-x-auto max-w-full rounded-2xl shadow-xl border border-slate-200/90 bg-white">
+            {/* TARJETA DE RECIBO VERTICAL PARA MÓVIL (SIN RELLENO LATERAL EXTRA) */}
             <div
               ref={captureRef}
-              className="w-[460px] bg-white px-8 py-9 text-slate-900 shadow-xl border border-slate-200/90"
+              data-capture-exact-width="true"
+              className="w-[420px] bg-white px-7 py-8 text-slate-900"
               style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
             >
               {/* 1. Encabezado con Logo, Razón Social y Badge RECIBO DE ABONO / CAJA */}
-              <div className="flex items-center justify-between gap-3 mb-7">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-2.5 mb-6">
+                <div className="flex items-center gap-2.5">
                   <img
                     src="/icon.png"
                     alt="Paraíso Floral"
                     className="w-11 h-11 object-contain shrink-0"
                   />
                   <div className="leading-tight">
-                    <p className="text-[14px] font-bold text-slate-900 tracking-tight uppercase">
+                    <p className="text-[13px] font-bold text-slate-900 tracking-tight uppercase">
                       DISTRIBUIDORA PARAÍSO
                     </p>
-                    <p className="text-[14px] font-bold text-slate-900 tracking-tight uppercase">
+                    <p className="text-[13px] font-bold text-slate-900 tracking-tight uppercase">
                       FLORAL, S. DE R.L. DE C.V.
                     </p>
                   </div>
                 </div>
 
                 <div className="shrink-0">
-                  <span className="inline-block px-3 py-1.5 bg-slate-100 text-slate-900 font-bold text-[11px] rounded-lg border border-slate-300 uppercase tracking-wide">
+                  <span className="inline-block px-2.5 py-1.5 bg-slate-100 text-slate-900 font-bold text-[10.5px] rounded-lg border border-slate-300 uppercase tracking-wide">
                     RECIBO DE ABONO / CAJA
                   </span>
                 </div>
@@ -294,14 +301,14 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
 
               {/* 2. Monto Principal Abonado e Indicador de Éxito */}
               <div className="mb-5">
-                <div className="text-[44px] font-extrabold text-slate-950 tracking-tight leading-none mb-2.5">
+                <div className="text-[42px] font-extrabold text-slate-950 tracking-tight leading-none mb-2.5">
                   L. {Number(recibo.monto || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center shrink-0">
                     <Check size={13} strokeWidth={3.5} />
                   </span>
-                  <span className="text-[16px] font-medium text-slate-800">
+                  <span className="text-[15.5px] font-medium text-slate-800">
                     Abono Aplicado Exitosamente
                   </span>
                 </div>
@@ -312,10 +319,10 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
 
               {/* 3. DETALLES DEL RECIBO */}
               <div className="mb-5">
-                <h4 className="text-[12px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
+                <h4 className="text-[11.5px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
                   DETALLES DEL RECIBO
                 </h4>
-                <div className="text-[14.5px] text-slate-800 space-y-0.5 leading-snug">
+                <div className="text-[14px] text-slate-800 space-y-0.5 leading-snug">
                   <p>
                     Recibo de Caja / Abono N°: <span className="font-semibold text-slate-950">{recibo.correlativo}</span>
                   </p>
@@ -326,10 +333,10 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
 
               {/* 4. CLIENTE */}
               <div className="mb-5">
-                <h4 className="text-[12px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
+                <h4 className="text-[11.5px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
                   CLIENTE
                 </h4>
-                <div className="text-[14.5px] text-slate-800 space-y-0.5 leading-snug">
+                <div className="text-[14px] text-slate-800 space-y-0.5 leading-snug">
                   <p className="font-semibold text-slate-950">{recibo.cliente.nombre}</p>
                   <p>RTN/DNI: {recibo.cliente.rtn || 'Consumidor Final'}</p>
                   <p>Tel: {recibo.cliente.telefono || 'No registrado'}</p>
@@ -338,10 +345,10 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
 
               {/* 5. HISTORIAL DE CUENTA / DETALLE DEL ABONO */}
               <div className="mb-6">
-                <h4 className="text-[12px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
+                <h4 className="text-[11.5px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
                   HISTORIAL DE CUENTA
                 </h4>
-                <div className="text-[14.5px] text-slate-800 space-y-0.5 leading-snug">
+                <div className="text-[14px] text-slate-800 space-y-0.5 leading-snug">
                   {itemsAfectados.length === 0 ? (
                     <p>Factura Afectada: Abono General a Cuenta CxC</p>
                   ) : itemsAfectados.length === 1 ? (
@@ -349,7 +356,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
                   ) : (
                     <div>
                       <p className="font-medium text-slate-900">Facturas Afectadas ({itemsAfectados.length}):</p>
-                      <div className="pl-2.5 mt-0.5 space-y-0.5 text-[13.5px] text-slate-700 border-l-2 border-slate-200">
+                      <div className="pl-2.5 mt-0.5 space-y-0.5 text-[13px] text-slate-700 border-l-2 border-slate-200">
                         {itemsAfectados.map((it, idx) => (
                           <p key={idx}>
                             • {it.etiqueta}{' '}
@@ -376,11 +383,11 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
               </div>
 
               {/* 6. Caja Gris de RESUMEN DE SALDO */}
-              <div className="bg-slate-100 border border-slate-300 rounded-xl px-5 py-4 mb-6">
-                <p className="text-[12.5px] font-medium text-slate-700 uppercase tracking-wide">
+              <div className="bg-slate-100 border border-slate-300 rounded-xl px-4 py-3.5 mb-5">
+                <p className="text-[12px] font-medium text-slate-700 uppercase tracking-wide">
                   RESUMEN DE SALDO
                 </p>
-                <p className="text-[18px] font-extrabold text-slate-950 tracking-tight mt-0.5">
+                <p className="text-[17px] font-extrabold text-slate-950 tracking-tight mt-0.5">
                   NUEVO SALDO PENDIENTE: L.{' '}
                   {Number(recibo.nuevoSaldoPendiente || 0).toLocaleString('es-HN', {
                     minimumFractionDigits: 2,
@@ -388,20 +395,21 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
                   })}
                 </p>
                 {recibo.excedenteMonedero && recibo.excedenteMonedero > 0.009 ? (
-                  <p className="text-[12px] font-semibold text-emerald-700 mt-1">
+                  <p className="text-[11.5px] font-semibold text-emerald-700 mt-1">
                     + L. {recibo.excedenteMonedero.toLocaleString('es-HN', { minimumFractionDigits: 2 })} acreditados en Saldo a Favor (Monedero)
                   </p>
                 ) : null}
               </div>
 
               {/* 7. Pie de Comprobante (Limpio sin el botón negro para captura de imagen) */}
-              <p className="text-[12.5px] text-slate-600 leading-relaxed">
+              <p className="text-[12px] text-slate-600 leading-relaxed">
                 ¡Gracias por su abono! Comprobante digital de Recibo de Abono / Caja generado por Distribuidora Paraíso Floral, S. de R.L. de C.V.
               </p>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
