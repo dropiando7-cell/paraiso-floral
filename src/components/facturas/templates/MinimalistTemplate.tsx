@@ -4,7 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
-import { isCredito, isEnvioItem, isHondufloresClient } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, isHondufloresClient, numeroALetrasLempiras } from '@/utils/facturaUtils';
 
 export default function MinimalistTemplate(props: TemplateProps) {
   const {
@@ -408,6 +408,10 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="flex justify-between items-end pt-1">
  <span className="text-[11px] text-slate-400 uppercase mb-1">Total L.</span>
  <span className={`text-2xl font-light ${themeText}`}>{fmt(totals.total)}</span>
+ </div>
+ <div className="mt-1 px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[10px] text-slate-600 leading-snug">
+   <span className="font-semibold text-slate-800">SON: </span>
+   <span className="italic">{numeroALetrasLempiras(totals.total)}</span>
  </div>
  {(props.montoSaldoFavorAplicado || 0) > 0 && (
    <div className="mt-2 pt-2 border-t border-slate-200 space-y-1">

@@ -69,6 +69,71 @@ def format_currency(amount):
     except:
         return f"L {amount}"
 
+def numero_a_letras_lempiras(monto):
+    try:
+        num = abs(float(monto or 0))
+    except:
+        return "cero lempiras exactos"
+
+    enteros = int(num)
+    centavos = int(round((num - enteros) * 100))
+    if centavos == 100:
+        enteros += 1
+        centavos = 0
+
+    unidades = ["", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"]
+    decenas10 = ["diez", "once", "doce", "trece", "catorce", "quince", "dieciseis", "diecisiete", "dieciocho", "diecinueve"]
+    decenas20 = ["veinte", "veintiun", "veintidos", "veintitres", "veinticuatro", "veinticinco", "veintiseis", "veintisiete", "veintiocho", "veintinueve"]
+    decenas = ["", "", "", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"]
+    centenas = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"]
+
+    def convertir_menor_mil(n):
+        if n == 0:
+            return ""
+        if n == 100:
+            return "cien"
+        c = n // 100
+        resto = n % 100
+        texto = centenas[c] if c > 0 else ""
+        if resto > 0:
+            if texto:
+                texto += " "
+            if resto < 10:
+                texto += unidades[resto]
+            elif resto < 20:
+                texto += decenas10[resto - 10]
+            elif resto < 30:
+                texto += decenas20[resto - 20]
+            else:
+                d = resto // 10
+                u = resto % 10
+                texto += decenas[d] + (f" y {unidades[u]}" if u > 0 else "")
+        return texto
+
+    def convertir_entero(n):
+        if n == 0:
+            return "cero"
+        resultado = ""
+        millones = n // 1000000
+        miles = (n % 1000000) // 1000
+        resto_u = n % 1000
+        if millones > 0:
+            resultado += "un millon " if millones == 1 else f"{convertir_menor_mil(millones)} millones "
+        if miles > 0:
+            resultado += "mil " if miles == 1 else f"{convertir_menor_mil(miles)} mil "
+        if resto_u > 0:
+            resultado += convertir_menor_mil(resto_u)
+        return resultado.strip()
+
+    texto_enteros = convertir_entero(enteros)
+    moneda_enteros = "lempira" if enteros == 1 else "lempiras"
+    if centavos == 0:
+        exacto_palabra = "exacto" if enteros == 1 else "exactos"
+        return f"{texto_enteros} {moneda_enteros} {exacto_palabra}"
+    texto_centavos = convertir_menor_mil(centavos)
+    moneda_centavos = "centavo" if centavos == 1 else "centavos"
+    return f"{texto_enteros} {moneda_enteros} con {texto_centavos} {moneda_centavos}"
+
 def build_remesa_or_caja_chica_receipt(data):
     """
     Construye el recibo térmico ESC/POS para Comprobante de Remesa (Cierre de Caja)
@@ -380,6 +445,27 @@ def build_receipt(data):
     receipt.extend(CMD_BOLD_ON)
     receipt.extend(f"{MARGIN_LEFT}{'TOTAL:':<26}{total_str:>16}".encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_BOLD_OFF)
+
+    # Monto en letras debajo del TOTAL
+    monto_letras = remove_accents(str(doc.get('montoLetras') or numero_a_letras_lempiras(total_num))).upper()
+    if monto_letras:
+        for line in textwrap.wrap(f"SON: {monto_letras}", width=ANCHO_CONTENIDO):
+            receipt.extend(f"{MARGIN_LEFT}{line}".encode('ascii', 'ignore') + LF)
+
+    # Si hay Saldo a Favor aplicado, mostrar desglose y Neto a Pagar
+    try:
+        saldo_favor_num = float(doc.get('montoSaldoFavorAplicado', 0) or 0)
+    except:
+        saldo_favor_num = 0.0
+    if saldo_favor_num > 0:
+        neto_pagar_num = max(0.0, float(total_num) - saldo_favor_num)
+        sf_str = f"-{format_currency(saldo_favor_num)}"
+        np_str = format_currency(neto_pagar_num)
+        receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
+        receipt.extend(f"{MARGIN_LEFT}{'(-) SALDO A FAVOR:':<26}{sf_str:>16}".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_ON)
+        receipt.extend(f"{MARGIN_LEFT}{'NETO A PAGAR:':<26}{np_str:>16}".encode('ascii', 'ignore') + LF)
+        receipt.extend(CMD_BOLD_OFF)
     
     receipt.extend(LF)
     

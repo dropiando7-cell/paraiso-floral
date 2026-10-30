@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { SignatureItem } from '@/types/invoice';
-import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, numeroALetrasLempiras } from '@/utils/facturaUtils';
 
 // Register Inter font
 Font.register({
@@ -847,6 +847,12 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               <Text style={[styles.grandTotalLabel, { color: totalTextColor, fontSize: totalLabelSizeVal }]}>TOTAL</Text>
               <Text style={[styles.grandTotalValue, { color: totalTextColor, fontSize: totalSizeVal }]}>
                 {fmt ? fmt(totals?.total || 0) : String(totals?.total || 0)}
+              </Text>
+            </View>
+            <View style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 3, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 2 }}>
+              <Text style={{ fontSize: 7.5, color: '#334155' }}>
+                <Text style={{ fontFamily: 'Helvetica-Bold', color: '#0f172a' }}>SON: </Text>
+                {numeroALetrasLempiras(totals?.total || 0)}
               </Text>
             </View>
             {(Number(data.montoSaldoFavorAplicado) || 0) > 0 && (

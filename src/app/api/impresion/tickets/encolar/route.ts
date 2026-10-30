@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { resolveFacturaSarMetadata } from "@/lib/sar-utils";
-import { isEnvioItem, extractSaldoFavorAplicado } from "@/utils/facturaUtils";
+import { isEnvioItem, extractSaldoFavorAplicado, numeroALetrasLempiras } from "@/utils/facturaUtils";
 
 export async function POST(req: Request) {
     try {
@@ -219,6 +219,7 @@ export async function POST(req: Request) {
 
         const montoSaldoFavorAplicado = extractSaldoFavorAplicado(doc);
         const netoAPagar = Math.max(0, Number((Number(doc.total || 0) - montoSaldoFavorAplicado).toFixed(2)));
+        const montoLetras = numeroALetrasLempiras(Number(doc.total || 0));
 
         const invoiceData = {
             documento: {
@@ -229,7 +230,8 @@ export async function POST(req: Request) {
                 rangoAutorizado: resolvedSar.rangoAutorizado || doc.rangoAutorizado,
                 fechaLimiteEmision: resolvedSar.fechaLimiteEmision || doc.fechaLimiteEmision,
                 montoSaldoFavorAplicado,
-                netoAPagar
+                netoAPagar,
+                montoLetras
             },
             organization: doc.organization,
             items: sortedCleanDetalles,

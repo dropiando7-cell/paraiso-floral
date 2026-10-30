@@ -4,7 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
-import { isCredito, isEnvioItem } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, numeroALetrasLempiras } from '@/utils/facturaUtils';
 
 export default function ModernTemplate(props: TemplateProps) {
   const {
@@ -527,6 +527,10 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="text-right flex items-center h-full">
  <span className={`font-black ${theme.accentText} tabular-nums leading-none ${isTotalNum ? '' : 'text-2xl'}`} style={totalStyle}>{fmt(totals.total)}</span>
  </div>
+ </div>
+ <div className="mt-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-slate-700 leading-snug">
+   <span className="font-bold text-slate-900">SON: </span>
+   <span className="italic">{numeroALetrasLempiras(totals.total)}</span>
  </div>
  {(props.montoSaldoFavorAplicado || 0) > 0 && (
    <div className="mt-2.5 pt-2.5 border-t border-dashed border-emerald-300 space-y-1.5">

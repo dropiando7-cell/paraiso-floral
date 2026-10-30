@@ -4,7 +4,7 @@ import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
 import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 import SarFiscalBanner, { SarLeyendasFooter } from './SarFiscalBanner';
-import { isCredito, isEnvioItem, isHondufloresClient } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, isHondufloresClient, numeroALetrasLempiras } from '@/utils/facturaUtils';
 
 export default function LegacyTemplate(props: TemplateProps) {
   const {
@@ -563,6 +563,10 @@ export default function LegacyTemplate(props: TemplateProps) {
   >
   <span className="font-bold print:font-black" style={totalLabelStyle}>TOTAL</span>
   <span className={`font-bold print:font-black ${totalSizeClass} ${monoClass}`} style={totalStyle}>{fmt(totals.total)}</span>
+  </div>
+  <div className="mt-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-sm text-[10px] text-slate-700 leading-snug">
+    <span className="font-bold text-slate-900">SON: </span>
+    <span className="italic">{numeroALetrasLempiras(totals.total)}</span>
   </div>
   {(props.montoSaldoFavorAplicado || 0) > 0 && (
     <div className="mt-1 border border-emerald-600/40 rounded-sm overflow-hidden">

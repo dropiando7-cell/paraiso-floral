@@ -326,3 +326,116 @@ export function calcularEstadoCuentaClienteCxC(params: {
     mapaFacturasInfo,
   };
 }
+
+/**
+ * Convierte un monto numérico (Lempiras) a su representación en letras en español.
+ * Ejemplo: 1125 -> "mil ciento veinticinco lempiras exactos"
+ * Ejemplo: 1125.50 -> "mil ciento veinticinco lempiras con cincuenta centavos"
+ */
+export function numeroALetrasLempiras(monto: any): string {
+  const num = Number(monto || 0);
+  if (isNaN(num)) return 'cero lempiras exactos';
+
+  const absNum = Math.abs(num);
+  let enteros = Math.floor(absNum);
+  let centavos = Math.round((absNum - enteros) * 100);
+  if (centavos === 100) {
+    enteros += 1;
+    centavos = 0;
+  }
+
+  const unidades = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+  const decenas10 = [
+    'diez',
+    'once',
+    'doce',
+    'trece',
+    'catorce',
+    'quince',
+    'dieciséis',
+    'diecisiete',
+    'dieciocho',
+    'diecinueve',
+  ];
+  const decenas20 = [
+    'veinte',
+    'veintiún',
+    'veintidós',
+    'veintitrés',
+    'veinticuatro',
+    'veinticinco',
+    'veintiséis',
+    'veintisiete',
+    'veintiocho',
+    'veintinueve',
+  ];
+  const decenas = ['', '', '', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+  const centenas = [
+    '',
+    'ciento',
+    'doscientos',
+    'trescientos',
+    'cuatrocientos',
+    'quinientos',
+    'seiscientos',
+    'setecientos',
+    'ochocientos',
+    'novecientos',
+  ];
+
+  function convertirMenorMil(n: number): string {
+    if (n === 0) return '';
+    if (n === 100) return 'cien';
+    const c = Math.floor(n / 100);
+    const resto = n % 100;
+    let texto = c > 0 ? centenas[c] : '';
+
+    if (resto > 0) {
+      if (texto) texto += ' ';
+      if (resto < 10) {
+        texto += unidades[resto];
+      } else if (resto < 20) {
+        texto += decenas10[resto - 10];
+      } else if (resto < 30) {
+        texto += decenas20[resto - 20];
+      } else {
+        const d = Math.floor(resto / 10);
+        const u = resto % 10;
+        texto += decenas[d] + (u > 0 ? ` y ${unidades[u]}` : '');
+      }
+    }
+    return texto;
+  }
+
+  function convertirEntero(n: number): string {
+    if (n === 0) return 'cero';
+    let resultado = '';
+    const millones = Math.floor(n / 1000000);
+    const miles = Math.floor((n % 1000000) / 1000);
+    const restoUnidades = n % 1000;
+
+    if (millones > 0) {
+      resultado += millones === 1 ? 'un millón ' : `${convertirMenorMil(millones)} millones `;
+    }
+    if (miles > 0) {
+      resultado += miles === 1 ? 'mil ' : `${convertirMenorMil(miles)} mil `;
+    }
+    if (restoUnidades > 0) {
+      resultado += convertirMenorMil(restoUnidades);
+    }
+    return resultado.trim();
+  }
+
+  const textoEnteros = convertirEntero(enteros);
+  const monedaEnteros = enteros === 1 ? 'lempira' : 'lempiras';
+
+  if (centavos === 0) {
+    const exactoPalabra = enteros === 1 ? 'exacto' : 'exactos';
+    return `${textoEnteros} ${monedaEnteros} ${exactoPalabra}`;
+  }
+
+  const textoCentavos = convertirMenorMil(centavos);
+  const monedaCentavos = centavos === 1 ? 'centavo' : 'centavos';
+  return `${textoEnteros} ${monedaEnteros} con ${textoCentavos} ${monedaCentavos}`;
+}
+

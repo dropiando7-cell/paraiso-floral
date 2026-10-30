@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TemplateProps } from './TemplateProps';
-import { isEnvioItem } from '@/utils/facturaUtils';
+import { isEnvioItem, numeroALetrasLempiras } from '@/utils/facturaUtils';
 
 export default function TicketTemplate(props: TemplateProps) {
   const {
@@ -100,6 +100,9 @@ export default function TicketTemplate(props: TemplateProps) {
         
         <div className="flex w-full justify-between font-black text-sm uppercase mt-1 border-t border-black pt-1">
           <span>TOTAL:</span><span>{fmt(totals.total)}</span>
+        </div>
+        <div className="w-full text-left text-[9px] font-semibold uppercase leading-tight mt-0.5 text-slate-800">
+          SON: {numeroALetrasLempiras(totals.total)}
         </div>
         {(props.montoSaldoFavorAplicado || 0) > 0 && (
           <div className="w-full mt-1 pt-1 border-t border-dashed border-black flex flex-col gap-0.5">

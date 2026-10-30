@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { copyInvoiceImageToClipboard, captureInvoiceImageBlob } from '@/utils/invoiceImageUtils';
 import { resolveFacturaSarMetadata } from '@/lib/sar-utils';
-import { isCredito, isEnvioItem, extractSaldoFavorAplicado } from '@/utils/facturaUtils';
+import { isCredito, isEnvioItem, extractSaldoFavorAplicado, numeroALetrasLempiras } from '@/utils/facturaUtils';
 import SarFiscalBanner, { SarLeyendasFooter } from '@/components/facturas/templates/SarFiscalBanner';
 import { getDocumentoById } from '@/app/(dashboard)/facturas/actions';
 
@@ -897,6 +897,11 @@ export default function ModalVistaPreviaFacturaCxC({
                         <span className="font-bold font-mono text-2xl">
                           {fmt(computedTotals.total)}
                         </span>
+                      </div>
+
+                      <div className="px-2.5 py-1 bg-slate-50 border-t border-[#1e293b] text-[10px] text-slate-700 leading-snug">
+                        <span className="font-bold text-slate-900">SON: </span>
+                        <span className="italic">{numeroALetrasLempiras(computedTotals.total)}</span>
                       </div>
 
                       {montoSaldoFavor > 0 && (
