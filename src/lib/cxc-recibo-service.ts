@@ -60,16 +60,13 @@ export function formatFormaPagoRecibo(metodoPago?: string | null, banco?: string
 }
 
 /**
- * Normaliza el correlativo de factura para mostrar prefijo SAR cuando corresponde a numeración fiscal.
+ * Normaliza el correlativo de factura sin anteponer el prefijo "SAR-".
  */
 export function formatCorrelativoFacturaRecibo(correlativo?: string | null): string {
   if (!correlativo) return 'Abono General a Cuenta';
-  const clean = correlativo.trim().replace(/^#/, '');
+  const clean = correlativo.trim().replace(/^#/, '').replace(/^SAR-/i, '');
   if (clean.toUpperCase() === 'SALDO INICIAL EXCEL' || clean.toUpperCase() === 'SALDO INICIAL') {
     return 'Saldo Inicial Registrado';
-  }
-  if (/^\d{3}-\d{3}-\d{2}-\d{8}$/.test(clean)) {
-    return `SAR-${clean}`;
   }
   return clean;
 }
