@@ -357,9 +357,9 @@ def build_receipt(data):
     sep_line = f"{MARGIN_LEFT}{'-' * ANCHO_CONTENIDO}"
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
     
-    # --- DETALLES DE PRODUCTOS (CANT(4) + DESCRIPCION(24) + TOTAL(14) = 42) ---
+    # --- DETALLES DE PRODUCTOS (CANT(4) + ' '(1) + DESCRIPCION(17) + P.UNIT(9) + TOTAL(11) = 42) ---
     receipt.extend(CMD_BOLD_ON)
-    receipt.extend(f"{MARGIN_LEFT}{'CANT':<4}{'DESCRIPCION':<24}{'TOTAL':>14}".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"{MARGIN_LEFT}{'CANT':<4} {'DESCRIPCION':<17}{'P.UNIT':>9}{'TOTAL':>11}".encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_BOLD_OFF)
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
     
@@ -378,17 +378,44 @@ def build_receipt(data):
         desc_raw = remove_accents(item.get('nombre') or item.get('productoNombre') or desc_raw or "Producto").strip()
         
         total_val = item.get('totalLinea') or item.get('total') or 0
-        total_str = format_currency(total_val)
+        try:
+            total_float = float(total_val or 0)
+        except:
+            total_float = 0.0
+        total_str = format_currency(total_float)
+
+        # Calcular Precio Unitario
+        p_unit_val = item.get('precioUnitario') or item.get('unitPrice') or item.get('precio')
+        try:
+            cant_real = float(item.get('cantidadOriginal') or cant_num or 1)
+            if cant_real <= 0:
+                cant_real = 1.0
+        except:
+            cant_real = 1.0
+
+        try:
+            if p_unit_val is not None and float(p_unit_val) > 0:
+                p_unit_float = float(p_unit_val)
+            else:
+                p_unit_float = total_float / cant_real if cant_real > 0 else total_float
+        except:
+            p_unit_float = total_float
+
+        p_unit_str = f"{p_unit_float:,.2f}" if total_float > 0 or p_unit_float > 0 else ""
+        if total_float == 0 and p_unit_float == 0 and str(desc_raw).upper().startswith(("SON:", "ENTREGA", "RECIBE:")):
+            total_str = ""
+            p_unit_str = ""
         
-        # Ajustar texto de producto a 24 caracteres por línea
-        wrapped = textwrap.wrap(desc_raw, width=24)
+        # Ajustar texto de producto a 17 caracteres por línea
+        wrapped = textwrap.wrap(desc_raw, width=17)
         if not wrapped:
             wrapped = [""]
             
         for i, line in enumerate(wrapped):
             c_str = cant_str if i == 0 else ""
+            u_str = p_unit_str if i == len(wrapped) - 1 else ""
             t_str = total_str if i == len(wrapped) - 1 else ""
-            line_str = f"{MARGIN_LEFT}{c_str:<4}{line:<24}{t_str:>14}"
+            line_str = f"{MARGIN_LEFT}{c_str:<4} {line:<17}{u_str:>9}{t_str:>11}"
             receipt.extend(line_str.encode('ascii', 'ignore') + LF)
         
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
@@ -405,7 +432,7 @@ def build_receipt(data):
     total_cant_str = f"{int(total_cant)}" if total_cant.is_integer() else f"{total_cant:g}"
     
     receipt.extend(CMD_BOLD_ON)
-    receipt.extend(f"{MARGIN_LEFT}{total_cant_str:<4}{'TOTAL ITEMS / PAQUETES':<38}".encode('ascii', 'ignore') + LF)
+    receipt.extend(f"{MARGIN_LEFT}{total_cant_str:<4} {'TOTAL ITEMS / PAQUETES':<37}".encode('ascii', 'ignore') + LF)
     receipt.extend(CMD_BOLD_OFF)
     receipt.extend(sep_line.encode('ascii', 'ignore') + LF)
     

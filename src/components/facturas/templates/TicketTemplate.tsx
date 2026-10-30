@@ -58,28 +58,33 @@ export default function TicketTemplate(props: TemplateProps) {
           <tr className="border-y border-dashed border-black">
             <th className="text-left font-normal pb-0.5 pt-0.5">CANT</th>
             <th className="text-left font-normal pb-0.5 pt-0.5 px-1">DESCRIPCIÓN</th>
+            <th className="text-right font-normal pb-0.5 pt-0.5 px-1">P.UNIT</th>
             <th className="text-right font-normal pb-0.5 pt-0.5">TOTAL</th>
           </tr>
         </thead>
         <tbody>
-          {lineItems.map((item, idx) => (
-            <tr key={idx} className="align-top">
-              <td className="pt-1.5">{item.qty}</td>
-              <td className="pt-1.5 px-1 pr-2 truncate max-w-[40mm] whitespace-pre-wrap">
-                {item.shortDesc}
-                {item.taxState === 'exento' && <span className="ml-1 text-[8px] font-bold">(E)</span>}
-                {item.taxState === 'exonerado' && <span className="ml-1 text-[8px] font-bold">(EXO)</span>}
-                {item.taxState === 'isv18' && <span className="ml-1 text-[8px] font-bold">(18%)</span>}
-                {item.price > 0 && <span className="block text-[8.5px] mt-0.5 text-gray-600">L.{item.price} c/u {item.discount > 0 && <span className="text-black font-bold uppercase ml-1">-{item.discount}%</span>}</span>}
-              </td>
-              <td className="text-right pt-1.5">{fmt(item.total)}</td>
-            </tr>
-          ))}
+          {lineItems.map((item, idx) => {
+            const unitPriceNum = Number(item.unitPrice ?? item.price ?? item.precioUnitario ?? (Number(item.qty) > 0 ? Number(item.total) / Number(item.qty) : item.total)) || 0;
+            return (
+              <tr key={idx} className="align-top">
+                <td className="pt-1.5">{item.qty}</td>
+                <td className="pt-1.5 px-1 pr-1 truncate max-w-[32mm] whitespace-pre-wrap">
+                  {item.shortDesc}
+                  {item.taxState === 'exento' && <span className="ml-1 text-[8px] font-bold">(E)</span>}
+                  {item.taxState === 'exonerado' && <span className="ml-1 text-[8px] font-bold">(EXO)</span>}
+                  {item.taxState === 'isv18' && <span className="ml-1 text-[8px] font-bold">(18%)</span>}
+                  {item.discount > 0 && <span className="block text-[8px] text-black font-bold uppercase">-{item.discount}% desc.</span>}
+                </td>
+                <td className="text-right pt-1.5 px-1 font-mono text-[9.5px]">{fmt(unitPriceNum)}</td>
+                <td className="text-right pt-1.5 font-mono">{fmt(item.total)}</td>
+              </tr>
+            );
+          })}
         </tbody>
         <tfoot>
           <tr className="border-t border-dashed border-black font-bold text-[10px]">
             <td className="pt-1.5 font-mono">{formattedTotalQty}</td>
-            <td className="pt-1.5 px-1 text-left uppercase" colSpan={2}>
+            <td className="pt-1.5 px-1 text-left uppercase" colSpan={3}>
               TOTAL ÍTEMS / PAQUETES
             </td>
           </tr>

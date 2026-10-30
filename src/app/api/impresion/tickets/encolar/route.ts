@@ -205,12 +205,17 @@ export async function POST(req: Request) {
                     .split("Producto registrado")[0]
                     .trim();
                 const esEnvio = isEnvioItem({ nombre: cleanFirstLine, descripcion: cleanFullDesc });
+                const cantOrig = Number(d.cantidad) || 1;
+                const totalLineaNum = Number(d.totalLinea || 0);
+                const precioUnitarioNum = Number(d.precioUnitario || (cantOrig > 0 ? totalLineaNum / cantOrig : totalLineaNum));
                 return {
                     ...d,
                     // Si es ENVIO/ENVIOS/FLETE, enviamos cantidad: "" para que print_server_tickets.py
                     // no lo sume al conteo de bultos (float("" or 0) == 0 en Python) sin tocar el print server local.
                     cantidad: esEnvio ? "" : d.cantidad,
                     cantidadOriginal: d.cantidad,
+                    precioUnitario: Number(precioUnitarioNum.toFixed(2)),
+                    totalLinea: Number(totalLineaNum.toFixed(2)),
                     esEnvio,
                     descripcion: cleanFullDesc,
                     nombre: cleanFirstLine || cleanFullDesc,
