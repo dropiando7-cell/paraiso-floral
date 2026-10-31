@@ -576,6 +576,13 @@ ${publicUrl}
               <span>SALDO A PAGAR:</span>
               <span className="text-base">L. {resumen.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
             </div>
+            {Math.abs(resumen.saldoTotal) <= 0.01 && (
+              <div className="pt-1 text-right">
+                <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black uppercase tracking-wider">
+                  ✓ Cuenta al día — Sin saldo pendiente
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -848,11 +855,18 @@ ${publicUrl}
                 ? 'bg-blue-50/60 border-blue-100' 
                 : 'bg-emerald-50/60 border-emerald-100'
             }`}>
-              <span className={`text-[11px] font-bold uppercase ${
-                resumen.saldoTotal < 0 ? 'text-blue-800' : 'text-emerald-800'
-              }`}>
-                {resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Pendiente'}
-              </span>
+              <div className="flex items-center justify-between gap-1">
+                <span className={`text-[11px] font-bold uppercase ${
+                  resumen.saldoTotal < 0 ? 'text-blue-800' : 'text-emerald-800'
+                }`}>
+                  {resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Pendiente'}
+                </span>
+                {Math.abs(resumen.saldoTotal) <= 0.01 && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-900 text-[9px] font-black uppercase tracking-wider">
+                    ✓ Al día
+                  </span>
+                )}
+              </div>
               <p className={`text-xl sm:text-2xl font-black mt-1 font-mono ${
                 resumen.saldoTotal < 0 ? 'text-blue-600' : 'text-emerald-600'
               }`}>

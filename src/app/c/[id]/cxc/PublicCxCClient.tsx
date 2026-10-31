@@ -340,9 +340,17 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-sm pt-2 border-t border-emerald-300 font-black text-emerald-900">
-                <span className="uppercase tracking-wider">SALDO A PAGAR:</span>
-                <span className="text-lg font-mono font-black text-emerald-700">{fmt(resumen.saldoTotal)}</span>
+              <div className="pt-2 border-t border-emerald-300 space-y-1.5">
+                <div className="flex justify-between items-center text-sm font-black text-emerald-900">
+                  <span className="uppercase tracking-wider">SALDO A PAGAR:</span>
+                  <span className="text-lg font-mono font-black text-emerald-700">{fmt(resumen.saldoTotal)}</span>
+                </div>
+                {Math.abs(resumen.saldoTotal) <= 0.01 && (
+                  <div className="flex items-center justify-end gap-1.5 text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2.5 py-1 rounded-lg text-[11px] font-extrabold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>¡Usted está al día! Sin saldo pendiente</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

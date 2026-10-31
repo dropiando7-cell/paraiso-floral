@@ -21,6 +21,7 @@ import {
   formatCorrelativoFacturaRecibo,
   cleanNotasRecibo
 } from '@/lib/cxc-recibo-service';
+import { numeroALetrasLempiras } from '@/utils/facturaUtils';
 
 interface ModalReciboAbonoProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     setIsProcessing(true);
     setCopiedSuccess(false);
     try {
-      await copyInvoiceImageToClipboard(captureRef.current, { exactWidth: true, width: 420, scale: 3 });
+      await copyInvoiceImageToClipboard(captureRef.current, { exactWidth: true, width: 440, scale: 3 });
       setCopiedSuccess(true);
       toast.success('¡Recibo de Abono copiado en formato vertical móvil! Presiona Ctrl + V en WhatsApp.', {
         duration: 5000,
@@ -92,7 +93,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     setIsProcessing(true);
     setCopiedSuccess(false);
     try {
-      await copyInvoiceImageToClipboard(captureRef.current, { exactWidth: true, width: 420, scale: 3 });
+      await copyInvoiceImageToClipboard(captureRef.current, { exactWidth: true, width: 440, scale: 3 });
       setCopiedSuccess(true);
       toast.success('¡Recibo copiado! Abriendo WhatsApp Web para que presiones Ctrl + V...', {
         duration: 5000,
@@ -112,7 +113,7 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
     if (!captureRef.current) return;
     setIsProcessing(true);
     try {
-      const blob = await captureInvoiceImageBlob(captureRef.current, { exactWidth: true, width: 420, scale: 3 });
+      const blob = await captureInvoiceImageBlob(captureRef.current, { exactWidth: true, width: 440, scale: 3 });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       const safeName = (recibo.cliente.nombre || 'Cliente').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -265,146 +266,226 @@ export default function ModalReciboAbono({ isOpen, onClose, recibo }: ModalRecib
         )}
 
         {/* Área de Vista Previa del Recibo Capturable */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-200/75 flex justify-center items-start">
-          <div className="overflow-x-auto max-w-full rounded-2xl shadow-xl border border-slate-200/90 bg-white">
-            {/* TARJETA DE RECIBO VERTICAL PARA MÓVIL (SIN RELLENO LATERAL EXTRA) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-200/80 flex justify-center items-start">
+          <div className="overflow-x-auto max-w-full rounded-2xl shadow-lg border border-slate-300/80">
+            {/* LIENZO EXTERIOR CON MÁRGENES LATERALES PARA SIMULAR EL TICKET RECORTADO */}
             <div
               ref={captureRef}
               data-capture-exact-width="true"
-              className="w-[420px] bg-white px-7 py-8 text-slate-900"
+              className="w-[440px] bg-[#eef2f6] px-6 pt-6 pb-8 text-slate-900"
               style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
             >
-              {/* 1. Encabezado con Logo, Razón Social y Badge RECIBO DE ABONO / CAJA */}
-              <div className="flex items-center justify-between gap-2.5 mb-6">
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src="/icon.png"
-                    alt="Paraíso Floral"
-                    className="w-11 h-11 object-contain shrink-0"
-                  />
-                  <div className="leading-tight">
-                    <p className="text-[13px] font-bold text-slate-900 tracking-tight uppercase">
-                      DISTRIBUIDORA PARAÍSO
-                    </p>
-                    <p className="text-[13px] font-bold text-slate-900 tracking-tight uppercase">
-                      FLORAL, S. DE R.L. DE C.V.
-                    </p>
+              {/* PAPEL BLANCO DEL TICKET INTERNO */}
+              <div className="relative bg-white rounded-t-xl shadow-[0_8px_24px_rgba(15,23,42,0.08)] border-x border-t border-slate-200/90 px-6 pt-6 pb-5">
+                {/* Franja decorativa superior */}
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 rounded-t-xl" />
+
+                {/* 1. Encabezado con Logo, Razón Social y Badge RECIBO DE ABONO / CAJA */}
+                <div className="flex items-center justify-between gap-2 mb-5 pt-1">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src="/icon.png"
+                      alt="Paraíso Floral"
+                      className="w-10 h-10 object-contain shrink-0"
+                    />
+                    <div className="leading-tight">
+                      <p className="text-[12.5px] font-black text-slate-900 tracking-tight uppercase">
+                        DISTRIBUIDORA PARAÍSO
+                      </p>
+                      <p className="text-[11.5px] font-bold text-slate-700 tracking-tight uppercase">
+                        FLORAL, S. DE R.L. DE C.V.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    <span className="inline-block px-2.5 py-1 bg-emerald-50 text-emerald-900 font-extrabold text-[10px] rounded-md border border-emerald-200 uppercase tracking-wider">
+                      RECIBO DE CAJA
+                    </span>
                   </div>
                 </div>
 
-                <div className="shrink-0">
-                  <span className="inline-block px-2.5 py-1.5 bg-slate-100 text-slate-900 font-bold text-[10.5px] rounded-lg border border-slate-300 uppercase tracking-wide">
-                    RECIBO DE ABONO / CAJA
-                  </span>
-                </div>
-              </div>
-
-              {/* 2. Monto Principal Abonado e Indicador de Éxito */}
-              <div className="mb-5">
-                <div className="text-[42px] font-extrabold text-slate-950 tracking-tight leading-none mb-2.5">
-                  L. {Number(recibo.monto || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center shrink-0">
-                    <Check size={13} strokeWidth={3.5} />
-                  </span>
-                  <span className="text-[15.5px] font-medium text-slate-800">
-                    Abono Aplicado Exitosamente
-                  </span>
-                </div>
-              </div>
-
-              {/* Línea divisoria */}
-              <div className="border-t border-slate-200 my-5" />
-
-              {/* 3. DETALLES DEL RECIBO */}
-              <div className="mb-5">
-                <h4 className="text-[11.5px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
-                  DETALLES DEL RECIBO
-                </h4>
-                <div className="text-[14px] text-slate-800 space-y-0.5 leading-snug">
-                  <p>
-                    Recibo de Caja / Abono N°: <span className="font-semibold text-slate-950">{recibo.correlativo}</span>
+                {/* 2. Monto Principal Abonado e Indicador de Éxito */}
+                <div className="mb-4">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Monto Abonado
                   </p>
-                  <p>Fecha: {fechaFormateada}</p>
-                  <p>Usuario: {recibo.usuarioNombre || 'Departamento de Caja'}</p>
+                  <div className="text-[38px] font-black text-slate-950 tracking-tight leading-none mb-2">
+                    L. {Number(recibo.monto || 0).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-tight mb-2.5">
+                    ***{numeroALetrasLempiras(recibo.monto)}***
+                  </p>
+                  <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center shrink-0">
+                      <Check size={11} strokeWidth={3.5} />
+                    </span>
+                    <span className="text-[12.5px] font-bold text-emerald-900">
+                      Abono Aplicado Exitosamente
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* 4. CLIENTE */}
-              <div className="mb-5">
-                <h4 className="text-[11.5px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
-                  CLIENTE
-                </h4>
-                <div className="text-[14px] text-slate-800 space-y-0.5 leading-snug">
-                  <p className="font-semibold text-slate-950">{recibo.cliente.nombre}</p>
-                  <p>RTN/DNI: {recibo.cliente.rtn || 'Consumidor Final'}</p>
-                  <p>Tel: {recibo.cliente.telefono || 'No registrado'}</p>
-                </div>
-              </div>
+                {/* Línea divisoria punteada estilo recibo */}
+                <div className="border-t border-dashed border-slate-300 my-4" />
 
-              {/* 5. HISTORIAL DE CUENTA / DETALLE DEL ABONO */}
-              <div className="mb-6">
-                <h4 className="text-[11.5px] font-extrabold text-slate-950 uppercase tracking-wider mb-1">
-                  HISTORIAL DE CUENTA
-                </h4>
-                <div className="text-[14px] text-slate-800 space-y-0.5 leading-snug">
-                  {itemsAfectados.length === 0 ? (
-                    <p>Factura Afectada: Abono General a Cuenta CxC</p>
-                  ) : itemsAfectados.length === 1 ? (
-                    <p>Factura Afectada: {itemsAfectados[0].etiqueta}</p>
-                  ) : (
-                    <div>
-                      <p className="font-medium text-slate-900">Facturas Afectadas ({itemsAfectados.length}):</p>
-                      <div className="pl-2.5 mt-0.5 space-y-0.5 text-[13px] text-slate-700 border-l-2 border-slate-200">
-                        {itemsAfectados.map((it, idx) => (
-                          <p key={idx}>
-                            • {it.etiqueta}{' '}
-                            <span className="text-slate-500">
-                              (L. {it.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })})
-                            </span>
-                          </p>
-                        ))}
-                      </div>
+                {/* 3. TABLA DE FILAS ESTILO COMPROBANTE BANCARIO (Fecha, Recibo, Cliente, Método, Referencia) */}
+                <div className="divide-y divide-slate-100 text-[13px] mb-4">
+                  <div className="py-2 flex items-center justify-between gap-3">
+                    <span className="text-slate-500 font-medium">Recibo N°</span>
+                    <span className="font-bold text-slate-900 font-mono">{recibo.correlativo}</span>
+                  </div>
+                  <div className="py-2 flex items-center justify-between gap-3">
+                    <span className="text-slate-500 font-medium">Fecha y Hora</span>
+                    <span className="font-semibold text-slate-800">{fechaFormateada}</span>
+                  </div>
+                  <div className="py-2 flex items-start justify-between gap-3">
+                    <span className="text-slate-500 font-medium shrink-0">Cliente</span>
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900 leading-snug">{recibo.cliente.nombre}</p>
+                      {recibo.cliente.rtn && (
+                        <p className="text-[11px] text-slate-500 font-mono">RTN: {recibo.cliente.rtn}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="py-2 flex items-center justify-between gap-3">
+                    <span className="text-slate-500 font-medium shrink-0">Forma de Pago</span>
+                    <span className="font-semibold text-slate-800 text-right">{formaPagoTexto}</span>
+                  </div>
+                  <div className="py-2 flex items-center justify-between gap-3">
+                    <span className="text-slate-500 font-medium">Referencia</span>
+                    <span className="font-mono font-semibold text-slate-800">
+                      {recibo.referencia && recibo.referencia.trim() ? recibo.referencia : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="py-2 flex items-center justify-between gap-3">
+                    <span className="text-slate-500 font-medium">Atendido por</span>
+                    <span className="font-medium text-slate-700 text-right">
+                      {recibo.usuarioNombre || 'Departamento de Caja'}
+                    </span>
+                  </div>
+                  {notasLimpias && (
+                    <div className="py-2 flex items-start justify-between gap-3">
+                      <span className="text-slate-500 font-medium shrink-0">Concepto / Nota</span>
+                      <span className="text-slate-700 text-right text-[12px]">{notasLimpias}</span>
                     </div>
                   )}
-
-                  <p>
-                    Saldo Anterior: L.{' '}
-                    {Number(recibo.saldoAnterior || 0).toLocaleString('es-HN', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                  </p>
-                  <p>Forma de Pago: {formaPagoTexto}</p>
-                  <p>Referencia: {recibo.referencia && recibo.referencia.trim() ? recibo.referencia : 'N/A'}</p>
-                  {notasLimpias && <p className="text-[13px] text-slate-600 pt-0.5">Nota: {notasLimpias}</p>}
                 </div>
-              </div>
 
-              {/* 6. Caja Gris de RESUMEN DE SALDO */}
-              <div className="bg-slate-100 border border-slate-300 rounded-xl px-4 py-3.5 mb-5">
-                <p className="text-[12px] font-medium text-slate-700 uppercase tracking-wide">
-                  RESUMEN DE SALDO
-                </p>
-                <p className="text-[17px] font-extrabold text-slate-950 tracking-tight mt-0.5">
-                  NUEVO SALDO PENDIENTE: L.{' '}
-                  {Number(recibo.nuevoSaldoPendiente || 0).toLocaleString('es-HN', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })}
-                </p>
-                {recibo.excedenteMonedero && recibo.excedenteMonedero > 0.009 ? (
-                  <p className="text-[11.5px] font-semibold text-emerald-700 mt-1">
-                    + L. {recibo.excedenteMonedero.toLocaleString('es-HN', { minimumFractionDigits: 2 })} acreditados en Saldo a Favor (Monedero)
+                {/* 4. DESGLOSE DE FACTURAS AFECTADAS */}
+                <div className="bg-slate-50/90 border border-slate-200/80 rounded-lg px-3.5 py-2.5 mb-4">
+                  <p className="text-[10.5px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Aplicación del Abono
                   </p>
-                ) : null}
+                  {itemsAfectados.length === 0 ? (
+                    <div className="flex justify-between items-center text-[12.5px]">
+                      <span className="text-slate-700 font-medium">Abono General a Cuenta CxC</span>
+                      <span className="font-mono font-bold text-slate-900">
+                        L. {Number(recibo.monto || 0).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {itemsAfectados.map((it, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-[12.5px]">
+                          <span className="text-slate-700 font-medium">
+                            Factura <span className="font-mono font-semibold text-slate-900">{it.etiqueta}</span>
+                          </span>
+                          <span className="font-mono font-bold text-slate-900">
+                            L. {it.monto.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. RESUMEN DE SALDO (CON DETECCIÓN DE CUENTA AL DÍA / SALDO CERO) */}
+                {(() => {
+                  const saldoRestante = Math.max(0, Number(recibo.nuevoSaldoPendiente || 0));
+                  const estaAlDia = saldoRestante <= 0.01;
+                  return (
+                    <div
+                      className={`rounded-xl px-4 py-3 mb-4 border ${
+                        estaAlDia
+                          ? 'bg-emerald-50/90 border-emerald-300'
+                          : 'bg-slate-100/90 border-slate-300'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center text-[12px] text-slate-600 mb-1">
+                        <span className="font-medium">Saldo Anterior:</span>
+                        <span className="font-mono font-semibold">
+                          L.{' '}
+                          {Number(recibo.saldoAnterior || 0).toLocaleString('es-HN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[12px] text-emerald-700 mb-1.5 pb-1.5 border-b border-slate-200/80">
+                        <span className="font-medium">(-) Abono Recibido:</span>
+                        <span className="font-mono font-bold">
+                          - L.{' '}
+                          {Number(recibo.monto || 0).toLocaleString('es-HN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[12px] font-extrabold uppercase tracking-wide text-slate-900">
+                          Nuevo Saldo Pendiente:
+                        </span>
+                        <span
+                          className={`text-[18px] font-black font-mono tracking-tight ${
+                            estaAlDia ? 'text-emerald-700' : 'text-slate-950'
+                          }`}
+                        >
+                          L.{' '}
+                          {saldoRestante.toLocaleString('es-HN', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+
+                      {estaAlDia && (
+                        <div className="mt-2 pt-2 border-t border-emerald-200/80 flex items-center gap-1.5 text-emerald-800">
+                          <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                          <span className="text-[12px] font-extrabold">
+                            ¡Felicidades, su cuenta se encuentra al día! Sin saldo pendiente.
+                          </span>
+                        </div>
+                      )}
+
+                      {recibo.excedenteMonedero && recibo.excedenteMonedero > 0.009 ? (
+                        <p className="text-[11.5px] font-bold text-emerald-700 mt-1.5">
+                          + L. {recibo.excedenteMonedero.toLocaleString('es-HN', { minimumFractionDigits: 2 })} acreditados en su Saldo a Favor (Monedero)
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+
+                {/* 6. Pie de Comprobante */}
+                <p className="text-[11px] text-center text-slate-500 leading-relaxed pt-1">
+                  ¡Gracias por su pago! Comprobante oficial generado por Distribuidora Paraíso Floral, S. de R.L. de C.V.
+                </p>
               </div>
 
-              {/* 7. Pie de Comprobante (Limpio sin el botón negro para captura de imagen) */}
-              <p className="text-[12px] text-slate-600 leading-relaxed">
-                ¡Gracias por su abono! Comprobante digital de Recibo de Abono / Caja generado por Distribuidora Paraíso Floral, S. de R.L. de C.V.
-              </p>
+              {/* BORDE INFERIOR CORTADO EN ZIGZAG (DIENTES DE TICKET SIMULADO) */}
+              <div className="w-full overflow-hidden leading-none -mt-[1px] drop-shadow-[0_6px_8px_rgba(15,23,42,0.07)]">
+                <svg
+                  viewBox="0 0 392 14"
+                  className="w-full h-[14px] block"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M0,0 L392,0 L392,2 L385,13 L378,2 L371,13 L364,2 L357,13 L350,2 L343,13 L336,2 L329,13 L322,2 L315,13 L308,2 L301,13 L294,2 L287,13 L280,2 L273,13 L266,2 L259,13 L252,2 L245,13 L238,2 L231,13 L224,2 L217,13 L210,2 L203,13 L196,2 L189,13 L182,2 L175,13 L168,2 L161,13 L154,2 L147,13 L140,2 L133,13 L126,2 L119,13 L112,2 L105,13 L98,2 L91,13 L84,2 L77,13 L70,2 L63,13 L56,2 L49,13 L42,2 L35,13 L28,2 L21,13 L14,2 L7,13 L0,2 Z"
+                    fill="#ffffff"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
         </div>

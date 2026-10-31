@@ -562,12 +562,17 @@ export default function ModalEstadoCuentaImagen({
                       {data.resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Total Pendiente'}
                     </span>
                     <span
-                      className={`text-3xl font-black font-mono tracking-tight ${
+                      className={`text-3xl font-black font-mono tracking-tight block ${
                         data.resumen.saldoTotal < 0 ? 'text-blue-600' : 'text-emerald-700'
                       }`}
                     >
                       L. {Math.abs(data.resumen.saldoTotal).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
                     </span>
+                    {Math.abs(data.resumen.saldoTotal) <= 0.01 && (
+                      <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-black uppercase tracking-wider">
+                        ✓ Usted está al día
+                      </span>
+                    )}
                   </div>
                 </div>
 
